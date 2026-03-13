@@ -62,13 +62,17 @@ Each skill has a SKILL.md file. Read the relevant skill before performing any ma
 ai-skills/
 ├── claude/
 │   └── skills/
-│       └── documentation/
-│           └── SKILL.md          # Documentation writing skill
-├── cursor/                       # Rules for Cursor (planned)
-├── copilot/                      # Instructions for GitHub Copilot (planned)
-├── codex/                        # Instructions for OpenAI Codex (planned)
+│       ├── documentation/
+│       │   ├── SKILL.md                  # Documentation writing skill
+│       │   └── references/
+│       │       └── examples.md           # Real-world documentation examples
+│       └── helm-migration/
+│           └── SKILL.md                  # Kubernetes YAML to Helm migration skill
+├── cursor/                               # Rules for Cursor (planned)
+├── copilot/                              # Instructions for GitHub Copilot (planned)
+├── codex/                                # Instructions for OpenAI Codex (planned)
 ├── shared/
-│   └── conventions/              # Cross-tool conventions (planned)
+│   └── conventions/                      # Cross-tool conventions (planned)
 └── README.md
 ```
 
@@ -158,7 +162,8 @@ cp -r ~/ai-skills/claude/skills/documentation /path/to/project/.claude/skills/
 
 | Skill | Triggers | What It Does | Status |
 |-------|----------|--------------|--------|
-| **documentation** | Requests to create, update, or improve docs. Keywords: README, SETUP, TECHNICAL, CHANGELOG, "document this", "write the docs", "update the readme" | Analyzes the project first, then creates all documentation files the project actually needs | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+| **documentation** | README, SETUP, TECHNICAL, CHANGELOG, "document this", "write the docs" | Analyzes the project first, then creates all documentation files the project actually needs | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+| **helm-migration** | "migrate to helm", "convert yaml to helm", "generate values.yaml", "yaml to helm" | Converts Kubernetes YAML manifests to Helm values.yaml and env.yaml following your chart template structure | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
 
 ### documentation
 
@@ -212,6 +217,48 @@ After running the prompt, check that:
 - [ ] `README.md` has a centered header with badges
 - [ ] All relevant docs were created based on what the project actually is
 - [ ] No generic or empty documents were created
+
+### helm-migration
+
+**File**: `claude/skills/helm-migration/SKILL.md`
+
+Converts Kubernetes YAML manifest files to Helm chart files following your chart template structure. Generates two files per migration:
+
+| File | Contents |
+|------|---------|
+| `values.yaml` | Workload definition — deployment, daemonset, containers, ports, probes, resources |
+| `env.yaml` | Environment resources — secrets, configmaps, PVCs |
+
+Use any of these phrases to trigger the helm-migration skill:
+
+- `Migrate this YAML to Helm`
+- `Convert this YAML to values.yaml`
+- `Generate values.yaml for this manifest`
+- `Helm migration`
+
+For best results, use this prompt:
+```
+Migrate this YAML-file to Helm following the helm-migration skill.
+Charts template path: /path/to/your/charts-template
+Source YAML-file: /path/to/your/manifest.yaml
+Save files to: /path/to/destination/
+```
+
+**What the skill always does:**
+- Reads your charts template structure before generating anything
+- Removes `tolerations` from all generated files — no exceptions
+- Adds explanatory comments to every section
+- Generates `env.yaml` only when secrets, configmaps or PVCs are present
+- Preserves `secretKeyRef` references in `values.yaml` and creates empty secret entries in `env.yaml` with a warning to fill in values
+
+#### How to verify the skill was used
+
+After running the prompt, check that:
+- [ ] Claude read the charts template before generating files
+- [ ] `values.yaml` follows your chart template structure exactly
+- [ ] `env.yaml` was created if secrets/configmaps/PVCs were present
+- [ ] No `tolerations` appear in any generated file
+- [ ] All sections have explanatory comments
 
 ---
 
