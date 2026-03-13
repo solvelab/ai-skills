@@ -2,9 +2,11 @@
 name: documentation
 description: Creates and updates complete project documentation following a three-tier model (README.md, docs/SETUP.md, docs/TECHNICAL.md). Use this skill whenever the user mentions README, docs, SETUP, TECHNICAL, CHANGELOG, "document this", "write the docs", "update the readme", "explain how this works", "help someone understand this project", or asks to document a codebase for AI tools or new developers. ALWAYS creates all three documentation tiers unless the user explicitly says otherwise. Do NOT use for non-software documentation tasks.
 metadata:
-  author: solvelab
+  author: your-org
   version: 1.1.0
   category: documentation
+license: MIT
+compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 ## CRITICAL: Always Analyze Before Documenting
@@ -506,3 +508,21 @@ Use semantic-release format:
 
 **Problem**: Setup guide is missing expected output for commands.
 **Solution**: Every command block must show what success looks like with a comment like `# Expected: ...`
+
+---
+
+## Trigger Test Cases
+
+Should trigger on:
+- "Document this project"
+- "Write the docs for this codebase"
+- "Update the README"
+- "Create setup and technical documentation"
+- "Help someone understand this project"
+- "Document this for AI tools"
+
+Should NOT trigger on:
+- "Write a blog post"
+- "Create a presentation"
+- "Fix this bug"
+- "Review my code"

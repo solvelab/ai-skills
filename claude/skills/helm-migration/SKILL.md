@@ -1,10 +1,12 @@
 ---
 name: helm-migration
-description: Converts Kubernetes YAML manifest files to Helm chart values.yaml and env.yaml following the your-org charts template structure. Use this skill whenever the user mentions "migrate to helm", "convert yaml to helm", "generate values.yaml", "helm migration", "yaml to helm", or shares a Kubernetes YAML file and asks for a values.yaml or env.yaml. Always reads the charts template structure before generating output. Always removes tolerations. Always generates both values.yaml and env.yaml when applicable. Always adds explanatory comments to each section.
+description: Converts Kubernetes YAML manifests to Helm values.yaml and env.yaml following your chart template structure. Use when user mentions "migrate to helm", "convert yaml to helm", "generate values.yaml", "helm migration", "yaml to helm", shares a Kubernetes YAML and asks for Helm output. Always removes tolerations. Always generates both files when applicable. Requires a local charts template repository.
 metadata:
   author: your-org
   version: 1.0.0
   category: devops
+license: MIT
+compatibility: Requires a Helm charts template repository accessible on the local filesystem. Works best in Claude Code.
 ---
 
 # Helm Migration Skill
@@ -304,3 +306,29 @@ Save files to: /path/to/output/helm/
 
 **Problem**: Inline env vars mixed with secrets and configmaps.
 **Solution**: Non-sensitive inline vars go to `configmap.data` in env.yaml. Sensitive values go to `secret.data`. References stay in values.yaml.
+
+---
+
+## References
+
+See `references/examples.md` for complete before/after examples of:
+- DaemonSet with initContainers
+- Deployment with secretKeyRef and commented resource limits
+- Deployment with PVC
+
+---
+
+## Trigger Test Cases
+
+Should trigger on:
+- "Migrate this YAML to Helm"
+- "Convert this manifest to values.yaml"
+- "Generate values.yaml for this deployment"
+- "I need to helm-migrate this file"
+- "Create env.yaml from this YAML"
+
+Should NOT trigger on:
+- "Update the README"
+- "Fix this Python bug"
+- "Create a docker-compose file"
+- "Write documentation for this project"
