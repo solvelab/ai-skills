@@ -67,7 +67,9 @@ ai-skills/
 │       │   └── references/
 │       │       └── examples.md           # Real-world documentation examples
 │       └── helm-migration/
-│           └── SKILL.md                  # Kubernetes YAML to Helm migration skill
+│           ├── SKILL.md                  # Kubernetes YAML to Helm migration skill
+│           └── references/
+│               └── examples.md           # Before/after migration examples
 ├── cursor/                               # Rules for Cursor (planned)
 ├── copilot/                              # Instructions for GitHub Copilot (planned)
 ├── codex/                                # Instructions for OpenAI Codex (planned)
@@ -188,8 +190,10 @@ Use any of these phrases to trigger the documentation skill:
 | Microservices | `README.md`, `docs/SETUP.md`, `docs/TECHNICAL.md`, `docs/DEPLOYMENT.md`, `docs/EVENTS.md` |
 
 For best results, use this prompt:
-> Document this project following the documentation skill.
-> Analyze the codebase and create all documentation files this project needs.
+```
+Document this project following the documentation skill.
+Analyze the codebase and create all documentation files this project needs.
+```
 
 > 💡 **Tip:** Skills activate automatically — you don't need to reference them by name. Just describe what you want and Claude reads the right skill for the task.
 
@@ -202,8 +206,10 @@ claude
 ```
 
 Then paste this prompt:
-> Document this project following the documentation skill.
-> Analyze the codebase and create all documentation files this project needs.
+```
+Document this project following the documentation skill.
+Analyze the codebase and create all documentation files this project needs.
+```
 
 Watch for these signs that the skill is working:
 - Claude reads the codebase **before** writing anything

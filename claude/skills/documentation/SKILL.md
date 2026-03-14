@@ -511,6 +511,19 @@ Use semantic-release format:
 
 ---
 
+## How to Use
+
+### Prompt
+
+Open your project in Claude Code and paste this prompt:
+
+```
+Document this project following the documentation skill.
+Analyze the codebase and create all documentation files this project needs.
+```
+
+---
+
 ## Trigger Test Cases
 
 Should trigger on:
