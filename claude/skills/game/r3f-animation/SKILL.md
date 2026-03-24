@@ -1204,6 +1204,92 @@ group (position lerp)
 - **Snapping between idle/walk?** Reduce smoothDamp speed (0.1 → 0.05)
 - **For running**: Increase `WALK_FREQ` to 8-10, `LEG_AMPLITUDE` to 0.7, `BODY_BOB_HEIGHT` to 0.06
 
+## Procedural Jump Animation (Point-to-Point)
+
+Smooth jump between two 3D positions with squash & stretch. No physics engine needed.
+
+### Key Principles
+
+1. **3 phases**: Prepare (squash down) → Fly (parabolic arc) → Land (squash on impact)
+2. **Y arc**: `sin(t * PI) * height` — natural parabola, 0 at both ends, peak at midpoint
+3. **XZ movement**: ease-in-out cubic — starts slow, fast in middle, slow at end
+4. **Squash & stretch**: compress body before jump, elongate in air, compress on landing
+
+### Reference Values
+
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| Prepare duration | 0.15s | Anticipation squash |
+| Fly duration | 0.6s | Arc through air |
+| Land duration | 0.2s | Impact absorption |
+| Jump height | 1.5-2.0 units | Peak of arc |
+| Prepare squashY | 0.7 | Body compresses |
+| Prepare stretchXZ | 1.15 | Body widens |
+| Flight stretchY | 1.15 | Body elongates in air |
+| Landing squashY | 0.75 | Impact compression |
+
+### Implementation
+
+```tsx
+const JUMP_HEIGHT = 1.8;
+const PREPARE_DURATION = 0.15;
+const FLY_DURATION = 0.6;
+const LAND_DURATION = 0.2;
+
+type JumpPhase = 'idle' | 'prepare' | 'fly' | 'land';
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// In useFrame:
+if (phase === 'prepare') {
+  const t = Math.min(1, timer / PREPARE_DURATION);
+  const squash = 1 - 0.3 * Math.sin(t * Math.PI / 2);
+  const stretch = 1 + 0.15 * Math.sin(t * Math.PI / 2);
+  body.scale.set(stretch, squash, stretch);
+  // Stay at start position
+}
+
+if (phase === 'fly') {
+  const t = Math.min(1, timer / FLY_DURATION);
+  // XZ: ease-in-out
+  const eased = easeInOutCubic(t);
+  const x = startX + (endX - startX) * eased;
+  const z = startZ + (endZ - startZ) * eased;
+  // Y: sin arc
+  const baseY = startY + (endY - startY) * eased;
+  const arcY = Math.sin(t * Math.PI) * JUMP_HEIGHT;
+  group.position.set(x, baseY + arcY, z);
+
+  // Squash/stretch during flight
+  if (t < 0.3) body.scale.set(0.9, 1.15, 0.9);      // rising: stretch
+  else if (t < 0.7) body.scale.set(1, 1, 1);          // peak: normal
+  else body.scale.set(0.92, 1.1, 0.92);               // falling: slight stretch
+}
+
+if (phase === 'land') {
+  const t = Math.min(1, timer / LAND_DURATION);
+  group.position.copy(endPos);
+  if (t < 0.4) {
+    // Impact squash
+    body.scale.set(1.12, 0.75, 1.12);
+  } else {
+    // Recover to normal
+    const r = (t - 0.4) / 0.6;
+    body.scale.set(1.12 - 0.12 * r, 0.75 + 0.25 * r, 1.12 - 0.12 * r);
+  }
+}
+```
+
+### Tuning Tips
+
+- **Floaty jump?** Reduce `FLY_DURATION` (0.6 → 0.4) or `JUMP_HEIGHT`
+- **Too snappy?** Increase `PREPARE_DURATION` (0.15 → 0.25)
+- **No weight?** Increase squash values (0.7 → 0.6) for more compression
+- **Board game hop**: Use shorter `JUMP_HEIGHT` (1.0) and faster `FLY_DURATION` (0.4)
+- **Long distance**: Increase `JUMP_HEIGHT` proportionally to XZ distance
+
 ## See Also
 
 - `r3f-loaders` - Loading animated GLTF models
