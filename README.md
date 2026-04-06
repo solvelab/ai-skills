@@ -5,8 +5,9 @@
   **Personal collection of reusable AI skills and conventions for coding assistants.**
 
   [![Claude Code](https://img.shields.io/badge/Claude_Code-supported-8A2BE2?logo=anthropic&logoColor=white)](https://claude.ai)
-  [![GitHub Copilot](https://img.shields.io/badge/GitHub_Copilot-planned-24292e?logo=github&logoColor=white)](https://github.com/features/copilot)
-  [![OpenAI Codex](https://img.shields.io/badge/OpenAI_Codex-planned-412991?logo=openai&logoColor=white)](https://openai.com)
+  [![OpenAI Codex](https://img.shields.io/badge/OpenAI_Codex-supported-412991?logo=openai&logoColor=white)](https://openai.com)
+  [![Cursor](https://img.shields.io/badge/Cursor-supported-000000?logo=cursor&logoColor=white)](https://cursor.com)
+  [![GitHub Copilot](https://img.shields.io/badge/GitHub_Copilot-supported-24292e?logo=github&logoColor=white)](https://github.com/features/copilot)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)]()
   [![Install](https://img.shields.io/badge/install-one--line-brightgreen?logo=gnubash&logoColor=white)](#-install)
 
@@ -14,7 +15,7 @@
 
 Each skill is an instruction file that teaches an AI tool how to perform a specific type of task — like writing documentation, creating commits, or following code conventions.
 
-Currently supports **Claude Code**, with placeholder folders for Cursor, GitHub Copilot, and OpenAI Codex.
+Supports **Claude Code**, **OpenAI Codex**, **Cursor**, and **GitHub Copilot** from a single source of truth — no duplication.
 
 ---
 
@@ -23,20 +24,27 @@ Currently supports **Claude Code**, with placeholder folders for Cursor, GitHub 
 ### Option A — One-line terminal install
 
 ```bash
+# Claude Code (default)
 curl -sSL https://raw.githubusercontent.com/solvelab/ai-skills/master/install.sh | bash
+
+# OpenAI Codex
+curl -sSL https://raw.githubusercontent.com/solvelab/ai-skills/master/install.sh | bash -s -- --tool codex
+
+# All tools
+curl -sSL https://raw.githubusercontent.com/solvelab/ai-skills/master/install.sh | bash -s -- --tool all
 ```
 
 This will:
 - Clone this repository into `~/ai-skills`
-- Configure Claude Code globally via `~/.claude/CLAUDE.md`
-- Skills will be available in every project automatically
+- Configure the selected AI tool to use the skills
+- Skills will be available automatically
 
 ### Option B — AI prompt install
 
-Paste this into Claude Code, GitHub Copilot, or any AI coding assistant:
+Paste this into Claude Code, Codex, or any AI coding assistant:
 
 > Install ai-skills from https://github.com/solvelab/ai-skills into ~/ai-skills
-> and configure Claude Code globally by adding the skills path to ~/.claude/CLAUDE.md.
+> and configure my tool globally by adding the skills path to the appropriate config file.
 
 ### Option C — Manual install
 
@@ -44,14 +52,30 @@ Paste this into Claude Code, GitHub Copilot, or any AI coding assistant:
 # 1. Clone the repository
 git clone https://github.com/solvelab/ai-skills.git ~/ai-skills
 
-# 2. Add to ~/.claude/CLAUDE.md
-mkdir -p ~/.claude
+# 2. Configure your tool (choose one):
+
+# Claude Code — add to ~/.claude/CLAUDE.md
 echo '
 ## Skills
 
 Skills are located at ~/ai-skills/claude/skills/.
 Each skill has a SKILL.md file. Read the relevant skill before performing any matching task.
 ' >> ~/.claude/CLAUDE.md
+
+# OpenAI Codex — add to ~/.codex/AGENTS.md
+echo '
+# AI Skills
+
+Skills are located at ~/ai-skills/codex/skills/.
+Each skill has an AGENTS.md file with instructions for specific tasks.
+' >> ~/.codex/AGENTS.md
+
+# Cursor — generate inline .mdc files
+cd ~/ai-skills && ./generate.sh
+# Then copy cursor/rules/*.mdc to your project's .cursor/rules/
+
+# GitHub Copilot — copy instruction files
+cp ~/ai-skills/copilot/instructions/*.instructions.md /path/to/project/.github/instructions/
 ```
 
 ---
@@ -60,103 +84,78 @@ Each skill has a SKILL.md file. Read the relevant skill before performing any ma
 
 ```
 ai-skills/
-├── claude/
-│   └── skills/
-│       ├── documentation/
-│       │   ├── SKILL.md                  # Documentation writing skill
-│       │   └── references/
-│       │       └── examples.md           # Real-world documentation examples
-│       └── helm-migration/
-│           ├── SKILL.md                  # Kubernetes YAML to Helm migration skill
-│           └── references/
-│               └── examples.md           # Before/after migration examples
-├── cursor/                               # Rules for Cursor (planned)
-├── copilot/                              # Instructions for GitHub Copilot (planned)
-├── codex/                                # Instructions for OpenAI Codex (planned)
 ├── shared/
-│   └── conventions/                      # Cross-tool conventions (planned)
+│   ├── conventions/                      # Cross-tool coding standards
+│   └── skills/                           # Shared skill content (single source of truth)
+│       ├── documentation/
+│       │   ├── content.md                # Documentation writing instructions
+│       │   └── references/examples.md    # Real-world examples
+│       ├── helm-migration/
+│       │   ├── content.md                # Helm migration instructions
+│       │   └── references/examples.md    # Before/after examples
+│       └── game/
+│           └── r3f-*/content.md          # React Three Fiber skills (11 topics)
+├── claude/skills/                        # Claude Code wrappers (SKILL.md)
+├── codex/skills/                         # OpenAI Codex wrappers (AGENTS.md)
+├── cursor/rules/                         # Cursor rules (.mdc, generated)
+├── copilot/instructions/                 # GitHub Copilot wrappers (.instructions.md)
+├── generate.sh                           # Generates inline wrappers (Cursor)
+├── install.sh                            # One-line installer with --tool flag
 └── README.md
 ```
 
 | Folder | Purpose |
 |--------|---------|
-| `claude/skills/` | Skill definitions for Claude Code — one folder per skill |
-| `cursor/` | Rules and configurations for Cursor |
-| `copilot/` | Instructions for GitHub Copilot |
-| `codex/` | Instructions for OpenAI Codex |
+| `shared/skills/` | Skill content — written once, shared by all tools |
+| `claude/skills/` | Claude Code wrappers with YAML frontmatter for skill detection |
+| `codex/skills/` | OpenAI Codex wrappers using `@./path` file includes |
+| `cursor/rules/` | Cursor .mdc rules with content inlined (auto-generated) |
+| `copilot/instructions/` | GitHub Copilot wrappers with markdown link references |
 | `shared/conventions/` | Coding standards shared across all tools |
 
 ---
 
-## 🧩 How Claude Code Skills Work
+## 🔀 Multi-Tool Architecture
+
+Skills are split into two parts:
+
+1. **Content** (tool-agnostic) — the actual instructions, templates, and rules. Lives in `shared/skills/`. Written once.
+2. **Wrapper** (tool-specific) — a thin file that tells the AI tool to read the shared content. Lives in the tool directory.
+
+```
+shared/skills/documentation/content.md    ← Single source of truth (530 lines)
+        │
+        ├── claude/skills/documentation/SKILL.md        ← YAML frontmatter + "Read content.md"
+        ├── codex/skills/documentation/AGENTS.md         ← @../../shared/.../content.md
+        ├── cursor/rules/documentation.mdc               ← Content inlined (auto-generated)
+        └── copilot/instructions/documentation.md        ← Markdown link to content.md
+```
+
+| Tool | Wrapper format | File include support | Wrapper size |
+|------|---------------|---------------------|-------------|
+| **Claude Code** | `SKILL.md` (YAML + MD) | Natural language instruction | ~15 lines |
+| **OpenAI Codex** | `AGENTS.md` (plain MD) | `@./path` native syntax | ~4 lines |
+| **Cursor** | `.mdc` (YAML + MD) | None — content inlined via `generate.sh` | Full content |
+| **GitHub Copilot** | `.instructions.md` (plain MD) | Markdown links `[label](path)` | ~5 lines |
+
+---
+
+## 🧩 How Skills Work
 
 ### What is a skill?
 
-A skill is a markdown instruction file (`SKILL.md`) that Claude reads before performing a task. It contains patterns, rules, and examples that guide Claude to produce consistent, high-quality output for a specific type of work.
+A skill is a markdown instruction file that an AI reads before performing a task. It contains patterns, rules, and examples that guide the AI to produce consistent, high-quality output.
 
-Think of skills as reusable expertise — instead of explaining your documentation style every time, you write it once in a skill file and Claude follows it automatically.
+Think of skills as reusable expertise — instead of explaining your documentation style every time, you write it once and every AI tool follows it automatically.
 
-### Where skills live
+### How each tool discovers skills
 
-Each skill has its own folder inside `claude/skills/`:
-
-```
-claude/skills/<skill-name>/SKILL.md
-```
-
-### How Claude detects and uses skills
-
-Claude Code automatically matches skills to tasks based on the **YAML frontmatter** at the top of each `SKILL.md` file:
-
-```yaml
----
-name: documentation
-description: Use this skill whenever the user asks to create, update, write
-  or improve any documentation for a software project. Triggers include
-  requests mentioning README, docs, SETUP, TECHNICAL, CHANGELOG...
----
-```
-
-| Field | Purpose |
-|-------|---------|
-| `name` | Unique identifier for the skill |
-| `description` | Natural language description of when to activate the skill. Claude matches the user's request against this text to decide whether to load the skill. |
-
-When a user's request matches the description, Claude loads the full `SKILL.md` content and follows its instructions.
-
----
-
-## ⚙️ How to Configure Claude Code to Use These Skills
-
-### Option 1: Reference in your project's CLAUDE.md
-
-Add a line to the `CLAUDE.md` file in any project where you want these skills available:
-
-```markdown
-## Skills
-
-Skills are located at ~/ai-skills/claude/skills/.
-Each skill has a SKILL.md file. Read the relevant skill before performing any matching task.
-```
-
-### Option 2: Global CLAUDE.md
-
-Add the reference to your global Claude Code config at `~/.claude/CLAUDE.md` so skills are available in every project:
-
-```markdown
-## Skills
-
-Skills are located at ~/ai-skills/claude/skills/.
-Each skill has a SKILL.md file. Read the relevant skill before performing any matching task.
-```
-
-### Option 3: Copy skills into a project
-
-Copy the skill folder directly into a project's `.claude/skills/` directory:
-
-```bash
-cp -r ~/ai-skills/claude/skills/documentation /path/to/project/.claude/skills/
-```
+| Tool | Discovery mechanism |
+|------|-------------------|
+| **Claude Code** | Reads `SKILL.md` files from paths configured in `~/.claude/CLAUDE.md`. Matches skills to tasks using the YAML `description` field. |
+| **OpenAI Codex** | Reads `AGENTS.md` files from configured paths and walks the directory tree. Follows `@./path` includes automatically. |
+| **Cursor** | Reads `.mdc` files from `.cursor/rules/` in the project directory. Applies rules based on YAML `globs` or `alwaysApply` settings. |
+| **GitHub Copilot** | Reads `.instructions.md` files from `.github/instructions/`. Follows markdown link references to external files. |
 
 ---
 
@@ -166,10 +165,21 @@ cp -r ~/ai-skills/claude/skills/documentation /path/to/project/.claude/skills/
 |-------|----------|--------------|--------|
 | **documentation** | README, SETUP, TECHNICAL, CHANGELOG, "document this", "write the docs" | Analyzes the project first, then creates all documentation files the project actually needs | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
 | **helm-migration** | "migrate to helm", "convert yaml to helm", "generate values.yaml", "yaml to helm" | Converts Kubernetes YAML manifests to Helm values.yaml and env.yaml following your chart template structure | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+| **r3f-fundamentals** | R3F Canvas, hooks, JSX elements, events, refs | React Three Fiber fundamentals for 3D scenes in React | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+| **r3f-animation** | useFrame, useAnimations, spring physics, keyframes | R3F animation patterns and procedural motion | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+| **r3f-geometry** | 3D shapes, BufferGeometry, instancing | R3F geometry creation and optimization | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+| **r3f-interaction** | Pointer events, controls, gestures | R3F user interaction and input handling | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+| **r3f-lighting** | Lights, shadows, Environment, IBL | R3F lighting setup and configuration | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+| **r3f-loaders** | useGLTF, useLoader, Suspense, preloading | R3F asset loading patterns | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+| **r3f-materials** | PBR materials, shader materials | R3F material creation and styling | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+| **r3f-physics** | Rapier, RigidBody, colliders, forces | R3F physics simulation | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+| **r3f-postprocessing** | Bloom, DOF, screen effects | R3F post-processing visual effects | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+| **r3f-shaders** | GLSL, shaderMaterial, uniforms | R3F custom shader development | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+| **r3f-textures** | useTexture, cubemaps, HDR environments | R3F texture loading and configuration | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
 
 ### documentation
 
-**File**: `claude/skills/documentation/SKILL.md`
+**Shared content**: `shared/skills/documentation/content.md`
 
 Use any of these phrases to trigger the documentation skill:
 
@@ -189,44 +199,23 @@ Use any of these phrases to trigger the documentation skill:
 | Open source library | `README.md`, `docs/SETUP.md`, `docs/SDK.md`, `CONTRIBUTING.md`, `CHANGELOG.md` |
 | Microservices | `README.md`, `docs/SETUP.md`, `docs/TECHNICAL.md`, `docs/DEPLOYMENT.md`, `docs/EVENTS.md` |
 
-For best results, use this prompt:
-```
-Document this project following the documentation skill.
-Analyze the codebase and create all documentation files this project needs.
-```
+#### Testing the skill
 
-> 💡 **Tip:** Skills activate automatically — you don't need to reference them by name. Just describe what you want and Claude reads the right skill for the task.
+Open your project in your AI tool and use the appropriate prompt:
 
-#### Testing the skill in your project
-
-Open your project in Claude Code:
-```bash
-cd /path/to/your/project
-claude
-```
-
-Then paste this prompt:
 ```
 Document this project following the documentation skill.
 Analyze the codebase and create all documentation files this project needs.
 ```
 
 Watch for these signs that the skill is working:
-- Claude reads the codebase **before** writing anything
-- Claude lists which documents it will create based on the project type
+- The AI reads the codebase **before** writing anything
+- Lists which documents it will create based on the project type
 - More than just `README.md` is created depending on the project
-
-#### How to verify the skill was used
-
-After running the prompt, check that:
-- [ ] Claude scanned the codebase before writing anything
-- [ ] `README.md` has a centered header with badges
-- [ ] All relevant docs were created based on what the project actually is
-- [ ] No generic or empty documents were created
 
 ### helm-migration
 
-**File**: `claude/skills/helm-migration/SKILL.md`
+**Shared content**: `shared/skills/helm-migration/content.md`
 
 Converts Kubernetes YAML manifest files to Helm chart files following your chart template structure. Generates two files per migration:
 
@@ -242,44 +231,28 @@ Use any of these phrases to trigger the helm-migration skill:
 - `Generate values.yaml for this manifest`
 - `Helm migration`
 
-For best results, use this prompt:
-```
-Migrate this YAML-file to Helm following the helm-migration skill.
-Charts template path: /path/to/your/charts-template
-Source YAML-file: /path/to/your/manifest.yaml
-Save files to: /path/to/destination/
-```
-
-**What the skill always does:**
-- Reads your charts template structure before generating anything
-- Removes `tolerations` from all generated files — no exceptions
-- Adds explanatory comments to every section
-- Generates `env.yaml` only when secrets, configmaps or PVCs are present
-- Preserves `secretKeyRef` references in `values.yaml` and creates empty secret entries in `env.yaml` with a warning to fill in values
-
-#### How to verify the skill was used
-
-After running the prompt, check that:
-- [ ] Claude read the charts template before generating files
-- [ ] `values.yaml` follows your chart template structure exactly
-- [ ] `env.yaml` was created if secrets/configmaps/PVCs were present
-- [ ] No `tolerations` appear in any generated file
-- [ ] All sections have explanatory comments
-
 ---
 
 ## ➕ How to Add a New Skill
 
-### 1. Create the skill folder and file
+### 1. Create the shared content
+
+```bash
+mkdir -p shared/skills/<skill-name>
+touch shared/skills/<skill-name>/content.md
+```
+
+Write the skill instructions in `content.md`. This is the single source of truth — all AI tools will read from this file.
+
+### 2. Create tool-specific wrappers
+
+#### Claude Code
 
 ```bash
 mkdir -p claude/skills/<skill-name>
-touch claude/skills/<skill-name>/SKILL.md
 ```
 
-### 2. Add YAML frontmatter
-
-Start the file with `name` and `description`:
+Create `claude/skills/<skill-name>/SKILL.md`:
 
 ```yaml
 ---
@@ -287,46 +260,45 @@ name: my-skill
 description: Use this skill when the user asks to [describe the task].
   Triggers include [list keywords and phrases that should activate this skill].
 ---
+
+Read and follow all instructions in ~/ai-skills/shared/skills/<skill-name>/content.md
 ```
 
-Write the `description` as if you're telling Claude "use this when you see these kinds of requests". Be specific about trigger words and phrases.
+#### OpenAI Codex
 
-### 3. Write the skill instructions
+```bash
+mkdir -p codex/skills/<skill-name>
+```
 
-After the frontmatter, write the instructions Claude should follow. Use this structure:
+Create `codex/skills/<skill-name>/AGENTS.md`:
 
 ```markdown
-# Skill Name
+# My Skill
 
-You are a [role]. When asked to [task], follow the patterns below.
-
-## Core Principles
-
-1. **Principle**: Explanation
-2. **Principle**: Explanation
-
-## Structure / Template
-
-Show the expected output structure.
-
-## Rules
-
-- Specific rules Claude must follow
-- Formatting conventions
-- What to include and what to avoid
-
-## Examples
-
-Real examples showing the expected output.
+@../../shared/skills/<skill-name>/content.md
 ```
 
-### 4. Key guidelines for writing skills
+#### Cursor
+
+Run `./generate.sh` to auto-generate `.mdc` files from shared content.
+
+#### GitHub Copilot
+
+Create `copilot/instructions/<skill-name>.instructions.md`:
+
+```markdown
+# My Skill
+
+Follow the instructions in [content.md](../../shared/skills/<skill-name>/content.md)
+```
+
+### 3. Key guidelines for writing skills
 
 | Guideline | Why |
 |-----------|-----|
 | Base on real examples | Skills derived from actual code/docs are more useful than generic templates |
 | Be specific, not vague | "Use tables for env vars" is better than "format things nicely" |
-| Include structure templates | Show the exact skeleton Claude should follow |
+| Include structure templates | Show the exact skeleton the AI should follow |
 | State rules as imperatives | "Always include a troubleshooting section" not "it would be nice to have troubleshooting" |
 | Keep it focused | One skill per task type. Don't combine "documentation" and "commit messages" |
 
@@ -334,7 +306,7 @@ Real examples showing the expected output.
 
 ## 🤝 Shared Conventions
 
-The `shared/conventions/` folder is for coding standards and patterns that apply across all AI tools — not just Claude Code. Place files here when the same convention should be followed regardless of which tool is being used.
+The `shared/conventions/` folder is for coding standards and patterns that apply across all AI tools. Place files here when the same convention should be followed regardless of which tool is being used.
 
 Examples of what belongs here:
 - Code style guides (naming, formatting, error handling)
@@ -354,9 +326,11 @@ Follow the conventions defined in shared/conventions/api-design.md.
 
 | Tool | Purpose |
 |------|---------|
-| [Claude Code](https://claude.ai) | AI coding assistant — primary target |
-| [GitHub](https://github.com) | Hosting and version control |
-| [Bash](https://www.gnu.org/software/bash/) | One-line install script |
+| [Claude Code](https://claude.ai) | AI coding assistant |
+| [OpenAI Codex](https://openai.com) | AI coding assistant |
+| [Cursor](https://cursor.com) | AI-powered IDE |
+| [GitHub Copilot](https://github.com/features/copilot) | AI coding assistant |
+| [Bash](https://www.gnu.org/software/bash/) | Install and generate scripts |
 
 ---
 
