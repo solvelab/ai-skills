@@ -85,22 +85,42 @@ cp ~/ai-skills/copilot/instructions/*.instructions.md /path/to/project/.github/i
 ```
 ai-skills/
 ├── shared/
-│   ├── conventions/                      # Cross-tool coding standards
-│   └── skills/                           # Shared skill content (single source of truth)
+│   ├── conventions/                          # Cross-tool coding standards
+│   └── skills/                               # Shared skill content (single source of truth)
 │       ├── documentation/
-│       │   ├── content.md                # Documentation writing instructions
-│       │   └── references/examples.md    # Real-world examples
+│       │   ├── content.md                    # Documentation writing instructions
+│       │   └── references/
+│       │       └── examples.md               # Real-world documentation examples
 │       ├── helm-migration/
-│       │   ├── content.md                # Helm migration instructions
-│       │   └── references/examples.md    # Before/after examples
+│       │   ├── content.md                    # Helm migration instructions
+│       │   └── references/
+│       │       └── examples.md               # Before/after migration examples
 │       └── game/
-│           └── r3f-*/content.md          # React Three Fiber skills (11 topics)
-├── claude/skills/                        # Claude Code wrappers (SKILL.md)
-├── codex/skills/                         # OpenAI Codex wrappers (AGENTS.md)
-├── cursor/rules/                         # Cursor rules (.mdc, generated)
-├── copilot/instructions/                 # GitHub Copilot wrappers (.instructions.md)
-├── generate.sh                           # Generates inline wrappers (Cursor)
-├── install.sh                            # One-line installer with --tool flag
+│           └── r3f-*/                        # React Three Fiber skills (11 topics)
+│               └── content.md
+├── claude/
+│   └── skills/                               # Claude Code wrappers (SKILL.md)
+│       ├── documentation/SKILL.md
+│       ├── helm-migration/SKILL.md
+│       └── game/r3f-*/SKILL.md
+├── codex/
+│   ├── AGENTS.md                             # Codex global index
+│   └── skills/                               # OpenAI Codex wrappers (AGENTS.md)
+│       ├── documentation/AGENTS.md
+│       ├── helm-migration/AGENTS.md
+│       └── game/r3f-*/AGENTS.md
+├── cursor/
+│   └── rules/                                # Cursor rules (.mdc, auto-generated)
+│       ├── documentation.mdc
+│       ├── helm-migration.mdc
+│       └── r3f-*.mdc
+├── copilot/
+│   └── instructions/                         # GitHub Copilot wrappers (.instructions.md)
+│       ├── documentation.instructions.md
+│       ├── helm-migration.instructions.md
+│       └── r3f-*.instructions.md
+├── generate.sh                               # Generates inline wrappers (Cursor)
+├── install.sh                                # One-line installer with --tool flag
 └── README.md
 ```
 
