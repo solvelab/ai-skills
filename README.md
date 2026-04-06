@@ -148,7 +148,7 @@ shared/skills/documentation/content.md    ← Single source of truth (530 lines)
         ├── claude/skills/documentation/SKILL.md        ← YAML frontmatter + "Read content.md"
         ├── codex/skills/documentation/AGENTS.md         ← @../../shared/.../content.md
         ├── cursor/rules/documentation.mdc               ← Content inlined (auto-generated)
-        └── copilot/instructions/documentation.md        ← Markdown link to content.md
+        └── copilot/instructions/documentation.instructions.md  ← Markdown link to content.md
 ```
 
 | Tool | Wrapper format | File include support | Wrapper size |
@@ -233,6 +233,14 @@ Watch for these signs that the skill is working:
 - Lists which documents it will create based on the project type
 - More than just `README.md` is created depending on the project
 
+#### How to verify the skill was used
+
+After running the prompt, check that:
+- [ ] The AI scanned the codebase before writing anything
+- [ ] `README.md` has a centered header with badges
+- [ ] All relevant docs were created based on what the project actually is
+- [ ] No generic or empty documents were created
+
 ### helm-migration
 
 **Shared content**: `shared/skills/helm-migration/content.md`
@@ -250,6 +258,30 @@ Use any of these phrases to trigger the helm-migration skill:
 - `Convert this YAML to values.yaml`
 - `Generate values.yaml for this manifest`
 - `Helm migration`
+
+For best results, use this prompt:
+```
+Migrate this YAML-file to Helm following the helm-migration skill.
+Charts template path: [PATH_TO_CHARTS_TEMPLATE]
+Source YAML-file: [PATH_TO_YAML_FILE]
+Save files to: [DESTINATION_PATH]
+```
+
+**What the skill always does:**
+- Reads your charts template structure before generating anything
+- Removes `tolerations` from all generated files — no exceptions
+- Adds explanatory comments to every section
+- Generates `env.yaml` only when secrets, configmaps or PVCs are present
+- Preserves `secretKeyRef` references in `values.yaml` and creates empty secret entries in `env.yaml` with a warning to fill in values
+
+#### How to verify the skill was used
+
+After running the prompt, check that:
+- [ ] The AI read the charts template before generating files
+- [ ] `values.yaml` follows your chart template structure exactly
+- [ ] `env.yaml` was created if secrets/configmaps/PVCs were present
+- [ ] No `tolerations` appear in any generated file
+- [ ] All sections have explanatory comments
 
 ---
 
