@@ -1,5 +1,7 @@
 # Personal Rules (Global)
 
+> **Note:** This file is the **repo maintainer's personal Claude Code config** — collaboration style, commit conventions, etc. It's published here as a working example of the "portable global rules" pattern (see the README section _Global Personal Rules_). If you clone this repo and want your own rules, edit this file (or maintain your own fork) — do not adopt the defaults blindly.
+
 Portable rules for Claude Code. Included from `~/.claude/CLAUDE.md` via the `@` directive on every machine, so a single edit here propagates everywhere.
 
 ## Collaboration Style

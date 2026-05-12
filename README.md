@@ -80,6 +80,42 @@ cp ~/ai-skills/copilot/instructions/*.instructions.md /path/to/project/.github/i
 
 ---
 
+## 🔧 Global Personal Rules (optional, Claude Code only)
+
+Beyond skills — which trigger per task — Claude Code also loads a **global rules file** (`~/.claude/CLAUDE.md`) that applies to every conversation. This repo ships an example at `claude/global/personal-rules.md` showing how to keep those rules portable across machines.
+
+> **Note:** `personal-rules.md` contains the **repo maintainer's personal config** (collaboration style, commit conventions). Fork and edit to match your own preferences — do not adopt the defaults blindly.
+
+### How it works
+
+1. Rules live in `claude/global/personal-rules.md` (versioned in this repo).
+2. On each machine, `~/.claude/CLAUDE.md` references the file with the `@` directive instead of duplicating its contents:
+
+   ```markdown
+   # Global Rules
+
+   @~/ai-skills/claude/global/personal-rules.md
+   ```
+
+3. Edit once → `git push` → `git pull` on every other machine. Rules propagate.
+
+### Setup on a new machine
+
+```bash
+# 1. Clone this repo (if not already)
+git clone https://github.com/solvelab/ai-skills.git ~/ai-skills
+
+# 2. Reference the rules file from your global Claude Code config
+mkdir -p ~/.claude
+cat >> ~/.claude/CLAUDE.md <<'EOF'
+@~/ai-skills/claude/global/personal-rules.md
+EOF
+```
+
+To customize: edit `~/ai-skills/claude/global/personal-rules.md` (or fork the repo).
+
+---
+
 ## 📁 Repository Structure
 
 ```
@@ -99,6 +135,8 @@ ai-skills/
 │           └── r3f-*/                        # React Three Fiber skills (11 topics)
 │               └── content.md
 ├── claude/
+│   ├── global/
+│   │   └── personal-rules.md                 # Maintainer's portable Claude Code rules (example)
 │   └── skills/                               # Claude Code wrappers (SKILL.md)
 │       ├── documentation/SKILL.md
 │       ├── helm-migration/SKILL.md
@@ -127,6 +165,7 @@ ai-skills/
 | Folder | Purpose |
 |--------|---------|
 | `shared/skills/` | Skill content — written once, shared by all tools |
+| `claude/global/` | Portable global rules for Claude Code, `@`-included from `~/.claude/CLAUDE.md` |
 | `claude/skills/` | Claude Code wrappers with YAML frontmatter for skill detection |
 | `codex/skills/` | OpenAI Codex wrappers using `@./path` file includes |
 | `cursor/rules/` | Cursor .mdc rules with content inlined (auto-generated) |
