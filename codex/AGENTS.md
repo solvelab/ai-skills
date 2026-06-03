@@ -8,6 +8,7 @@ Each skill references shared content from `shared/skills/` — no duplication.
 
 | Skill | Path |
 |-------|------|
+| API Resilience Testing | `codex/skills/api-resilience-testing/AGENTS.md` |
 | Documentation | `codex/skills/documentation/AGENTS.md` |
 | Helm Migration | `codex/skills/helm-migration/AGENTS.md` |
 | R3F Animation | `codex/skills/game/r3f-animation/AGENTS.md` |

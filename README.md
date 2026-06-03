@@ -123,6 +123,10 @@ ai-skills/
 ├── shared/
 │   ├── conventions/                          # Cross-tool coding standards
 │   └── skills/                               # Shared skill content (single source of truth)
+│       ├── api-resilience-testing/
+│       │   ├── content.md                    # REST API robustness/negative testing workflow
+│       │   └── references/
+│       │       └── negative-test-catalog.md  # Concrete negative-test examples
 │       ├── documentation/
 │       │   ├── content.md                    # Documentation writing instructions
 │       │   └── references/
@@ -138,22 +142,26 @@ ai-skills/
 │   ├── global/
 │   │   └── personal-rules.md                 # Maintainer's portable Claude Code rules (example)
 │   └── skills/                               # Claude Code wrappers (SKILL.md)
+│       ├── api-resilience-testing/SKILL.md
 │       ├── documentation/SKILL.md
 │       ├── helm-migration/SKILL.md
 │       └── game/r3f-*/SKILL.md
 ├── codex/
 │   ├── AGENTS.md                             # Codex global index
 │   └── skills/                               # OpenAI Codex wrappers (AGENTS.md)
+│       ├── api-resilience-testing/AGENTS.md
 │       ├── documentation/AGENTS.md
 │       ├── helm-migration/AGENTS.md
 │       └── game/r3f-*/AGENTS.md
 ├── cursor/
 │   └── rules/                                # Cursor rules (.mdc, auto-generated)
+│       ├── api-resilience-testing.mdc
 │       ├── documentation.mdc
 │       ├── helm-migration.mdc
 │       └── r3f-*.mdc
 ├── copilot/
 │   └── instructions/                         # GitHub Copilot wrappers (.instructions.md)
+│       ├── api-resilience-testing.instructions.md
 │       ├── documentation.instructions.md
 │       ├── helm-migration.instructions.md
 │       └── r3f-*.instructions.md
@@ -222,6 +230,7 @@ Think of skills as reusable expertise — instead of explaining your documentati
 
 | Skill | Triggers | What It Does | Status |
 |-------|----------|--------------|--------|
+| **api-resilience-testing** | "test/harden/break/audit/review the API", "negative testing", "fuzz", "API robustness", "API security", invalid payloads, status codes, auth, OpenAPI | Tests REST APIs beyond the happy path (negative/fuzz/contract/security); produces an endpoint map, positive + negative scenarios, suggested automated tests, and a resilience checklist | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
 | **documentation** | README, SETUP, TECHNICAL, CHANGELOG, "document this", "write the docs" | Analyzes the project first, then creates all documentation files the project actually needs | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
 | **helm-migration** | "migrate to helm", "convert yaml to helm", "generate values.yaml", "yaml to helm" | Converts Kubernetes YAML manifests to Helm values.yaml and env.yaml following your chart template structure | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
 | **r3f-fundamentals** | R3F Canvas, hooks, JSX elements, events, refs | React Three Fiber fundamentals for 3D scenes in React | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
@@ -235,6 +244,39 @@ Think of skills as reusable expertise — instead of explaining your documentati
 | **r3f-postprocessing** | Bloom, DOF, screen effects | R3F post-processing visual effects | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
 | **r3f-shaders** | GLSL, shaderMaterial, uniforms | R3F custom shader development | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
 | **r3f-textures** | useTexture, cubemaps, HDR environments | R3F texture loading and configuration | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+
+### api-resilience-testing
+
+**Shared content**: `shared/skills/api-resilience-testing/content.md`
+**Reference**: `shared/skills/api-resilience-testing/references/negative-test-catalog.md`
+
+Tests REST/HTTP APIs **beyond the happy path** — negative, fuzz, contract, and security testing — to catch invalid, malformed, out-of-contract, or hostile inputs before they reach production. Triggers automatically when adding/changing an endpoint, reviewing an API PR, writing API tests, or designing request/response schemas.
+
+Use any of these phrases to trigger it:
+
+- `Test this API for resilience`
+- `Run negative testing on these endpoints`
+- `Try to break this API / audit the API`
+- `Review this API PR for validation and security gaps`
+
+**The skill runs a 10-step workflow:** map endpoints → capture contracts → design positive + negative scenarios → try to break it → validate status codes → validate safe error responses → verify auth/authz (incl. BOLA/IDOR & mass assignment) → hunt critical bugs (500s, partial writes, retry duplicates) → suggest automated tests → produce a resilience checklist.
+
+| Covers | Examples |
+|---|---|
+| Input validation | missing/null/empty fields, wrong types, out-of-range, malformed JSON, oversized payloads |
+| Headers & content | missing/wrong `Content-Type`, unsupported `Accept` |
+| Auth & authorization | missing/expired/tampered tokens, forbidden roles, BOLA/IDOR, mass assignment |
+| Status & errors | input errors are 4xx not 5xx; RFC 9457 error shape; no stack-trace/SQL/path leakage |
+| State & contract | no partial write on failure, retry idempotency, OpenAPI conformance |
+
+#### How to verify the skill was used
+
+After running the prompt, check that:
+- [ ] The AI mapped every endpoint with its request/response contract first
+- [ ] Both positive **and** negative scenarios were produced (not just happy path)
+- [ ] Each negative case asserts a status code **and** a safe error body
+- [ ] Auth/authz cases include BOLA/IDOR and mass assignment
+- [ ] A filled resilience checklist with flagged gaps was produced
 
 ### documentation
 
