@@ -31,9 +31,30 @@ Expect: **400/422** (after trim it is empty). Server should trim before storing.
 ## 4. Wrong type (type confusion)
 
 ```json
-{ "email": 12345, "age": "thirty" }
+{ "email": 12345, "age": "thirty" }   // number for string, string for number
+{ "email": "a@b.com", "age": true }    // boolean where int expected
+{ "email": "a@b.com", "age": "30" }    // numeric string — is it coerced or rejected?
+{ "email": "a@b.com", "age": [30] }    // array/object where scalar expected
 ```
-Expect: **400/422**. No silent coercion of `"thirty"` → 0 or `12345` → "12345".
+Expect: **400/422**. No silent coercion (`"thirty"` → 0, `true` → 1, `[30]` → 30).
+Decide and pin the policy for numeric strings (`"30"`): accept or reject — don't
+leave it ambiguous.
+
+## 4b. Locale / number-format confusion (critical for pt-BR money fields)
+
+A money field documented as `XXX.XX` (dot decimal) fed the locale variant:
+
+```json
+{ "amount": "1.234,56" }   // pt-BR thousands "." + decimal ","
+{ "amount": "1234,56" }    // comma decimal
+{ "amount": "R$ 100,00" }  // currency symbol + comma
+{ "amount": "100.00.00" }  // double separator
+{ "amount": "1e3" }        // scientific notation
+```
+Expect: **400/422** with a clear message — NOT silent truncation to `1`, `1234`,
+or `0`, and NOT a 500. Frontends often send locale strings; the API must reject
+or normalize explicitly, never guess. The same applies to dates (`31/12/2026`
+vs `2026-12-31`).
 
 ## 5. Out-of-range / boundary numbers
 
