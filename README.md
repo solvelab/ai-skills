@@ -80,6 +80,27 @@ cp ~/ai-skills/copilot/instructions/*.instructions.md /path/to/project/.github/i
 
 ---
 
+## ♻️ Update
+
+Pull the latest skills/rules into `~/ai-skills` and regenerate the Cursor wrappers:
+
+```bash
+# One-line (no clone needed)
+curl -sSL https://raw.githubusercontent.com/solvelab/ai-skills/master/update.sh | bash
+
+# Or, if already cloned
+cd ~/ai-skills && ./update.sh
+
+# Force-sync, discarding any local changes in ~/ai-skills
+cd ~/ai-skills && ./update.sh --force
+```
+
+`install.sh` also pulls on re-run, but `update.sh` is the dedicated path: fast-forward sync (or `--force` hard-reset), then regenerates `cursor/rules/*.mdc` from the updated shared content.
+
+> Global rules (`~/.claude/CLAUDE.md` `@`-includes) load at **session start** — restart your AI tool after updating to apply new rules.
+
+---
+
 ## 🔧 Global Personal Rules (optional, Claude Code only)
 
 Beyond skills — which trigger per task — Claude Code also loads a **global rules file** (`~/.claude/CLAUDE.md`) that applies to every conversation. This repo ships an example at `claude/global/personal-rules.md` showing how to keep those rules portable across machines.
