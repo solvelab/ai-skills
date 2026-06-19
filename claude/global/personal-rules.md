@@ -14,6 +14,14 @@ Portable rules for Claude Code. Included from `~/.claude/CLAUDE.md` via the `@` 
 ## Commits
 - NEVER include the `Co-Authored-By` line in commit messages. Do not add any AI attribution or co-author references to commits under any circumstances.
 
+## Model & Effort Tiering (token economy + quality)
+Match effort and model to task **difficulty** — do not max everything (maxing trivial work wastes tokens, the opposite of the goal).
+- **Trivial / conversational:** session model, effort `low`/`medium`.
+- **Planning / hard reasoning / architecture decisions:** Opus 4.8 (Fable 5 only for the hardest), effort `high`/`xhigh`; `max` only when correctness outweighs cost.
+- **Mechanical or parallel subtasks** (search, file reads, trivial edits, lint, broad sweeps): delegate to a subagent on a cheaper model (Haiku 4.5 / Sonnet 4.6) + effort `low`. Subagents have separate context, so a cheaper model there does NOT invalidate the main loop's prompt cache.
+- **Reasoning-heavy subtasks:** keep a capable model — a cheaper model that gets it wrong means rework = more tokens + worse result.
+- Apply this when spawning Agent/Workflow subagents (`model`/`effort` per call); don't switch the main session model mid-task (cache invalidation) — use a subagent instead.
+
 ---
 
 ## How to use on a new machine
