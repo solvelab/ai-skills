@@ -1,7 +1,7 @@
 {
   "name": "ai-skills",
   "displayName": "AI Skills",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Reusable AI skills for coding assistants: documentation, API resilience testing, Helm migration, FiveM Lua, bug hunting, and React Three Fiber (11 topics).",
   "author": {
     "name": "didevlab",
