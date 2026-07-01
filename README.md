@@ -286,6 +286,7 @@ Think of skills as reusable expertise — instead of explaining your documentati
 
 | Skill | Triggers | What It Does |
 |-------|----------|--------------|
+| **python-rest-api** | creating/reviewing a Python API, FastAPI service, response envelope, project layout | Production conventions distilled from real solvelab services — layering, error envelope + code registry, never-raw-500 handlers, tenant isolation, testing stack (golden OpenAPI, fuzz gate) |
 | **backend-resilience** | external call, timeout, 5xx, dependency down, config fetch, retry, fallback, negative cache | Stack-agnostic resilience doctrine — safe defaults, shared fallback helper, response-shape validation, clamping, bounded retries, negative caching, in-flight dedupe (Python examples) |
 | **api-resilience-testing** | "test/harden/break/audit/review the API", "negative testing", "fuzz", "API robustness", "API security", invalid payloads, status codes, auth, OpenAPI | Tests REST APIs beyond the happy path (negative/fuzz/contract/security); produces an endpoint map, scenarios, suggested tests and a resilience checklist |
 | **bug-hunter** | "bug hunt", "adversarial test", break it, anti-forge, edge cases of a change | Per-change adversarial testing rite — universal checklist + opt-in stack tracks (Python/pytest, FiveM/Lua) |

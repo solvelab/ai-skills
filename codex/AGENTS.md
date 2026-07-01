@@ -18,6 +18,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `helm-migration` | `codex/skills/helm-migration/AGENTS.md` |
 | `openspec-drivezone` | `codex/skills/openspec-drivezone/AGENTS.md` |
 | `openspec` | `codex/skills/openspec/AGENTS.md` |
+| `python-rest-api` | `codex/skills/python-rest-api/AGENTS.md` |
 | `r3f-animation` | `codex/skills/r3f-animation/AGENTS.md` |
 | `r3f-assets` | `codex/skills/r3f-assets/AGENTS.md` |
 | `r3f-fundamentals` | `codex/skills/r3f-fundamentals/AGENTS.md` |
