@@ -51,6 +51,7 @@ jobs:
 
       - name: Skill frontmatter checks
         run: |
+          CATEGORIES="backend testing fivem game devops docs git process"
           fail=0
           for f in skills/*/SKILL.md; do
             dir="$(basename "$(dirname "$f")")"
@@ -59,6 +60,14 @@ jobs:
             grep -q '^description:' "$f" || { echo "::error file=$f::Missing description"; fail=1; }
             name="$(grep -m1 '^name:' "$f" | sed 's/^name: *//')"
             [ "$name" = "$dir" ] || { echo "::error file=$f::name '$name' != directory '$dir'"; fail=1; }
+            grep -qE '^  version: [0-9]+\.[0-9]+\.[0-9]+' "$f" || { echo "::error file=$f::Missing metadata.version (semver)"; fail=1; }
+            grep -q '^license:' "$f" || { echo "::error file=$f::Missing license"; fail=1; }
+            cat="$(grep -m1 '^  category:' "$f" | sed 's/^  category: *//')"
+            if [ -z "$cat" ]; then
+              echo "::error file=$f::Missing metadata.category"; fail=1
+            else
+              echo "$CATEGORIES" | tr ' ' '\n' | grep -qx "$cat" || { echo "::error file=$f::category '$cat' not in: $CATEGORIES"; fail=1; }
+            fi
           done
           exit $fail
 
