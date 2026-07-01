@@ -1,0 +1,179 @@
+---
+name: openspec-drivezone
+description: >-
+  The DriveZone OpenSpec rite — a project-local forked schema that turns three disciplines into mandatory gates the `validate --strict` step refuses to skip. Use when running the spec-driven flow on DriveZone (fivem-drivezone or backend-drivezone), when the user mentions OpenSpec, /opsx, the "rito", propose/apply/archive a change, the forked schema, or asks why this OpenSpec differs from vanilla. Covers the lifecycle (explore → propose → validate --strict → apply → archive) and the three forced sections: Fallback & Modos de Falha (design.md), Testes & Bug-Hunter (tasks.md), Validação & Fechamento (tasks.md). Orchestrates the fivem-fallback, bug-hunter, api-resilience-testing and fivem-lua skills. Do NOT use for vanilla OpenSpec on non-DriveZone projects.
+metadata:
+  author: solvelab
+  version: 1.0.0
+  category: process
+license: MIT
+compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
+---
+
+# OpenSpec — o rito DriveZone (schema forkado)
+
+> **O que é isto.** O DriveZone usa [OpenSpec](https://github.com/Fission-AI/OpenSpec) como
+> processo spec-driven, mas com um **schema project-local forkado** que **obriga** três seções
+> que o OpenSpec vanilla não tem: **Fallback & Modos de Falha**, **Testes & Bug-Hunter** e
+> **Validação & Fechamento**. Este documento descreve o ciclo de vida e o porquê de cada gate.
+>
+> O documento tem duas partes: **Parte 1 — Para a IA** (denso, imperativo: o que executar) e
+> **Parte 2 — Para humanos** (o porquê de cada regra, e a diferença vs OpenSpec vanilla).
+
+---
+
+## Parte 1 — Para a IA (executar)
+
+### Onde tudo vive
+
+Cada subprojeto ativo tem o seu próprio `openspec/` — **não há OpenSpec global no monorepo**.
+
+| Subprojeto | Caminho do OpenSpec | Trilha de testes |
+|---|---|---|
+| `fivem-drivezone/` (Lua/FiveM) | `fivem-drivezone/openspec/` | busted (módulo puro) + fallback no caller |
+| `backend-drivezone/` (FastAPI) | `backend-drivezone/openspec/` | pytest E2E via TestClient |
+
+Estrutura interna de cada `openspec/`:
+
+```
+openspec/
+  project.md                      # stack, naming, convenções do subprojeto
+  schemas/spec-driven/
+    schema.yaml                   # O FORK — força as seções do rito
+    templates/
+      proposal.md                 # Why / What Changes / Capabilities / Impact
+      design.md                   # ... + Fallback & Modos de Falha (OBRIGATÓRIO)
+      spec.md                     # ADDED/MODIFIED/REMOVED Requirements + Scenarios
+      tasks.md                    # ... + Testes & Bug-Hunter + Validação & Fechamento
+  changes/
+    <nome-da-change>/             # proposta ativa (proposal.md, design.md, tasks.md, specs/)
+    archive/<YYYY-MM-DD-nome>/    # changes concluídas = histórico + base p/ próximas deltas
+  specs/<capability>/spec.md      # specs vigentes (atualizadas no archive)
+```
+
+### Ciclo de vida (não pular etapa)
+
+```
+/opsx:explore  →  /opsx:propose  →  openspec validate <id> --strict  →  /opsx:apply  →  openspec archive <id> --yes
+```
+
+As skills `/opsx` são **scoped por subprojeto** (`fivem-drivezone:openspec-*` e
+`backend-drivezone:openspec-*`), geradas pelo CLI (`openspec update`) — **nunca editar à mão**.
+
+| Etapa | Skill / comando | O que faz |
+|---|---|---|
+| **Explore** | `/opsx:explore` | Modo thinking-partner: ler codebase, alinhar requisito, **sem implementar**. |
+| **Propose** | `/opsx:propose <nome>` | Cria a change e gera `proposal → spec deltas → design → tasks` em ordem de dependência. |
+| **Validate** | `openspec validate <id> --strict` | **Gate antes de codar.** Falha se faltar seção obrigatória do schema. |
+| **Apply** | `/opsx:apply [<id>]` | Lê proposal/specs/design/tasks, implementa cada tarefa, marca `[x]`. |
+| **Archive** | `/opsx:archive [<id>]` | Valida completude, sincroniza delta specs → `specs/`, move a change p/ `archive/`. |
+
+### Os três gates obrigatórios (o diferencial)
+
+**1. `design.md` → seção `## Fallback & Modos de Falha (OBRIGATÓRIO)`**
+
+Tabela de 3 colunas. Para **cada** dependência externa, declarar modo de falha + default seguro.
+Onde não houver fallback, **justificar**.
+
+```markdown
+## Fallback & Modos de Falha (rito DriveZone)
+
+| Dependência | Modo de falha | Default seguro / fallback |
+|---|---|---|
+| <dep> | <timeout / 5xx / down / payload parcial / race / disconnect> | <default hardcoded + clamp + log; sem crash; sem estado obsoleto silencioso> |
+```
+
+Dependências a cobrir **por trilha**:
+- **FiveM**: `city-rest-api`, Consul `/config/*`, rede, evento de outro resource, NUI callback.
+  → Aplicar a skill **[fivem-fallback]** (SafeCall/WithFallback, defaults hardcoded, clampNum, retry limitado, negative cache, sinal de erro na NUI).
+- **Backend**: Consul `/config/*`, integrações, DB/transação.
+  → Negative cache (fail-ttl ~15s), envelope `status:error` + `RC_*` (nunca 500 cru).
+
+**2. `tasks.md` → grupo `## 3. Testes & Bug-Hunter (OBRIGATÓRIO)`**
+
+QA **adversarial**, não happy-path. → Aplicar a skill **[bug-hunter]** (que tem as duas trilhas).
+
+- **FiveM (busted)**: módulo puro sem runtime de jogo; fallback no caller sob backend/Consul fora;
+  caçada (payload forjado / fora de range, StateBag concorrente, cleanup no disconnect, restart);
+  validação de `source`/ownership nos eventos server. → ver também **[fivem-lua]**.
+- **Backend (pytest E2E via TestClient, ANTES do in-game)**: unit das regras puras; E2E happy path;
+  anti-forge/clamps (valor fora de range, payload de outro dono, id forjado, BIGINT overflow);
+  atomicidade (rollback total + idempotência); fallback (Consul fora → negative cache);
+  concorrência (`FOR UPDATE`); regressão + boot smoke. → ver também **[api-resilience-testing]**.
+
+**3. `tasks.md` → grupo `## 4. Validação & Fechamento (OBRIGATÓRIO)`** (último)
+
+- FiveM: `openspec validate <id> --strict` verde, **smoke in-game documentado**,
+  README do resource + `KEYBINDS.md` atualizados, `openspec archive <id> --yes`.
+- Backend: `openspec validate <id> --strict` verde, **`pytest` verde**, `openspec archive <id> --yes`.
+
+### Regras de execução (resumo imperativo)
+
+- **Sempre** rodar `openspec validate <id> --strict` **antes** de implementar (é o gate, não formalidade).
+- **Backend**: pytest E2E adversarial **antes** da validação in-game (eu não rodo o jogo).
+- **FiveM**: módulo puro testável (busted) + fallback no caller + caçada — não só caminho feliz.
+- **Nunca** editar as skills `/opsx` nem o `schema.yaml` gerado à mão; mudam via CLI / fork deliberado.
+- Specs vigentes ficam em `openspec/specs/<capability>/spec.md`; o `archive/` é histórico e base de delta.
+
+---
+
+## Parte 2 — Para humanos (o porquê, e o que difere do vanilla)
+
+### O OpenSpec vanilla
+
+OpenSpec padrão dá um fluxo spec-driven: você escreve uma **proposta** (Why / What), descreve
+**deltas de spec** (requisitos ADDED/MODIFIED/REMOVED com cenários WHEN/THEN), lista **tasks**, e ao
+final **arquiva** sincronizando as specs. Os templates são **genéricos** — servem qualquer projeto.
+
+### O que o fork DriveZone acrescenta
+
+O fork não muda o *fluxo* — muda os **templates obrigatórios** via `schema.yaml` project-local. Ele
+transforma três disciplinas que eram "boa prática que a gente lembra de fazer" em **gates que o
+`validate --strict` recusa se faltarem**. Ou seja: o rigor deixa de depender da memória do dev (ou
+da IA) e passa a ser **estrutural**.
+
+**Por que `Fallback & Modos de Falha` é obrigatório.**
+DriveZone é distribuído por natureza: um resource Lua fala com um backend FastAPI, que fala com
+Consul, num jogo onde o player pode dar disconnect no meio de qualquer fluxo. Sem declarar o modo de
+falha de cada dependência **na fase de design**, o código nasce assumindo o caminho feliz e quebra em
+produção (timeout, 5xx, Consul fora, payload parcial, race, restart). Forçar a tabela no `design.md`
+obriga a pensar resiliência **antes** de codar, não como remendo depois. A execução real dessas
+defesas é coberta pela skill **[fivem-fallback]** (Lua) e pelo padrão de negative cache + envelope no
+backend.
+
+**Por que `Testes & Bug-Hunter` é obrigatório.**
+Premissa do projeto: **toda feature/fix exige QA adversarial** (mudar dados, sair do contexto, forçar
+limites/erro) **antes** da validação in-game — não só o caminho feliz. O dono do jogo não consigo
+rodar (a IA não joga); então o backend precisa ser provado por `pytest E2E` adversarial, e o Lua por
+módulo puro testável + caçada. Esse grupo no `tasks.md` garante que a change não fecha sem essa
+caça. O *como* mora na skill **[bug-hunter]** (trilhas Backend e FiveM) e na **[api-resilience-testing]**.
+
+**Por que `Validação & Fechamento` é obrigatório e final.**
+Fecha o loop: `validate --strict` verde + prova (pytest verde / smoke in-game documentado) + docs
+atualizados + `archive`. Sem esse grupo, "pronto" vira opinião; com ele, "pronto" é verificável.
+
+### FiveM vs Backend — schemas espelhados, conteúdo diferente
+
+Os dois subprojetos têm o **mesmo esqueleto de gates**, mas o schema de cada um nomeia as
+dependências e os testes da **sua** realidade:
+
+| | FiveM (`fivem-drivezone`) | Backend (`backend-drivezone`) |
+|---|---|---|
+| Deps no Fallback | city-rest-api, Consul, rede, evento de resource, NUI callback | Consul, integrações, DB/transação |
+| Trilha de teste | busted (módulo puro), fallback no caller, StateBag concorrente, cleanup no disconnect | pytest E2E (TestClient), `FOR UPDATE`, negative cache, atomicidade/idempotência |
+| Prova de fechamento | smoke in-game documentado + README/KEYBINDS | `pytest` verde |
+
+### Onde essa skill se encaixa no ecossistema
+
+Esta skill é o **orquestrador do ciclo de vida**. As disciplinas que ela torna obrigatórias têm
+skills próprias que descrevem a execução:
+
+- **[fivem-fallback]** — resiliência Lua → atende o gate *Fallback* (trilha FiveM).
+- **[bug-hunter]** — QA adversarial (Backend + FiveM) → atende o gate *Testes & Bug-Hunter*.
+- **[api-resilience-testing]** — testes negativos/fuzz/contrato de API → reforça o gate de testes no backend.
+- **[fivem-lua]** — convenções de resource Lua (boundary `source`/ownership, fxmanifest, NUI) → base da implementação na trilha FiveM.
+
+[fivem-fallback]: ../fivem-fallback/content.md
+[bug-hunter]: ../bug-hunter/content.md
+[api-resilience-testing]: ../api-resilience-testing/content.md
+[fivem-lua]: ../fivem-lua/content.md

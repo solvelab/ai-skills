@@ -10,10 +10,12 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 |-------|------|
 | `api-resilience-testing` | `codex/skills/api-resilience-testing/AGENTS.md` |
 | `bug-hunter` | `codex/skills/bug-hunter/AGENTS.md` |
+| `conventional-commit` | `codex/skills/conventional-commit/AGENTS.md` |
 | `documentation` | `codex/skills/documentation/AGENTS.md` |
 | `fivem-fallback` | `codex/skills/fivem-fallback/AGENTS.md` |
 | `fivem-lua` | `codex/skills/fivem-lua/AGENTS.md` |
 | `helm-migration` | `codex/skills/helm-migration/AGENTS.md` |
+| `openspec-drivezone` | `codex/skills/openspec-drivezone/AGENTS.md` |
 | `r3f-animation` | `codex/skills/r3f-animation/AGENTS.md` |
 | `r3f-fundamentals` | `codex/skills/r3f-fundamentals/AGENTS.md` |
 | `r3f-geometry` | `codex/skills/r3f-geometry/AGENTS.md` |
