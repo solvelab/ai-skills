@@ -29,8 +29,9 @@ sub-disciplines precisely:
 **Recommended primary label:** *API robustness testing* (or *resilience testing*).
 "Negative testing" is the most precise name for the manual scenario work;
 "fuzzing" for the automated generation; reach for the specific term per activity.
-Avoid vague "bug hunting" / "QA security testing" in formal docs — they are
-informal and ambiguous.
+Avoid vague "QA security testing" in formal docs — it is informal and ambiguous.
+("Bug-Hunter" is fine as the name of the internal adversarial-testing rite — see the
+`bug-hunter` skill — but use the precise terms above when writing formal test docs.)
 
 ---
 
@@ -207,3 +208,10 @@ When invoked, produce:
 4. **Suggested automated tests** in the project's stack.
 5. The filled **resilience checklist** with gaps flagged.
 Keep it concrete and runnable; favor real example payloads over description.
+
+## See also
+
+- `bug-hunter` — the per-change adversarial-testing rite; use it after implementing a single change,
+  and this skill when auditing an API surface.
+- `backend-resilience` — the fallback/negative-cache/clamping behavior the "Limits & resilience"
+  checklist section asserts.

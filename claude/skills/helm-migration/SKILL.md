@@ -1,9 +1,10 @@
 ---
 name: helm-migration
-description: Converts Kubernetes YAML manifests to Helm values.yaml and env.yaml following your chart template structure. Use when user mentions "migrate to helm", "convert yaml to helm", "generate values.yaml", "helm migration", "yaml to helm", shares a Kubernetes YAML and asks for Helm output. Always removes tolerations. Always generates both files when applicable. Requires a local charts template repository.
+description: >-
+  Converts Kubernetes YAML manifests to Helm values.yaml and env.yaml following the solvelab chart template structure — requires a local copy of that chart template repository (the template-specific fields do not exist in stock Helm charts). Use when user mentions "migrate to helm", "convert yaml to helm", "generate values.yaml", "helm migration", "yaml to helm", shares a Kubernetes YAML and asks for Helm output. Always removes tolerations. Always generates both files when applicable.
 metadata:
-  author: your-org
-  version: 2.0.0
+  author: solvelab
+  version: 2.1.0
   category: devops
 license: MIT
 compatibility: Requires a Helm charts template repository accessible on the local filesystem. Works best in Claude Code.

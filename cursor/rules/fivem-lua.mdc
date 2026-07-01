@@ -92,4 +92,6 @@ local function stopLoop() active = false end
 ## See also
 
 - `fivem-fallback` — resilience when calling an external backend from Lua.
-- `bug-hunter` — adversarial testing, including the FiveM/Lua track (event injection, StateBag races).
+- `bug-hunter` — adversarial testing; its `references/track-fivem-lua.md` exercises the trust-boundary
+  and lifecycle rules defined here.
+- `backend-resilience` — the stack-agnostic doctrine behind `fivem-fallback`.

@@ -1,6 +1,16 @@
 ---
 name: r3f-materials
-description: React Three Fiber materials - PBR materials, Drei materials, shader materials, material properties. Use when styling meshes, creating custom materials, working with textures, or implementing visual effects.
+description: >-
+  React Three Fiber materials — material type comparison, meshStandard/meshPhysical PBR properties
+  (transmission, iridescence, sheen), Drei special materials (Reflector, Wobble, Distort,
+  Transmission, Discard) and multi-material setups. Use when styling meshes. Custom GLSL shader
+  materials live in r3f-shaders; texture loading in r3f-assets.
+metadata:
+  author: solvelab
+  version: 1.1.0
+  category: game
+license: MIT
+compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 
@@ -512,72 +522,11 @@ function TexturedMaterial() {
 
 ## Environment Maps
 
-```tsx
-import { useEnvironment } from '@react-three/drei'
-
-function EnvMappedMaterial() {
-  const envMap = useEnvironment({ preset: 'sunset' })
-
-  return (
-    <mesh>
-      <sphereGeometry args={[1, 64, 64]} />
-      <meshStandardMaterial
-        metalness={1}
-        roughness={0}
-        envMap={envMap}
-        envMapIntensity={1}
-      />
-    </mesh>
-  )
-}
-```
+Environment maps and IBL live in r3f-lighting; loading them is covered in r3f-assets. On the material side, `envMapIntensity` scales the contribution of the environment map on `meshStandardMaterial`/`meshPhysicalMaterial`.
 
 ## Custom Shader Materials
 
-See `r3f-shaders` for detailed shader material usage.
-
-```tsx
-import { shaderMaterial } from '@react-three/drei'
-import { extend } from '@react-three/fiber'
-
-const CustomMaterial = shaderMaterial(
-  { time: 0, color: new THREE.Color('hotpink') },
-  // Vertex shader
-  `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  // Fragment shader
-  `
-    uniform float time;
-    uniform vec3 color;
-    varying vec2 vUv;
-    void main() {
-      gl_FragColor = vec4(color * (sin(time + vUv.x * 10.0) * 0.5 + 0.5), 1.0);
-    }
-  `
-)
-
-extend({ CustomMaterial })
-
-function CustomShaderMesh() {
-  const materialRef = useRef()
-
-  useFrame(({ clock }) => {
-    materialRef.current.time = clock.elapsedTime
-  })
-
-  return (
-    <mesh>
-      <boxGeometry />
-      <customMaterial ref={materialRef} />
-    </mesh>
-  )
-}
-```
+Reach for a custom shader material when Drei's special materials (Reflector/Wobble/Distort/Transmission) don't cover the visual effect you need. Custom shader materials (shaderMaterial, uniforms, GLSL) are covered in r3f-shaders.
 
 ## Performance Tips
 
@@ -602,6 +551,6 @@ function getCachedMaterial(color) {
 
 ## See Also
 
-- `r3f-textures` - Texture loading and configuration
+- `r3f-assets` - Texture loading and configuration
 - `r3f-shaders` - Custom shader development
 - `r3f-lighting` - Light interaction with materials

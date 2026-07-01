@@ -1,6 +1,6 @@
 ---
 description: >-
-  React Three Fiber physics with Rapier - RigidBody, colliders, forces, joints, sensors. Use when adding physics simulation, collision detection, character controllers, or creating interactive physics-based experiences.
+  React Three Fiber physics with @react-three/rapier — RigidBody, colliders, forces, collision events, sensors, joints, instanced physics and world snapshots. Use when adding physics simulation, collision detection or character controllers.
 alwaysApply: false
 ---
 

@@ -1,136 +1,24 @@
 ---
 name: r3f-animation
-description: React Three Fiber animation - useFrame, useAnimations, spring physics, keyframes. Use when animating objects, playing GLTF animations, creating procedural motion, or implementing physics-based movement.
+description: >-
+  React Three Fiber animation — time-based useFrame motion, GLTF clips via useAnimations,
+  react-spring physics, morph targets, skeletal animation, zustand-driven animation state, and
+  tuned procedural walk/jump cycles. Use when animating objects or characters. useFrame basics
+  live in r3f-fundamentals; drag gestures in r3f-interaction.
+metadata:
+  author: solvelab
+  version: 1.1.0
+  category: game
+license: MIT
+compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 
 # React Three Fiber Animation
 
-## Quick Start
+## useFrame Basics
 
-```tsx
-import { Canvas, useFrame } from '@react-three/fiber'
-import { useRef } from 'react'
-
-function RotatingBox() {
-  const meshRef = useRef()
-
-  useFrame((state, delta) => {
-    meshRef.current.rotation.x += delta
-    meshRef.current.rotation.y += delta * 0.5
-  })
-
-  return (
-    <mesh ref={meshRef}>
-      <boxGeometry />
-      <meshStandardMaterial color="hotpink" />
-    </mesh>
-  )
-}
-
-export default function App() {
-  return (
-    <Canvas>
-      <ambientLight />
-      <RotatingBox />
-    </Canvas>
-  )
-}
-```
-
-## useFrame Hook
-
-The core animation hook in R3F. Runs every frame.
-
-### Basic Usage
-
-```tsx
-import { useFrame } from '@react-three/fiber'
-import { useRef } from 'react'
-
-function AnimatedMesh() {
-  const meshRef = useRef()
-
-  useFrame((state, delta) => {
-    // state contains: clock, camera, scene, gl, mouse, etc.
-    // delta is time since last frame in seconds
-
-    meshRef.current.rotation.y += delta
-  })
-
-  return (
-    <mesh ref={meshRef}>
-      <boxGeometry />
-      <meshStandardMaterial color="orange" />
-    </mesh>
-  )
-}
-```
-
-### State Object
-
-```tsx
-useFrame((state, delta, xrFrame) => {
-  const {
-    clock,           // THREE.Clock
-    camera,          // Current camera
-    scene,           // Scene
-    gl,              // WebGLRenderer
-    mouse,           // Normalized mouse position (-1 to 1)
-    pointer,         // Same as mouse
-    viewport,        // Viewport dimensions
-    size,            // Canvas size
-    raycaster,       // Raycaster
-    get,             // Get current state
-    set,             // Set state
-    invalidate,      // Request re-render (when frameloop="demand")
-  } = state
-
-  // Time-based animation
-  const t = clock.getElapsedTime()
-  meshRef.current.position.y = Math.sin(t) * 2
-})
-```
-
-### Render Priority
-
-```tsx
-// Lower numbers run first. Default is 0.
-// Use negative for pre-render, positive for post-render
-
-function PreRender() {
-  useFrame(() => {
-    // Runs before main render
-  }, -1)
-}
-
-function PostRender() {
-  useFrame(() => {
-    // Runs after main render
-  }, 1)
-}
-
-function DefaultRender() {
-  useFrame(() => {
-    // Runs at default priority (0)
-  })
-}
-```
-
-### Conditional Animation
-
-```tsx
-function ConditionalAnimation({ isAnimating }) {
-  const meshRef = useRef()
-
-  useFrame((state, delta) => {
-    if (!isAnimating) return
-    meshRef.current.rotation.y += delta
-  })
-
-  return <mesh ref={meshRef}>...</mesh>
-}
-```
+useFrame basics (state object, delta, priority) are covered in r3f-fundamentals — this skill assumes them.
 
 ## GLTF Animations with useAnimations
 
@@ -396,30 +284,17 @@ function AnimatedBoxes({ count = 5 }) {
 
 ### Gesture Integration
 
+Minimal spring-on-drag pattern — drag movement drives a spring target:
+
 ```tsx
-import { useSpring, animated } from '@react-spring/three'
-import { useDrag } from '@use-gesture/react'
-
-function DraggableBox() {
-  const [spring, api] = useSpring(() => ({
-    position: [0, 0, 0],
-    config: { mass: 1, tension: 280, friction: 60 }
-  }))
-
-  const bind = useDrag(({ movement: [mx, my], down }) => {
-    api.start({
-      position: down ? [mx / 100, -my / 100, 0] : [0, 0, 0]
-    })
-  })
-
-  return (
-    <animated.mesh {...bind()} position={spring.position}>
-      <boxGeometry />
-      <meshStandardMaterial color="hotpink" />
-    </animated.mesh>
-  )
-}
+const [spring, api] = useSpring(() => ({ position: [0, 0, 0] }))
+const bind = useDrag(({ movement: [mx, my], down }) => {
+  api.start({ position: down ? [mx / 100, -my / 100, 0] : [0, 0, 0] })
+})
+// <animated.mesh {...bind()} position={spring.position}>
 ```
+
+Full drag/gesture patterns live in r3f-interaction.
 
 ### Chain Animations
 
@@ -704,35 +579,7 @@ function FloatingObject() {
 
 ### MeshWobbleMaterial / MeshDistortMaterial
 
-```tsx
-import { MeshWobbleMaterial, MeshDistortMaterial } from '@react-three/drei'
-
-function WobblyMesh() {
-  return (
-    <mesh>
-      <torusKnotGeometry args={[1, 0.4, 100, 16]} />
-      <MeshWobbleMaterial
-        factor={1}     // Wobble amplitude
-        speed={2}      // Wobble speed
-        color="hotpink"
-      />
-    </mesh>
-  )
-}
-
-function DistortedMesh() {
-  return (
-    <mesh>
-      <sphereGeometry args={[1, 64, 64]} />
-      <MeshDistortMaterial
-        distort={0.5}  // Distortion amount
-        speed={2}      // Animation speed
-        color="cyan"
-      />
-    </mesh>
-  )
-}
-```
+MeshWobbleMaterial / MeshDistortMaterial are documented in r3f-materials.
 
 ### Trail
 
@@ -1293,6 +1140,6 @@ if (phase === 'land') {
 
 ## See Also
 
-- `r3f-loaders` - Loading animated GLTF models
+- `r3f-assets` - Loading animated GLTF models
 - `r3f-fundamentals` - useFrame and animation loop
 - `r3f-shaders` - Vertex animation in shaders

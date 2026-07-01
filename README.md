@@ -199,7 +199,7 @@ ai-skills/
 │   ├── bug-hunter/SKILL.md
 │   ├── fivem-lua/SKILL.md
 │   ├── fivem-fallback/SKILL.md
-│   └── r3f-*/SKILL.md                        # React Three Fiber skills (11 topics)
+│   └── r3f-*/SKILL.md                        # React Three Fiber skills (10 topics)
 ├── .claude-plugin/
 │   ├── plugin.json                           # Claude Code plugin manifest (version-pinned)
 │   └── marketplace.json                      # Claude Code marketplace catalog
@@ -282,27 +282,50 @@ Think of skills as reusable expertise — instead of explaining your documentati
 
 ## 📦 Skills Available
 
-| Skill | Triggers | What It Does | Status |
-|-------|----------|--------------|--------|
-| **api-resilience-testing** | "test/harden/break/audit/review the API", "negative testing", "fuzz", "API robustness", "API security", invalid payloads, status codes, auth, OpenAPI | Tests REST APIs beyond the happy path (negative/fuzz/contract/security); produces an endpoint map, positive + negative scenarios, suggested automated tests, and a resilience checklist | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **documentation** | README, SETUP, TECHNICAL, CHANGELOG, "document this", "write the docs" | Analyzes the project first, then creates all documentation files the project actually needs | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **helm-migration** | "migrate to helm", "convert yaml to helm", "generate values.yaml", "yaml to helm" | Converts Kubernetes YAML manifests to Helm values.yaml and env.yaml following your chart template structure | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **fivem-lua** | RegisterNetEvent, RegisterNUICallback, fxmanifest, exports, NUI, CreateThread, StateBags, natives | CitizenFX Lua conventions: client-never-trusted boundary, explicit fxmanifest order, no busy loops, module-per-global, NUI focus/cleanup | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **fivem-fallback** | FiveM Lua calling backend/Consul/another resource, config fetch, retry, NUI callback to backend | Resilience: shared SafeCall/WithFallback, hardcoded config defaults, clampNum, bounded retries, negative cache, NUI error signaling | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **bug-hunter** | "bug hunt", "adversarial test", edge cases, atomicity, anti-forge, race condition, fuzz | Adversarial testing rite (break it, don't confirm happy path). Two tracks: Backend (pytest) + FiveM/Lua | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **conventional-commit** | creating/amending commits, commit messages, /commit | Conventional Commits format with gitmoji icon per type; forbids AI co-author attribution | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **openspec-drivezone** | OpenSpec, /opsx, "rito", propose/apply/archive on DriveZone projects | DriveZone OpenSpec rite: forked schema with three mandatory gates (Fallback & Modos de Falha, Testes & Bug-Hunter, Validação & Fechamento) | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **r3f-fundamentals** | R3F Canvas, hooks, JSX elements, events, refs | React Three Fiber fundamentals for 3D scenes in React | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **r3f-animation** | useFrame, useAnimations, spring physics, keyframes | R3F animation patterns and procedural motion | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **r3f-geometry** | 3D shapes, BufferGeometry, instancing | R3F geometry creation and optimization | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **r3f-interaction** | Pointer events, controls, gestures | R3F user interaction and input handling | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **r3f-lighting** | Lights, shadows, Environment, IBL | R3F lighting setup and configuration | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **r3f-loaders** | useGLTF, useLoader, Suspense, preloading | R3F asset loading patterns | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **r3f-materials** | PBR materials, shader materials | R3F material creation and styling | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **r3f-physics** | Rapier, RigidBody, colliders, forces | R3F physics simulation | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **r3f-postprocessing** | Bloom, DOF, screen effects | R3F post-processing visual effects | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **r3f-shaders** | GLSL, shaderMaterial, uniforms | R3F custom shader development | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
-| **r3f-textures** | useTexture, cubemaps, HDR environments | R3F texture loading and configuration | ![stable](https://img.shields.io/badge/status-stable-brightgreen) |
+### Backend & testing
+
+| Skill | Triggers | What It Does |
+|-------|----------|--------------|
+| **backend-resilience** | external call, timeout, 5xx, dependency down, config fetch, retry, fallback, negative cache | Stack-agnostic resilience doctrine — safe defaults, shared fallback helper, response-shape validation, clamping, bounded retries, negative caching, in-flight dedupe (Python examples) |
+| **api-resilience-testing** | "test/harden/break/audit/review the API", "negative testing", "fuzz", "API robustness", "API security", invalid payloads, status codes, auth, OpenAPI | Tests REST APIs beyond the happy path (negative/fuzz/contract/security); produces an endpoint map, scenarios, suggested tests and a resilience checklist |
+| **bug-hunter** | "bug hunt", "adversarial test", break it, anti-forge, edge cases of a change | Per-change adversarial testing rite — universal checklist + opt-in stack tracks (Python/pytest, FiveM/Lua) |
+
+### FiveM
+
+| Skill | Triggers | What It Does |
+|-------|----------|--------------|
+| **fivem-lua** | RegisterNetEvent, RegisterNUICallback, fxmanifest, exports, NUI, CreateThread, StateBags, natives | CitizenFX Lua conventions — client-never-trusted boundary, explicit fxmanifest order, no busy loops, module-per-global, NUI focus/cleanup |
+| **fivem-fallback** | FiveM resource calling backend/Consul/another resource, config fetch, retry in Lua | FiveM/Lua adaptation of backend-resilience — SafeCall/clampNum, boot retry, NUI error signaling |
+
+### Process & git
+
+| Skill | Triggers | What It Does |
+|-------|----------|--------------|
+| **openspec** | OpenSpec, /opsx, proposal, spec delta, change-id | Vanilla OpenSpec spec-driven workflow (explore → propose → validate → apply → archive) |
+| **openspec-drivezone** | the DriveZone "rito", forked schema | DriveZone forked-schema variant — mandatory Fallback / Tests & Bug-Hunter / Validation gates |
+| **conventional-commit** | creating/amending commits, commit messages, /commit | Conventional Commits + gitmoji icon per type; forbids AI attribution in commits |
+
+### DevOps & docs
+
+| Skill | Triggers | What It Does |
+|-------|----------|--------------|
+| **documentation** | README, SETUP, TECHNICAL, CHANGELOG, "document this", "write the docs" | Analyzes the project first, then creates the documentation set the project actually needs |
+| **helm-migration** | "migrate to helm", "convert yaml to helm", "generate values.yaml" | Converts K8s YAML to Helm values.yaml/env.yaml — **requires the solvelab chart template repository** |
+
+### Game (React Three Fiber — 10 topics)
+
+| Skill | Covers |
+|-------|--------|
+| **r3f-fundamentals** | Canvas, useFrame/useThree, JSX elements, events, refs, extend, Leva |
+| **r3f-animation** | useFrame motion, useAnimations, springs, morph/skeletal, procedural walk/jump cycles, zustand perf |
+| **r3f-assets** | Model loading (useGLTF, Draco, gltfjsx), textures (useTexture, colorSpace, FBO), Suspense/preload |
+| **r3f-geometry** | Built-in/custom BufferGeometry, instancing, Points/Lines, Text3D |
+| **r3f-interaction** | Pointer events, camera controls, drag/gestures, KeyboardControls, screen↔world |
+| **r3f-lighting** | Light types/cost, shadows, Environment/IBL/HDR (canonical home), lighting recipes |
+| **r3f-materials** | Material comparison, PBR props, Drei special materials, multi-material |
+| **r3f-physics** | Rapier — RigidBody, colliders, forces, joints, sensors, instanced physics |
+| **r3f-postprocessing** | EffectComposer, Bloom, DOF, SSAO/N8AO, Outline/selection, custom effects |
+| **r3f-shaders** | shaderMaterial + HMR, uniforms, GLSL snippets (noise/fresnel/dissolve), onBeforeCompile |
 
 ### api-resilience-testing
 

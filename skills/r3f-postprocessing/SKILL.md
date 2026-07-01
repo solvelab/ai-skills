@@ -1,6 +1,15 @@
 ---
 name: r3f-postprocessing
-description: React Three Fiber post-processing - @react-three/postprocessing, bloom, DOF, screen effects. Use when adding visual effects, color grading, blur, glow, or creating custom screen-space shaders.
+description: >-
+  React Three Fiber post-processing with @react-three/postprocessing — EffectComposer, Bloom, DOF,
+  SSAO/N8AO, GodRays, LUT, Outline and selection highlighting, custom Effect classes and mobile
+  performance. Use when adding screen-space visual effects or selection outlines.
+metadata:
+  author: solvelab
+  version: 1.1.0
+  category: game
+license: MIT
+compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 

@@ -4,7 +4,7 @@ description: >-
   Tests REST/HTTP APIs beyond the happy path — negative, fuzz, contract, and security testing — to find critical failures before production. Use this skill whenever the work involves a REST API: adding or changing an endpoint, reviewing an API PR or diff, writing API tests, designing request/response schemas, or when the user says "test/harden/break/audit/review the API", "negative testing", "fuzz", "API robustness", "API security", "validate payloads", or asks about invalid inputs, status codes, error handling, auth/authz, or OpenAPI/Swagger contract validation. Produces an endpoint map, positive + negative scenarios, suggested automated tests, and a resilience checklist. Do NOT use for non-API or pure happy-path unit testing.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: testing
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -34,8 +34,9 @@ sub-disciplines precisely:
 **Recommended primary label:** *API robustness testing* (or *resilience testing*).
 "Negative testing" is the most precise name for the manual scenario work;
 "fuzzing" for the automated generation; reach for the specific term per activity.
-Avoid vague "bug hunting" / "QA security testing" in formal docs — they are
-informal and ambiguous.
+Avoid vague "QA security testing" in formal docs — it is informal and ambiguous.
+("Bug-Hunter" is fine as the name of the internal adversarial-testing rite — see the
+`bug-hunter` skill — but use the precise terms above when writing formal test docs.)
 
 ---
 
@@ -212,3 +213,10 @@ When invoked, produce:
 4. **Suggested automated tests** in the project's stack.
 5. The filled **resilience checklist** with gaps flagged.
 Keep it concrete and runnable; favor real example payloads over description.
+
+## See also
+
+- `bug-hunter` — the per-change adversarial-testing rite; use it after implementing a single change,
+  and this skill when auditing an API surface.
+- `backend-resilience` — the fallback/negative-cache/clamping behavior the "Limits & resilience"
+  checklist section asserts.

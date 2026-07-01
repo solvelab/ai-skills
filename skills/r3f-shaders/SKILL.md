@@ -1,6 +1,16 @@
 ---
 name: r3f-shaders
-description: React Three Fiber shaders - GLSL, shaderMaterial, uniforms, custom effects. Use when creating custom visual effects, modifying vertices, writing fragment shaders, or extending built-in materials.
+description: >-
+  React Three Fiber custom shaders — Drei shaderMaterial with HMR, raw THREE.ShaderMaterial,
+  uniforms, varyings, curated GLSL snippets (noise, fbm, fresnel, dissolve), onBeforeCompile and
+  instanced shaders. Use when writing or modifying GLSL. Standard PBR materials live in
+  r3f-materials.
+metadata:
+  author: solvelab
+  version: 1.1.0
+  category: game
+license: MIT
+compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 
@@ -161,7 +171,7 @@ When you edit shader code, the material automatically updates. Without `key`, yo
 
 ```tsx
 import { shaderMaterial } from '@react-three/drei'
-import { extend, Object3DNode } from '@react-three/fiber'
+import { extend, ThreeElement } from '@react-three/fiber'
 import * as THREE from 'three'
 
 // Define uniform types
@@ -186,13 +196,10 @@ const WaveMaterial = shaderMaterial(
 // Extend with proper types
 extend({ WaveMaterial })
 
-// Declare for TypeScript
+// Declare for TypeScript (v9 pattern)
 declare module '@react-three/fiber' {
   interface ThreeElements {
-    waveMaterial: Object3DNode<
-      typeof WaveMaterial & THREE.ShaderMaterial,
-      typeof WaveMaterial
-    >
+    waveMaterial: ThreeElement<typeof WaveMaterial>
   }
 }
 ```
@@ -877,4 +884,4 @@ color = mix(colorB, colorA, step(0.5, value));
 
 - `r3f-materials` - Built-in material types
 - `r3f-postprocessing` - Full-screen shader effects
-- `r3f-textures` - Texture sampling in shaders
+- `r3f-assets` - Texture sampling in shaders

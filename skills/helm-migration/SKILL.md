@@ -1,9 +1,10 @@
 ---
 name: helm-migration
-description: Converts Kubernetes YAML manifests to Helm values.yaml and env.yaml following your chart template structure. Use when user mentions "migrate to helm", "convert yaml to helm", "generate values.yaml", "helm migration", "yaml to helm", shares a Kubernetes YAML and asks for Helm output. Always removes tolerations. Always generates both files when applicable. Requires a local charts template repository.
+description: >-
+  Converts Kubernetes YAML manifests to Helm values.yaml and env.yaml following the solvelab chart template structure — requires a local copy of that chart template repository (the template-specific fields do not exist in stock Helm charts). Use when user mentions "migrate to helm", "convert yaml to helm", "generate values.yaml", "helm migration", "yaml to helm", shares a Kubernetes YAML and asks for Helm output. Always removes tolerations. Always generates both files when applicable.
 metadata:
-  author: your-org
-  version: 2.0.0
+  author: solvelab
+  version: 2.1.0
   category: devops
 license: MIT
 compatibility: Requires a Helm charts template repository accessible on the local filesystem. Works best in Claude Code.
@@ -11,7 +12,7 @@ compatibility: Requires a Helm charts template repository accessible on the loca
 
 # Helm Migration Skill
 
-You are a Helm chart expert. When asked to migrate a Kubernetes YAML file to Helm, follow the workflow and conventions below. These are derived from real your-org production charts.
+You are a Helm chart expert. When asked to migrate a Kubernetes YAML file to Helm, follow the workflow and conventions below. These are derived from real solvelab production charts and are specific to that chart template.
 
 ---
 
@@ -37,7 +38,7 @@ If the source YAML has no secrets, configmaps or PVCs, do not generate env.yaml.
 
 ## Chart Template Conventions
 
-These are your-org-specific conventions that differ from standard Kubernetes YAML.
+These are template-specific conventions that differ from standard Kubernetes YAML.
 Always apply them when generating values.yaml.
 
 ### Section Headers
@@ -59,9 +60,9 @@ Detect from the source YAML kind and use the correct key:
 | StatefulSet | `statefulset:` |
 | CronJob | `cronjob:` |
 
-### your-org-specific fields
+### Template-specific fields
 
-These fields are specific to the your-org chart template — NOT standard Kubernetes:
+These fields are specific to the solvelab chart template — NOT standard Kubernetes:
 
 | Field | Where | Description |
 |---|---|---|
@@ -73,8 +74,8 @@ These fields are specific to the your-org chart template — NOT standard Kubern
 | `ports[].name` | containers | Always include port name |
 | `ports[].protocol` | containers | TCP or UDP — always explicit |
 | `deployment.strategy` | deployment | Recreate or RollingUpdate — preserve exactly |
-| `deployment.sendlogs` | deployment | your-org-specific flag for log shipping |
-| `deployment.stack` | deployment | your-org-specific stack label |
+| `deployment.sendlogs` | deployment | template-specific flag for log shipping |
+| `deployment.stack` | deployment | template-specific stack label |
 | `deployment.lbtype` | deployment | Load balancer type (internal/external) |
 | `deployment.podAntiAffinity` | deployment | Custom format with app + topologyKey |
 | `deployment.hostAliases` | deployment | Preserve exactly — includes ip and hostnames |

@@ -12,7 +12,7 @@
     {
       "name": "ai-skills",
       "source": "./",
-      "description": "Reusable AI skills: documentation, API resilience testing, Helm migration, FiveM Lua, bug hunting, and React Three Fiber (11 topics).",
+      "description": "Reusable AI skills: backend resilience, API resilience testing, adversarial testing, OpenSpec workflow, documentation, Helm migration, FiveM Lua, and React Three Fiber (10 topics).",
       "category": "productivity",
       "keywords": [
         "skills",

@@ -1,6 +1,16 @@
 ---
 name: r3f-interaction
-description: React Three Fiber interaction - pointer events, controls, gestures, selection. Use when handling user input, implementing click detection, adding camera controls, or creating interactive 3D experiences.
+description: >-
+  React Three Fiber interaction — pointer events, camera controls (Orbit/Map/FirstPerson and other
+  Drei controls), TransformControls/PivotControls, drag with use-gesture plus spring,
+  KeyboardControls, selection state, screen-to-world conversion and scroll controls. Use for user
+  input and object manipulation. Selection outline rendering lives in r3f-postprocessing.
+metadata:
+  author: solvelab
+  version: 1.1.0
+  category: game
+license: MIT
+compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 
@@ -600,56 +610,23 @@ function SelectableScene() {
 
 ### Multi-Select with Outline
 
+Selection highlighting via Outline/Selective Bloom is covered in r3f-postprocessing. The pointer-event selection state logic (tracking which ids are selected, shift-click to toggle) is the same pattern as Click to Select above, extended to a `Set`:
+
 ```tsx
-import { useState } from 'react'
-import { EffectComposer, Outline, Selection, Select } from '@react-three/postprocessing'
+const [selected, setSelected] = useState(new Set())
 
-function MultiSelectScene() {
-  const [selected, setSelected] = useState(new Set())
-
-  const toggleSelect = (id, event) => {
-    event.stopPropagation()
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (event.shiftKey) {
-        // Multi-select with shift
-        if (next.has(id)) {
-          next.delete(id)
-        } else {
-          next.add(id)
-        }
-      } else {
-        // Single select
-        next.clear()
-        next.add(id)
-      }
-      return next
-    })
-  }
-
-  return (
-    <Selection>
-      <EffectComposer autoClear={false}>
-        <Outline
-          blur
-          visibleEdgeColor={0xffffff}
-          edgeStrength={10}
-        />
-      </EffectComposer>
-
-      {[0, 1, 2, 3, 4].map((id) => (
-        <Select key={id} enabled={selected.has(id)}>
-          <mesh
-            position={[(id - 2) * 2, 0, 0]}
-            onClick={(e) => toggleSelect(id, e)}
-          >
-            <boxGeometry />
-            <meshStandardMaterial color="orange" />
-          </mesh>
-        </Select>
-      ))}
-    </Selection>
-  )
+const toggleSelect = (id, event) => {
+  event.stopPropagation()
+  setSelected((prev) => {
+    const next = new Set(prev)
+    if (event.shiftKey) {
+      next.has(id) ? next.delete(id) : next.add(id)
+    } else {
+      next.clear()
+      next.add(id)
+    }
+    return next
+  })
 }
 ```
 

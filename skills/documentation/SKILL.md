@@ -2,9 +2,9 @@
 name: documentation
 description: Creates and updates complete project documentation following a three-tier model (README.md, docs/SETUP.md, docs/TECHNICAL.md). Use this skill whenever the user mentions README, docs, SETUP, TECHNICAL, CHANGELOG, "document this", "write the docs", "update the readme", "explain how this works", "help someone understand this project", or asks to document a codebase for AI tools or new developers. ALWAYS creates all three documentation tiers unless the user explicitly says otherwise. Do NOT use for non-software documentation tasks.
 metadata:
-  author: your-org
-  version: 2.0.0
-  category: documentation
+  author: solvelab
+  version: 2.1.0
+  category: docs
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
@@ -209,7 +209,7 @@ MIT
 
 ### README Rules
 
-- **Visual header**: Always start README.md with a centered header block containing: project logo (if one exists in the repo — look for `logo.png`, `logo.svg`, `icon.png`), project title in H1, one-line description in bold, and shields/badges relevant to the project (language, framework, license). Use this structure:
+- **Visual header** (default for public/OSS-facing repos): start README.md with a centered header block containing: project logo (if one exists in the repo — look for `logo.png`, `logo.svg`, `icon.png`), project title in H1, one-line description in bold, and shields/badges relevant to the project (language, framework, license). **Audience rule**: for internal services, bots or private tools, skip badges that carry no signal there (no CI badge without public CI, no PyPI badge if unpublished) — a plain H1 + one-line description is correct for that audience. Default structure:
   ```markdown
   <div align="center">
     <img src="logo.png" alt="Project Logo" width="180" />
@@ -231,7 +231,7 @@ MIT
   - Database: if a database is configured
 - **Logo detection**: Before writing README.md, search for image files in the repo root (`logo.png`, `logo.svg`, `icon.png`, `favicon.ico`). If found, include it in the header. If not found, skip the `<img>` tag.
 - **No logo, no problem**: If no logo exists, keep the centered div with just the title, description, and badges.
-- **Lead with purpose**: the first line after the header div must be a one-sentence description if not already in the header. No badges or logos outside the centered header div.
+- **Lead with purpose**: the first line after the header must be a one-sentence description if not already in the header. When badges are used, keep them all inside the header block — none scattered through the body.
 - **Quick Start must be quick**: 3-5 commands maximum. If it takes more, link to `docs/SETUP.md`.
 - **Features as a scannable list**: use bold feature names with concise descriptions. Use emoji sparingly (only if the project already does).
 - **Tables for structured data**: env vars, endpoints, commands, tech stack — always tables, never prose.

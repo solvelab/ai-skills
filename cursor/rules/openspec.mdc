@@ -1,0 +1,93 @@
+---
+description: >-
+  Vanilla OpenSpec spec-driven workflow: explore → propose → validate --strict → apply → archive. Use when a project has an openspec/ directory and the task involves planning or proposing a change, creating a proposal/spec, implementing tasks from a change, or archiving a completed change — or when the user mentions OpenSpec, /opsx, proposal, spec delta, or change-id. Covers proposal.md / design.md / tasks.md / spec delta formats and when a proposal is (not) required. For the DriveZone forked-schema variant use openspec-drivezone.
+alwaysApply: false
+---
+
+
+# OpenSpec — vanilla spec-driven workflow
+
+[OpenSpec](https://github.com/Fission-AI/OpenSpec) structures a change as a validated proposal before
+any code: **explore → propose → validate → apply → archive**. Specs are the source of truth; changes
+are deltas against them.
+
+## Quick checklist
+
+- Search existing work first: `openspec spec list --long`, `openspec list`.
+- Decide scope: new capability vs modify existing capability.
+- Pick a unique change-id: kebab-case, **verb-led** (`add-`, `update-`, `remove-`, `refactor-`).
+- Scaffold `proposal.md`, `tasks.md`, `design.md` (only if needed), and one delta spec per affected
+  capability.
+- Validate: `openspec validate <change-id> --strict` — fix until it passes.
+- **Do not start implementation until the proposal is approved.**
+
+## When a proposal is required
+
+Create one for: new features/capabilities, breaking changes (API/schema), architecture or pattern
+changes, behavior-changing optimizations, security-pattern updates. Skip it for: bug fixes restoring
+intended behavior, typos/formatting/comments, non-breaking dependency bumps, config tweaks. Unclear →
+propose (safer).
+
+## Lifecycle
+
+| Stage | Command / skill | What it does |
+|---|---|---|
+| Explore | `/opsx:explore` | Thinking-partner mode: read the codebase, align the requirement — no implementation. |
+| Propose | `/opsx:propose <name>` | Creates the change and generates proposal → spec deltas → design → tasks. |
+| Validate | `openspec validate <id> --strict` | **Gate before coding.** Fails if a required section is missing. |
+| Apply | `/opsx:apply [<id>]` | Reads proposal/specs/design/tasks, implements each task, marks `[x]`. |
+| Archive | `/opsx:archive [<id>]` | Verifies completeness, syncs delta specs into `specs/`, moves the change to `archive/`. |
+
+## Artifact formats
+
+**`proposal.md`** — `# Change: <title>`, `## Why` (1–2 sentences), `## What Changes` (bullets; mark
+**BREAKING**), `## Impact` (affected specs + code).
+
+**Spec deltas** — `changes/<id>/specs/<capability>/spec.md`, one file per affected capability:
+
+```markdown
+## ADDED Requirements
+### Requirement: <name>
+The system SHALL ...
+
+#### Scenario: <case>
+- **WHEN** ...
+- **THEN** ...
+
+## MODIFIED Requirements   (repeat the complete modified requirement)
+## REMOVED Requirements    (add **Reason** and **Migration**)
+```
+
+Every requirement needs at least one `#### Scenario:`. `--strict` enforces this.
+
+**`tasks.md`** — numbered groups of checkboxes (`- [ ] 1.1 ...`). Mark `[x]` immediately after each
+task is done and validated, not in a batch at the end.
+
+**`design.md`** — only when the change is cross-cutting, adds a dependency, touches data models,
+has security/performance/migration complexity, or has open technical decisions. Skeleton:
+`## Context`, `## Goals / Non-Goals`, `## Decisions` (with alternatives considered), `## Risks /
+Trade-offs`, `## Migration`.
+
+## Directory layout
+
+```
+openspec/
+  project.md                # project conventions the AI must follow
+  specs/<capability>/spec.md      # current truth (updated only at archive)
+  changes/<change-id>/            # active proposal
+    proposal.md  design.md  tasks.md  specs/<capability>/spec.md
+  changes/archive/<date>-<id>/    # completed changes = history + delta base
+```
+
+## Execution rules
+
+- Always run `openspec validate <id> --strict` **before** implementing — it is the gate, not a
+  formality.
+- Never edit generated `/opsx` skills or `schema.yaml` by hand; they change via the CLI
+  (`openspec update`) or a deliberate fork.
+- Current specs live in `openspec/specs/`; `archive/` is history and the base for future deltas.
+
+## See also
+
+- `openspec-drivezone` — a forked-schema variant that turns fallback/adversarial-testing/closure
+  disciplines into mandatory validation gates; example of adapting this workflow per project.

@@ -1,0 +1,1076 @@
+---
+description: >-
+  React Three Fiber asset loading and configuration — useGLTF, useLoader, Draco, gltfjsx, Suspense and preloading for models; useTexture, PBR texture sets, wrapping/filtering/colorSpace, video/canvas/data textures, FBO render targets and sprite sheets. Use when loading or configuring any external asset (3D model, texture, HDR file) in R3F. For environment lighting and IBL setup use r3f-lighting; for applying textures to PBR materials use r3f-materials.
+alwaysApply: false
+---
+
+
+# r3f-assets
+
+## Models
+
+### Quick Start
+
+```tsx
+import { Canvas } from '@react-three/fiber'
+import { useGLTF, OrbitControls } from '@react-three/drei'
+import { Suspense } from 'react'
+
+function Model() {
+  const { scene } = useGLTF('/models/robot.glb')
+  return <primitive object={scene} />
+}
+
+export default function App() {
+  return (
+    <Canvas>
+      <ambientLight />
+      <Suspense fallback={null}>
+        <Model />
+      </Suspense>
+      <OrbitControls />
+    </Canvas>
+  )
+}
+```
+
+### useGLTF (Drei)
+
+The recommended way to load GLTF/GLB models.
+
+#### Basic Usage
+
+```tsx
+import { useGLTF } from '@react-three/drei'
+
+function Model() {
+  const gltf = useGLTF('/models/robot.glb')
+
+  // gltf contains:
+  // - scene: THREE.Group (the main scene)
+  // - nodes: Object of named meshes
+  // - materials: Object of named materials
+  // - animations: Array of AnimationClip
+
+  return <primitive object={gltf.scene} />
+}
+```
+
+#### Using Nodes and Materials
+
+```tsx
+function Model() {
+  const { nodes, materials } = useGLTF('/models/robot.glb')
+
+  return (
+    <group>
+      {/* Use specific meshes */}
+      <mesh
+        geometry={nodes.Body.geometry}
+        material={materials.Metal}
+        position={[0, 0, 0]}
+      />
+      <mesh
+        geometry={nodes.Head.geometry}
+        material={materials.Plastic}
+        position={[0, 1, 0]}
+      />
+    </group>
+  )
+}
+```
+
+#### With TypeScript (gltfjsx)
+
+Generate typed components using gltfjsx:
+
+```bash
+npx gltfjsx model.glb --types
+```
+
+```tsx
+// Generated component
+import { useGLTF } from '@react-three/drei'
+import { GLTF } from 'three-stdlib'
+
+type GLTFResult = GLTF & {
+  nodes: {
+    Body: THREE.Mesh
+    Head: THREE.Mesh
+  }
+  materials: {
+    Metal: THREE.MeshStandardMaterial
+    Plastic: THREE.MeshStandardMaterial
+  }
+}
+
+export function Model(props: JSX.IntrinsicElements['group']) {
+  const { nodes, materials } = useGLTF('/model.glb') as GLTFResult
+
+  return (
+    <group {...props} dispose={null}>
+      <mesh geometry={nodes.Body.geometry} material={materials.Metal} />
+      <mesh geometry={nodes.Head.geometry} material={materials.Plastic} />
+    </group>
+  )
+}
+
+useGLTF.preload('/model.glb')
+```
+
+#### Draco Compression
+
+```tsx
+import { useGLTF } from '@react-three/drei'
+
+function Model() {
+  // Drei automatically handles Draco if the file is Draco-compressed
+  const { scene } = useGLTF('/models/compressed.glb')
+  return <primitive object={scene} />
+}
+
+// Or specify Draco decoder path
+useGLTF.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/')
+```
+
+#### Preloading
+
+```tsx
+import { useGLTF } from '@react-three/drei'
+
+// Preload at module level
+useGLTF.preload('/models/robot.glb')
+useGLTF.preload(['/model1.glb', '/model2.glb'])
+
+function Model() {
+  // Will be instant if preloaded
+  const { scene } = useGLTF('/models/robot.glb')
+  return <primitive object={scene} />
+}
+```
+
+#### Processing Loaded Model
+
+```tsx
+function Model() {
+  const { scene } = useGLTF('/models/robot.glb')
+
+  useEffect(() => {
+    // Enable shadows on all meshes
+    scene.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true
+        child.receiveShadow = true
+      }
+    })
+  }, [scene])
+
+  return <primitive object={scene} />
+}
+```
+
+### useLoader for GLTF (Core R3F)
+
+#### With Extensions (Draco)
+
+```tsx
+import { useLoader } from '@react-three/fiber'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader'
+
+function Model() {
+  const gltf = useLoader(GLTFLoader, '/model.glb', (loader) => {
+    const dracoLoader = new DRACOLoader()
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/')
+    loader.setDRACOLoader(dracoLoader)
+  })
+
+  return <primitive object={gltf.scene} />
+}
+```
+
+#### Progress Callback
+
+```tsx
+function Model() {
+  const gltf = useLoader(
+    GLTFLoader,
+    '/model.glb',
+    undefined,  // extensions
+    (progress) => {
+      console.log(`Loading: ${(progress.loaded / progress.total) * 100}%`)
+    }
+  )
+
+  return <primitive object={gltf.scene} />
+}
+```
+
+### Other Model Formats
+
+#### OBJ + MTL
+
+```tsx
+import { useLoader } from '@react-three/fiber'
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader'
+import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader'
+
+function OBJModel() {
+  const materials = useLoader(MTLLoader, '/model.mtl')
+  const obj = useLoader(OBJLoader, '/model.obj', (loader) => {
+    materials.preload()
+    loader.setMaterials(materials)
+  })
+
+  return <primitive object={obj} />
+}
+```
+
+#### FBX
+
+```tsx
+import { useFBX } from '@react-three/drei'
+
+function FBXModel() {
+  const fbx = useFBX('/model.fbx')
+
+  return <primitive object={fbx} scale={0.01} />
+}
+
+// Preload
+useFBX.preload('/model.fbx')
+```
+
+#### STL
+
+```tsx
+import { useLoader } from '@react-three/fiber'
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader'
+
+function STLModel() {
+  const geometry = useLoader(STLLoader, '/model.stl')
+
+  return (
+    <mesh geometry={geometry}>
+      <meshStandardMaterial color="gray" />
+    </mesh>
+  )
+}
+```
+
+#### PLY
+
+```tsx
+import { useLoader } from '@react-three/fiber'
+import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader'
+
+function PLYModel() {
+  const geometry = useLoader(PLYLoader, '/model.ply')
+
+  useEffect(() => {
+    geometry.computeVertexNormals()
+  }, [geometry])
+
+  return (
+    <mesh geometry={geometry}>
+      <meshStandardMaterial vertexColors />
+    </mesh>
+  )
+}
+```
+
+### Clone for Multiple Instances
+
+```tsx
+import { useGLTF, Clone } from '@react-three/drei'
+
+function Trees() {
+  const { scene } = useGLTF('/models/tree.glb')
+
+  return (
+    <>
+      <Clone object={scene} position={[0, 0, 0]} />
+      <Clone object={scene} position={[5, 0, 0]} />
+      <Clone object={scene} position={[-5, 0, 0]} />
+      <Clone object={scene} position={[0, 0, 5]} scale={1.5} />
+    </>
+  )
+}
+```
+
+### useFont
+
+```tsx
+import { useFont, Text3D } from '@react-three/drei'
+
+// Preload font
+useFont.preload('/fonts/helvetiker.json')
+
+function Text() {
+  return (
+    <Text3D font="/fonts/helvetiker.json" size={1} height={0.2}>
+      Hello
+      <meshStandardMaterial color="gold" />
+    </Text3D>
+  )
+}
+```
+
+### Error Handling
+
+```tsx
+import { useGLTF } from '@react-three/drei'
+import { ErrorBoundary } from 'react-error-boundary'
+
+function ModelWithErrorHandling() {
+  return (
+    <ErrorBoundary fallback={<FallbackModel />}>
+      <Suspense fallback={<Loader />}>
+        <Model />
+      </Suspense>
+    </ErrorBoundary>
+  )
+}
+
+function FallbackModel() {
+  return (
+    <mesh>
+      <boxGeometry />
+      <meshBasicMaterial color="red" wireframe />
+    </mesh>
+  )
+}
+```
+
+### Asset Caching
+
+```tsx
+import { useGLTF, useTexture } from '@react-three/drei'
+
+// Assets are automatically cached by URL
+// Same URL = same asset instance
+
+function Scene() {
+  // These all reference the same cached asset
+  const model1 = useGLTF('/model.glb')
+  const model2 = useGLTF('/model.glb')
+  const model3 = useGLTF('/model.glb')
+
+  // Clear cache if needed
+  useGLTF.clear('/model.glb')
+}
+```
+
+### Suspense Patterns
+
+#### Basic Suspense
+
+```tsx
+import { Suspense } from 'react'
+
+function Scene() {
+  return (
+    <Canvas>
+      <Suspense fallback={<Loader />}>
+        <Model />
+      </Suspense>
+    </Canvas>
+  )
+}
+
+function Loader() {
+  return (
+    <mesh>
+      <boxGeometry />
+      <meshBasicMaterial color="gray" wireframe />
+    </mesh>
+  )
+}
+```
+
+#### Loading Progress UI
+
+```tsx
+import { useProgress, Html } from '@react-three/drei'
+
+function Loader() {
+  const { active, progress, errors, item, loaded, total } = useProgress()
+
+  return (
+    <Html center>
+      <div className="loader">
+        <div className="progress-bar">
+          <div style={{ width: `${progress}%` }} />
+        </div>
+        <p>{Math.round(progress)}% loaded</p>
+        <p>Loading: {item}</p>
+      </div>
+    </Html>
+  )
+}
+
+function App() {
+  return (
+    <Canvas>
+      <Suspense fallback={<Loader />}>
+        <Scene />
+      </Suspense>
+    </Canvas>
+  )
+}
+```
+
+#### Drei Loader Component
+
+```tsx
+import { Loader } from '@react-three/drei'
+
+function App() {
+  return (
+    <>
+      <Canvas>
+        <Suspense fallback={null}>
+          <Scene />
+        </Suspense>
+      </Canvas>
+      {/* HTML loading overlay */}
+      <Loader />
+    </>
+  )
+}
+```
+
+### Performance Tips
+
+1. **Preload critical assets**: Avoid loading during interaction
+2. **Use Draco compression**: Smaller file sizes
+3. **Use LOD models**: Different detail levels for distance
+4. **Clone instead of reload**: For multiple instances
+5. **Lazy load non-critical**: Load on demand
+
+```tsx
+// Preload strategy
+useGLTF.preload('/models/hero.glb')      // Critical
+useTexture.preload('/textures/main.jpg')  // Critical
+
+function LazyModel({ visible }) {
+  // Only load when visible
+  const { scene } = useGLTF(visible ? '/models/detail.glb' : null)
+  return scene ? <primitive object={scene} /> : null
+}
+```
+
+## Textures
+
+### Quick Start
+
+```tsx
+import { Canvas } from '@react-three/fiber'
+import { useTexture } from '@react-three/drei'
+
+function TexturedBox() {
+  const texture = useTexture('/textures/wood.jpg')
+
+  return (
+    <mesh>
+      <boxGeometry />
+      <meshStandardMaterial map={texture} />
+    </mesh>
+  )
+}
+
+export default function App() {
+  return (
+    <Canvas>
+      <ambientLight />
+      <TexturedBox />
+    </Canvas>
+  )
+}
+```
+
+### useTexture Hook (Drei)
+
+The recommended way to load textures in R3F.
+
+#### Single Texture
+
+```tsx
+import { useTexture } from '@react-three/drei'
+
+function SingleTexture() {
+  const texture = useTexture('/textures/color.jpg')
+
+  return (
+    <mesh>
+      <planeGeometry args={[5, 5]} />
+      <meshBasicMaterial map={texture} />
+    </mesh>
+  )
+}
+```
+
+#### Multiple Textures (Array)
+
+```tsx
+function MultipleTextures() {
+  const [colorMap, normalMap, roughnessMap] = useTexture([
+    '/textures/color.jpg',
+    '/textures/normal.jpg',
+    '/textures/roughness.jpg',
+  ])
+
+  return (
+    <mesh>
+      <sphereGeometry args={[1, 64, 64]} />
+      <meshStandardMaterial
+        map={colorMap}
+        normalMap={normalMap}
+        roughnessMap={roughnessMap}
+      />
+    </mesh>
+  )
+}
+```
+
+#### Named Object (Recommended for PBR)
+
+```tsx
+function PBRTextures() {
+  // Named object automatically spreads to material
+  const textures = useTexture({
+    map: '/textures/color.jpg',
+    normalMap: '/textures/normal.jpg',
+    roughnessMap: '/textures/roughness.jpg',
+    metalnessMap: '/textures/metalness.jpg',
+    aoMap: '/textures/ao.jpg',
+    displacementMap: '/textures/displacement.jpg',
+  })
+
+  return (
+    <mesh>
+      <sphereGeometry args={[1, 64, 64]} />
+      <meshStandardMaterial
+        {...textures}
+        displacementScale={0.1}
+      />
+    </mesh>
+  )
+}
+```
+
+#### With Texture Configuration
+
+```tsx
+import { useTexture } from '@react-three/drei'
+import * as THREE from 'three'
+
+function ConfiguredTextures() {
+  const textures = useTexture({
+    map: '/textures/color.jpg',
+    normalMap: '/textures/normal.jpg',
+  }, (textures) => {
+    // Configure textures after loading
+    Object.values(textures).forEach(texture => {
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+      texture.repeat.set(4, 4)
+    })
+  })
+
+  return (
+    <mesh>
+      <planeGeometry args={[10, 10]} />
+      <meshStandardMaterial {...textures} />
+    </mesh>
+  )
+}
+```
+
+#### Preloading
+
+```tsx
+import { useTexture } from '@react-three/drei'
+
+// Preload at module level
+useTexture.preload('/textures/hero.jpg')
+useTexture.preload(['/tex1.jpg', '/tex2.jpg'])
+
+function Component() {
+  // Will be instant if preloaded
+  const texture = useTexture('/textures/hero.jpg')
+}
+```
+
+### useLoader for Textures (Core R3F)
+
+```tsx
+import { useLoader } from '@react-three/fiber'
+import { TextureLoader } from 'three'
+
+function TexturedMesh() {
+  const texture = useLoader(TextureLoader, '/textures/color.jpg')
+
+  return (
+    <mesh>
+      <boxGeometry />
+      <meshStandardMaterial map={texture} />
+    </mesh>
+  )
+}
+```
+
+```tsx
+function MultiTexture() {
+  const [colorMap, normalMap, roughnessMap] = useLoader(TextureLoader, [
+    '/textures/color.jpg',
+    '/textures/normal.jpg',
+    '/textures/roughness.jpg',
+  ])
+
+  return (
+    <mesh>
+      <sphereGeometry args={[1, 64, 64]} />
+      <meshStandardMaterial
+        map={colorMap}
+        normalMap={normalMap}
+        roughnessMap={roughnessMap}
+      />
+    </mesh>
+  )
+}
+```
+
+```tsx
+import { useLoader } from '@react-three/fiber'
+import { TextureLoader } from 'three'
+
+// Preload
+useLoader.preload(TextureLoader, '/textures/color.jpg')
+useLoader.preload(TextureLoader, ['/tex1.jpg', '/tex2.jpg'])
+
+// Clear cache
+useLoader.clear(TextureLoader, '/textures/color.jpg')
+```
+
+### Texture Configuration
+
+#### Wrapping Modes
+
+```tsx
+import * as THREE from 'three'
+
+function ConfigureWrapping() {
+  const texture = useTexture('/textures/tile.jpg', (tex) => {
+    // Wrapping
+    tex.wrapS = THREE.RepeatWrapping      // Horizontal: ClampToEdgeWrapping, RepeatWrapping, MirroredRepeatWrapping
+    tex.wrapT = THREE.RepeatWrapping      // Vertical
+
+    // Repeat
+    tex.repeat.set(4, 4)                  // Tile 4x4
+
+    // Offset
+    tex.offset.set(0.5, 0.5)              // Shift UV
+
+    // Rotation
+    tex.rotation = Math.PI / 4            // Rotate 45 degrees
+    tex.center.set(0.5, 0.5)              // Rotation pivot
+  })
+
+  return (
+    <mesh>
+      <planeGeometry args={[10, 10]} />
+      <meshStandardMaterial map={texture} />
+    </mesh>
+  )
+}
+```
+
+#### Filtering
+
+```tsx
+function ConfigureFiltering() {
+  const texture = useTexture('/textures/color.jpg', (tex) => {
+    // Minification (texture larger than screen pixels)
+    tex.minFilter = THREE.LinearMipmapLinearFilter  // Smooth with mipmaps (default)
+    tex.minFilter = THREE.NearestFilter             // Pixelated
+    tex.minFilter = THREE.LinearFilter              // Smooth, no mipmaps
+
+    // Magnification (texture smaller than screen pixels)
+    tex.magFilter = THREE.LinearFilter   // Smooth (default)
+    tex.magFilter = THREE.NearestFilter  // Pixelated (retro style)
+
+    // Anisotropic filtering (sharper at angles)
+    tex.anisotropy = 16  // Usually renderer.capabilities.getMaxAnisotropy()
+
+    // Generate mipmaps
+    tex.generateMipmaps = true  // Default
+  })
+}
+```
+
+#### Color Space
+
+Important for accurate colors.
+
+```tsx
+function ConfigureColorSpace() {
+  const [colorMap, normalMap, roughnessMap] = useTexture([
+    '/textures/color.jpg',
+    '/textures/normal.jpg',
+    '/textures/roughness.jpg',
+  ], (textures) => {
+    // Color/albedo textures should use sRGB
+    textures[0].colorSpace = THREE.SRGBColorSpace
+
+    // Data textures (normal, roughness, metalness, ao) use Linear
+    // This is the default, so usually no action needed
+    // textures[1].colorSpace = THREE.LinearSRGBColorSpace
+    // textures[2].colorSpace = THREE.LinearSRGBColorSpace
+  })
+}
+```
+
+### Environment Maps
+
+Short reference for loading environment/cube textures as data (not for lighting setup — see below).
+
+```tsx
+import { useEnvironment } from '@react-three/drei'
+
+// Preset
+const envMap = useEnvironment({ preset: 'sunset' })
+// Presets: apartment, city, dawn, forest, lobby, night, park, studio, sunset, warehouse
+
+// Custom HDR file
+const envMap = useEnvironment({ files: '/hdri/studio.hdr' })
+
+// Cube map
+const envMap = useEnvironment({
+  files: ['px.jpg', 'nx.jpg', 'py.jpg', 'ny.jpg', 'pz.jpg', 'nz.jpg'],
+  path: '/textures/',
+})
+```
+
+```tsx
+import { useCubeTexture } from '@react-three/drei'
+
+const envMap = useCubeTexture(
+  ['px.jpg', 'nx.jpg', 'py.jpg', 'ny.jpg', 'pz.jpg', 'nz.jpg'],
+  { path: '/textures/cube/' }
+)
+```
+
+Environment lighting and IBL setup live in the r3f-lighting skill.
+
+### Video Textures
+
+```tsx
+import { useVideoTexture } from '@react-three/drei'
+
+function VideoPlane() {
+  const texture = useVideoTexture('/video.mp4', {
+    start: true,
+    loop: true,
+    muted: true,
+    crossOrigin: 'anonymous',
+  })
+
+  return (
+    <mesh>
+      <planeGeometry args={[16/9 * 2, 2]} />
+      <meshBasicMaterial map={texture} toneMapped={false} />
+    </mesh>
+  )
+}
+```
+
+### Canvas Textures
+
+```tsx
+import { useRef, useEffect } from 'react'
+import { useFrame } from '@react-three/fiber'
+import * as THREE from 'three'
+
+function CanvasTexture() {
+  const meshRef = useRef()
+  const textureRef = useRef()
+
+  useEffect(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 256
+    canvas.height = 256
+    const ctx = canvas.getContext('2d')
+
+    // Draw on canvas
+    ctx.fillStyle = 'red'
+    ctx.fillRect(0, 0, 256, 256)
+    ctx.fillStyle = 'white'
+    ctx.font = '48px Arial'
+    ctx.fillText('Hello', 50, 150)
+
+    textureRef.current = new THREE.CanvasTexture(canvas)
+  }, [])
+
+  // Update texture dynamically
+  useFrame(({ clock }) => {
+    if (textureRef.current) {
+      const canvas = textureRef.current.image
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = `hsl(${clock.elapsedTime * 50}, 100%, 50%)`
+      ctx.fillRect(0, 0, 256, 256)
+      textureRef.current.needsUpdate = true
+    }
+  })
+
+  return (
+    <mesh ref={meshRef}>
+      <planeGeometry args={[2, 2]} />
+      <meshBasicMaterial map={textureRef.current} />
+    </mesh>
+  )
+}
+```
+
+### Data Textures
+
+```tsx
+import { useMemo } from 'react'
+import * as THREE from 'three'
+
+function NoiseTexture() {
+  const texture = useMemo(() => {
+    const size = 256
+    const data = new Uint8Array(size * size * 4)
+
+    for (let i = 0; i < size * size; i++) {
+      const value = Math.random() * 255
+      data[i * 4] = value
+      data[i * 4 + 1] = value
+      data[i * 4 + 2] = value
+      data[i * 4 + 3] = 255
+    }
+
+    const texture = new THREE.DataTexture(data, size, size)
+    texture.needsUpdate = true
+    return texture
+  }, [])
+
+  return (
+    <mesh>
+      <planeGeometry args={[2, 2]} />
+      <meshBasicMaterial map={texture} />
+    </mesh>
+  )
+}
+```
+
+### Render Targets
+
+Render to texture.
+
+```tsx
+import { useFBO } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
+import { useRef } from 'react'
+
+function RenderToTexture() {
+  const fbo = useFBO(512, 512)
+  const meshRef = useRef()
+  const otherSceneRef = useRef()
+
+  useFrame(({ gl, camera }) => {
+    // Render other scene to FBO
+    gl.setRenderTarget(fbo)
+    gl.render(otherSceneRef.current, camera)
+    gl.setRenderTarget(null)
+  })
+
+  return (
+    <>
+      {/* Scene to render to texture */}
+      <group ref={otherSceneRef}>
+        <mesh position={[0, 0, -5]}>
+          <sphereGeometry args={[1, 32, 32]} />
+          <meshStandardMaterial color="red" />
+        </mesh>
+      </group>
+
+      {/* Display the texture */}
+      <mesh ref={meshRef}>
+        <planeGeometry args={[4, 4]} />
+        <meshBasicMaterial map={fbo.texture} />
+      </mesh>
+    </>
+  )
+}
+```
+
+### Texture Atlas / Sprite Sheet
+
+```tsx
+import { useTexture } from '@react-three/drei'
+import { useState } from 'react'
+import { useFrame } from '@react-three/fiber'
+import * as THREE from 'three'
+
+function SpriteAnimation() {
+  const texture = useTexture('/textures/spritesheet.png')
+  const [frame, setFrame] = useState(0)
+
+  // Configure texture
+  texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping
+  texture.repeat.set(1/4, 1/4)  // 4x4 sprite sheet
+
+  useFrame(({ clock }) => {
+    const newFrame = Math.floor(clock.elapsedTime * 10) % 16
+    if (newFrame !== frame) {
+      setFrame(newFrame)
+      const col = newFrame % 4
+      const row = Math.floor(newFrame / 4)
+      texture.offset.set(col / 4, 1 - (row + 1) / 4)
+    }
+  })
+
+  return (
+    <mesh>
+      <planeGeometry args={[1, 1]} />
+      <meshBasicMaterial map={texture} transparent />
+    </mesh>
+  )
+}
+```
+
+### Material Texture Maps Reference
+
+```tsx
+<meshStandardMaterial
+  // Base color (sRGB)
+  map={colorTexture}
+
+  // Surface detail (Linear)
+  normalMap={normalTexture}
+  normalScale={[1, 1]}
+
+  // Roughness (Linear, grayscale)
+  roughnessMap={roughnessTexture}
+  roughness={1}  // Multiplier
+
+  // Metalness (Linear, grayscale)
+  metalnessMap={metalnessTexture}
+  metalness={1}  // Multiplier
+
+  // Ambient Occlusion (Linear, requires uv2)
+  aoMap={aoTexture}
+  aoMapIntensity={1}
+
+  // Self-illumination (sRGB)
+  emissiveMap={emissiveTexture}
+  emissive="#ffffff"
+  emissiveIntensity={1}
+
+  // Vertex displacement (Linear)
+  displacementMap={displacementTexture}
+  displacementScale={0.1}
+  displacementBias={0}
+
+  // Alpha (Linear)
+  alphaMap={alphaTexture}
+  transparent={true}
+
+  // Environment reflection
+  envMap={envTexture}
+  envMapIntensity={1}
+
+  // Lightmap (requires uv2)
+  lightMap={lightmapTexture}
+  lightMapIntensity={1}
+/>
+```
+
+### Second UV Channel (for AO/Lightmaps)
+
+```tsx
+import { useEffect, useRef } from 'react'
+
+function MeshWithUV2() {
+  const meshRef = useRef()
+
+  useEffect(() => {
+    // Copy uv to uv2 for aoMap/lightMap
+    const geometry = meshRef.current.geometry
+    geometry.setAttribute('uv2', geometry.attributes.uv)
+  }, [])
+
+  return (
+    <mesh ref={meshRef}>
+      <boxGeometry />
+      <meshStandardMaterial
+        aoMap={aoTexture}
+        aoMapIntensity={1}
+      />
+    </mesh>
+  )
+}
+```
+
+### Suspense Loading
+
+```tsx
+import { Suspense } from 'react'
+import { useTexture } from '@react-three/drei'
+
+function TexturedMesh() {
+  const texture = useTexture('/textures/large.jpg')
+  return (
+    <mesh>
+      <boxGeometry />
+      <meshStandardMaterial map={texture} />
+    </mesh>
+  )
+}
+
+function Fallback() {
+  return (
+    <mesh>
+      <boxGeometry />
+      <meshBasicMaterial color="gray" wireframe />
+    </mesh>
+  )
+}
+
+function Scene() {
+  return (
+    <Suspense fallback={<Fallback />}>
+      <TexturedMesh />
+    </Suspense>
+  )
+}
+```
+
+### Performance Tips
+
+1. **Use power-of-2 dimensions**: 256, 512, 1024, 2048
+2. **Compress textures**: Use KTX2/Basis for web
+3. **Enable mipmaps**: For distant objects
+4. **Limit texture size**: 2048 usually sufficient
+5. **Reuse textures**: Same texture = better batching
+6. **Preload important textures**: Avoid pop-in
+
+```tsx
+// Preload critical textures
+useTexture.preload('/textures/hero.jpg')
+
+// Check texture memory
+useFrame(({ gl }) => {
+  console.log('Textures:', gl.info.memory.textures)
+})
+
+// Dispose unused textures (R3F usually handles this)
+texture.dispose()
+```
+
+## See also
+
+- `r3f-lighting` - Environment lighting and IBL setup
+- `r3f-materials` - Applying PBR texture sets to materials
+- `r3f-fundamentals` - Suspense and Canvas basics

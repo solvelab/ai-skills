@@ -1,32 +1,27 @@
 ---
 name: fivem-fallback
-description: Resilience and fallback patterns for FiveM Lua calling an external backend, config store (Consul/KV), or another resource. Use when a resource makes HTTP/export calls that can time out, return 5xx, return partial payloads, or hit a dependency that is down — or when adding config fetch, NUI callbacks that call the backend, or retry logic. Enforces a shared SafeCall/WithFallback helper, hardcoded config defaults, clampNum on remote values, bounded retries, negative cache, and NUI error signaling. Do NOT use for non-FiveM resilience.
+description: >-
+  FiveM/Lua adaptation of the backend-resilience doctrine: safe defaults, SafeCall/clampNum helpers,
+  boot-time config retry, negative cache and NUI error signaling for FiveM resources calling an external
+  backend, config store (Consul/KV), or another resource. Use when a FiveM resource makes HTTP/export
+  calls that can time out, return 5xx, return partial payloads, or hit a dependency that is down — or
+  when adding config fetch, NUI callbacks that call the backend, or retry logic in Lua. For non-FiveM
+  services use backend-resilience instead.
 metadata:
-  author: your-org
-  version: 1.0.0
+  author: solvelab
+  version: 1.1.0
   category: fivem
 license: MIT
 compatibility: Works in any environment with filesystem access.
 ---
 
-# FiveM fallback & resilience
+# FiveM fallback & resilience (Lua adaptation)
 
-Defensive patterns for calling an external backend / config store / another resource from FiveM Lua.
-The network boundary is unstable: timeouts, 5xx, partial payloads, dependency down, races. Every call
-needs a **safe default** so the game keeps working. Project-agnostic (no specific endpoints/codes here).
+**Doctrine lives in `backend-resilience`** — read it first: safe defaults, one shared helper,
+response-shape validation, clamping, bounded retries, negative cache (never negative-cache a real 404),
+in-flight dedupe. This skill is the FiveM/Lua mechanics only.
 
-## Principles
-
-1. **Every external call can fail.** A failed call must produce a safe default, never a crash and never
-   silent stale state shown as if fresh.
-2. **One shared helper, not ad-hoc per resource.** Scattered `pcall`+type-check copies drift. Provide a
-   `SafeCall`/`WithFallback` util and use it everywhere.
-3. **Validate the response shape**, not just success: check it's a table, has the expected field, and the
-   status/code is what you expect before trusting `data`.
-4. **Clamp untrusted/remote numbers** into a sane range (`clampNum`) — a bad config value shouldn't break gameplay.
-5. **Bound retries.** If the HTTP client already retries 5xx, don't stack an unbounded second retry on top.
-
-## SafeCall / WithFallback
+## SafeCall / clampNum (Lua)
 
 ```lua
 -- Returns (ok, value). On any failure returns (false, fallback) — never throws.
@@ -44,10 +39,7 @@ local function clampNum(v, lo, hi, default)
 end
 ```
 
-## Config / KV with hardcoded fallback
-
-Remote config (Consul KV, backend `/config/*`) WILL be unavailable sometimes. Always ship a hardcoded
-default and merge field-by-field; clamp ranges.
+## Config via exports with hardcoded fallback
 
 ```lua
 local FB = { xpPerLevel = 100, maxLevel = 50 }     -- hardcoded safe default
@@ -58,13 +50,10 @@ end
 local maxLevel = clampNum(cfg.data.maxLevel, 1, 999, FB.maxLevel)
 ```
 
-## Negative cache (avoid timeout cascade)
+Validate the shape (`type(cfg) == "table"`, expected field present, expected status/code) before
+trusting `data` — transport success is not payload validity.
 
-When a dependency is unreachable, caching the *failure* briefly (a few seconds) stops every call from
-waiting the full timeout. Re-query after the fail-TTL expires. (404/"not found" should NOT be
-negative-cached — that's a real answer, not a transport failure.)
-
-## Boot-time config: retry then degrade
+## Boot-time config: retry then degrade (CreateThread)
 
 ```lua
 CreateThread(function()
@@ -80,7 +69,7 @@ end)
 ## NUI callbacks must signal failure
 
 A NUI callback that triggers a backend call must tell the UI when it fails — otherwise the panel shows
-stale state with no error. Don't leave the callback hanging; send an explicit error message back.
+stale state with no error. Don't leave the callback hanging; send an explicit error back.
 
 ```lua
 RegisterNUICallback("buy", function(data, cb)
@@ -96,9 +85,11 @@ end)
 ## Concurrency
 
 Guard against duplicate in-flight requests for the same key (a one-shot flag / dedupe) so concurrent
-triggers don't spawn N identical backend calls and overwrite each other out of order.
+triggers don't spawn N identical backend calls and overwrite each other out of order — the Lua
+equivalent of single-flight.
 
 ## See also
 
+- `backend-resilience` — the stack-agnostic doctrine this skill adapts.
 - `fivem-lua` — general CitizenFX conventions.
 - `bug-hunter` — the Lua track validates fallback under "backend down / partial payload / race".
