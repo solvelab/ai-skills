@@ -10,10 +10,12 @@ description: >-
   Python; the doctrine is language-agnostic. For the FiveM/Lua adaptation use fivem-fallback instead.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: backend
 license: MIT
 compatibility: Works in any environment with filesystem access.
 ---
 
 Read and follow all instructions in ~/ai-skills/skills/backend-resilience/SKILL.md
+
+Reference files are in ~/ai-skills/skills/backend-resilience/references/ — read them when the skill instructions point to them.

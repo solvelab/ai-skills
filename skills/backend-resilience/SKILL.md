@@ -10,7 +10,7 @@ description: >-
   Python; the doctrine is language-agnostic. For the FiveM/Lua adaptation use fivem-fallback instead.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: backend
 license: MIT
 compatibility: Works in any environment with filesystem access.
@@ -76,6 +76,9 @@ When a dependency is unreachable, cache the *failure* briefly (a few seconds) so
 doesn't wait out the full timeout. Re-query after the fail-TTL expires.
 
 **Exception:** a real 404 / "not found" is an answer, not a transport failure — do NOT negative-cache it.
+The same applies to any fast non-200 or a malformed body: only the path that pays the timeout gets
+negative-cached. Full production-extracted implementation (Consul KV, two caches, ACL auto-detect):
+`references/consul-kv-negative-cache.md`.
 
 ```python
 _fail_until = 0.0

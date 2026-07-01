@@ -10,7 +10,7 @@ description: >-
   fuzz gate). The baseline that api-resilience-testing and bug-hunter assume.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: backend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -64,6 +64,7 @@ class ErrorResponse(BaseModel):
 - Success mirrors the envelope with `status="success"` + `data`.
 - Attach the documented error contract router-wide:
   `app.include_router(api_router, prefix="/api/v1", responses=COMMON_ERROR_RESPONSES)`.
+- Drop-in implementation (envelope + full handler stack): `references/fastapi-envelope.md`.
 
 ## Error handling — input errors are NEVER a raw 500
 
@@ -101,8 +102,17 @@ else, so existence is not leaked. Regression-tested in `tests/test_bola_guards.p
   bounded pool (`pool_size`/`max_overflow`), `pool_recycle`.
 - Atomicity by transaction scoping: validate → mutate → **one** `session.commit()` per request. No
   partial commits mid-operation.
-- Small services skip Alembic deliberately: `create_tables()` + additive column sync at startup. If the
-  service grows real migration needs, introduce Alembic explicitly — don't half-adopt it.
+- **Pessimistic mode for contended state** (money, stock, debts — anywhere a lost update costs
+  something real): repositories expose `get_for_update()` / `for_update: bool` params
+  (`SELECT ... FOR UPDATE` via `with_for_update()`), and `commit: bool = True` flags so callers can
+  **stage** (`add`+`flush`) inside a larger atomic section. Compose with `session.begin_nested()`
+  (SAVEPOINT) + locks + staged writes + one final `session.commit()`. Simple CRUD stays optimistic;
+  reach for locks only where two concurrent writers can both "win".
+  Known limit: `FOR UPDATE` is a no-op on SQLite — concurrency is only truly validated against
+  Postgres; state that limit in the test.
+- Migrations: services with real schema evolution use **Alembic** (`alembic upgrade head` at boot via
+  the entrypoint). Small fixed-schema services may deliberately skip it (`create_tables()` + additive
+  column sync at startup) — pick one mode explicitly, don't half-adopt.
 
 ## Config
 
@@ -119,9 +129,15 @@ through business code.
 
 ## Testing
 
-- `tests/conftest.py`: in-memory SQLite (`create_engine("sqlite://", poolclass=StaticPool)`) injected
-  via `app.dependency_overrides[get_session]`; fixtures build the object graph + `auth_headers` with a
-  real token.
+- `tests/conftest.py`: in-memory SQLite (`create_engine("sqlite://", poolclass=StaticPool,
+  connect_args={"check_same_thread": False})`) injected via `app.dependency_overrides[get_session]`;
+  fixtures build the object graph + `auth_headers` with a real token.
+- **Autouse state-reset fixtures**: any module-level state (config caches, cooldown dicts, visitor
+  maps) gets an autouse fixture that resets it between tests — otherwise test order starts mattering.
+  Same for enforcement flags: an autouse fixture disables boundary auth by default so business-rule
+  tests aren't masked by 401s (boundary tests re-enable it explicitly).
+- Postgres-only column types need a SQLite shim in conftest:
+  `@compiles(JSONB, "sqlite")` → render as `JSON` so models load in unit tests.
 - `integration` pytest marker: testcontainers + real Postgres, auto-skipped without Docker — catches
   dialect issues SQLite misses (UUID, NUMERIC precision, ALTER TABLE).
 - Adversarial suites follow `bug-hunter`: `test_*_adversarial` / `test_bola_guards` /
@@ -132,6 +148,26 @@ through business code.
   via `UPDATE_GOLDEN=1`.
 - **Fuzz gate in CI**: Schemathesis against the live app (`--checks not_a_server_error`) — any 5xx
   fails the build before release/publish.
+
+## Rollout-gated enforcement (log-then-enforce)
+
+When adding a security boundary to a **live** API (service token, ownership checks), ship it behind an
+enforcement flag that defaults to **log-but-allow**:
+
+```python
+def require_service_auth(x_city_token: str | None = Header(None)) -> None:
+    ok = bool(token) and hmac.compare_digest(x_city_token or "", token)
+    if not ok:
+        logger.warning("service_auth_failed", enforced=settings.SERVICE_AUTH_ENFORCED)
+        if settings.SERVICE_AUTH_ENFORCED:
+            raise UnauthorizedException(...)
+```
+
+- One release for clients to start sending the credential; flip the flag when logs show zero misses.
+- Health endpoints stay exempt (probes have no credentials).
+- Same pattern for ownership: `assert_owns(owner_id, actor_id, enforced=settings.OWNERSHIP_ENFORCED)`,
+  with the actor resolved **server-side** from the session (never from the payload).
+- The flag is temporary: remove it (enforce unconditionally) once the rollout completes.
 
 ## Lint / format
 

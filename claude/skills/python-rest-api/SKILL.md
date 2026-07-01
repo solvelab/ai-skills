@@ -10,10 +10,12 @@ description: >-
   fuzz gate). The baseline that api-resilience-testing and bug-hunter assume.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: backend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 Read and follow all instructions in ~/ai-skills/skills/python-rest-api/SKILL.md
+
+Reference files are in ~/ai-skills/skills/python-rest-api/references/ — read them when the skill instructions point to them.
