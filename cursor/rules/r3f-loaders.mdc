@@ -1,7 +1,9 @@
 ---
-description: r3f-loaders skill — auto-generated from shared/skills/game/r3f-loaders/content.md
+description: >-
+  React Three Fiber asset loading - useGLTF, useLoader, Suspense patterns, preloading. Use when loading 3D models, textures, HDR environments, or managing loading states.
 alwaysApply: false
 ---
+
 
 
 # React Three Fiber Loaders

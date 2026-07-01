@@ -1,3 +1,3 @@
-# r3f-physics Skill
+# r3f-physics
 
-Follow the instructions in [content.md](../../shared/skills/game/r3f-physics/content.md)
+Follow the instructions in [SKILL.md](../../skills/r3f-physics/SKILL.md)

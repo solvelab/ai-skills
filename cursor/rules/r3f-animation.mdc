@@ -1,7 +1,9 @@
 ---
-description: r3f-animation skill — auto-generated from shared/skills/game/r3f-animation/content.md
+description: >-
+  React Three Fiber animation - useFrame, useAnimations, spring physics, keyframes. Use when animating objects, playing GLTF animations, creating procedural motion, or implementing physics-based movement.
 alwaysApply: false
 ---
+
 
 
 # React Three Fiber Animation

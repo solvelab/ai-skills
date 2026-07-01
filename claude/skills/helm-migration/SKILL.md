@@ -9,6 +9,6 @@ license: MIT
 compatibility: Requires a Helm charts template repository accessible on the local filesystem. Works best in Claude Code.
 ---
 
-Read and follow all instructions in ~/ai-skills/shared/skills/helm-migration/content.md
+Read and follow all instructions in ~/ai-skills/skills/helm-migration/SKILL.md
 
-Reference examples are in ~/ai-skills/shared/skills/helm-migration/references/examples.md — read them when generating output.
+Reference files are in ~/ai-skills/skills/helm-migration/references/ — read them when the skill instructions point to them.

@@ -1,12 +1,55 @@
 #!/usr/bin/env bash
-set -e
+# install.sh — Installs the ai-skills collection for one or more AI coding tools.
+#
+# Preferred alternatives (no clone needed):
+#   npx skills add solvelab/ai-skills            # open Agent Skills CLI, 70+ agents
+#   /plugin marketplace add solvelab/ai-skills   # Claude Code plugin marketplace
+#
+# This script clones the repo to ~/ai-skills and wires each tool:
+#   claude   symlinks skills into ~/.claude/skills/ (native discovery)
+#            --legacy appends the Skills block to ~/.claude/CLAUDE.md instead
+#   codex    appends the Skills block to ~/.codex/AGENTS.md
+#   cursor   points at cursor/rules/*.mdc (copy per project)
+#   copilot  points at copilot/instructions/ (copy per project)
+set -euo pipefail
 
 REPO_URL="https://github.com/solvelab/ai-skills.git"
 INSTALL_DIR="$HOME/ai-skills"
+LEGACY=0
 
 # --- Tool-specific configurations ---
 
 setup_claude() {
+    if [ "$LEGACY" -eq 1 ]; then
+        setup_claude_legacy
+        return
+    fi
+
+    local TARGET_DIR="$HOME/.claude/skills"
+    mkdir -p "$TARGET_DIR"
+
+    local linked=0 skipped=0
+    for skill_dir in "$INSTALL_DIR"/skills/*/; do
+        [ -f "$skill_dir/SKILL.md" ] || continue
+        local name link
+        name="$(basename "$skill_dir")"
+        link="$TARGET_DIR/$name"
+
+        if [ -L "$link" ] && [ "$(readlink "$link")" = "${skill_dir%/}" ]; then
+            skipped=$((skipped + 1))
+            continue
+        fi
+        if [ -e "$link" ] && [ ! -L "$link" ]; then
+            echo "  ⚠️  Claude Code: ~/.claude/skills/$name exists and is not a symlink. Skipping (remove it to let ai-skills manage it)."
+            continue
+        fi
+        ln -sfn "${skill_dir%/}" "$link"
+        linked=$((linked + 1))
+    done
+    echo "  ✏️  Claude Code: $linked skill(s) symlinked into ~/.claude/skills/ ($skipped already up to date)."
+}
+
+setup_claude_legacy() {
     local CLAUDE_DIR="$HOME/.claude"
     local CLAUDE_MD="$CLAUDE_DIR/CLAUDE.md"
     local SKILLS_BLOCK='## Skills
@@ -18,9 +61,9 @@ Each skill has a SKILL.md file. Read the relevant skill before performing any ma
     [ -f "$CLAUDE_MD" ] || touch "$CLAUDE_MD"
 
     if grep -q "## Skills" "$CLAUDE_MD"; then
-        echo "  ⏭️  Claude Code: Skills section already exists. Skipping."
+        echo "  ⏭️  Claude Code (legacy): Skills section already exists. Skipping."
     else
-        echo "  ✏️  Claude Code: Adding Skills section to ~/.claude/CLAUDE.md..."
+        echo "  ✏️  Claude Code (legacy): Adding Skills section to ~/.claude/CLAUDE.md..."
         printf '\n%s\n' "$SKILLS_BLOCK" >> "$CLAUDE_MD"
     fi
 }
@@ -45,17 +88,13 @@ Each skill has an AGENTS.md file with instructions for specific tasks.'
 }
 
 setup_cursor() {
-    echo "  ✏️  Cursor: Generating inline .mdc rule files..."
-    if [ -x "$INSTALL_DIR/generate.sh" ]; then
-        "$INSTALL_DIR/generate.sh"
-    else
-        echo "  ⚠️  generate.sh not found or not executable. Run: chmod +x ~/ai-skills/generate.sh"
-    fi
-    echo "  💡 Cursor: Copy cursor/rules/*.mdc to your project's .cursor/rules/ directory."
+    echo "  💡 Cursor: rules are in ~/ai-skills/cursor/rules/"
+    echo "  💡 Copy the relevant .mdc files to your project's .cursor/rules/ directory,"
+    echo "     or use: npx skills add solvelab/ai-skills -a cursor"
 }
 
 setup_copilot() {
-    echo "  💡 Copilot: Skill wrappers are in ~/ai-skills/copilot/instructions/"
+    echo "  💡 Copilot: instructions are in ~/ai-skills/copilot/instructions/"
     echo "  💡 Copy the relevant .instructions.md files to your project's .github/instructions/ directory."
 }
 
@@ -69,15 +108,25 @@ while [[ $# -gt 0 ]]; do
             TOOL="$2"
             shift 2
             ;;
+        --legacy)
+            LEGACY=1
+            shift
+            ;;
         --help|-h)
-            echo "Usage: install.sh [--tool <tool>]"
+            echo "Usage: install.sh [--tool <tool>] [--legacy]"
             echo ""
             echo "Tools: claude (default), codex, cursor, copilot, all"
             echo ""
+            echo "Options:"
+            echo "  --legacy   Claude Code: append Skills block to ~/.claude/CLAUDE.md"
+            echo "             instead of symlinking into ~/.claude/skills/"
+            echo ""
             echo "Examples:"
-            echo "  ./install.sh                # Install for Claude Code"
+            echo "  ./install.sh                # Install for Claude Code (native symlinks)"
             echo "  ./install.sh --tool codex   # Install for OpenAI Codex"
             echo "  ./install.sh --tool all     # Install for all supported tools"
+            echo ""
+            echo "Prefer npx? Run: npx skills add solvelab/ai-skills"
             exit 0
             ;;
         *)
@@ -103,7 +152,7 @@ else
 fi
 
 echo ""
-echo "🔧 Configuring for: $TOOL"
+echo "🔧 Configuring for: $TOOL (version $(cat "$INSTALL_DIR/VERSION" 2>/dev/null || echo unknown))"
 echo ""
 
 case "$TOOL" in
@@ -133,3 +182,4 @@ esac
 
 echo ""
 echo "✅ ai-skills installed successfully for $TOOL! Restart your tool to apply."
+echo "   Update later with: cd ~/ai-skills && ./update.sh"

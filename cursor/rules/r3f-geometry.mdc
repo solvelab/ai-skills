@@ -1,7 +1,9 @@
 ---
-description: r3f-geometry skill — auto-generated from shared/skills/game/r3f-geometry/content.md
+description: >-
+  React Three Fiber geometry - built-in shapes, BufferGeometry, instancing with Drei. Use when creating 3D shapes, custom meshes, point clouds, lines, or optimizing with instanced rendering.
 alwaysApply: false
 ---
+
 
 
 # React Three Fiber Geometry

@@ -1,7 +1,9 @@
 ---
-description: r3f-fundamentals skill — auto-generated from shared/skills/game/r3f-fundamentals/content.md
+description: >-
+  React Three Fiber fundamentals - Canvas, hooks (useFrame, useThree), JSX elements, events, refs. Use when setting up R3F scenes, creating components, handling the render loop, or working with Three.js objects in React.
 alwaysApply: false
 ---
+
 
 
 # React Three Fiber Fundamentals

@@ -9,6 +9,6 @@ license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
-Read and follow all instructions in ~/ai-skills/shared/skills/documentation/content.md
+Read and follow all instructions in ~/ai-skills/skills/documentation/SKILL.md
 
-Reference examples are in ~/ai-skills/shared/skills/documentation/references/examples.md — read them when generating documentation output.
+Reference files are in ~/ai-skills/skills/documentation/references/ — read them when the skill instructions point to them.

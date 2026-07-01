@@ -9,4 +9,4 @@ license: MIT
 compatibility: Works in any environment with filesystem access.
 ---
 
-Read and follow all instructions in ~/ai-skills/shared/skills/fivem-lua/content.md
+Read and follow all instructions in ~/ai-skills/skills/fivem-lua/SKILL.md

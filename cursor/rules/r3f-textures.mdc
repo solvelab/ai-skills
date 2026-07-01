@@ -1,7 +1,9 @@
 ---
-description: r3f-textures skill — auto-generated from shared/skills/game/r3f-textures/content.md
+description: >-
+  React Three Fiber textures - useTexture, texture loading, environment maps, texture configuration. Use when loading images, working with PBR texture sets, cubemaps, HDR environments, or optimizing texture usage.
 alwaysApply: false
 ---
+
 
 
 # React Three Fiber Textures

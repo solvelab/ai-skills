@@ -1,7 +1,9 @@
 ---
-description: r3f-lighting skill — auto-generated from shared/skills/game/r3f-lighting/content.md
+description: >-
+  React Three Fiber lighting - light types, shadows, Environment component, IBL. Use when adding lights, configuring shadows, setting up environment lighting, or optimizing lighting performance.
 alwaysApply: false
 ---
+
 
 
 # React Three Fiber Lighting

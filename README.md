@@ -9,7 +9,8 @@
   [![Cursor](https://img.shields.io/badge/Cursor-supported-000000?logo=cursor&logoColor=white)](https://cursor.com)
   [![GitHub Copilot](https://img.shields.io/badge/GitHub_Copilot-supported-24292e?logo=github&logoColor=white)](https://github.com/features/copilot)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)]()
-  [![Install](https://img.shields.io/badge/install-one--line-brightgreen?logo=gnubash&logoColor=white)](#-install)
+  [![Version](https://img.shields.io/github/v/tag/solvelab/ai-skills?label=version&color=blue)](CHANGELOG.md)
+  [![Install](https://img.shields.io/badge/install-npx%20skills-brightgreen?logo=npm&logoColor=white)](#-install)
 
 </div>
 
@@ -21,10 +22,44 @@ Supports **Claude Code**, **OpenAI Codex**, **Cursor**, and **GitHub Copilot** f
 
 ## 🚀 Install
 
-### Option A — One-line terminal install
+Skills follow the open [Agent Skills](https://github.com/vercel-labs/skills) standard (`skills/<name>/SKILL.md`), so every mainstream install path works.
+
+### Option A — `npx skills` (recommended, works with 70+ agents)
 
 ```bash
-# Claude Code (default)
+# Interactive: pick skills and agents
+npx skills add solvelab/ai-skills
+
+# Everything, for every detected agent
+npx skills add solvelab/ai-skills --all
+
+# Specific skills / specific agents
+npx skills add solvelab/ai-skills --skill documentation -a claude-code -a cursor
+
+# Global (user-wide) instead of per-project
+npx skills add solvelab/ai-skills --all -g
+
+# Just look at what's available
+npx skills add solvelab/ai-skills --list
+```
+
+The CLI detects your installed agents (Claude Code, Codex, Cursor, Copilot, and many more) and routes each skill to the right directory.
+
+### Option B — Claude Code plugin marketplace
+
+Inside Claude Code:
+
+```
+/plugin marketplace add solvelab/ai-skills
+/plugin install ai-skills@ai-skills
+```
+
+Plugin updates are **version-pinned**: you only receive changes when a new release is tagged (see [Releases & Versioning](#-releases--versioning)).
+
+### Option C — One-line terminal install
+
+```bash
+# Claude Code (default) — symlinks skills into ~/.claude/skills/
 curl -sSL https://raw.githubusercontent.com/solvelab/ai-skills/master/install.sh | bash
 
 # OpenAI Codex
@@ -34,19 +69,9 @@ curl -sSL https://raw.githubusercontent.com/solvelab/ai-skills/master/install.sh
 curl -sSL https://raw.githubusercontent.com/solvelab/ai-skills/master/install.sh | bash -s -- --tool all
 ```
 
-This will:
-- Clone this repository into `~/ai-skills`
-- Configure the selected AI tool to use the skills
-- Skills will be available automatically
+This clones the repo into `~/ai-skills` and, for Claude Code, symlinks each skill into `~/.claude/skills/` (native discovery — no config edits). Use `--legacy` for the old `~/.claude/CLAUDE.md` block instead.
 
-### Option B — AI prompt install
-
-Paste this into Claude Code, Codex, or any AI coding assistant:
-
-> Install ai-skills from https://github.com/solvelab/ai-skills into ~/ai-skills
-> and configure my tool globally by adding the skills path to the appropriate config file.
-
-### Option C — Manual install
+### Option D — Manual install
 
 ```bash
 # 1. Clone the repository
@@ -54,13 +79,9 @@ git clone https://github.com/solvelab/ai-skills.git ~/ai-skills
 
 # 2. Configure your tool (choose one):
 
-# Claude Code — add to ~/.claude/CLAUDE.md
-echo '
-## Skills
-
-Skills are located at ~/ai-skills/claude/skills/.
-Each skill has a SKILL.md file. Read the relevant skill before performing any matching task.
-' >> ~/.claude/CLAUDE.md
+# Claude Code — symlink skills for native discovery
+mkdir -p ~/.claude/skills
+for s in ~/ai-skills/skills/*/; do ln -sfn "${s%/}" ~/.claude/skills/"$(basename "$s")"; done
 
 # OpenAI Codex — add to ~/.codex/AGENTS.md
 echo '
@@ -70,9 +91,8 @@ Skills are located at ~/ai-skills/codex/skills/.
 Each skill has an AGENTS.md file with instructions for specific tasks.
 ' >> ~/.codex/AGENTS.md
 
-# Cursor — generate inline .mdc files
-cd ~/ai-skills && ./generate.sh
-# Then copy cursor/rules/*.mdc to your project's .cursor/rules/
+# Cursor — copy inline rules into your project
+cp ~/ai-skills/cursor/rules/*.mdc /path/to/project/.cursor/rules/
 
 # GitHub Copilot — copy instruction files
 cp ~/ai-skills/copilot/instructions/*.instructions.md /path/to/project/.github/instructions/
@@ -95,9 +115,33 @@ cd ~/ai-skills && ./update.sh
 cd ~/ai-skills && ./update.sh --force
 ```
 
-`install.sh` also pulls on re-run, but `update.sh` is the dedicated path: fast-forward sync (or `--force` hard-reset), then regenerates `cursor/rules/*.mdc` from the updated shared content.
+`install.sh` also pulls on re-run, but `update.sh` is the dedicated path: fast-forward sync (or `--force` hard-reset), then regenerates all tool wrappers from `skills/`. Claude Code symlinks point into the repo, so a pull is all it takes.
+
+Installed via the **Claude Code plugin**? Update with `/plugin marketplace update ai-skills` — you'll receive changes when a new version is released. Installed via **npx skills**? Re-run `npx skills add solvelab/ai-skills`.
 
 > Global rules (`~/.claude/CLAUDE.md` `@`-includes) load at **session start** — restart your AI tool after updating to apply new rules.
+
+---
+
+## 🔖 Releases & Versioning
+
+Releases are **fully automated** by [semantic-release](https://github.com/semantic-release/semantic-release): every push to `master` runs `.github/workflows/ci.yml`, which analyzes the [Conventional Commits](https://www.conventionalcommits.org) since the last tag and, when warranted, cuts a release — no manual steps.
+
+| Commit type | Release |
+|-------------|---------|
+| `feat:`, `skill:` | minor |
+| `fix:`, `refactor:` | patch |
+| `BREAKING CHANGE:` footer or `!` | major |
+| `docs:`, `chore:` | none |
+
+Each release automatically: bumps `VERSION`, propagates it to `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` (via `scripts/set-version.sh`), regenerates all wrappers, updates `CHANGELOG.md` from the commit messages, commits (`chore(release): vX.Y.Z [skip ci]`), tags `vX.Y.Z`, and publishes a GitHub Release with the notes.
+
+| Channel | What you get |
+|---------|--------------|
+| Claude Code plugin | **Version-pinned** — updates only when `plugin.json` version is bumped by a release |
+| `npx skills` / `install.sh` / `update.sh` | Latest `master` |
+
+Each skill also carries its own `metadata.version` in its `SKILL.md` frontmatter — bump it when that skill's behavior changes. Repo version = the collection; skill version = the individual contract. The CI/CD pipeline (`.github/workflows/ci.yml`) validates every push/PR (wrapper sync, version coherence, frontmatter) and cuts releases on `master`.
 
 ---
 
@@ -141,90 +185,79 @@ To customize: edit `~/ai-skills/claude/global/personal-rules.md` (or fork the re
 
 ```
 ai-skills/
-├── shared/
-│   ├── conventions/                          # Cross-tool coding standards
-│   └── skills/                               # Shared skill content (single source of truth)
-│       ├── api-resilience-testing/
-│       │   ├── content.md                    # REST API robustness/negative testing workflow
-│       │   └── references/
-│       │       └── negative-test-catalog.md  # Concrete negative-test examples
-│       ├── documentation/
-│       │   ├── content.md                    # Documentation writing instructions
-│       │   └── references/
-│       │       └── examples.md               # Real-world documentation examples
-│       ├── helm-migration/
-│       │   ├── content.md                    # Helm migration instructions
-│       │   └── references/
-│       │       └── examples.md               # Before/after migration examples
-│       └── game/
-│           └── r3f-*/                        # React Three Fiber skills (11 topics)
-│               └── content.md
+├── skills/                                   # ★ Canonical skills (single source of truth)
+│   ├── api-resilience-testing/
+│   │   ├── SKILL.md                          # Frontmatter + full instructions (self-contained)
+│   │   └── references/
+│   │       └── negative-test-catalog.md      # Concrete negative-test examples
+│   ├── documentation/
+│   │   ├── SKILL.md
+│   │   └── references/examples.md
+│   ├── helm-migration/
+│   │   ├── SKILL.md
+│   │   └── references/examples.md
+│   ├── bug-hunter/SKILL.md
+│   ├── fivem-lua/SKILL.md
+│   ├── fivem-fallback/SKILL.md
+│   └── r3f-*/SKILL.md                        # React Three Fiber skills (11 topics)
+├── .claude-plugin/
+│   ├── plugin.json                           # Claude Code plugin manifest (version-pinned)
+│   └── marketplace.json                      # Claude Code marketplace catalog
 ├── claude/
-│   ├── global/
-│   │   └── personal-rules.md                 # Maintainer's portable Claude Code rules (example)
-│   └── skills/                               # Claude Code wrappers (SKILL.md)
-│       ├── api-resilience-testing/SKILL.md
-│       ├── documentation/SKILL.md
-│       ├── helm-migration/SKILL.md
-│       └── game/r3f-*/SKILL.md
+│   ├── global/personal-rules.md              # Maintainer's portable Claude Code rules (example)
+│   └── skills/                               # Generated: thin wrappers for legacy CLAUDE.md installs
 ├── codex/
 │   ├── AGENTS.md                             # Codex global index
-│   └── skills/                               # OpenAI Codex wrappers (AGENTS.md)
-│       ├── api-resilience-testing/AGENTS.md
-│       ├── documentation/AGENTS.md
-│       ├── helm-migration/AGENTS.md
-│       └── game/r3f-*/AGENTS.md
-├── cursor/
-│   └── rules/                                # Cursor rules (.mdc, auto-generated)
-│       ├── api-resilience-testing.mdc
-│       ├── documentation.mdc
-│       ├── helm-migration.mdc
-│       └── r3f-*.mdc
-├── copilot/
-│   └── instructions/                         # GitHub Copilot wrappers (.instructions.md)
-│       ├── api-resilience-testing.instructions.md
-│       ├── documentation.instructions.md
-│       ├── helm-migration.instructions.md
-│       └── r3f-*.instructions.md
-├── generate.sh                               # Generates inline wrappers (Cursor)
+│   └── skills/                               # Generated: @-include wrappers
+├── cursor/rules/                             # Generated: .mdc rules with content inlined
+├── copilot/instructions/                     # Generated: .instructions.md link wrappers
+├── shared/conventions/                       # Cross-tool coding standards
+├── VERSION                                   # Single source of truth for the collection version
+├── CHANGELOG.md                              # Keep a Changelog format
+├── generate.sh                               # Regenerates all tool wrappers from skills/
 ├── install.sh                                # One-line installer with --tool flag
+├── update.sh                                 # Sync + regenerate
+├── scripts/set-version.sh                    # Version propagation (called by semantic-release)
+├── .releaserc.json                           # semantic-release config (auto-versioning from commits)
 └── README.md
 ```
 
 | Folder | Purpose |
 |--------|---------|
-| `shared/skills/` | Skill content — written once, shared by all tools |
+| `skills/` | **Canonical skills** — self-contained `SKILL.md` per skill, open Agent Skills standard. Edit here. |
+| `.claude-plugin/` | Claude Code plugin + marketplace manifests |
 | `claude/global/` | Portable global rules for Claude Code, `@`-included from `~/.claude/CLAUDE.md` |
-| `claude/skills/` | Claude Code wrappers with YAML frontmatter for skill detection |
-| `codex/skills/` | OpenAI Codex wrappers using `@./path` file includes |
-| `cursor/rules/` | Cursor .mdc rules with content inlined (auto-generated) |
-| `copilot/instructions/` | GitHub Copilot wrappers with markdown link references |
+| `claude/skills/` | Generated wrappers for legacy `~/.claude/CLAUDE.md` installs |
+| `codex/skills/` | Generated OpenAI Codex wrappers using `@./path` file includes |
+| `cursor/rules/` | Generated Cursor .mdc rules with content inlined |
+| `copilot/instructions/` | Generated GitHub Copilot wrappers with markdown link references |
 | `shared/conventions/` | Coding standards shared across all tools |
 
 ---
 
 ## 🔀 Multi-Tool Architecture
 
-Skills are split into two parts:
+The canonical skill lives in `skills/<name>/SKILL.md` — a **self-contained** file following the open [Agent Skills](https://github.com/vercel-labs/skills) standard (YAML frontmatter + full instructions + optional `references/`). Because it's self-contained, `npx skills`, the Claude Code plugin, and plain directory copies all work without this repo being present at a fixed path.
 
-1. **Content** (tool-agnostic) — the actual instructions, templates, and rules. Lives in `shared/skills/`. Written once.
-2. **Wrapper** (tool-specific) — a thin file that tells the AI tool to read the shared content. Lives in the tool directory.
+`generate.sh` derives all tool-specific wrappers from it:
 
 ```
-shared/skills/documentation/content.md    ← Single source of truth (530 lines)
+skills/documentation/SKILL.md    ← ★ Single source of truth (self-contained)
         │
-        ├── claude/skills/documentation/SKILL.md        ← YAML frontmatter + "Read content.md"
-        ├── codex/skills/documentation/AGENTS.md         ← @../../shared/.../content.md
-        ├── cursor/rules/documentation.mdc               ← Content inlined (auto-generated)
-        └── copilot/instructions/documentation.instructions.md  ← Markdown link to content.md
+        ├── (used directly)  npx skills add · Claude Code plugin · ~/.claude/skills/ symlinks
+        ├── claude/skills/documentation/SKILL.md        ← generated: frontmatter + "Read skills/…"
+        ├── codex/skills/documentation/AGENTS.md         ← generated: @../../skills/…/SKILL.md
+        ├── cursor/rules/documentation.mdc               ← generated: content inlined
+        └── copilot/instructions/documentation.instructions.md  ← generated: markdown link
 ```
 
-| Tool | Wrapper format | File include support | Wrapper size |
-|------|---------------|---------------------|-------------|
-| **Claude Code** | `SKILL.md` (YAML + MD) | Natural language instruction | ~15 lines |
-| **OpenAI Codex** | `AGENTS.md` (plain MD) | `@./path` native syntax | ~4 lines |
-| **Cursor** | `.mdc` (YAML + MD) | None — content inlined via `generate.sh` | Full content |
-| **GitHub Copilot** | `.instructions.md` (plain MD) | Markdown links `[label](path)` | ~5 lines |
+| Tool | Consumes | Mechanism |
+|------|----------|-----------|
+| **Any of 70+ agents** | `skills/<name>/` | `npx skills add solvelab/ai-skills` |
+| **Claude Code** | `skills/<name>/` | Plugin marketplace, or symlinks in `~/.claude/skills/` |
+| **OpenAI Codex** | `codex/skills/<name>/AGENTS.md` | `@./path` native include |
+| **Cursor** | `cursor/rules/<name>.mdc` | Content inlined (no include support) |
+| **GitHub Copilot** | `copilot/instructions/<name>.instructions.md` | Markdown link reference |
 
 ---
 
@@ -240,7 +273,7 @@ Think of skills as reusable expertise — instead of explaining your documentati
 
 | Tool | Discovery mechanism |
 |------|-------------------|
-| **Claude Code** | Reads `SKILL.md` files from paths configured in `~/.claude/CLAUDE.md`. Matches skills to tasks using the YAML `description` field. |
+| **Claude Code** | Natively discovers `SKILL.md` folders in `~/.claude/skills/`, `.claude/skills/`, and installed plugins. Matches skills to tasks using the YAML `description` field. |
 | **OpenAI Codex** | Reads `AGENTS.md` files from configured paths and walks the directory tree. Follows `@./path` includes automatically. |
 | **Cursor** | Reads `.mdc` files from `.cursor/rules/` in the project directory. Applies rules based on YAML `globs` or `alwaysApply` settings. |
 | **GitHub Copilot** | Reads `.instructions.md` files from `.github/instructions/`. Follows markdown link references to external files. |
@@ -271,8 +304,8 @@ Think of skills as reusable expertise — instead of explaining your documentati
 
 ### api-resilience-testing
 
-**Shared content**: `shared/skills/api-resilience-testing/content.md`
-**Reference**: `shared/skills/api-resilience-testing/references/negative-test-catalog.md`
+**Skill**: `skills/api-resilience-testing/SKILL.md`
+**Reference**: `skills/api-resilience-testing/references/negative-test-catalog.md`
 
 Tests REST/HTTP APIs **beyond the happy path** — negative, fuzz, contract, and security testing — to catch invalid, malformed, out-of-contract, or hostile inputs before they reach production. Triggers automatically when adding/changing an endpoint, reviewing an API PR, writing API tests, or designing request/response schemas.
 
@@ -304,7 +337,7 @@ After running the prompt, check that:
 
 ### documentation
 
-**Shared content**: `shared/skills/documentation/content.md`
+**Skill**: `skills/documentation/SKILL.md`
 
 Use any of these phrases to trigger the documentation skill:
 
@@ -348,7 +381,7 @@ After running the prompt, check that:
 
 ### helm-migration
 
-**Shared content**: `shared/skills/helm-migration/content.md`
+**Skill**: `skills/helm-migration/SKILL.md`
 
 Converts Kubernetes YAML manifest files to Helm chart files following your chart template structure. Generates two files per migration:
 
@@ -392,64 +425,49 @@ After running the prompt, check that:
 
 ## ➕ How to Add a New Skill
 
-### 1. Create the shared content
+### 1. Create the canonical skill
 
 ```bash
-mkdir -p shared/skills/<skill-name>
-touch shared/skills/<skill-name>/content.md
+mkdir -p skills/<skill-name>
 ```
 
-Write the skill instructions in `content.md`. This is the single source of truth — all AI tools will read from this file.
-
-### 2. Create tool-specific wrappers
-
-#### Claude Code
-
-```bash
-mkdir -p claude/skills/<skill-name>
-```
-
-Create `claude/skills/<skill-name>/SKILL.md`:
+Create `skills/<skill-name>/SKILL.md` — frontmatter + the full instructions in one self-contained file:
 
 ```yaml
 ---
 name: my-skill
 description: Use this skill when the user asks to [describe the task].
   Triggers include [list keywords and phrases that should activate this skill].
+metadata:
+  version: 1.0.0
+license: MIT
 ---
 
-Read and follow all instructions in ~/ai-skills/shared/skills/<skill-name>/content.md
+[Full skill instructions here — patterns, rules, templates, examples.]
 ```
 
-#### OpenAI Codex
+- `name` must match the directory name (CI enforces this).
+- Put supporting material in `skills/<skill-name>/references/` and point to it with **relative paths** (`references/examples.md`) — never absolute paths, so the skill stays portable.
+- Bump `metadata.version` whenever the skill's behavior changes.
+
+### 2. Generate the tool wrappers
 
 ```bash
-mkdir -p codex/skills/<skill-name>
+./generate.sh
 ```
 
-Create `codex/skills/<skill-name>/AGENTS.md`:
+This emits the Claude/Codex/Cursor/Copilot wrappers automatically. Commit them together with the skill — CI fails if they're out of sync.
 
-```markdown
-# My Skill
+### 3. Release
 
-@../../shared/skills/<skill-name>/content.md
+Commit with a [Conventional Commit](https://www.conventionalcommits.org) message and push — the release pipeline does the rest (version bump, changelog, tag, GitHub Release):
+
+```bash
+git commit -m "skill: add my-skill"   # skill:/feat: → minor release on push to master
+git push origin master
 ```
 
-#### Cursor
-
-Run `./generate.sh` to auto-generate `.mdc` files from shared content.
-
-#### GitHub Copilot
-
-Create `copilot/instructions/<skill-name>.instructions.md`:
-
-```markdown
-# My Skill
-
-Follow the instructions in [content.md](../../shared/skills/<skill-name>/content.md)
-```
-
-### 3. Key guidelines for writing skills
+### 4. Key guidelines for writing skills
 
 | Guideline | Why |
 |-----------|-----|

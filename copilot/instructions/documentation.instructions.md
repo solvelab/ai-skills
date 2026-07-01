@@ -1,5 +1,5 @@
-# Documentation Skill
+# documentation
 
-Follow the instructions in [content.md](../../shared/skills/documentation/content.md)
+Follow the instructions in [SKILL.md](../../skills/documentation/SKILL.md)
 
-Reference examples: [examples.md](../../shared/skills/documentation/references/examples.md)
+Reference files: [references/](../../skills/documentation/references/)

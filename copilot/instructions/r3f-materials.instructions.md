@@ -1,3 +1,3 @@
-# r3f-materials Skill
+# r3f-materials
 
-Follow the instructions in [content.md](../../shared/skills/game/r3f-materials/content.md)
+Follow the instructions in [SKILL.md](../../skills/r3f-materials/SKILL.md)

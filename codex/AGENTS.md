@@ -2,26 +2,29 @@
 
 This directory contains skill wrappers for OpenAI Codex CLI.
 
-Each skill references shared content from `shared/skills/` — no duplication.
+Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no duplication.
 
 ## Available Skills
 
 | Skill | Path |
 |-------|------|
-| API Resilience Testing | `codex/skills/api-resilience-testing/AGENTS.md` |
-| Documentation | `codex/skills/documentation/AGENTS.md` |
-| Helm Migration | `codex/skills/helm-migration/AGENTS.md` |
-| R3F Animation | `codex/skills/game/r3f-animation/AGENTS.md` |
-| R3F Fundamentals | `codex/skills/game/r3f-fundamentals/AGENTS.md` |
-| R3F Geometry | `codex/skills/game/r3f-geometry/AGENTS.md` |
-| R3F Interaction | `codex/skills/game/r3f-interaction/AGENTS.md` |
-| R3F Lighting | `codex/skills/game/r3f-lighting/AGENTS.md` |
-| R3F Loaders | `codex/skills/game/r3f-loaders/AGENTS.md` |
-| R3F Materials | `codex/skills/game/r3f-materials/AGENTS.md` |
-| R3F Physics | `codex/skills/game/r3f-physics/AGENTS.md` |
-| R3F Post-processing | `codex/skills/game/r3f-postprocessing/AGENTS.md` |
-| R3F Shaders | `codex/skills/game/r3f-shaders/AGENTS.md` |
-| R3F Textures | `codex/skills/game/r3f-textures/AGENTS.md` |
+| `api-resilience-testing` | `codex/skills/api-resilience-testing/AGENTS.md` |
+| `bug-hunter` | `codex/skills/bug-hunter/AGENTS.md` |
+| `documentation` | `codex/skills/documentation/AGENTS.md` |
+| `fivem-fallback` | `codex/skills/fivem-fallback/AGENTS.md` |
+| `fivem-lua` | `codex/skills/fivem-lua/AGENTS.md` |
+| `helm-migration` | `codex/skills/helm-migration/AGENTS.md` |
+| `r3f-animation` | `codex/skills/r3f-animation/AGENTS.md` |
+| `r3f-fundamentals` | `codex/skills/r3f-fundamentals/AGENTS.md` |
+| `r3f-geometry` | `codex/skills/r3f-geometry/AGENTS.md` |
+| `r3f-interaction` | `codex/skills/r3f-interaction/AGENTS.md` |
+| `r3f-lighting` | `codex/skills/r3f-lighting/AGENTS.md` |
+| `r3f-loaders` | `codex/skills/r3f-loaders/AGENTS.md` |
+| `r3f-materials` | `codex/skills/r3f-materials/AGENTS.md` |
+| `r3f-physics` | `codex/skills/r3f-physics/AGENTS.md` |
+| `r3f-postprocessing` | `codex/skills/r3f-postprocessing/AGENTS.md` |
+| `r3f-shaders` | `codex/skills/r3f-shaders/AGENTS.md` |
+| `r3f-textures` | `codex/skills/r3f-textures/AGENTS.md` |
 
 ## Setup
 

@@ -1,3 +1,3 @@
-# r3f-animation Skill
+# r3f-animation
 
-Follow the instructions in [content.md](../../shared/skills/game/r3f-animation/content.md)
+Follow the instructions in [SKILL.md](../../skills/r3f-animation/SKILL.md)

@@ -1,3 +1,3 @@
-# r3f-lighting Skill
+# r3f-lighting
 
-Follow the instructions in [content.md](../../shared/skills/game/r3f-lighting/content.md)
+Follow the instructions in [SKILL.md](../../skills/r3f-lighting/SKILL.md)

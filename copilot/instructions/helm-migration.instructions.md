@@ -1,5 +1,5 @@
-# Helm Migration Skill
+# helm-migration
 
-Follow the instructions in [content.md](../../shared/skills/helm-migration/content.md)
+Follow the instructions in [SKILL.md](../../skills/helm-migration/SKILL.md)
 
-Reference examples: [examples.md](../../shared/skills/helm-migration/references/examples.md)
+Reference files: [references/](../../skills/helm-migration/references/)

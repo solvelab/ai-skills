@@ -1,0 +1,6 @@
+---
+name: r3f-textures
+description: React Three Fiber textures - useTexture, texture loading, environment maps, texture configuration. Use when loading images, working with PBR texture sets, cubemaps, HDR environments, or optimizing texture usage.
+---
+
+Read and follow all instructions in ~/ai-skills/skills/r3f-textures/SKILL.md

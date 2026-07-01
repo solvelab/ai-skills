@@ -34,7 +34,7 @@ if [ ! -d "$INSTALL_DIR/.git" ]; then
     exit 1
 fi
 
-echo "📦 Updating ~/ai-skills..."
+echo "📦 Updating ~/ai-skills (current: v$(cat "$INSTALL_DIR/VERSION" 2>/dev/null || echo '?'))..."
 git -C "$INSTALL_DIR" fetch --quiet origin
 
 BEFORE=$(git -C "$INSTALL_DIR" rev-parse HEAD)
@@ -53,17 +53,17 @@ fi
 
 AFTER=$(git -C "$INSTALL_DIR" rev-parse HEAD)
 
-# Regenerate Cursor .mdc wrappers from updated shared content (best-effort)
+# Regenerate tool wrappers from the canonical skills/ content (best-effort)
 if [ -f "$INSTALL_DIR/generate.sh" ]; then
-    echo "🔧 Regenerating Cursor rules..."
-    bash "$INSTALL_DIR/generate.sh" >/dev/null && echo "  ✅ Cursor rules regenerated."
+    echo "🔧 Regenerating tool wrappers..."
+    bash "$INSTALL_DIR/generate.sh" >/dev/null && echo "  ✅ Wrappers regenerated."
 fi
 
 echo ""
 if [ "$BEFORE" = "$AFTER" ]; then
-    echo "✅ Already up to date."
+    echo "✅ Already up to date (v$(cat "$INSTALL_DIR/VERSION" 2>/dev/null || echo '?'))."
 else
-    echo "✅ Updated:"
+    echo "✅ Updated to v$(cat "$INSTALL_DIR/VERSION" 2>/dev/null || echo '?'):"
     git -C "$INSTALL_DIR" --no-pager log --oneline "$BEFORE..$AFTER"
     echo ""
     echo "↻ Restart your AI tool — global rules (CLAUDE.md @-includes) load at session start."

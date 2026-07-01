@@ -1,3 +1,3 @@
-# r3f-interaction Skill
+# r3f-interaction
 
-Follow the instructions in [content.md](../../shared/skills/game/r3f-interaction/content.md)
+Follow the instructions in [SKILL.md](../../skills/r3f-interaction/SKILL.md)

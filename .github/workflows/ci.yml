@@ -1,0 +1,127 @@
+name: CI/CD Pipeline
+
+# Public repo → GitHub-hosted runners (same convention as solvelab/service-checker).
+# Self-hosted k8s-runner is reserved for private repos: on a public repo a fork PR
+# could execute arbitrary code on the runner machine.
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ─── Job 1: Validate ──────────────────────────────────────────
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Wrappers in sync with skills/
+        run: |
+          bash generate.sh
+          if ! git diff --exit-code --quiet; then
+            echo "::error::Generated wrappers are out of sync. Run ./generate.sh and commit the result."
+            git diff --stat
+            exit 1
+          fi
+
+      - name: Version coherence (VERSION == plugin.json == marketplace.json)
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json; do
+            if ! grep -q "\"version\": \"$VERSION\"" "$f"; then
+              echo "::error::$f version does not match VERSION ($VERSION)."
+              exit 1
+            fi
+          done
+          echo "Version $VERSION coherent across manifests."
+
+      - name: Skill frontmatter checks
+        run: |
+          fail=0
+          for f in skills/*/SKILL.md; do
+            dir="$(basename "$(dirname "$f")")"
+            head -1 "$f" | grep -q '^---$' || { echo "::error file=$f::Missing frontmatter"; fail=1; }
+            grep -q '^name:' "$f" || { echo "::error file=$f::Missing name"; fail=1; }
+            grep -q '^description:' "$f" || { echo "::error file=$f::Missing description"; fail=1; }
+            name="$(grep -m1 '^name:' "$f" | sed 's/^name: *//')"
+            [ "$name" = "$dir" ] || { echo "::error file=$f::name '$name' != directory '$dir'"; fail=1; }
+          done
+          exit $fail
+
+      - name: Claude plugin validation (best-effort)
+        continue-on-error: true
+        run: npx -y @anthropic-ai/claude-code@latest plugin validate . --strict || true
+
+  # ─── Job 2: Semantic Release ─────────────────────────────────
+  release:
+    name: Semantic Release
+    needs: [validate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    outputs:
+      new_release: ${{ steps.check_release.outputs.new_release }}
+      version: ${{ steps.check_release.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get previous tag
+        id: prev_tag
+        run: |
+          PREV=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          echo "prev_tag=${PREV:-none}" >> $GITHUB_OUTPUT
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-semantic-release-${{ hashFiles('.releaserc.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-semantic-release-
+
+      - name: Install semantic-release
+        run: npm install -g semantic-release @semantic-release/git @semantic-release/changelog @semantic-release/exec conventional-changelog-conventionalcommits
+
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+      - name: Check if new release was created
+        id: check_release
+        run: |
+          git fetch --tags --force 2>/dev/null || true
+          CURRENT=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          PREV="${{ steps.prev_tag.outputs.prev_tag }}"
+
+          if [ "$CURRENT" != "$PREV" ] && [ -n "$CURRENT" ]; then
+            echo "new_release=true" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT" >> $GITHUB_OUTPUT
+            echo "New release detected: $CURRENT (was: $PREV)"
+          else
+            echo "new_release=false" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT" >> $GITHUB_OUTPUT
+            echo "No new release (current: $CURRENT)"
+          fi

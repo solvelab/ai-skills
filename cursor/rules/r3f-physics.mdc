@@ -1,7 +1,9 @@
 ---
-description: r3f-physics skill — auto-generated from shared/skills/game/r3f-physics/content.md
+description: >-
+  React Three Fiber physics with Rapier - RigidBody, colliders, forces, joints, sensors. Use when adding physics simulation, collision detection, character controllers, or creating interactive physics-based experiences.
 alwaysApply: false
 ---
+
 
 
 # React Three Fiber Physics (Rapier)

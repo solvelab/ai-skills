@@ -1,7 +1,9 @@
 ---
-description: r3f-postprocessing skill — auto-generated from shared/skills/game/r3f-postprocessing/content.md
+description: >-
+  React Three Fiber post-processing - @react-three/postprocessing, bloom, DOF, screen effects. Use when adding visual effects, color grading, blur, glow, or creating custom screen-space shaders.
 alwaysApply: false
 ---
+
 
 
 # React Three Fiber Post-Processing

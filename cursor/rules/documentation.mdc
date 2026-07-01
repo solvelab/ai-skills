@@ -1,7 +1,11 @@
 ---
-description: documentation skill — auto-generated from shared/skills/documentation/content.md
+description: >-
+  Creates and updates complete project documentation following a three-tier model (README.md, docs/SETUP.md, docs/TECHNICAL.md). Use this skill whenever the user mentions README, docs, SETUP, TECHNICAL, CHANGELOG, "document this", "write the docs", "update the readme", "explain how this works", "help someone understand this project", or asks to document a codebase for AI tools or new developers. ALWAYS creates all three documentation tiers unless the user explicitly says otherwise. Do NOT use for non-software documentation tasks.
 alwaysApply: false
 ---
+
+
+Reference examples are in `references/examples.md` — read them when generating documentation output.
 
 ## CRITICAL: Always Analyze Before Documenting
 

@@ -1,0 +1,71 @@
+---
+name: bug-hunter
+description: >-
+  Adversarial testing rite — after implementing a change, actively try to break it instead of only confirming the happy path. Use when writing/reviewing tests for a change, when a tasks.md has a "Testes & Bug-Hunter" group, or when the user says bug hunt, adversarial test, edge cases, atomicity, anti-forge, race condition, fuzz. Has two tracks: Backend (Python/pytest — anti-forge, clamps, atomicity, dependency-down, concurrency) and FiveM/Lua (pure modules, event injection, NUI payload, disconnect cleanup, StateBag races, fallback under failure).
+metadata:
+  author: your-org
+  version: 1.0.0
+  category: testing
+license: MIT
+compatibility: Works in any environment with filesystem access.
+---
+
+# Bug-Hunter — adversarial testing
+
+A repeatable rite: after implementing a change, actively **try to break it** — don't just confirm the
+happy path. Hunt for the bug before it ships. Two tracks below; pick by what you changed.
+
+## Mindset
+
+- Assume the input lies, the dependency fails, and two things happen at once.
+- For each invariant the code relies on, write a test that **violates** it and assert it's rejected.
+- A green happy-path test proves nothing about forged input, partial failure, or concurrency.
+
+## Universal checklist (any change)
+
+- **Boundaries**: zero, negative, max, just-over-max, empty, null/None, wrong type.
+- **Forged input**: ids/owners that belong to someone else; values the client shouldn't be able to set.
+- **Idempotency / replay**: run the same operation twice — does it apply/charge exactly once?
+- **Partial failure**: make a mid-operation step fail — does everything roll back (no partial effect)?
+- **Dependency down**: external service times out / 5xx / returns garbage — does it degrade safely?
+- **Concurrency**: two requests at once on the same target — no dupe, no corruption, no lost update.
+- **Regression**: the related existing suite still passes with the new guard on.
+
+## Track A — Backend (Python / pytest)
+
+Run pytest E2E (e.g. TestClient) **before** any in-game/manual validation. Mirror existing
+`test_*_adversarial` / `test_*_bughunt` / `test_*_atomicity` files.
+
+- **Anti-forge / clamps**: out-of-range values clamped or rejected; payload with another owner's id → 403;
+  implausible values discarded; numeric overflow (e.g. BIGINT) handled.
+- **Atomicity**: patch the last step to raise → assert nothing committed (balance/state unchanged), then
+  the retry succeeds and applies exactly once.
+- **Dependency resilience**: mock the config/KV client to raise (timeout/connect-error) → assert fallback
+  + negative cache (one attempt per TTL); a real 404 is not negative-cached.
+- **Concurrency**: note that SQLite test fixtures don't enforce row locks — `FOR UPDATE` serialization is
+  only truly validated against the real DB (Postgres). State this limit in the test.
+- **Rate-limit / reconnect persistence** where applicable.
+
+## Track B — FiveM / Lua
+
+FiveM has no headless runtime, so split the work:
+
+- **Pure modules (busted/lua)**: parsing, config validation, payload shaping, clamping, math — test these
+  off-game. Most logic bugs live here and are testable.
+- **Fallback under failure**: simulate backend/Consul down (timeout, 5xx, partial payload) → safe default,
+  no crash, no silent stale state.
+- **Event injection**: server `RegisterNetEvent` handler — send forged/out-of-range args, a `targetServerId`
+  equal to self / nonexistent / not-permitted; confirm the actor is taken from `source`, not client args;
+  confirm rate-limiting on relay-to-other-player.
+- **NUI callbacks**: malformed `event`/`payload` (missing fields, wrong type) must not nil-deref or trigger
+  unintended state.
+- **Lifecycle**: disconnect/close mid-flow (ESC included) releases locks/focus and cleans per-player state;
+  resource restart doesn't leave orphaned globals.
+- **StateBag races**: concurrent writers to the same networked state don't corrupt it.
+- What can't be unit-tested → a **documented in-game smoke** covering the adversarial path, not just happy.
+
+## Output
+
+List each hunted scenario as a test (Track A) or a checklist item + in-game smoke (Track B). A change
+isn't done until its Bug-Hunter group is green/checked. This pairs with the OpenSpec `tasks.md`
+"Testes & Bug-Hunter" group.

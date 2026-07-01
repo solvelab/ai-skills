@@ -1,3 +1,3 @@
-# r3f-postprocessing Skill
+# r3f-postprocessing
 
-Follow the instructions in [content.md](../../shared/skills/game/r3f-postprocessing/content.md)
+Follow the instructions in [SKILL.md](../../skills/r3f-postprocessing/SKILL.md)

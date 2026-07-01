@@ -1,7 +1,9 @@
 ---
-description: r3f-shaders skill — auto-generated from shared/skills/game/r3f-shaders/content.md
+description: >-
+  React Three Fiber shaders - GLSL, shaderMaterial, uniforms, custom effects. Use when creating custom visual effects, modifying vertices, writing fragment shaders, or extending built-in materials.
 alwaysApply: false
 ---
+
 
 
 # React Three Fiber Shaders

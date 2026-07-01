@@ -1,3 +1,3 @@
-# r3f-geometry Skill
+# r3f-geometry
 
-Follow the instructions in [content.md](../../shared/skills/game/r3f-geometry/content.md)
+Follow the instructions in [SKILL.md](../../skills/r3f-geometry/SKILL.md)

@@ -1,6 +1,3 @@
-# FiveM Fallback Skill
+# fivem-fallback
 
-Follow the instructions in [content.md](../../shared/skills/fivem-fallback/content.md)
-
-Resilience for FiveM Lua calling an external backend / config / resource: SafeCall/WithFallback,
-hardcoded defaults, clampNum, bounded retries, negative cache, NUI error signaling.
+Follow the instructions in [SKILL.md](../../skills/fivem-fallback/SKILL.md)

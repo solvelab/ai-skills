@@ -1,0 +1,28 @@
+{
+  "name": "ai-skills",
+  "owner": {
+    "name": "didevlab",
+    "email": "didevlab@gmail.com"
+  },
+  "metadata": {
+    "description": "Marketplace for the ai-skills collection — reusable skills for coding assistants.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "ai-skills",
+      "source": "./",
+      "description": "Reusable AI skills: documentation, API resilience testing, Helm migration, FiveM Lua, bug hunting, and React Three Fiber (11 topics).",
+      "category": "productivity",
+      "keywords": [
+        "skills",
+        "documentation",
+        "api-testing",
+        "helm",
+        "fivem",
+        "react-three-fiber",
+        "testing"
+      ]
+    }
+  ]
+}
