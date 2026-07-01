@@ -102,7 +102,9 @@ jobs:
             ${{ runner.os }}-npm-semantic-release-
 
       - name: Install semantic-release
-        run: npm install -g semantic-release @semantic-release/git @semantic-release/changelog @semantic-release/exec conventional-changelog-conventionalcommits
+        # conventional-changelog-conventionalcommits is pinned to @8: v9 is silently
+        # incompatible with release-notes-generator and produces EMPTY release notes.
+        run: npm install -g semantic-release@25 @semantic-release/git@10 @semantic-release/changelog@6 @semantic-release/exec@7 conventional-changelog-conventionalcommits@8
 
       - name: Run semantic-release
         env:
