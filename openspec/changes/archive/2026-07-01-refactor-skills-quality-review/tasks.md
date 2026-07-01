@@ -63,5 +63,5 @@
 - [x] 6.4 Consistency grep: no `r3f-loaders`/`r3f-textures`/`content.md` references left in skills/ or
       README; canonical rules defined once, linked elsewhere
 - [x] 6.5 Cross-read: openspec-drivezone contains links, not restated mechanism lists
-- [ ] 6.6 Commit series pushed; CI green; semantic-release minor with new skills in notes;
+- [x] 6.6 Commit series pushed; CI green; semantic-release minor with new skills in notes;
       `openspec archive refactor-skills-quality-review`
