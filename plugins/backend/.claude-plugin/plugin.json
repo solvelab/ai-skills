@@ -1,7 +1,7 @@
 {
   "name": "ai-skills-backend",
   "displayName": "AI Skills — backend",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "Backend service conventions and resilience (python-rest-api, backend-resilience)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",

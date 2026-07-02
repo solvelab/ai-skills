@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Marketplace for the ai-skills collection — reusable skills for coding assistants, grouped by domain so projects enable only coherent sets.",
-    "version": "1.5.1"
+    "version": "1.6.0"
   },
   "plugins": [
     {
