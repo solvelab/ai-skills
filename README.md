@@ -47,14 +47,36 @@ The CLI detects your installed agents (Claude Code, Codex, Cursor, Copilot, and 
 
 ### Option B — Claude Code plugin marketplace
 
-Inside Claude Code:
+**B1 — manual**, inside Claude Code:
 
 ```
 /plugin marketplace add solvelab/ai-skills
 /plugin install ai-skills@ai-skills
 ```
 
-Plugin updates are **version-pinned**: you only receive changes when a new release is tagged (see [Releases & Versioning](#-releases--versioning)).
+**B2 — project auto-install (team distribution)** — commit a `.claude/settings.json` in your
+project; anyone opening the repo gets prompted to install the plugin automatically (trust dialog →
+one accept, zero manual steps):
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "ai-skills": { "source": { "source": "github", "repo": "solvelab/ai-skills" } }
+  },
+  "enabledPlugins": { "ai-skills@ai-skills": true }
+}
+```
+
+**B3 — user-level (whole machine)** — same snippet in `~/.claude/settings.json` enables the plugin
+for every project on the machine.
+
+Plugin updates are **version-pinned**: you only receive changes when a new release is tagged (see
+[Releases & Versioning](#-releases--versioning)).
+
+> **Pick ONE method per machine.** Plugin skills are namespaced (`ai-skills:fivem-lua`) and don't
+> conflict with the symlink install (Option C) — but running both duplicates every skill in
+> discovery. On a machine using symlinks, disable a project's auto-install locally with
+> `.claude/settings.local.json`: `{ "enabledPlugins": { "ai-skills@ai-skills": false } }`.
 
 ### Option C — One-line terminal install
 
