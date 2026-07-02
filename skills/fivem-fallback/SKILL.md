@@ -9,7 +9,7 @@ description: >-
   services use backend-resilience instead.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: fivem
 license: MIT
 compatibility: Works in any environment with filesystem access.
@@ -81,6 +81,14 @@ RegisterNUICallback("buy", function(data, cb)
   cb({ ok = true, data = res.data })
 end)
 ```
+
+## Shared HTTP client (retry only on 5xx)
+
+All Lua→backend traffic goes through ONE shared wrapper: bounded retry (10×) **only on 5xx** — a
+4xx is an answer, not a transport failure (same doctrine as the 404 negative-cache exception) —
+service-token header injected without overwriting the caller's, and a loud-fail placeholder
+hostname so misconfig breaks visibly instead of silently hitting localhost. Production-extracted
+implementation: `references/http-client-retry.md`.
 
 ## Concurrency
 

@@ -9,10 +9,12 @@ description: >-
   services use backend-resilience instead.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: fivem
 license: MIT
 compatibility: Works in any environment with filesystem access.
 ---
 
 Read and follow all instructions in ~/ai-skills/skills/fivem-fallback/SKILL.md
+
+Reference files are in ~/ai-skills/skills/fivem-fallback/references/ — read them when the skill instructions point to them.

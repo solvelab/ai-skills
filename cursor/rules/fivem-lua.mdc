@@ -19,6 +19,17 @@ own CLAUDE.md, not here.
   handler, `source` is the real sender. If the handler acts on *another* player (`targetServerId`),
   check the relationship/permission and rate-limit it — otherwise it's an injection/DoS vector.
 - Server is authoritative for state and money/assets. The client only *requests*.
+- **Anti-forge merge** for telemetry the server can also read: treat the client report as a
+  *clamped hint* and let the server-side read of the live entity WIN when available:
+
+```lua
+local snap = {
+  body = clampNum(clientCond.body, 0.0, 1000.0),   -- client hint, clamped
+  fuel = clampNum(clientCond.fuel, 0.0, 100.0),
+}
+local live = exports["vehicle-owner-res"]:GetLiveCondition(src)
+if live and live.engine then snap.engine = live.engine end  -- server-read PREVAILS
+```
 
 ```lua
 RegisterNetEvent("res:doThing", function(targetId, amount)
@@ -35,7 +46,9 @@ end)
 ## fxmanifest
 
 - Use **explicit file order** in `client_scripts`/`server_scripts`/`shared_scripts`. Avoid glob
-  `**/*.lua` — load order is undefined and breaks module-extends-global patterns.
+  `**/*.lua` — load order is undefined and breaks module-extends-global patterns. A glob is
+  acceptable ONLY when the files are provably order-independent (e.g. a bridge whose modules never
+  reference each other) — and then the exception must be documented in the resource README.
 - Declare `fx_version`, `game 'gta5'`, and `lua54 'yes'`.
 - Declare `exports`/`server_exports` for the public cross-resource API.
 
@@ -66,6 +79,18 @@ local function stopLoop() active = false end
 - Keep files small (~≤300 lines); split by domain into `events/`, `modules/<Domain>.lua`.
 - Cross-resource API goes through `exports`, not globals.
 
+## Cross-resource events & new-resource checklist
+
+- **Never hardcode cross-resource event names** — keep one shared catalog resource exposing
+  constants (`GetEventsInstance()`), so a typo is a nil-index error at the call site instead of a
+  handler that silently never fires. Full pattern (catalog, decision tree, declared boot order,
+  optional per-session encryption): `references/events-registry.md`.
+- Wiring a NEW resource takes four points, all of them — a miss means "silently never started":
+  1. entry in the shared **event catalog** (if it has cross-resource events);
+  2. entry in the **declared boot order** (the layer list the spawn orchestrator iterates);
+  3. `ensure <name>` in the server cfg;
+  4. the dev **ensure-script/list** used after isolated restarts.
+
 ## Natives
 
 - Confirm the native exists for `gta5` and check its signature (arg types + order) in the official
@@ -87,7 +112,9 @@ local function stopLoop() active = false end
 - **Clean up on disconnect/resource-stop**: release locks, clear per-player tables, stop threads.
   `playerDropped` / `onResourceStop` handlers must undo what the resource set up. Orphaned state after
   a player leaves is a common bug source.
-- New Lua files require a full restart (hot-reload only re-reads files already in the manifest cache).
+- **Hot-reload gotcha**: a NEW Lua file never loads via resource restart — the manifest cache only
+  re-reads files it already knew. New files ⇒ full server restart. And when the fxmanifest itself
+  changed, wipe the resource's server cache (stale `.rpf` ⇒ scripts silently nil).
 
 ## See also
 
