@@ -153,6 +153,8 @@ declare -A GROUP_DESC=(
   [devops]="Kubernetes/Helm skills (helm-migration)"
   [docs]="Documentation generation (documentation)"
   [workflow]="Commit format and OpenSpec spec-driven workflow (conventional-commit, openspec, openspec-drivezone)"
+  [nui]="FiveM/RedM NUI React conventions — bridge, CEF quirks, tokens design system (fivem-nui-react)"
+  [frontend]="React SPA API-client conventions — typed envelope, auth store, realtime facade (react-api-client)"
 )
 
 group_of() {

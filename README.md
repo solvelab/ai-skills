@@ -49,8 +49,9 @@ The CLI detects your installed agents (Claude Code, Codex, Cursor, Copilot, and 
 
 The marketplace ships **per-domain plugins** so a project enables only coherent sets —
 `ai-skills-workflow` (commits + OpenSpec), `ai-skills-backend`, `ai-skills-testing`,
-`ai-skills-fivem`, `ai-skills-game` (R3F), `ai-skills-devops`, `ai-skills-docs` — plus the full
-`ai-skills` bundle for whoever really wants all 21.
+`ai-skills-fivem`, `ai-skills-nui` (NUI React/CEF), `ai-skills-frontend` (SPA API client),
+`ai-skills-game` (R3F), `ai-skills-devops`, `ai-skills-docs` — plus the full `ai-skills` bundle
+for whoever really wants all 23.
 
 **B1 — manual**, inside Claude Code:
 
@@ -331,6 +332,13 @@ Think of skills as reusable expertise — instead of explaining your documentati
 |-------|----------|--------------|
 | **fivem-lua** | RegisterNetEvent, RegisterNUICallback, fxmanifest, exports, NUI, CreateThread, StateBags, natives | CitizenFX Lua conventions — client-never-trusted boundary, explicit fxmanifest order, no busy loops, module-per-global, NUI focus/cleanup |
 | **fivem-fallback** | FiveM resource calling backend/Consul/another resource, config fetch, retry in Lua | FiveM/Lua adaptation of backend-resilience — SafeCall/clampNum, boot retry, NUI error signaling |
+
+### Frontend
+
+| Skill | Triggers | What It Does |
+|-------|----------|--------------|
+| **fivem-nui-react** | NUI, CEF, SendNUIMessage/useNUIEvent, ui_page, tokens.css | FiveM/RedM NUI React conventions — Lua↔React bridge (multiplexed callback, uiReady handshake, invisible-by-default), Vite-for-CEF build, CEF rendering quirks, tokens design-system law, browser dev-mode |
+| **react-api-client** | React SPA calling a REST API, axios client, auth store, error codes | Typed-envelope client discipline — ErrorCodes + ApiException, zod parsers that throw on drift, tokens-only auth persistence with single-flight refresh, realtime polling facade, dedup nonce on paid mutations |
 
 ### Process & git
 

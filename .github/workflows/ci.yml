@@ -51,7 +51,7 @@ jobs:
 
       - name: Skill frontmatter checks
         run: |
-          CATEGORIES="backend testing fivem game devops docs git process"
+          CATEGORIES="backend testing fivem game devops docs git process nui frontend"
           fail=0
           for f in skills/*/SKILL.md; do
             dir="$(basename "$(dirname "$f")")"

@@ -127,3 +127,4 @@ local function stopLoop() active = false end
 - `bug-hunter` — adversarial testing; its `references/track-fivem-lua.md` exercises the trust-boundary
   and lifecycle rules defined here.
 - `backend-resilience` — the stack-agnostic doctrine behind `fivem-fallback`.
+- `fivem-nui-react` — the React/CEF side of NUI (bridge hooks, uiReady handshake, rendering quirks).

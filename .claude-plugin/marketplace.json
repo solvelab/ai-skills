@@ -56,6 +56,18 @@
       "source": "./plugins/docs",
       "description": "Project documentation generation (three-tier model).",
       "category": "productivity"
+    },
+    {
+      "name": "ai-skills-nui",
+      "source": "./plugins/nui",
+      "description": "FiveM/RedM NUI React conventions — Lua↔React bridge, CEF rendering quirks, tokens design system.",
+      "category": "productivity"
+    },
+    {
+      "name": "ai-skills-frontend",
+      "source": "./plugins/frontend",
+      "description": "React SPA API-client conventions — typed envelope + error codes, auth store factory, realtime facade.",
+      "category": "productivity"
     }
   ]
 }

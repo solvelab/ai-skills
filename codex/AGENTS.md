@@ -15,6 +15,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `documentation` | `codex/skills/documentation/AGENTS.md` |
 | `fivem-fallback` | `codex/skills/fivem-fallback/AGENTS.md` |
 | `fivem-lua` | `codex/skills/fivem-lua/AGENTS.md` |
+| `fivem-nui-react` | `codex/skills/fivem-nui-react/AGENTS.md` |
 | `helm-migration` | `codex/skills/helm-migration/AGENTS.md` |
 | `openspec-drivezone` | `codex/skills/openspec-drivezone/AGENTS.md` |
 | `openspec` | `codex/skills/openspec/AGENTS.md` |
@@ -29,6 +30,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `r3f-physics` | `codex/skills/r3f-physics/AGENTS.md` |
 | `r3f-postprocessing` | `codex/skills/r3f-postprocessing/AGENTS.md` |
 | `r3f-shaders` | `codex/skills/r3f-shaders/AGENTS.md` |
+| `react-api-client` | `codex/skills/react-api-client/AGENTS.md` |
 
 ## Setup
 

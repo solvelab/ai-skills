@@ -1,0 +1,9 @@
+{
+  "name": "ai-skills-nui",
+  "displayName": "AI Skills — nui",
+  "version": "1.5.1",
+  "description": "FiveM/RedM NUI React conventions — bridge, CEF quirks, tokens design system (fivem-nui-react)",
+  "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
+  "repository": "https://github.com/solvelab/ai-skills",
+  "license": "MIT"
+}
