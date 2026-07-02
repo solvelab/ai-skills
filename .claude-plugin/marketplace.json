@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Marketplace for the ai-skills collection — reusable skills for coding assistants.",
-    "version": "1.3.0"
+    "version": "1.4.0"
   },
   "plugins": [
     {
