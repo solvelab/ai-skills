@@ -7,6 +7,8 @@
 #   codex/skills/<name>/AGENTS.md          @-include of the canonical SKILL.md
 #   cursor/rules/<name>.mdc                content inlined (Cursor has no file includes)
 #   copilot/instructions/<name>.instructions.md  markdown link to the canonical SKILL.md
+#   plugins/<group>/                       category-grouped Claude Code plugins (skills copied;
+#                                          group = metadata.category, git+process -> workflow)
 #
 # Usage: ./generate.sh
 
@@ -138,5 +140,57 @@ done
     echo "Configure Codex to use these skills by adding the skill paths to your \`~/.codex/config.toml\` or referencing them from your project's \`AGENTS.md\`."
 } >> "$CODEX_INDEX"
 
+# ── Category-grouped Claude Code plugins ────────────────────────────────────
+# One plugin per skill group so projects enable ONLY coherent sets
+# (enabledPlugins in .claude/settings.json) instead of the full bundle.
+PLUGINS_OUT="${SCRIPT_DIR}/plugins"
+rm -rf "$PLUGINS_OUT"
+declare -A GROUP_DESC=(
+  [backend]="Backend service conventions and resilience (python-rest-api, backend-resilience)"
+  [testing]="Adversarial and API testing (bug-hunter, api-resilience-testing)"
+  [fivem]="FiveM/CitizenFX Lua conventions and resilience (fivem-lua, fivem-fallback)"
+  [game]="React Three Fiber skills (10 topics)"
+  [devops]="Kubernetes/Helm skills (helm-migration)"
+  [docs]="Documentation generation (documentation)"
+  [workflow]="Commit format and OpenSpec spec-driven workflow (conventional-commit, openspec, openspec-drivezone)"
+)
+
+group_of() {
+  case "$1" in
+    git|process) echo "workflow" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+for skill_md in "$SKILLS"/*/SKILL.md; do
+  [ -f "$skill_md" ] || continue
+  skill_dir="$(dirname "$skill_md")"
+  name="$(basename "$skill_dir")"
+  cat="$(grep -m1 '^  category:' "$skill_md" | sed 's/^  category: *//')"
+  group="$(group_of "$cat")"
+  mkdir -p "$PLUGINS_OUT/$group/skills"
+  cp -r "$skill_dir" "$PLUGINS_OUT/$group/skills/$name"
+done
+
+VERSION_STR="$(tr -d '[:space:]' < "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo 0.0.0)"
+plugin_count=0
+for gdir in "$PLUGINS_OUT"/*/; do
+  group="$(basename "$gdir")"
+  mkdir -p "$gdir/.claude-plugin"
+  cat > "$gdir/.claude-plugin/plugin.json" <<PLUGIN
+{
+  "name": "ai-skills-${group}",
+  "displayName": "AI Skills — ${group}",
+  "version": "${VERSION_STR}",
+  "description": "${GROUP_DESC[$group]:-Skill group ${group}}",
+  "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
+  "repository": "https://github.com/solvelab/ai-skills",
+  "license": "MIT"
+}
+PLUGIN
+  plugin_count=$((plugin_count + 1))
+done
+
 echo "Generated wrappers for ${generated} skills:"
 echo "  claude/skills/  codex/skills/  cursor/rules/  copilot/instructions/"
+echo "Generated ${plugin_count} category plugins in plugins/"

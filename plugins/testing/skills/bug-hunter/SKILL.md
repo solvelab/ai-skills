@@ -1,0 +1,57 @@
+---
+name: bug-hunter
+description: >-
+  Adversarial testing rite — after implementing a change, actively try to break it instead of only
+  confirming the happy path. Use when writing or reviewing tests for a just-implemented change, when a
+  tasks.md has a "Testes & Bug-Hunter" group, or when the user says bug hunt, adversarial test, break
+  it, anti-forge, or asks to test edge cases/atomicity/races of a specific change. Stack-agnostic
+  methodology with opt-in stack tracks in references/ (Python/pytest, FiveM/Lua). Do NOT use for
+  designing a full API test suite from scratch — that is api-resilience-testing.
+metadata:
+  author: solvelab
+  version: 2.0.0
+  category: testing
+license: MIT
+compatibility: Works in any environment with filesystem access.
+---
+
+# Bug-Hunter — adversarial testing
+
+A repeatable rite: after implementing a change, actively **try to break it** — don't just confirm the
+happy path. Hunt for the bug before it ships.
+
+## Mindset
+
+- Assume the input lies, the dependency fails, and two things happen at once.
+- For each invariant the code relies on, write a test that **violates** it and assert it's rejected.
+- A green happy-path test proves nothing about forged input, partial failure, or concurrency.
+
+## Universal checklist (any change, any stack)
+
+- **Boundaries**: zero, negative, max, just-over-max, empty, null/None, wrong type.
+- **Forged input**: ids/owners that belong to someone else; values the client shouldn't be able to set.
+- **Idempotency / replay**: run the same operation twice — does it apply/charge exactly once?
+- **Partial failure**: make a mid-operation step fail — does everything roll back (no partial effect)?
+- **Dependency down**: external service times out / 5xx / returns garbage — does it degrade safely?
+  (Expected behavior is defined by `backend-resilience`: safe default, negative cache, no silent stale.)
+- **Concurrency**: two requests at once on the same target — no dupe, no corruption, no lost update.
+- **Regression**: the related existing suite still passes with the new guard on.
+
+## Stack tracks (read the one that matches what you changed)
+
+- **Backend REST (Python/pytest example stack)** → `references/track-python-pytest.md`
+- **FiveM/Lua** → `references/track-fivem-lua.md`
+- Other stacks: apply the universal checklist with the same rigor; the tracks show the expected depth.
+
+## Output
+
+List each hunted scenario as a test (automatable stacks) or as a checklist item + documented smoke test
+(where no headless runtime exists). A change isn't done until its Bug-Hunter group is green/checked.
+This pairs with the OpenSpec `tasks.md` "Testes & Bug-Hunter" gate used by `openspec-drivezone`.
+
+## See also
+
+- `api-resilience-testing` — full REST negative/fuzz/contract/security methodology and checklist; use
+  it when the target is an API surface, not a single change.
+- `backend-resilience` — the fallback behavior these tests assert.
+- `fivem-lua` — the trust-boundary rule (`source`, not client args) that the Lua track exercises.

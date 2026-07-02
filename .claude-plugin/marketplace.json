@@ -5,24 +5,57 @@
     "email": "didevlab@gmail.com"
   },
   "metadata": {
-    "description": "Marketplace for the ai-skills collection — reusable skills for coding assistants.",
+    "description": "Marketplace for the ai-skills collection — reusable skills for coding assistants, grouped by domain so projects enable only coherent sets.",
     "version": "1.4.0"
   },
   "plugins": [
     {
       "name": "ai-skills",
       "source": "./",
-      "description": "Reusable AI skills: backend resilience, API resilience testing, adversarial testing, OpenSpec workflow, documentation, Helm migration, FiveM Lua, and React Three Fiber (10 topics).",
-      "category": "productivity",
-      "keywords": [
-        "skills",
-        "documentation",
-        "api-testing",
-        "helm",
-        "fivem",
-        "react-three-fiber",
-        "testing"
-      ]
+      "description": "FULL bundle (all 21 skills). Prefer the per-domain plugins — enable only what fits the project.",
+      "category": "productivity"
+    },
+    {
+      "name": "ai-skills-workflow",
+      "source": "./plugins/workflow",
+      "description": "Commit format (Conventional Commits + gitmoji) and OpenSpec spec-driven workflow (vanilla + DriveZone rite).",
+      "category": "productivity"
+    },
+    {
+      "name": "ai-skills-backend",
+      "source": "./plugins/backend",
+      "description": "Python REST API conventions and dependency-resilience doctrine.",
+      "category": "productivity"
+    },
+    {
+      "name": "ai-skills-testing",
+      "source": "./plugins/testing",
+      "description": "Adversarial testing rite (bug-hunter) and REST negative/fuzz/contract testing.",
+      "category": "productivity"
+    },
+    {
+      "name": "ai-skills-fivem",
+      "source": "./plugins/fivem",
+      "description": "FiveM/CitizenFX Lua conventions and Lua-side resilience patterns.",
+      "category": "productivity"
+    },
+    {
+      "name": "ai-skills-game",
+      "source": "./plugins/game",
+      "description": "React Three Fiber skills (10 topics).",
+      "category": "productivity"
+    },
+    {
+      "name": "ai-skills-devops",
+      "source": "./plugins/devops",
+      "description": "Kubernetes YAML to Helm migration (requires the solvelab chart template).",
+      "category": "productivity"
+    },
+    {
+      "name": "ai-skills-docs",
+      "source": "./plugins/docs",
+      "description": "Project documentation generation (three-tier model).",
+      "category": "productivity"
     }
   ]
 }

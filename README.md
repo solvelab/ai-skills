@@ -47,11 +47,16 @@ The CLI detects your installed agents (Claude Code, Codex, Cursor, Copilot, and 
 
 ### Option B — Claude Code plugin marketplace
 
+The marketplace ships **per-domain plugins** so a project enables only coherent sets —
+`ai-skills-workflow` (commits + OpenSpec), `ai-skills-backend`, `ai-skills-testing`,
+`ai-skills-fivem`, `ai-skills-game` (R3F), `ai-skills-devops`, `ai-skills-docs` — plus the full
+`ai-skills` bundle for whoever really wants all 21.
+
 **B1 — manual**, inside Claude Code:
 
 ```
 /plugin marketplace add solvelab/ai-skills
-/plugin install ai-skills@ai-skills
+/plugin install ai-skills-backend@ai-skills     # or ai-skills-fivem, ai-skills-game, ...
 ```
 
 **B2 — project auto-install (team distribution)** — commit a `.claude/settings.json` in your
@@ -63,9 +68,16 @@ one accept, zero manual steps):
   "extraKnownMarketplaces": {
     "ai-skills": { "source": { "source": "github", "repo": "solvelab/ai-skills" } }
   },
-  "enabledPlugins": { "ai-skills@ai-skills": true }
+  "enabledPlugins": {
+    "ai-skills-workflow@ai-skills": true,
+    "ai-skills-backend@ai-skills": true,
+    "ai-skills-testing@ai-skills": true
+  }
 }
 ```
+
+Pick the groups that match the project (a FiveM repo takes `ai-skills-fivem`, an R3F game takes
+`ai-skills-game`, ...) — dumping all 21 skills into every project is noise, not help.
 
 **B3 — user-level (whole machine)** — same snippet in `~/.claude/settings.json` enables the plugin
 for every project on the machine.
@@ -76,7 +88,7 @@ Plugin updates are **version-pinned**: you only receive changes when a new relea
 > **Pick ONE method per machine.** Plugin skills are namespaced (`ai-skills:fivem-lua`) and don't
 > conflict with the symlink install (Option C) — but running both duplicates every skill in
 > discovery. On a machine using symlinks, disable a project's auto-install locally with
-> `.claude/settings.local.json`: `{ "enabledPlugins": { "ai-skills@ai-skills": false } }`.
+> `.claude/settings.local.json` setting the same plugin keys to `false`.
 
 ### Option C — One-line terminal install
 

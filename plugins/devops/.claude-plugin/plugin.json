@@ -1,0 +1,9 @@
+{
+  "name": "ai-skills-devops",
+  "displayName": "AI Skills — devops",
+  "version": "1.4.0",
+  "description": "Kubernetes/Helm skills (helm-migration)",
+  "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
+  "repository": "https://github.com/solvelab/ai-skills",
+  "license": "MIT"
+}
