@@ -169,7 +169,7 @@ for skill_md in "$SKILLS"/*/SKILL.md; do
   cat="$(grep -m1 '^  category:' "$skill_md" | sed 's/^  category: *//')"
   group="$(group_of "$cat")"
   mkdir -p "$PLUGINS_OUT/$group/skills"
-  cp -r "$skill_dir" "$PLUGINS_OUT/$group/skills/$name"
+  cp -r --no-preserve=mode "$skill_dir" "$PLUGINS_OUT/$group/skills/$name"
 done
 
 VERSION_STR="$(tr -d '[:space:]' < "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo 0.0.0)"
