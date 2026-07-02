@@ -1,7 +1,7 @@
 {
   "name": "ai-skills",
   "displayName": "AI Skills",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Reusable AI skills for coding assistants: backend resilience, API resilience testing, adversarial testing, OpenSpec workflow, documentation, Helm migration, FiveM Lua, and React Three Fiber (10 topics).",
   "author": {
     "name": "didevlab",
