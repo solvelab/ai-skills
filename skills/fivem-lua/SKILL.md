@@ -56,6 +56,11 @@ end)
   reference each other) — and then the exception must be documented in the resource README.
 - Declare `fx_version`, `game 'gta5'`, and `lua54 'yes'`.
 - Declare `exports`/`server_exports` for the public cross-resource API.
+- **Unique basenames** for every Lua file in a resource — never repeat a file name across
+  subfolders (e.g. `actions/foo/def.lua` + `actions/bar/def.lua`). Lua error traces show only the
+  basename+line (`def.lua:15` is ambiguous across N folders), globs/tooling and humans confuse the
+  copies, and same-named files have caused real malfunctions in practice. Prefix with the parent
+  folder/domain instead: `actions/foo/foo_def.lua`, `actions/bar/bar_behavior.lua`.
 
 ## Threads — no busy loops
 
