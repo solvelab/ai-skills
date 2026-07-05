@@ -12,7 +12,7 @@ description: >-
   fivem-lua), or general .NET services.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -157,6 +157,23 @@ doctrine (sibling of the `backend-resilience` skill, adapted to this runtime):
   `WaitForExit(timeout)` + `Kill()` fallback, quote/escape URL and token). `HttpClient` has proven
   unreliable inside the AssettoServer runtime; curl is the battle-tested path. Reject non-`http://`
   URLs explicitly.
+- **No JSON library.** The production plugin has zero references to `System.Text.Json` or
+  Newtonsoft — same assembly-loading risk family as the forbidden constructs. Parse payloads with
+  small hand-rolled string scanners (`ReadJsonString`/`ReadJsonInt` helpers, `int.TryParse` with
+  `CultureInfo.InvariantCulture`) that throw `FormatException` naming the missing field; tolerate
+  `null` where the API allows it (`"top_crasher": null`).
+- **Three outcomes, three chat messages** — never collapse failures into one reply: timeout or
+  HTTP failure → "temporarily unavailable"; response received but payload malformed
+  (`FormatException`) → "invalid data"; HTTP 404 where absence is meaningful → a dedicated typed
+  exception (`...ProfileNotFoundException`) → "not found". Not-found is a normal outcome — log it
+  `Information`; keep `Warning` for real failures.
+- When 404 matters, the curl path must NOT use `--fail` (it eats the status): send the body to
+  the temp file and `--write-out "%{http_code}"` to stdout, then branch — `404` → typed
+  not-found, any other non-`200` → `HttpRequestException`. Features where 404 can't happen keep
+  the plain `--fail` form.
+- **Clamp config numbers at the point of use**: `Math.Max(seconds, 0)` when materializing a
+  `TimeSpan`, `Math.Max(timeoutSeconds, 1)` for curl `--max-time`/`--connect-timeout`. A nonsense
+  YAML value must degrade to a safe one, never throw.
 - Auth is a single optional header (e.g. `X-Drivezone-Token`), added only when non-empty. The real
   token lives in the operational repo's git-ignored `cfg/`, never in the plugin repo (the validate
   script secret-scans for `password|token|secret` assignments).
@@ -184,7 +201,8 @@ Full pipeline, scripts and rite order: `references/publish-pipeline.md`.
 1. **Unit tests** — do NOT reference the host at all. `<Compile Include="..\..\src\...">`-link only
    the service/model sources under test; fake the edges (`StubHttpMessageHandler` returning canned
    JSON, `FakeTimeProvider` with `Advance()`). `InternalsVisibleTo` exposes the internal ctors.
-   Cover the adversarial paths: disabled flags, cooldown window, invalid JSON → "unavailable".
+   Cover the adversarial paths: disabled flags, cooldown window, invalid JSON → "invalid data",
+   backend 404 → "not found", timeout/HTTP failure → "unavailable".
 2. **Command-runtime tests** — reference the real upstream, build a real
    `Qmmands.CommandService`, `AddModules(assembly)`, `ExecuteAsync("dzping", context)` against a
    `FakeCommandContext : BaseCommandContext(null!)` capturing `Replies`/`Broadcasts`. This proves
