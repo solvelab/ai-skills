@@ -1,0 +1,158 @@
+---
+name: log-event-collector
+description: >-
+  Doctrine for building a log-tailing event collector — a sidecar that tails an application or game
+  server's text logs, parses lines into normalized events, and ships them to a backend API.
+  Distilled from a production collector for an Assetto Corsa server, but stack-agnostic. Use when
+  building or reviewing a log tailer, log-to-event parser, file offset persistence, log rotation or
+  truncation handling, multi-line event correlation, shutdown flush, or idempotency/dedup keys for
+  shipped events. Do NOT use for configuring log aggregation stacks (Loki, Fluentd, Filebeat), for
+  the API that receives the events (that is python-rest-api), or for metrics/APM instrumentation.
+metadata:
+  author: solvelab
+  version: 1.0.0
+  category: backend
+license: MIT
+compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
+---
+
+# Log-tailing event collector
+
+When a system you can't modify (game server, third-party daemon) only exposes its life in text
+logs, ship a **collector sidecar**: tail the log, parse lines into normalized events, POST them to
+a backend. Distilled from a production collector (Python 3.12, stdlib-only) for an AssettoServer
+racing server. Prescriptive: follow these unless the project documents a deliberate exception.
+
+The whole design answers one question: **what happens on restart, rotation, crash, or replay?** A
+collector that only works on a fresh, ever-growing log file is a prototype.
+
+## Layered layout — even for a sidecar
+
+```
+src/<collector>/
+  parsers/         # regex patterns + line → ParsedEvent
+  domain/          # event model
+  services/        # poll loop, dispatch, shutdown
+  infrastructure/  # log tailer, state store, backend client
+  schemas/         # backend payload shaping
+  core/            # config, logging, exceptions
+tests/             # unit tests + golden log fixture
+```
+
+Keep it **dependency-free (stdlib-only) when the deploy target is a bare container** — `urllib`,
+`re`, `json`, `signal` cover everything a collector needs, and the image stays a plain
+`python:3.12-slim` with zero supply chain.
+
+## Tailing — offset in bytes, rotation-proof
+
+- Pick the newest log file by mtime (`sorted(glob("*.txt"), key=mtime)[-1]`) each poll — servers
+  start a new file per boot.
+- Persist the **byte offset** together with the file path it belongs to. On read: if the stored
+  path differs from the current file, start at 0; `seek(offset)`; after iterating, store
+  `handle.tell()`.
+- **Truncation/rotation guard**: `if offset > path.stat().st_size: offset = 0`. Without this, a
+  rotated/truncated file silently yields nothing forever.
+- `start_at_end` option (seek to EOF when there is no stored state) so a fresh deploy doesn't
+  replay hours of history into the backend.
+- Open with `encoding="utf-8", errors="replace"` — game logs contain player nicknames; one bad
+  byte must not kill the loop.
+
+## State — one atomic JSON snapshot
+
+Persist a single JSON document holding everything needed to resume: remote ids (`server_id`,
+`session_id`), correlation maps (players by steam id, slots, open player-sessions), the processed
+ring, `log_file` + `offset`. Write atomically, always:
+
+```python
+tmp = self.path.with_suffix(".tmp")
+with tmp.open("w", encoding="utf-8") as handle:
+    json.dump(self.data, handle, indent=2, sort_keys=True)
+tmp.replace(self.path)          # os.replace: atomic on POSIX
+```
+
+A crash mid-save must leave the previous state intact — a half-written state file is worse than a
+stale one.
+
+## Idempotency — deterministic event_key + bounded seen-set
+
+- Every parsed event carries a deterministic `event_key`:
+  `f"player_connected:{steam_id}:{slot}:{line_hash(raw_line)}"` — type + stable ids + a hash of
+  the raw line. Singleton events use a constant key (`"server_started"`).
+- The seen-set is **bounded** (`processed_events[-1000:]`): dedup protects against re-reading the
+  recent window after a restart, not against infinite memory growth.
+- Dispatch failure is **non-fatal**: log it, do NOT mark the key as seen, let the next scan retry.
+  Only mark seen after the backend accepted the event.
+
+## Multi-line correlation — in-memory ParserContext
+
+Real events span lines: the "attempting to connect" line has the IP/port, the later "has
+connected" line has the slot and car. Keep a `ParserContext` with maps
+(`attempts_by_steam_id`, `players_by_slot`) that early lines populate and later lines consume:
+
+```python
+if match := patterns.CONNECTED_RE.match(message):
+    data = match.groupdict()
+    attempt = self.context.attempts_by_steam_id.get(data["steam_id"], {})
+    payload = {..., "ip": attempt.get("ip"), "port": attempt.get("port")}
+```
+
+Anchor regexes with `^...$` and named groups; strip the timestamp/level prefix with a dedicated
+prefix regex first so the pattern set matches the message body only.
+
+## Shutdown flush — close what you opened, exactly once
+
+Trap SIGTERM/SIGINT. On stop, before exiting:
+
+1. Close every open entity you created upstream (e.g. PATCH each open player-session with a
+   synthetic disconnect: `raw_line: "collector shutdown flush"`,
+   `disconnect_reason: "server_stopped"`).
+2. Emit the terminal event (`server_stopped`) **exactly once** — guard with a boolean plus a
+   session-scoped `event_key`; skip if no `server_id` was ever registered.
+3. Per-entity flush failures are logged and skipped, never abort the flush loop.
+
+Without this, every deploy leaves phantom "online" players in the backend.
+
+## Backend client — small, honest, testable
+
+- Bounded retry on **connection** errors only (3 attempts, linear backoff `sleep(attempt)`);
+  HTTP errors (4xx/5xx with a response) raise immediately with the body in the message — they are
+  contract problems, not blips.
+- Service auth = one header (e.g. `X-Drivezone-Token`), added only when configured.
+- Unwrap the backend envelope at the client boundary (`data.get("data", data)`) so the rest of the
+  collector never sees transport shape.
+- `--dry-run` mode: log the would-be request and return a deterministic fake id
+  (hash of method+path+payload) — lets you replay a whole log offline and inspect the event stream.
+
+## Event contract — version it from day one
+
+Every payload carries `source` (which collector), `event_version: 1` (forward-compat knob),
+`occurred_at` (parsed from the log timestamp, not "now"), and preserves the raw line in
+`payload.raw_line` — when a parser bug is found later, the raw material to re-derive is already
+in the backend. Ship to one generic endpoint (`POST /api/v1/events`); let the backend normalize.
+
+## Testing
+
+- **Golden fixture**: a captured real log file in `tests/fixtures/`; the parser test asserts the
+  exact event list it must produce. This file IS the spec of the upstream log format — when the
+  upstream changes its logging, the fixture diff shows exactly what broke.
+- Unit-test the nasty paths by name: rotation (`offset > size`), truncation, `start_at_end`,
+  dedup on replayed lines, classification taxonomies (e.g. collision type
+  `player_player`/`player_traffic`/`player_environment`), shutdown flush emitting exactly one
+  terminal event.
+- Plain `unittest`/stdlib runner is fine — mirror the no-dependency rule of the runtime.
+
+## Known limits (state them, don't hide them)
+
+A regex-on-text collector depends on the upstream's log format — pin the upstream version next to
+the fixture, and treat log-format changes as breaking. If the upstream offers a structured
+protocol (UDP plugin API, shared memory), that is a separate ingestion path with its own contract,
+not a patch to this one.
+
+## See also
+
+- `python-rest-api` — the receiving API's conventions (generic event sink, envelope, service
+  tokens).
+- `backend-resilience` — the general doctrine for services calling unreliable dependencies; this
+  skill is its narrow, log-shipping sibling.
+- `assettoserver-ops` — running this collector as an opt-in compose profile with logs mounted
+  read-only.

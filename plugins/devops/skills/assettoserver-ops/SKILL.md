@@ -1,0 +1,147 @@
+---
+name: assettoserver-ops
+description: >-
+  Operating an AssettoServer (compujuckel) dedicated Assetto Corsa server, distilled from a
+  production DriveZone deployment — server_cfg.ini / entry_list.ini / extra_cfg.yml anatomy,
+  checksum and CSP mismatch troubleshooting, AI traffic enablement discipline, Docker/WSL2
+  orchestration, and rite-gated plugin deployment. Use when configuring or diagnosing an AC
+  dedicated server, enabling AI traffic, players fail to join (checksum mismatch, track version
+  mismatch, missing car/skin), exposing the server on a LAN from WSL2, or syncing a plugin DLL to
+  the runtime. Do NOT use for writing the plugin itself (that is assettoserver-plugin), for the
+  backend receiving events (python-rest-api), or for FiveM servers.
+metadata:
+  author: solvelab
+  version: 1.0.0
+  category: devops
+license: MIT
+compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
+---
+
+# AssettoServer operations
+
+Distilled from a production freeroam deployment (DriveZone on SRP/Shutoko). The runtime is
+`compujuckel/AssettoServer` — a CSP-aware replacement for stock `acServer` that adds
+`extra_cfg.yml`, an AI traffic engine, and a .NET plugin loader. Prescriptive: follow these unless
+the project documents a deliberate exception.
+
+## Repository shape — what is (not) versioned
+
+- Versioned: `server/cfg/*.ini|*.yml` **plus an `.example` twin for each**, holding only
+  fictional values (`PASSWORD=change-me-local-password`). Real secrets and private endpoints never
+  enter git; the plugin's real config YAML lives in git-ignored `cfg/`.
+- NEVER versioned: `server/content/` (cars/tracks/traffic packs are proprietary) and the runtime
+  install itself.
+- Before any risky config change, snapshot into `server/cfg/backups/<label>-<timestamp>/`
+  (e.g. `traffic-test-before-tatsumi-pa-20260628185132`). Rollback is a copy, not an archaeology
+  session.
+- The runtime binary is NOT baked into the Docker image: an install script downloads the pinned
+  release from GitHub into a named volume on first boot; the start script symlinks
+  cfg/content/logs/results into the install dir and **fails fast when no cars/tracks are mounted**.
+
+## Config anatomy — the three files must agree
+
+| File | Owns | Hard rules |
+|---|---|---|
+| `server_cfg.ini` | stock AC: `CARS`, `TRACK`, `CONFIG_TRACK` (layout), `MAX_CLIENTS`, ports | `MAX_CLIENTS` = number of `[CAR_N]` blocks INCLUDING AI slots; `CARS` lists human + traffic models |
+| `entry_list.ini` | one `[CAR_N]` block per slot | traffic slots MUST carry `AI=Fixed` — without it AssettoServer treats them as human pickup slots |
+| `extra_cfg.yml` | AssettoServer extras: `EnableAi`, `AiParams`, `CSP:`, `EnablePlugins:`, `Logs:` | `EnablePlugins: []` is the safe default (see plugin gate below) |
+
+Quirks that cost real debugging time:
+
+- `WELCOME_MESSAGE` must point to a **file path** (`cfg/welcome.txt`), never inline text.
+- Avoid `[PRACTICE] TIME=0` — it can restart the session in a tight loop. Use `TIME=1440`.
+- Ports: 9600 tcp+udp (game) and 8081 tcp (HTTP). `curl http://HOST:8081` is the cheapest
+  liveness probe a player can run.
+
+## Checksum / CSP — the content contract
+
+Client and server must share **identical** track, layout, car, skin and a compatible CSP, or the
+join dies with `checksum mismatch` / `track version mismatch`. Operating rules:
+
+- Pin ONE content baseline (pack version, track id, layout id, car ids, skin ids) and publish it
+  to players verbatim. Example baseline: SRP 0.9.3, track `shuto_revival_project_beta`, layout
+  `tatsumi_pa`.
+- **Never mix beta/`_ptb` variants with the stable pack.** The canonical real-world failure was an
+  AI spline from the `_ptb` variant used with the non-ptb track — traffic broke and joins failed.
+  Any `_ptb` reference in logs or client installs = wrong content, full stop.
+- Canonical log greps when diagnosing:
+  `attempting to connect`, `has connected`, `failed checksum`, `checksum mismatch`, `AI Slot`,
+  `reached spline`, `warning|error|exception|crash`.
+- Symptom → fix table for player-side failures: `references/troubleshooting-checksum.md`.
+
+## AI traffic — enablement discipline
+
+Enabling traffic without the prerequisites produces silent-broken states, so gate it:
+
+1. **Audit before enabling.** The lane files must exist for the configured layout:
+   `tracks/<track>/ai/fast_lane.ai` or `fast_lane.aip` (root or layout dir). A
+   `models_<layout>_traffic.ini` alone is NOT sufficient — keep traffic disabled until a real
+   lane/spline is mounted. Encode this as an audit script that prints a Decision line
+   (`traffic may be testable` / `keep traffic disabled`), not as tribal knowledge.
+2. Traffic slots in `entry_list.ini` get `AI=Fixed`, a `traffic_*` car model, and stay separate
+   from the human car so players can't spawn traffic vehicles.
+3. Recount `MAX_CLIENTS` — it includes the AI slots.
+4. Start conservative and smoke-test before raising density. Validated baseline: 2 human slots +
+   25 `AI=Fixed` slots, with:
+
+```yaml
+EnableAi: true
+AiParams:
+  MaxPlayerCount: 2
+  MaxAiTargetCount: 18
+  AiPerPlayerTargetCount: 18
+  TrafficDensity: 1.0
+  HideAiCars: true
+  MaxSpeedKph: 85
+  SpawnSafetyDistanceToPlayerMeters: 150
+```
+
+## Docker / WSL2 orchestration
+
+- One compose service for the server; sidecars (log collector) as **opt-in profiles**
+  (`profiles: ["collector"]`) with the log dir mounted **read-only**.
+- Reach a host-run backend from containers via
+  `extra_hosts: ["host.docker.internal:host-gateway"]`.
+- Run as a non-root user (`user: "${UID:-1000}:${GID:-1000}"`); runtime files in a named volume
+  (`assettoserver_files`).
+- WSL2 LAN exposure needs Windows-side plumbing — document it next to the compose file:
+  `netsh interface portproxy add v4tov4 listenport=9600 connectaddress=$wslIp connectport=9600`
+  (repeat for 8081) plus firewall rules for 9600/tcp, 9600/udp, 8081/tcp. The WSL IP changes;
+  recompute it (`wsl hostname -I`) after reboots.
+
+## Plugin deployment — rite-gated sync
+
+Plugins are built in their own repo (see `assettoserver-plugin`); the operational repo only
+receives published artifacts, under a hard gate:
+
+```bash
+[[ -f "$RITE_STATUS_FILE" ]] || fail "rite proof missing — run tests/publish/bug-hunter first"
+[[ "$RITE_STATUS_FILE" -nt "$PLUGIN_DIR/$PLUGIN_NAME.dll" ]] \
+  || fail "rite proof older than the DLL — re-run the bug-hunter after publish"
+```
+
+- The sync script REFUSES to copy a DLL without a `plugin-rite-status.json` (written by the plugin
+  repo's bug-hunter) newer than the DLL itself. No proof, no deploy — even for "just one line".
+- Copy into the runtime named volume via a throwaway container
+  (`docker run --rm -v vol:/runtime -v artifacts:/source:ro alpine cp -R ...`); never edit the
+  volume by hand.
+- `EnablePlugins: []` stays the committed default. Enabling a plugin is a deliberate config change;
+  rollback is reverting to the empty list, not deleting files.
+- Fix plugin bugs in the plugin repo and re-run its full rite before restarting a real server —
+  never patch DLLs or configs directly on the runtime.
+
+## Operational scripts (make each check a script, not a memory)
+
+The deployment keeps ~18 single-purpose bash scripts (`set -euo pipefail`, idempotent), invoked
+through the server container: `validate-config.sh`, `audit-traffic-support.sh <layout>`,
+`inspect-content.sh`, `diagnose-server.sh`, `check-runtime-logs.sh`, `smoke-server.sh`,
+`drivezone-{up,down,status,healthcheck}.sh`, `print-client-requirements.sh` (emits the exact
+content list players must install). Troubleshooting docs reference these scripts by name, so the
+runbook and the tooling can't drift apart.
+
+## See also
+
+- `assettoserver-plugin` — writing/building the plugin this repo deploys; produces the rite proof.
+- `log-event-collector` — the log-tailing collector run as the compose `collector` profile.
+- `python-rest-api` — the backend the collector and plugin talk to.
+- `documentation` — the runbook/docs tiers this kind of repo needs.

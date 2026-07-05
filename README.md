@@ -50,8 +50,8 @@ The CLI detects your installed agents (Claude Code, Codex, Cursor, Copilot, and 
 The marketplace ships **per-domain plugins** so a project enables only coherent sets —
 `ai-skills-workflow` (commits + OpenSpec), `ai-skills-backend`, `ai-skills-testing`,
 `ai-skills-fivem`, `ai-skills-nui` (NUI React/CEF), `ai-skills-frontend` (SPA API client),
-`ai-skills-game` (R3F), `ai-skills-devops`, `ai-skills-docs` — plus the full `ai-skills` bundle
-for whoever really wants all 23.
+`ai-skills-game` (R3F + AssettoServer), `ai-skills-devops`, `ai-skills-docs` — plus the full
+`ai-skills` bundle for whoever really wants all 26.
 
 **B1 — manual**, inside Claude Code:
 
@@ -78,7 +78,7 @@ one accept, zero manual steps):
 ```
 
 Pick the groups that match the project (a FiveM repo takes `ai-skills-fivem`, an R3F game takes
-`ai-skills-game`, ...) — dumping all 21 skills into every project is noise, not help.
+`ai-skills-game`, ...) — dumping all 26 skills into every project is noise, not help.
 
 **B3 — user-level (whole machine)** — same snippet in `~/.claude/settings.json` enables the plugin
 for every project on the machine.
@@ -321,10 +321,11 @@ Think of skills as reusable expertise — instead of explaining your documentati
 
 | Skill | Triggers | What It Does |
 |-------|----------|--------------|
-| **python-rest-api** | creating/reviewing a Python API, FastAPI service, response envelope, project layout | Production conventions distilled from real solvelab services — layering, error envelope + code registry, never-raw-500 handlers, tenant isolation, testing stack (golden OpenAPI, fuzz gate) |
+| **python-rest-api** | creating/reviewing a Python API, FastAPI service, response envelope, project layout | Production conventions distilled from real solvelab services — layering, error envelope + code registry, never-raw-500 handlers, tenant isolation, service-token catalog, domain-state idempotency, testing stack (golden OpenAPI, fuzz gate) |
 | **backend-resilience** | external call, timeout, 5xx, dependency down, config fetch, retry, fallback, negative cache | Stack-agnostic resilience doctrine — safe defaults, shared fallback helper, response-shape validation, clamping, bounded retries, negative caching, in-flight dedupe (Python examples) |
 | **api-resilience-testing** | "test/harden/break/audit/review the API", "negative testing", "fuzz", "API robustness", "API security", invalid payloads, status codes, auth, OpenAPI | Tests REST APIs beyond the happy path (negative/fuzz/contract/security); produces an endpoint map, scenarios, suggested tests and a resilience checklist |
-| **bug-hunter** | "bug hunt", "adversarial test", break it, anti-forge, edge cases of a change | Per-change adversarial testing rite — universal checklist + opt-in stack tracks (Python/pytest, FiveM/Lua) |
+| **bug-hunter** | "bug hunt", "adversarial test", break it, anti-forge, edge cases of a change | Per-change adversarial testing rite — universal checklist + opt-in stack tracks (Python/pytest, FiveM/Lua, .NET plugin) |
+| **log-event-collector** | log tailer, log-to-event parser, file offset, log rotation, event dedup/idempotency, shutdown flush | Doctrine for a log-tailing collector sidecar — byte-offset persistence with rotation guard, atomic state, deterministic event keys, multi-line correlation, exactly-once shutdown flush, golden log fixture |
 
 ### FiveM
 
@@ -332,6 +333,13 @@ Think of skills as reusable expertise — instead of explaining your documentati
 |-------|----------|--------------|
 | **fivem-lua** | RegisterNetEvent, RegisterNUICallback, fxmanifest, exports, NUI, CreateThread, StateBags, natives | CitizenFX Lua conventions — client-never-trusted boundary, explicit fxmanifest order, no busy loops, module-per-global, NUI focus/cleanup |
 | **fivem-fallback** | FiveM resource calling backend/Consul/another resource, config fetch, retry in Lua | FiveM/Lua adaptation of backend-resilience — SafeCall/clampNum, boot retry, NUI error signaling |
+
+### AssettoServer
+
+| Skill | Triggers | What It Does |
+|-------|----------|--------------|
+| **assettoserver-plugin** | AssettoServer plugin, AssettoServerModule, Qmmands/ACModuleBase, ChatMessage packet, plugin YAML config, plugin publish | C#/.NET plugin survival guide for the AssettoServer runtime — two-contract version pinning, disabled-by-default YAML config, forbidden runtime constructs + static accessor bridge, curl dual-transport backend calls, Mono.Cecil bug-hunter gate |
+| **assettoserver-ops** | server_cfg.ini, entry_list.ini, extra_cfg.yml, checksum mismatch, AI traffic, WSL2 ports, plugin deploy | Operating an AssettoServer dedicated AC server — config anatomy, checksum/CSP troubleshooting, AI-traffic enablement discipline, Docker/WSL2 orchestration, rite-gated plugin sync |
 
 ### Frontend
 

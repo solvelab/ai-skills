@@ -12,7 +12,7 @@
     {
       "name": "ai-skills",
       "source": "./",
-      "description": "FULL bundle (all 21 skills). Prefer the per-domain plugins — enable only what fits the project.",
+      "description": "FULL bundle (all 26 skills). Prefer the per-domain plugins — enable only what fits the project.",
       "category": "productivity"
     },
     {

@@ -9,6 +9,8 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | Skill | Path |
 |-------|------|
 | `api-resilience-testing` | `codex/skills/api-resilience-testing/AGENTS.md` |
+| `assettoserver-ops` | `codex/skills/assettoserver-ops/AGENTS.md` |
+| `assettoserver-plugin` | `codex/skills/assettoserver-plugin/AGENTS.md` |
 | `backend-resilience` | `codex/skills/backend-resilience/AGENTS.md` |
 | `bug-hunter` | `codex/skills/bug-hunter/AGENTS.md` |
 | `conventional-commit` | `codex/skills/conventional-commit/AGENTS.md` |
@@ -17,6 +19,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `fivem-lua` | `codex/skills/fivem-lua/AGENTS.md` |
 | `fivem-nui-react` | `codex/skills/fivem-nui-react/AGENTS.md` |
 | `helm-migration` | `codex/skills/helm-migration/AGENTS.md` |
+| `log-event-collector` | `codex/skills/log-event-collector/AGENTS.md` |
 | `openspec-drivezone` | `codex/skills/openspec-drivezone/AGENTS.md` |
 | `openspec` | `codex/skills/openspec/AGENTS.md` |
 | `python-rest-api` | `codex/skills/python-rest-api/AGENTS.md` |
