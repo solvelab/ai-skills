@@ -14,16 +14,21 @@ the project documents a deliberate exception.
 
 ## Repository shape — what is (not) versioned
 
-- Versioned: `server/cfg/*.ini|*.yml` **plus an `.example` twin for each**, holding only
-  fictional values (`PASSWORD=change-me-local-password`). Real secrets and private endpoints never
-  enter git; the plugin's real config YAML lives in git-ignored `cfg/`.
+- Versioned: ONLY the `.example` twins (`server_cfg.ini.example`, `entry_list.ini.example`,
+  `extra_cfg.yml.example`, `welcome.txt.example`), holding fictional values
+  (`PASSWORD=change-me-local-password`) and the safe defaults (`EnableAi: false`,
+  `EnablePlugins: []`). The real `server_cfg.ini`/`entry_list.ini`/`extra_cfg.yml`/plugin YAML
+  are git-ignored local files — that is where AI traffic and plugins actually get enabled.
+  Real secrets and private endpoints never enter git.
 - NEVER versioned: `server/content/` (cars/tracks/traffic packs are proprietary) and the runtime
   install itself.
 - Before any risky config change, snapshot into `server/cfg/backups/<label>-<timestamp>/`
   (e.g. `traffic-test-before-tatsumi-pa-20260628185132`). Rollback is a copy, not an archaeology
   session.
-- The runtime binary is NOT baked into the Docker image: an install script downloads the pinned
-  release from GitHub into a named volume on first boot; the start script symlinks
+- The runtime binary is NOT baked into the Docker image: an install script downloads the release
+  selected by `ASSETTOSERVER_VERSION` (env) from GitHub into a named volume on first boot —
+  `latest` is the observed default; PIN an explicit version before a beta/event so client
+  CSP/content expectations can't drift under you. The start script symlinks
   cfg/content/logs/results into the install dir and **fails fast when no cars/tracks are mounted**.
 
 ## Config anatomy — the three files must agree
@@ -33,6 +38,10 @@ the project documents a deliberate exception.
 | `server_cfg.ini` | stock AC: `CARS`, `TRACK`, `CONFIG_TRACK` (layout), `MAX_CLIENTS`, ports | `MAX_CLIENTS` = number of `[CAR_N]` blocks INCLUDING AI slots; `CARS` lists human + traffic models |
 | `entry_list.ini` | one `[CAR_N]` block per slot | traffic slots MUST carry `AI=Fixed` — without it AssettoServer treats them as human pickup slots |
 | `extra_cfg.yml` | AssettoServer extras: `EnableAi`, `AiParams`, `CSP:`, `EnablePlugins:`, `Logs:` | `EnablePlugins: []` is the safe default (see plugin gate below) |
+
+Dense references: `references/server-cfg-fields.md` (field-by-field table),
+`references/entry-list-skeleton.md` (annotated skeleton + indexing rules),
+`references/prelaunch-validation.md` (actionable pre-launch checklist).
 
 Quirks that cost real debugging time:
 
@@ -79,10 +88,19 @@ AiParams:
   MaxAiTargetCount: 18
   AiPerPlayerTargetCount: 18
   TrafficDensity: 1.0
+  NamePrefix: "DriveZone Traffic"
   HideAiCars: true
+  TwoWayTraffic: false
+  WrongWayTraffic: true
   MaxSpeedKph: 85
+  RightLaneOffsetKph: 10
+  MinAiSafetyDistanceMeters: 20
+  MaxAiSafetyDistanceMeters: 70
   SpawnSafetyDistanceToPlayerMeters: 150
 ```
+
+The lane file may live at the track ROOT `ai/` dir and serve all layouts — empty
+`<layout>/ai/` dirs are fine; the validator accepts a root `fast_lane.ai|.aip`.
 
 ## Docker / WSL2 orchestration
 
@@ -117,6 +135,12 @@ receives published artifacts, under a hard gate:
   rollback is reverting to the empty list, not deleting files.
 - Fix plugin bugs in the plugin repo and re-run its full rite before restarting a real server —
   never patch DLLs or configs directly on the runtime.
+- Prove the load BEFORE touching the real config: `prove-drivezone-plugin-load.sh` boots the
+  runtime against a TEMPORARY config with the plugin enabled and confirms the load via log,
+  leaving the real config untouched.
+- The plugin's own config follows the runtime's naming convention:
+  `cfg/plugin_<snake_case_plugin_name>_cfg.yml`, with its JSON schema
+  (`...cfg.schema.json`) next to it.
 
 ## Operational scripts (make each check a script, not a memory)
 
