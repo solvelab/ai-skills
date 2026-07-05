@@ -1,7 +1,7 @@
 {
   "name": "ai-skills-docs",
   "displayName": "AI Skills — docs",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Documentation generation (documentation)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
