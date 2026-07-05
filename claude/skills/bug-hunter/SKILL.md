@@ -5,11 +5,12 @@ description: >-
   confirming the happy path. Use when writing or reviewing tests for a just-implemented change, when a
   tasks.md has a "Testes & Bug-Hunter" group, or when the user says bug hunt, adversarial test, break
   it, anti-forge, or asks to test edge cases/atomicity/races of a specific change. Stack-agnostic
-  methodology with opt-in stack tracks in references/ (Python/pytest, FiveM/Lua). Do NOT use for
-  designing a full API test suite from scratch — that is api-resilience-testing.
+  methodology with opt-in stack tracks in references/ (Python/pytest, FiveM/Lua, .NET plugin loaded
+  by a host runtime). Do NOT use for designing a full API test suite from scratch — that is
+  api-resilience-testing.
 metadata:
   author: solvelab
-  version: 2.0.0
+  version: 2.1.0
   category: testing
 license: MIT
 compatibility: Works in any environment with filesystem access.
