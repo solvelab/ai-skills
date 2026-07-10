@@ -38,6 +38,7 @@ Each active subproject has its own `openspec/` — **there is no monorepo-global
 |---|---|---|
 | `fivem-drivezone/` (Lua/FiveM) | `fivem-drivezone/openspec/` | busted (pure modules) + fallback at the caller |
 | `backend-drivezone/` (FastAPI) | `backend-drivezone/openspec/` | pytest E2E via TestClient |
+| `dzlivecity-frontend/` (React, own repo — not under this monorepo's git tree) | `dzlivecity-frontend/openspec/` | Vitest unit/component, no real backend (mock/MSW) |
 
 Internal layout, lifecycle commands and artifact formats: standard OpenSpec — see the
 **[openspec]** skill. The fork adds `schemas/spec-driven/schema.yaml` + templates that force the
@@ -116,6 +117,17 @@ pure modules + the hunt. The *how* lives in **[bug-hunter]** and **[api-resilien
 **Why `Validation & Closure` is mandatory and final.**
 It closes the loop: `validate --strict` green + proof (pytest green / documented in-game smoke) +
 docs updated + `archive`. Without this group, "done" is an opinion; with it, "done" is verifiable.
+
+**Why "it's just mock/static data" is never an exemption.**
+Incident (2026-07, `dzlivecity-frontend`): a commit added 6 production-facing UI cards straight to a
+mock catalog file, skipping OpenSpec entirely — commit message literally said "direct commit, it's
+just mock data". That mock file *was* the app's production data source (no backend fetch existed yet),
+so the change was a real feature shipped with zero spec, zero delta, zero recorded rationale — and it
+seeded a duplicated-source-of-truth debt (price/label hand-copied from the backend catalog) that later
+needed its own change to unwind. The lesson generalizes: **if a diff touches anything under `apps/`/
+`packages/`/`app/`/a FiveM resource — outside `openspec/` — the rite applies, full stop.** "It's just
+data, not logic" is exactly the rationalization that makes a change *feel* exempt while still being
+real, unreviewed, undocumented production behavior.
 
 ### FiveM vs Backend — mirrored schemas, different content
 
