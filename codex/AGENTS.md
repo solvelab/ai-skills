@@ -13,6 +13,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `assettoserver-plugin` | `codex/skills/assettoserver-plugin/AGENTS.md` |
 | `backend-resilience` | `codex/skills/backend-resilience/AGENTS.md` |
 | `bug-hunter` | `codex/skills/bug-hunter/AGENTS.md` |
+| `claude-statusline` | `codex/skills/claude-statusline/AGENTS.md` |
 | `conventional-commit` | `codex/skills/conventional-commit/AGENTS.md` |
 | `documentation` | `codex/skills/documentation/AGENTS.md` |
 | `fivem-fallback` | `codex/skills/fivem-fallback/AGENTS.md` |

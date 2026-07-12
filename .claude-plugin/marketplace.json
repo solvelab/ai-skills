@@ -12,7 +12,7 @@
     {
       "name": "ai-skills",
       "source": "./",
-      "description": "FULL bundle (all 26 skills). Prefer the per-domain plugins — enable only what fits the project.",
+      "description": "FULL bundle (all 27 skills). Prefer the per-domain plugins — enable only what fits the project.",
       "category": "productivity"
     },
     {
@@ -67,6 +67,12 @@
       "name": "ai-skills-frontend",
       "source": "./plugins/frontend",
       "description": "React SPA API-client conventions — typed envelope + error codes, auth store factory, realtime facade.",
+      "category": "productivity"
+    },
+    {
+      "name": "ai-skills-tooling",
+      "source": "./plugins/tooling",
+      "description": "AI-assistant developer tooling — Claude Code status line setup and customization.",
       "category": "productivity"
     }
   ]

@@ -155,6 +155,7 @@ declare -A GROUP_DESC=(
   [workflow]="Commit format and OpenSpec spec-driven workflow (conventional-commit, openspec, openspec-drivezone)"
   [nui]="FiveM/RedM NUI React conventions — bridge, CEF quirks, tokens design system (fivem-nui-react)"
   [frontend]="React SPA API-client conventions — typed envelope, auth store, realtime facade (react-api-client)"
+  [tooling]="AI-assistant developer tooling — Claude Code status line setup and customization (claude-statusline)"
 )
 
 group_of() {

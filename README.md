@@ -50,8 +50,9 @@ The CLI detects your installed agents (Claude Code, Codex, Cursor, Copilot, and 
 The marketplace ships **per-domain plugins** so a project enables only coherent sets —
 `ai-skills-workflow` (commits + OpenSpec), `ai-skills-backend`, `ai-skills-testing`,
 `ai-skills-fivem`, `ai-skills-nui` (NUI React/CEF), `ai-skills-frontend` (SPA API client),
-`ai-skills-game` (R3F + AssettoServer), `ai-skills-devops`, `ai-skills-docs` — plus the full
-`ai-skills` bundle for whoever really wants all 26.
+`ai-skills-game` (R3F + AssettoServer), `ai-skills-devops`, `ai-skills-docs`,
+`ai-skills-tooling` (Claude Code status line) — plus the full
+`ai-skills` bundle for whoever really wants all 27.
 
 **B1 — manual**, inside Claude Code:
 
@@ -78,7 +79,7 @@ one accept, zero manual steps):
 ```
 
 Pick the groups that match the project (a FiveM repo takes `ai-skills-fivem`, an R3F game takes
-`ai-skills-game`, ...) — dumping all 26 skills into every project is noise, not help.
+`ai-skills-game`, ...) — dumping all 27 skills into every project is noise, not help.
 
 **B3 — user-level (whole machine)** — same snippet in `~/.claude/settings.json` enables the plugin
 for every project on the machine.
@@ -362,6 +363,12 @@ Think of skills as reusable expertise — instead of explaining your documentati
 |-------|----------|--------------|
 | **documentation** | README, SETUP, TECHNICAL, CHANGELOG, "document this", "write the docs" | Analyzes the project first, then creates the documentation set the project actually needs |
 | **helm-migration** | "migrate to helm", "convert yaml to helm", "generate values.yaml" | Converts K8s YAML to Helm values.yaml/env.yaml — **requires the solvelab chart template repository** |
+
+### Tooling
+
+| Skill | Triggers | What It Does |
+|-------|----------|--------------|
+| **claude-statusline** | "configure my Claude Code status line", statusLine in settings.json, statusline.sh, "add context/cost/git to my statusline", install a statusline gist | Sets up or customizes the Claude Code status bar — ships a ready-made 4-line script (model/context/git/cost/rate-limits/cache) plus the full JSON-field reference; safe install, custom-build rules, and gist sharing |
 
 ### Game (React Three Fiber — 10 topics)
 
