@@ -15,7 +15,7 @@ Use this skill to install the ready-made script, build a custom one, debug a bro
 status line, or package one to share.
 
 - **Field reference** (all JSON fields, settings block, null/absent rules): `references/fields.md`
-- **Ready-made script** (4 lines, colored, safe): `references/statusline.sh`
+- **Ready-made script** (3 lines, colored, safe): `references/statusline.sh`
 
 ---
 
@@ -39,26 +39,24 @@ status line, or package one to share.
 
 ## Install the ready-made script
 
-`references/statusline.sh` renders four lines and degrades gracefully (git line hidden
-outside a repo, token line hidden before the first API response, rate-limit segments
-hidden on non-subscription accounts):
+`references/statusline.sh` renders three themed lines and degrades gracefully (git
+segments hidden outside a repo, token segment hidden before the first API response,
+rate-limit meters hidden on non-subscription accounts, empty lines suppressed):
 
 ```
-🤖 Opus 4.8 | ⚡ medium | 🧠 thinking enabled | 📊 ctx ▓▓▓▓▓▓░░░░ 63%
-🔗 my-project | 🌱 master | ● 2 ✚ 1
-🚦 5h ▓▓▓▓▓░░░░░ 58% | 7d ▓▓▓▓▓▓▓▓░░ 84% | 📝 +1347 -156 | ⏱️ 1h 26m | 💰 $2.47
-🎟️ In 135k · 95% cache · Out 2k
+🤖 Opus 4.8 (1M context) | ⚡ medium | 🧠 thinking enabled | ⏱️ 1h 26m | 💰 $2.47
+🔗 my-project | 🌱 master | ● 2 ✚ 1 | 📝 +1347 -156 | 🎟️ In 135k · 95% cache · Out 2k
+📊 ctx ▓░░░░░░░ 16% | 🚦 5h ▓▓▓▓░░░░ 58% | 7d ▓▓▓▓▓▓░░ 84%
 ```
 
-- **Line 1** — model · effort · thinking on/off · context-window bar (green <50, yellow
-  50–79, red ≥80).
-- **Line 2** — clickable GitHub repo link (OSC 8) · branch (short SHA when detached) ·
-  `●` staged / `✚` modified counts · worktree name when in one.
-- **Line 3** — rate-limit bars (5h/7d, Pro/Max only) · lines added/removed · session
-  duration (adaptive `Dd Hh` / `Hh Mm` / `Mm Ss`) · cost (always last).
-- **Line 4** — last-response tokens: total input · **cache health %** (green ≥80, yellow
-  40–79, red <40 = cache was invalidated → next turn costs more) · output. Numbers are
-  humanized (`k`/`M`).
+- **Line 1 — identity + session**: model · effort · thinking on/off · session duration
+  (adaptive `Dd Hh` / `Hh Mm` / `Mm Ss`) · cost.
+- **Line 2 — place + tokens**: clickable GitHub repo link (OSC 8) · branch (short SHA when
+  detached) · `●` staged / `✚` modified counts · worktree when in one · lines added/removed ·
+  last-response tokens (total input · **cache health %** [green ≥80, yellow 40–79, red <40 =
+  cache invalidated → next turn costs more] · output, humanized `k`/`M`).
+- **Line 3 — meters**: all progress bars together — context-window, then 5h/7d rate limits
+  (Pro/Max only). Each bar is colored green <50, yellow 50–79, red ≥80.
 
 Steps:
 
