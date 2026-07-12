@@ -1,7 +1,7 @@
 {
   "name": "ai-skills-workflow",
   "displayName": "AI Skills — workflow",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Commit format and OpenSpec spec-driven workflow (conventional-commit, openspec, openspec-drivezone)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
