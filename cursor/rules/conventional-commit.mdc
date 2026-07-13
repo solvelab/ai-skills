@@ -1,6 +1,6 @@
 ---
 description: >-
-  Format every git commit message using Conventional Commits (type(scope) plus short description) prefixed with a gitmoji icon matching the type. Use whenever creating a commit, amending a commit, or writing a commit message via /commit, heredoc, -m flag, or any skill. Never include any AI attribution or co-author reference in commits.
+  Format every git commit message using Conventional Commits (type(scope) plus short description) prefixed with a gitmoji icon matching the type. Use whenever creating a commit, amending a commit, or writing a commit message via /commit, heredoc, -m flag, or any skill — and when opening or editing a pull request (gh pr create, PR title, PR body, PR description). Never include any AI attribution or co-author reference in commits, PR titles, PR bodies, or PR descriptions.
 alwaysApply: false
 ---
 
@@ -46,10 +46,18 @@ stack icons.
 
 ## Hard rules
 
-- **NEVER** include any AI attribution or co-author reference in any commit message — no
-  `Co-Authored-By: Claude` (or any variant/model name, or `<noreply@anthropic.com>`), in new commits,
-  amends, rebases, squashes, or via any skill/heredoc/-m flag. This is non-negotiable and applies
-  under all circumstances.
+- **NEVER** include any AI attribution or reference to AI authorship in any git artifact — not in
+  commit messages, and not in **pull request titles, bodies, or descriptions**. This is
+  non-negotiable and applies under all circumstances. Specifically forbidden anywhere:
+  - `Co-Authored-By: Claude` (or any AI/model-name variant, or `<noreply@anthropic.com>`).
+  - Trailer or footer lines like `🤖 Generated with Claude Code`, "Generated with", "Created by
+    Claude", "Made with AI", or any wording stating that the commit/PR was produced by Claude,
+    Anthropic, or any other AI tool.
+  - Applies to new commits, amends, rebases, squashes, `gh pr create`/`gh pr edit`, and PR templates
+    — via any skill, heredoc, `-m`/`--body`/`--body-file` flag, or default tool boilerplate. If a
+    default PR body template appends such a line, strip it before submitting.
+  - **Rationale:** the work is a human–AI interaction where the human is the author and idealizer; AI
+    is a tool. Git artifacts must not attribute authorship to the AI.
 - Always use the `git commit -m "$(cat <<'EOF' ... EOF)"` heredoc pattern to avoid shell escaping
   issues.
 - Only stage files relevant to the change being committed — never `git add -A`/`git add .` blindly.
