@@ -1,7 +1,7 @@
 {
   "name": "ai-skills-game",
   "displayName": "AI Skills — game",
-  "version": "1.11.1",
+  "version": "1.12.0",
   "description": "React Three Fiber skills (10 topics)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
