@@ -355,7 +355,7 @@ Think of skills as reusable expertise — instead of explaining your documentati
 |-------|----------|--------------|
 | **openspec** | OpenSpec, /opsx, proposal, spec delta, change-id | Vanilla OpenSpec spec-driven workflow (explore → propose → validate → apply → archive) |
 | **openspec-drivezone** | the DriveZone "rito", forked schema | DriveZone forked-schema variant — mandatory Fallback / Tests & Bug-Hunter / Validation gates |
-| **conventional-commit** | creating/amending commits, commit messages, /commit | Conventional Commits + gitmoji icon per type; forbids AI attribution in commits |
+| **conventional-commit** | creating/amending commits, commit messages, /commit, opening/editing PRs | Conventional Commits + gitmoji icon per type; forbids AI attribution in commits & PRs |
 
 ### DevOps & docs
 

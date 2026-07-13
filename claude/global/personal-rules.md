@@ -11,8 +11,10 @@ Portable rules for Claude Code. Included from `~/.claude/CLAUDE.md` via the `@` 
 - Prefer the best long-term outcome over speed.
 - Always stay technical and concrete.
 
-## Commits
+## Commits & Pull Requests
 - NEVER include the `Co-Authored-By` line in commit messages. Do not add any AI attribution or co-author references to commits under any circumstances.
+- The same rule applies to **Pull Requests**: no AI attribution in the PR title, body, or description. Never add `🤖 Generated with Claude Code`, "Generated with", "Created by Claude", "Made with AI", or any line stating the commit/PR was produced by Claude, Anthropic, or any other AI. If a default PR-body template appends such a line (e.g. via `gh pr create`), strip it before submitting.
+- Rationale: this is a human–AI interaction where I am the author and idealizer; the AI is a tool. Git artifacts must not attribute authorship to the AI.
 
 ## Model & Effort Tiering (token economy + quality)
 Match effort and model to task **difficulty** — do not max everything (maxing trivial work wastes tokens, the opposite of the goal).
