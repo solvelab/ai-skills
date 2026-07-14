@@ -28,6 +28,11 @@ C_MODEL=$'\e[1;36m'; C_TREE=$'\e[32m'; C_COST=$'\e[1;33m'; C_EFFORT=$'\e[35m'
 C_DIM=$'\e[2m'; C_RESET=$'\e[0m'; C_GREEN=$'\e[32m'; C_YELLOW=$'\e[33m'; C_RED=$'\e[31m'
 C_THINK_ON=$'\e[1;34m'   # bright blue when thinking is enabled
 C_THINK_OFF=$'\e[31m'    # red when thinking is disabled
+# effort-tier palette — escalating intensity (low → max)
+C_EFF_LOW=$'\e[2;37m'; C_EFF_MED=$'\e[36m'; C_EFF_HIGH=$'\e[1;33m'
+C_EFF_XHIGH=$'\e[1;38;5;208m'; C_EFF_MAX=$'\e[1;38;5;196m'
+C_HI=$'\e[1;97m'        # bright-white highlight for the max shimmer sweep
+C_IN=$'\e[36m'; C_OUT=$'\e[35m'   # token in (cyan) / out (magenta) labels
 SEP=" ${C_DIM}|${C_RESET} "
 
 join() { local out="" p; for p in "$@"; do out="${out:+$out$SEP}$p"; done; printf '%s\n' "$out"; }
@@ -52,6 +57,18 @@ human() {
   else printf '%s' "$n"; fi
 }
 
+# price_rates <model-name> — echoes "IN_RATE OUT_RATE" in $/1M tokens, or "" if unknown.
+# Opus 4.8's 1M context has NO >200k long-context premium — flat rates.
+price_rates() {
+  case "$1" in
+    *Fable*|*Mythos*) echo "10 50" ;;
+    *Opus*)           echo "5 25" ;;
+    *Sonnet*)         echo "3 15" ;;
+    *Haiku*)          echo "1 5" ;;
+    *)                echo "" ;;
+  esac
+}
+
 # pct_color <pct-int> — green <50, yellow 50-79, red >=80
 pct_color() {
   if   [ "$1" -ge 80 ]; then printf '%s' "$C_RED"
@@ -66,12 +83,37 @@ meter() {
   printf '%s %s%s%s %s%s%%%s' "$label" "$col" "$(bar "$p" 8)" "$C_RESET" "$col" "$p" "$C_RESET"
 }
 
+# effort_render <level> — icon + escalating color per effort tier.
+# NOTE: "ultracode" is not a distinct level — it reports as `xhigh` (same as /effort xhigh),
+# so 🚀 xhigh is how an ultracode turn shows up here.
+effort_render() {
+  case "$1" in
+    low)    printf '🐢 %slow%s'    "$C_EFF_LOW"   "$C_RESET" ;;
+    medium) printf '⚡ %smedium%s' "$C_EFF_MED"   "$C_RESET" ;;
+    high)   printf '🔥 %shigh%s'   "$C_EFF_HIGH"  "$C_RESET" ;;
+    xhigh)  printf '🚀 %sxhigh%s'  "$C_EFF_XHIGH" "$C_RESET" ;;
+    max)
+      # ultracode-style shimmer: a bright point sweeps across the label, one step per second.
+      # The status line refreshes at most 1×/s (refreshInterval), so this is a 1-fps pulse,
+      # not a smooth sub-second gradient — the frame is derived from wall-clock seconds.
+      local lbl="max" i ch col out="" frame
+      frame=$(( $(date +%s) % ${#lbl} ))
+      for ((i = 0; i < ${#lbl}; i++)); do
+        ch="${lbl:i:1}"
+        if [ "$i" -eq "$frame" ]; then col="$C_HI"; else col="$C_EFF_MAX"; fi
+        out+="${col}${ch}${C_RESET}"
+      done
+      printf '💥 %s' "$out" ;;
+    *)      printf '⚡ %s%s%s'     "$C_EFFORT" "$1" "$C_RESET" ;;
+  esac
+}
+
 cd "$DIR" 2>/dev/null
 
 # ---------- Line 1: identity — model | effort | thinking ----------
 line1=()
 line1+=("🤖 ${C_MODEL}${MODEL}${C_RESET}")
-[ "$EFFORT" != "-" ] && line1+=("⚡ ${C_EFFORT}${EFFORT}${C_RESET}")
+[ "$EFFORT" != "-" ] && line1+=("$(effort_render "$EFFORT")")
 case "$THINKING" in
   enabled)  line1+=("🧠 ${C_THINK_ON}thinking enabled${C_RESET}") ;;
   disabled) line1+=("🧠 ${C_THINK_OFF}thinking disabled${C_RESET}") ;;
@@ -119,14 +161,25 @@ esac
 if [ "${ADDED:-0}" -gt 0 ] 2>/dev/null || [ "${REMOVED:-0}" -gt 0 ] 2>/dev/null; then
   line2+=("📝 ${C_GREEN}+${ADDED}${C_RESET} ${C_RED}-${REMOVED}${C_RESET}")
 fi
-# 🎟️ last-response tokens — In (total) · cache health % · Out
+# tokens — 📥 In (total) · ♻️ cache health % · 📤 Out
 TOTAL_IN=$(( ${IN_TOK:-0} + ${CACHE_W:-0} + ${CACHE_R:-0} ))
 if [ "$TOTAL_IN" -gt 0 ]; then
   CACHE_PCT=$(( CACHE_R * 100 / TOTAL_IN ))
   if   [ "$CACHE_PCT" -ge 80 ]; then CACHE_COL="$C_GREEN"
   elif [ "$CACHE_PCT" -ge 40 ]; then CACHE_COL="$C_YELLOW"
   else CACHE_COL="$C_RED"; fi
-  line2+=("🎟️  In $(human "$TOTAL_IN") ${C_DIM}·${C_RESET} ${CACHE_COL}${CACHE_PCT}% cache${C_RESET} ${C_DIM}·${C_RESET} Out $(human "${OUT_TOK:-0}")")
+  # per-turn $ of the last response's tokens (fresh input full price, cache write 1.25x, cache read 0.1x)
+  seg_in="${C_IN}↑ In${C_RESET} $(human "$TOTAL_IN")"
+  seg_out="${C_OUT}↓ Out${C_RESET} $(human "${OUT_TOK:-0}")"
+  RATES=$(price_rates "$MODEL")
+  if [ -n "$RATES" ]; then
+    read -r IN_RATE OUT_RATE <<< "$RATES"
+    IN_COST=$(awk "BEGIN{printf \"%.2f\", (${IN_TOK:-0}*$IN_RATE + ${CACHE_W:-0}*$IN_RATE*1.25 + ${CACHE_R:-0}*$IN_RATE*0.1)/1000000}")
+    OUT_COST=$(awk "BEGIN{printf \"%.2f\", ${OUT_TOK:-0}*$OUT_RATE/1000000}")
+    seg_in="$seg_in ${C_COST}\$${IN_COST}${C_RESET}"
+    seg_out="$seg_out ${C_COST}\$${OUT_COST}${C_RESET}"
+  fi
+  line2+=("$seg_in ${C_DIM}·${C_RESET} ♻️ ${CACHE_COL}${CACHE_PCT}%${C_RESET} ${C_DIM}·${C_RESET} $seg_out")
 fi
 
 # ---------- Line 3: meters — ctx | 5h | 7d (all bars together) ----------
