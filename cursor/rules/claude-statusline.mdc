@@ -1,6 +1,6 @@
 ---
 description: >-
-  Configure or customize the Claude Code status line — the shell-script status bar at the bottom of the CLI that shows model, context usage, git state, cost, rate limits and prompt-cache health. Use when the user wants to set up, change, share, or debug their Claude Code status line / status bar, mentions statusLine in settings.json or a statusline.sh script, wants a context/token/cost/git indicator in the CLI, or shares a status-line gist to install. Ships a ready-made 3-line script (references/statusline.sh) and the full list of available JSON fields (references/fields.md). Do NOT use for shell prompt themes (PS1, starship, powerlevel10k) or non-Claude-Code status bars.
+  Configure or customize the Claude Code status line — the shell-script status bar at the bottom of the CLI that shows model, effort tier, context usage, git state, cost (cumulative session + per-turn token cost), rate limits and prompt-cache health. Use when the user wants to set up, change, share, or debug their Claude Code status line / status bar, mentions statusLine in settings.json or a statusline.sh script, wants a context/token/cost/git/effort indicator in the CLI, or shares a status-line gist to install. Ships a ready-made 3-line script (references/statusline.sh) and the full list of available JSON fields (references/fields.md). Do NOT use for shell prompt themes (PS1, starship, powerlevel10k) or non-Claude-Code status bars.
 alwaysApply: false
 ---
 
@@ -44,17 +44,24 @@ segments hidden outside a repo, token segment hidden before the first API respon
 rate-limit meters hidden on non-subscription accounts, empty lines suppressed):
 
 ```
-🤖 Opus 4.8 (1M context) | ⚡ medium | 🧠 thinking enabled | ⏱️ 1h 26m | 💰 $2.47
-🔗 my-project | 🌱 master | ● 2 ✚ 1 | 📝 +1347 -156 | 🎟️ In 135k · 95% cache · Out 2k
+🤖 Opus 4.8 (1M context) | 🔥 high | 🧠 thinking enabled | ⏱️ 1h 26m | 💰 $2.47
+🔗 my-project | 🌱 master | ● 2 ✚ 1 | 📝 +1347 -156 | ↑ In 135k $0.42 · ♻️ 95% · ↓ Out 2k $0.05
 📊 ctx ▓░░░░░░░ 16% | 🚦 5h ▓▓▓▓░░░░ 58% | 7d ▓▓▓▓▓▓░░ 84%
 ```
 
-- **Line 1 — identity + session**: model · effort · thinking on/off · session duration
-  (adaptive `Dd Hh` / `Hh Mm` / `Mm Ss`) · cost.
+- **Line 1 — identity + session**: model · **effort tier** (distinct icon + escalating color
+  per level: `🐢 low` / `⚡ medium` / `🔥 high` / `🚀 xhigh` / `💥 max`; `max` shimmers a
+  1-fps sweep when `refreshInterval` is set) · thinking on/off · session duration (adaptive
+  `Dd Hh` / `Hh Mm` / `Mm Ss`) · **cumulative session cost**. Note: `ultracode` is not a
+  distinct effort level — it reports as `xhigh`, so an ultracode turn shows as `🚀 xhigh`.
 - **Line 2 — place + tokens**: clickable GitHub repo link (OSC 8) · branch (short SHA when
   detached) · `●` staged / `✚` modified counts · worktree when in one · lines added/removed ·
-  last-response tokens (total input · **cache health %** [green ≥80, yellow 40–79, red <40 =
-  cache invalidated → next turn costs more] · output, humanized `k`/`M`).
+  last-response tokens with **per-turn cost**: `↑ In` (total input · priced $ = fresh input ×
+  rate + cache-write ×1.25 + cache-read ×0.1) · `♻️` **cache health %** [green ≥80, yellow
+  40–79, red <40 = cache invalidated → next turn costs more] · `↓ Out` (output · priced $).
+  Costs use a per-model rate table (Opus $5/$25, Sonnet $3/$15, Haiku $1/$5, Fable $10/$50 per
+  MTok) and are **hidden for unrecognized models**. This is the *last turn's* cost — distinct
+  from the cumulative session 💰 on line 1.
 - **Line 3 — meters**: all progress bars together — context-window, then 5h/7d rate limits
   (Pro/Max only). Each bar is colored green <50, yellow 50–79, red ≥80.
 
@@ -72,6 +79,10 @@ Steps:
      }
    }
    ```
+   Add `"refreshInterval": 1` (seconds; 1 is the documented minimum) only if you want the
+   animated `💥 max` effort shimmer — it re-runs the whole script every second even while
+   idle, so skip it otherwise. In large repos, cache `git status` by `session_id` first (the
+   script runs `git status` each tick).
 
 ---
 
@@ -97,8 +108,9 @@ follow these rules — they are what keep a status line from breaking or lagging
   output garbles, simplify. Use `printf '%b'` (not `echo -e`) for OSC 8 links.
 
 Extend the ready-made script rather than starting from scratch when the user wants "the
-same plus X" — its `jq` extraction, `bar()`, `human()`, and `pct_color()` helpers are
-reusable.
+same plus X" — its `jq` extraction and `bar()`, `human()`, `pct_color()`, `meter()`,
+`effort_render()` (icon+color per effort tier), and `price_rates()` (per-model $/MTok
+input/output, used to price the last turn's tokens) helpers are reusable.
 
 ---
 
