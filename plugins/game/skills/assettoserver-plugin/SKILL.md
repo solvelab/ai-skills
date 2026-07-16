@@ -12,7 +12,7 @@ description: >-
   fivem-lua), or general .NET services.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -180,6 +180,39 @@ doctrine (sibling of the `backend-resilience` skill, adapted to this runtime):
 - Sort/limit/tie-break API data **client-side** in the service; over-fetch
   (`Math.Max(limit, 10)`) then trim, so display rules don't depend on backend ordering.
 
+## Serving CSP Lua scripts (configValues + packets)
+
+The plugin can push Lua overlays to every client via `CSPServerScriptProvider.AddScript(script,
+debugFilename, configValues)`. The client side of those scripts is `assettoserver-csp-lua`; the
+traps below live on THIS side of the boundary:
+
+- **Format every `double` in configValues with `InvariantCulture` yourself.** The provider
+  serializes each value with `value.ToString()` — culture-sensitive. On a host with a non-invariant
+  locale (`LANG=pt_BR...`), `0.7` becomes `"0,7"`, CSP fails to parse it, and the script silently
+  falls back to its Lua defaults. When Lua defaults equal the C# defaults there is **no symptom** —
+  the config simply never applies. Ship a helper and use it for every decimal:
+
+  ```csharp
+  private static string Decimal(double value) => value.ToString(CultureInfo.InvariantCulture);
+  // ["soundVolume"] = Decimal(configuration.SoundVolume),
+  ```
+
+- **The flat fallback config loader needs a `case` per property — enforce it with a test, not
+  memory.** Commands read config through the DI-less fallback parser (see the static accessor
+  bridge above); a property without a `case` silently keeps its default, so the command lies
+  ("feature disabled") while the DI path works. This class of bug recurs; kill it with a
+  reflection guard that iterates EVERY config property, feeds the parser a YAML line with a
+  non-default probe value, and asserts the property changed — then prove the guard works by
+  removing one `case` and watching it fail with the property's name.
+
+- **OnlineEvent packet authoring:** server→client pushes need no registration — build the packet
+  and `client.SendPacket(packet)`. Client→server packets must be registered via
+  `CSPClientMessageTypeManager.RegisterOnlineEvent<TPacket>((client, packet) => ...)`; handlers run
+  on the network receive path — hand off to `Task.Run`, never block, never let an exception escape.
+  **Never name a packet field `key`**: on the Lua side it collides with the `ac.StructItem.key`
+  layout mechanism and the packet is silently never delivered, while every static parity gate
+  passes.
+
 ## Publish shape (what the plugin loader expects)
 
 ```xml
@@ -225,6 +258,8 @@ commit) next to the DLL — the deploy side refuses to sync a DLL without a rite
 
 ## See also
 
+- `assettoserver-csp-lua` — the client side of the scripts and packets this plugin serves: render
+  doctrine, DirectWrite traps, packet layout mirroring, remote assets/audio by URL.
 - `assettoserver-ops` — operating the server that loads this plugin; the deploy/sync gate that
   consumes `plugin-rite-status.json`.
 - `bug-hunter` — the adversarial rite; `references/track-dotnet-plugin.md` is the generalized

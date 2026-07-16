@@ -11,7 +11,7 @@ description: >-
   backend receiving events (python-rest-api), or for FiveM servers.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: devops
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -126,6 +126,12 @@ The lane file may live at the track ROOT `ai/` dir and serve all layouts — emp
   `netsh interface portproxy add v4tov4 listenport=9600 connectaddress=$wslIp connectport=9600`
   (repeat for 8081) plus firewall rules for 9600/tcp, 9600/udp, 8081/tcp. The WSL IP changes;
   recompute it (`wsl hostname -I`) after reboots.
+- **Static web assets ARE baked into the image** — the inverse of the runtime binary (which lives
+  in a named volume, see above). Anything under `server/wwwroot/` served at `/static` (brand
+  images, trophies, notification sounds consumed by CSP overlays) is `COPY`'d at build time:
+  adding or replacing an asset requires `docker compose build <service>` + `up -d` (recreate).
+  **A plain `restart` serves the stale asset** — the classic symptom is "I replaced the file but
+  the game still shows/plays the old one".
 
 ## Plugin deployment — rite-gated sync
 
@@ -166,6 +172,8 @@ runbook and the tooling can't drift apart.
 ## See also
 
 - `assettoserver-plugin` — writing/building the plugin this repo deploys; produces the rite proof.
+- `assettoserver-csp-lua` — the in-game overlays that consume the `/static` assets baked into this
+  image (brand art, trophies, notification sounds).
 - `log-event-collector` — the log-tailing collector run as the compose `collector` profile.
 - `python-rest-api` — the backend the collector and plugin talk to.
 - `documentation` — the runbook/docs tiers this kind of repo needs.
