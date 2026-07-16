@@ -42,7 +42,7 @@
     {
       "name": "ai-skills-game",
       "source": "./plugins/game",
-      "description": "React Three Fiber skills (10 topics).",
+      "description": "React Three Fiber + AssettoServer game-dev skills (12 topics).",
       "category": "productivity"
     },
     {
