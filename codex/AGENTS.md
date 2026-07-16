@@ -9,6 +9,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | Skill | Path |
 |-------|------|
 | `api-resilience-testing` | `codex/skills/api-resilience-testing/AGENTS.md` |
+| `assettoserver-csp-lua` | `codex/skills/assettoserver-csp-lua/AGENTS.md` |
 | `assettoserver-ops` | `codex/skills/assettoserver-ops/AGENTS.md` |
 | `assettoserver-plugin` | `codex/skills/assettoserver-plugin/AGENTS.md` |
 | `backend-resilience` | `codex/skills/backend-resilience/AGENTS.md` |

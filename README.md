@@ -52,7 +52,7 @@ The marketplace ships **per-domain plugins** so a project enables only coherent 
 `ai-skills-fivem`, `ai-skills-nui` (NUI React/CEF), `ai-skills-frontend` (SPA API client),
 `ai-skills-game` (R3F + AssettoServer), `ai-skills-devops`, `ai-skills-docs`,
 `ai-skills-tooling` (Claude Code status line) — plus the full
-`ai-skills` bundle for whoever really wants all 27.
+`ai-skills` bundle for whoever really wants all 28.
 
 **B1 — manual**, inside Claude Code:
 
@@ -79,7 +79,7 @@ one accept, zero manual steps):
 ```
 
 Pick the groups that match the project (a FiveM repo takes `ai-skills-fivem`, an R3F game takes
-`ai-skills-game`, ...) — dumping all 27 skills into every project is noise, not help.
+`ai-skills-game`, ...) — dumping all 28 skills into every project is noise, not help.
 
 **B3 — user-level (whole machine)** — same snippet in `~/.claude/settings.json` enables the plugin
 for every project on the machine.
@@ -341,6 +341,7 @@ Think of skills as reusable expertise — instead of explaining your documentati
 |-------|----------|--------------|
 | **assettoserver-plugin** | AssettoServer plugin, AssettoServerModule, Qmmands/ACModuleBase, ChatMessage packet, plugin YAML config, plugin publish | C#/.NET plugin survival guide for the AssettoServer runtime — two-contract version pinning, disabled-by-default YAML config, forbidden runtime constructs + static accessor bridge, curl dual-transport backend calls, Mono.Cecil bug-hunter gate |
 | **assettoserver-ops** | server_cfg.ini, entry_list.ini, extra_cfg.yml, checksum mismatch, AI traffic, WSL2 ports, plugin deploy | Operating an AssettoServer dedicated AC server — config anatomy, checksum/CSP troubleshooting, AI-traffic enablement discipline, Docker/WSL2 orchestration, rite-gated plugin sync |
+| **assettoserver-csp-lua** | CSP online script, in-game overlay/HUD/toast, transparentWindow, DirectWrite/dwriteText, ac.OnlineEvent, sound in game, empty box / glued text / packet never arrives | The client-side Lua layer served by the server — single-window draw-list doctrine, DirectWrite trap table, byte-parity OnlineEvent packets, remote images/audio by URL (zero-install), mockup-first workflow and probes |
 
 ### Frontend
 
