@@ -22,15 +22,15 @@
 ## 3. Tests & validation (controlled)
 
 - [x] 3.1 Locate gate: `/execute-backlog` with nonexistent number → clear error, nothing touched.
-- [ ] 3.2 Completeness gate: issue without acceptance criteria → gaps reported, user asked, no code
+- [x] 3.2 Completeness gate: issue without acceptance criteria → gaps reported, user asked, no code
       changed.
-- [ ] 3.3 Controlled run on a real test issue: plan presented and approved → implementation on a
+- [x] 3.3 Controlled run on a real test issue: plan presented and approved → implementation on a
       new branch → repo validations executed → PR opened with `Closes #n` → board item moved to
       review column; evidence collected (PR URL, checks output, item-list JSON).
-- [ ] 3.4 Safety: confirm no commit lands on the default branch and the issue is not closed by the
+- [x] 3.4 Safety: confirm no commit lands on the default branch and the issue is not closed by the
       skill itself.
 
 ## 4. Closure
 
-- [ ] 4.1 README entry present; archive change after user validation.
-- [ ] 4.2 Present evidence to the user.
+- [x] 4.1 README entry present; archive change after user validation.
+- [x] 4.2 Present evidence to the user.
