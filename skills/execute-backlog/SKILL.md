@@ -13,7 +13,7 @@ description: >-
   deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: process
 license: MIT
 compatibility: >-
@@ -44,6 +44,10 @@ to the `backlog` skill; consumes the same config.
    invent commands, never run migrations/deploys/destructive steps without an explicit ask.
 6. **Faithful reporting** — failing checks are reported with their output; skipped validations are
    listed as skipped, never implied as passed.
+7. **The project's rite wins** — at every stage the card advances, discover and follow the target
+   repo's own established process for that stage (spec/proposal rites, implementation and test
+   rites, review templates). The generic workflow here is the fallback, never an override
+   (`references/execution-flow.md`, *Per-stage rite discovery*).
 
 ## Workflow
 
@@ -55,7 +59,8 @@ to the `backlog` skill; consumes the same config.
 3. **Completeness gate** — the item must have enough to execute: goal, scope, acceptance
    criteria. Also re-check against the *current* codebase (drift since grooming: files renamed,
    feature landed meanwhile). Gaps/contradictions → report and ask: proceed as-is (user accepts
-   risk), refine first (point to `/backlog`), or abort. Never guess missing scope.
+   risk), refine first (point to `/backlog`), or abort. Never guess missing scope. Gate passed →
+   move the board item to the ready column (step-by-step Kanban flow, `references/board-sync.md`).
 4. **Context re-analysis** — Explore subagent(s) over the affected repo(s) (issue's Affected
    repositories section in workspace mode; verify local clones, offer `gh repo clone` for missing
    ones). Collect: current state of cited files, conventions, test setup, related recent changes.
