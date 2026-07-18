@@ -13,6 +13,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `assettoserver-ops` | `codex/skills/assettoserver-ops/AGENTS.md` |
 | `assettoserver-plugin` | `codex/skills/assettoserver-plugin/AGENTS.md` |
 | `backend-resilience` | `codex/skills/backend-resilience/AGENTS.md` |
+| `backlog` | `codex/skills/backlog/AGENTS.md` |
 | `bug-hunter` | `codex/skills/bug-hunter/AGENTS.md` |
 | `claude-statusline` | `codex/skills/claude-statusline/AGENTS.md` |
 | `conventional-commit` | `codex/skills/conventional-commit/AGENTS.md` |
