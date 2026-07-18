@@ -12,17 +12,28 @@ gh project item-list NUM --owner OWNER --format json --jq '
 # not on the board → add it: gh project item-add NUM --owner OWNER --url ISSUE_URL
 ```
 
-## Transitions
+## Transitions — step by step, never skipping
+
+The card advances one column per lifecycle event; it must never jump straight from Backlog to a
+late column:
 
 | Moment | Target column |
 |---|---|
-| Plan approved, work starting | config `columns.in_progress` (default: option named like "In progress") |
-| PR(s) opened | config `columns.review` (default: option named like "In review") |
+| Item created by the `backlog` skill | config `defaults.status` (usually "Backlog") |
+| Completeness gate passed (item is executable) | config `columns.ready` (default: option named like "Ready") |
+| Plan approved, implementation starting | config `columns.in_progress` (default: "In progress") |
+| PR(s) opened | config `columns.review` (default: "In review") |
+| PR merged by a human (issue auto-closed via `Closes #n`) | "Done" — **never set by the skill**; enable the board's built-in workflow *Item closed → Done* |
+
+If a run starts with the card already past a column (e.g. resumed work, card manually moved),
+apply only the transitions that are still ahead of its current position — never move a card
+backwards without asking.
 
 Optional config extension (backwards-compatible — absent keys fall back to name heuristics):
 
 ```yaml
 columns:
+  ready: Ready
   in_progress: In progress
   review: In review
 ```

@@ -13,7 +13,7 @@ description: >-
   deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: process
 license: MIT
 compatibility: >-
@@ -55,7 +55,8 @@ to the `backlog` skill; consumes the same config.
 3. **Completeness gate** — the item must have enough to execute: goal, scope, acceptance
    criteria. Also re-check against the *current* codebase (drift since grooming: files renamed,
    feature landed meanwhile). Gaps/contradictions → report and ask: proceed as-is (user accepts
-   risk), refine first (point to `/backlog`), or abort. Never guess missing scope.
+   risk), refine first (point to `/backlog`), or abort. Never guess missing scope. Gate passed →
+   move the board item to the ready column (step-by-step Kanban flow, `references/board-sync.md`).
 4. **Context re-analysis** — Explore subagent(s) over the affected repo(s) (issue's Affected
    repositories section in workspace mode; verify local clones, offer `gh repo clone` for missing
    ones). Collect: current state of cited files, conventions, test setup, related recent changes.
