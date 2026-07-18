@@ -1,7 +1,7 @@
 {
   "name": "ai-skills-testing",
   "displayName": "AI Skills — testing",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "description": "Adversarial and API testing (bug-hunter, api-resilience-testing)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
