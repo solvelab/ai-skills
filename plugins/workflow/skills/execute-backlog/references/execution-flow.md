@@ -40,6 +40,28 @@ Deviation discovered mid-implementation (hidden dependency, wrong assumption in 
 3. On approval: comment on the issue documenting the approved change, then continue.
 4. On rejection: revert uncommitted deviation work, continue inside original scope or abort.
 
+## Per-stage rite discovery (respect the project's own process)
+
+Each project may have its own rite for each Kanban stage. Before acting in a stage, discover how
+the target repo runs that stage and follow it — the generic flow in SKILL.md is the fallback,
+never an override. When a rite exists, its artifacts (proposal, tasks file, checklists) become
+part of the deliverable and must appear in the plan.
+
+| Stage | What to look for | Examples |
+|---|---|---|
+| Ready (grooming gate) | Does the project require a formal proposal/spec before code? | `openspec/` directory → run its propose → `validate --strict` flow before planning; RFC/ADR templates in `docs/` |
+| In progress (implementation) | Implementation and test rites, commit conventions | OpenSpec `apply` with tasks checked one by one; adversarial-test rites (e.g. bug-hunter); `conventional-commit` |
+| In review (PR) | Review rites: PR templates, required checklists, CI gates | `.github/PULL_REQUEST_TEMPLATE*`, CONTRIBUTING review rules, project code-review skills |
+
+Discovery sources, in order:
+
+1. Project skills active in the session (they encode the rite explicitly).
+2. Repo docs: `CLAUDE.md`, `CONTRIBUTING.md`, `README`, `docs/`.
+3. Structural markers: `openspec/` dir, PR/issue templates, CI required checks.
+
+Conflict between the generic flow and a project rite → the project rite wins; state in the plan
+which rite is being followed per stage so the user sees it before approving.
+
 ## Multi-repo orchestration (workspace mode)
 
 - Source of truth for targets: the issue's *Affected repositories* section; re-validate it against

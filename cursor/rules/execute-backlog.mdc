@@ -27,6 +27,10 @@ to the `backlog` skill; consumes the same config.
    invent commands, never run migrations/deploys/destructive steps without an explicit ask.
 6. **Faithful reporting** — failing checks are reported with their output; skipped validations are
    listed as skipped, never implied as passed.
+7. **The project's rite wins** — at every stage the card advances, discover and follow the target
+   repo's own established process for that stage (spec/proposal rites, implementation and test
+   rites, review templates). The generic workflow here is the fallback, never an override
+   (`references/execution-flow.md`, *Per-stage rite discovery*).
 
 ## Workflow
 
