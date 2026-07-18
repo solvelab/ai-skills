@@ -79,7 +79,7 @@ one accept, zero manual steps):
 ```
 
 Pick the groups that match the project (a FiveM repo takes `ai-skills-fivem`, an R3F game takes
-`ai-skills-game`, ...) — dumping all 28 skills into every project is noise, not help.
+`ai-skills-game`, ...) — dumping all 29 skills into every project is noise, not help.
 
 **B3 — user-level (whole machine)** — same snippet in `~/.claude/settings.json` enables the plugin
 for every project on the machine.
@@ -357,6 +357,7 @@ Think of skills as reusable expertise — instead of explaining your documentati
 | **openspec** | OpenSpec, /opsx, proposal, spec delta, change-id | Vanilla OpenSpec spec-driven workflow (explore → propose → validate → apply → archive) |
 | **openspec-drivezone** | the DriveZone "rito", forked schema | DriveZone forked-schema variant — mandatory Fallback / Tests & Bug-Hunter / Validation gates |
 | **conventional-commit** | creating/amending commits, commit messages, /commit, opening/editing PRs | Conventional Commits + gitmoji icon per type; forbids AI attribution in commits & PRs |
+| **backlog** | /backlog <idea>, "create a backlog item", "turn this idea into an issue" | Turns a natural-language idea into a context-rich GitHub issue placed in a Project v2 with fields set — repo & multi-repo workspace modes, first-run config wizard, preview before creation |
 
 ### DevOps & docs
 
