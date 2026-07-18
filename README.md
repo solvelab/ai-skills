@@ -52,7 +52,7 @@ The marketplace ships **per-domain plugins** so a project enables only coherent 
 `ai-skills-fivem`, `ai-skills-nui` (NUI React/CEF), `ai-skills-frontend` (SPA API client),
 `ai-skills-game` (R3F + AssettoServer), `ai-skills-devops`, `ai-skills-docs`,
 `ai-skills-tooling` (Claude Code status line) — plus the full
-`ai-skills` bundle for whoever really wants all 28.
+`ai-skills` bundle for whoever really wants all 30.
 
 **B1 — manual**, inside Claude Code:
 
@@ -79,7 +79,7 @@ one accept, zero manual steps):
 ```
 
 Pick the groups that match the project (a FiveM repo takes `ai-skills-fivem`, an R3F game takes
-`ai-skills-game`, ...) — dumping all 29 skills into every project is noise, not help.
+`ai-skills-game`, ...) — dumping all 30 skills into every project is noise, not help.
 
 **B3 — user-level (whole machine)** — same snippet in `~/.claude/settings.json` enables the plugin
 for every project on the machine.
@@ -358,6 +358,7 @@ Think of skills as reusable expertise — instead of explaining your documentati
 | **openspec-drivezone** | the DriveZone "rito", forked schema | DriveZone forked-schema variant — mandatory Fallback / Tests & Bug-Hunter / Validation gates |
 | **conventional-commit** | creating/amending commits, commit messages, /commit, opening/editing PRs | Conventional Commits + gitmoji icon per type; forbids AI attribution in commits & PRs |
 | **backlog** | /backlog <idea>, "create a backlog item", "turn this idea into an issue" | Turns a natural-language idea into a context-rich GitHub issue placed in a Project v2 with fields set — repo & multi-repo workspace modes, first-run config wizard, preview before creation |
+| **execute-backlog** | /execute-backlog <n>, "implement issue #N", "pick up this ticket" | Drives an existing backlog item to a validated PR: completeness gate, plan approved before code, branch-per-item, repo-discovered validations, `Closes #n` linking, board moved to review — never merges or closes issues itself |
 
 ### DevOps & docs
 

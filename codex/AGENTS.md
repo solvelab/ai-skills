@@ -18,6 +18,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `claude-statusline` | `codex/skills/claude-statusline/AGENTS.md` |
 | `conventional-commit` | `codex/skills/conventional-commit/AGENTS.md` |
 | `documentation` | `codex/skills/documentation/AGENTS.md` |
+| `execute-backlog` | `codex/skills/execute-backlog/AGENTS.md` |
 | `fivem-fallback` | `codex/skills/fivem-fallback/AGENTS.md` |
 | `fivem-lua` | `codex/skills/fivem-lua/AGENTS.md` |
 | `fivem-nui-react` | `codex/skills/fivem-nui-react/AGENTS.md` |
