@@ -316,6 +316,45 @@ Think of skills as reusable expertise — instead of explaining your documentati
 
 ---
 
+## 🗂️ Backlog Automation Quickstart (`/backlog` + `/execute-backlog`)
+
+Turn ideas into GitHub Project items and drive them to merged PRs, from any repo or multi-repo
+workspace. One-time setup per machine:
+
+```bash
+# 1. Install the skills (any install option works; quickest:)
+npx skills add solvelab/ai-skills --skill backlog --skill execute-backlog -g
+
+# 2. GitHub CLI authenticated WITH Projects scopes (once per machine)
+gh auth login                                   # if not logged in yet
+gh auth refresh -s project,read:project        # Projects v2 requires these extra scopes
+```
+
+Then, per project (first run only — a wizard writes the config):
+
+```bash
+cd ~/work/my-repo          # or a workspace folder containing several repos of one org
+claude
+> /backlog add social login authentication
+# wizard: detects the org from git remotes → you pick the Project → fields mapped →
+# writes .github/backlog.yml (repo mode) or backlog.yml (workspace mode) → commit it
+# so every teammate inherits the setup on clone.
+```
+
+Daily flow:
+
+| Command | What happens |
+|---|---|
+| `/backlog <idea>` | analyzes the repo for real context → drafts a structured issue → **preview for approval** → creates the issue + adds it to the Project with fields set (card in **Backlog**) |
+| `/execute-backlog <n>` | reads the issue → completeness gate (card → **Ready**) → implementation plan for approval (card → **In progress**) → implements on `backlog/<n>-<slug>` following the repo's own rites → tests + validations → PR with `Closes #n` (card → **In review**) — never merges, never closes issues |
+| you merge the PR | issue auto-closes; the board's built-in *Item closed → Done* workflow moves the card to **Done** |
+
+Requirements: `gh` ≥ 2.40 with the scopes above, write access to the target repos, and a GitHub
+Project v2 in the org/user. Full details live in the skills themselves:
+[`skills/backlog/`](skills/backlog/SKILL.md) · [`skills/execute-backlog/`](skills/execute-backlog/SKILL.md).
+
+---
+
 ## 📦 Skills Available
 
 ### Backend & testing
