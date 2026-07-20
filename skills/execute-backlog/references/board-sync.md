@@ -51,7 +51,8 @@ gh project item-edit --project-id PROJECT_ID --id ITEM_ID \
 - Primary repo PR body: `Closes #<n>` (auto-closes on merge — the skill itself never closes).
 - Secondary repo PRs: `Relates to <issue-url>` — `Closes` across repos does not auto-close and
   misleads reviewers.
-- Final issue comment: list every PR, validation summary, and any approved scope deviations.
+- Final issue comment: list every PR, validation summary, the acceptance-criteria verdict table
+  (`references/acceptance-tracking.md`), and any approved scope deviations.
 
 ## Recovery
 

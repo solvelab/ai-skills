@@ -5,15 +5,16 @@ description: >-
   validate it is complete enough to execute, re-analyze the current repo/workspace state, present
   an implementation plan for approval BEFORE touching code, implement on a dedicated branch
   following the repo's conventions, add/update tests, run the repo's discoverable validations
-  (tests/lint/build/typecheck), open pull request(s) linking the issue (Closes #n), and move the
-  GitHub Project item to the review column. Use when the user invokes /execute-backlog <n>, says
+  (tests/lint/build/typecheck), tick the issue's acceptance-criteria checkboxes that are proven by
+  evidence, open pull request(s) linking the issue (Closes #n), and move the GitHub Project item to
+  the review column. Use when the user invokes /execute-backlog <n>, says
   "implement issue #N", "execute this backlog item", "pick up this ticket", or wants an existing
   issue turned into a PR. Uses the backlog skill's config (.github/backlog.yml or workspace
   backlog.yml). Do NOT use for creating backlog items (that is backlog), for merging PRs, for
   deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: process
 license: MIT
 compatibility: >-
