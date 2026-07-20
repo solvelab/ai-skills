@@ -1,6 +1,6 @@
 ---
 description: >-
-  Execute an existing GitHub backlog item end-to-end: locate the issue (number, URL or search), validate it is complete enough to execute, re-analyze the current repo/workspace state, present an implementation plan for approval BEFORE touching code, implement on a dedicated branch following the repo's conventions, add/update tests, run the repo's discoverable validations (tests/lint/build/typecheck), open pull request(s) linking the issue (Closes #n), and move the GitHub Project item to the review column. Use when the user invokes /execute-backlog <n>, says "implement issue #N", "execute this backlog item", "pick up this ticket", or wants an existing issue turned into a PR. Uses the backlog skill's config (.github/backlog.yml or workspace backlog.yml). Do NOT use for creating backlog items (that is backlog), for merging PRs, for deploying, or for non-GitHub trackers.
+  Execute an existing GitHub backlog item end-to-end: locate the issue (number, URL or search), validate it is complete enough to execute, re-analyze the current repo/workspace state, present an implementation plan for approval BEFORE touching code, implement on a dedicated branch following the repo's conventions, add/update tests, run the repo's discoverable validations (tests/lint/build/typecheck), tick the issue's acceptance-criteria checkboxes that are proven by evidence, open pull request(s) linking the issue (Closes #n), and move the GitHub Project item to the review column. Use when the user invokes /execute-backlog <n>, says "implement issue #N", "execute this backlog item", "pick up this ticket", or wants an existing issue turned into a PR. Uses the backlog skill's config (.github/backlog.yml or workspace backlog.yml). Do NOT use for creating backlog items (that is backlog), for merging PRs, for deploying, or for non-GitHub trackers.
 alwaysApply: false
 ---
 
@@ -12,6 +12,7 @@ to the `backlog` skill; consumes the same config.
 
 - **Gates, plan format, scope-change protocol, multi-repo orchestration**: `references/execution-flow.md`
 - **Discovering and running each repo's validations**: `references/validation-matrix.md`
+- **Ticking the item's checkboxes + evidence table + completeness gate**: `references/acceptance-tracking.md`
 - **Board transitions + PR↔issue linking + recovery**: `references/board-sync.md`
 
 ## CRITICAL: Safety rails
@@ -27,7 +28,11 @@ to the `backlog` skill; consumes the same config.
    invent commands, never run migrations/deploys/destructive steps without an explicit ask.
 6. **Faithful reporting** — failing checks are reported with their output; skipped validations are
    listed as skipped, never implied as passed.
-7. **The project's rite wins** — at every stage the card advances, discover and follow the target
+7. **Every checkbox gets a verdict** — before the PR, each acceptance criterion (and each rite
+   checklist item in the body) is either ticked because evidence proves it, or left unticked and
+   reported as a gap. Never bulk-tick, never tick from intent instead of proof, never leave a box
+   silently empty (`references/acceptance-tracking.md`).
+8. **The project's rite wins** — at every stage the card advances, discover and follow the target
    repo's own established process for that stage (spec/proposal rites, implementation and test
    rites, review templates). The generic workflow here is the fallback, never an override
    (`references/execution-flow.md`, *Per-stage rite discovery*).
@@ -55,11 +60,16 @@ to the `backlog` skill; consumes the same config.
 7. **Tests** — add/update tests per the issue's test strategy and the repo's framework.
 8. **Validate** — discover and run the repo's checks (`references/validation-matrix.md`); fix
    findings; re-run until green or report honest blockers.
-9. **PR(s)** — one per changed repo; primary repo's PR body carries `Closes #n`, others reference
-   `Relates to <issue-url>`. No auto-merge. Follow `conventional-commit` PR rules when present.
-10. **Sync & report** — move the board item to the review column; comment on the issue with links
-    to the PR(s); present summary: what changed, validation evidence, deviations (if any,
-    pre-approved), next human step (review/merge).
+9. **Acceptance sweep** — walk the item's checkboxes one by one, assign each a verdict backed by
+    the validation evidence, tick the proven ones in the issue body (surgical read-modify-write),
+    and gate on the rest: unmet or manual-only criteria stop the run for a decision before any PR
+    is opened (`references/acceptance-tracking.md`).
+10. **PR(s)** — one per changed repo; primary repo's PR body carries `Closes #n`, others reference
+    `Relates to <issue-url>`, plus the evidence table and a **Known gaps** section when the sweep
+    left anything unticked. No auto-merge. Follow `conventional-commit` PR rules when present.
+11. **Sync & report** — move the board item to the review column; comment on the issue with links
+    to the PR(s); present summary: what changed, validation evidence, the criteria table with
+    every verdict, deviations (if any, pre-approved), next human step (review/merge).
 
 ## Trigger Test Cases
 
