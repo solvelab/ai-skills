@@ -1,8 +1,9 @@
 ---
 name: openspec-drivezone
 description: >-
-  The DriveZone OpenSpec rite — a project-local forked schema that turns three disciplines into
-  mandatory gates the `validate --strict` step refuses to skip. Use when running the spec-driven flow on
+  The DriveZone OpenSpec rite — a project-local forked schema that scaffolds three mandatory
+  sections into every change, enforced structurally by a repo rite-gate script + CI (the CLI's
+  `validate --strict` does NOT check template sections). Use when running the spec-driven flow on
   DriveZone (fivem-drivezone or backend-drivezone), when the user mentions the "rito", the forked
   schema, or asks why this OpenSpec differs from vanilla. Covers the lifecycle and the three forced
   sections: Fallback & Failure Modes (design.md), Tests & Bug-Hunter (tasks.md), Validation & Closure
@@ -10,7 +11,7 @@ description: >-
   Do NOT use for vanilla OpenSpec on non-DriveZone projects — that is the openspec skill.
 metadata:
   author: solvelab
-  version: 2.0.0
+  version: 2.1.0
   category: process
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
