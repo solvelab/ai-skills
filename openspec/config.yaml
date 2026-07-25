@@ -1,0 +1,17 @@
+schema: skills-rite
+
+context: |
+  This repo is a Claude Code skills catalog (solvelab/ai-skills). "Code" here is skill
+  documentation: skills/<name>/SKILL.md + references/, mirrored into claude/skills/.
+  Conventions are governed by openspec/specs/skills-authoring (uniform frontmatter,
+  English-only content, single canonical home per cross-cutting rule) and
+  openspec/specs/skills-catalog (catalog composition, npx discovery).
+  The skills-rite schema forks vanilla spec-driven and forces three gates:
+  Canonical Home & Cross-Links (design.md), Quality Gates (tasks.md, second-to-last
+  group), Validation & Closure (tasks.md, last group).
+
+rules:
+  proposal:
+    - Name the affected skills explicitly in Impact (catalog composition changes are breaking for consumers of npx discovery)
+  tasks:
+    - Never drop the Quality Gates and Validation & Closure groups; they close the rite
