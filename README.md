@@ -548,7 +548,69 @@ After running the prompt, check that:
 
 ---
 
+## 📐 Spec-Driven Rite (OpenSpec)
+
+Every change to this repository runs through [OpenSpec](https://github.com/Fission-AI/OpenSpec) with a
+project-local forked schema, **`skills-rite`** (`openspec/schemas/skills-rite/`, selected by
+`openspec/config.yaml`). Specs are the source of truth; changes are validated deltas against them:
+
+```
+openspec/
+  specs/<capability>/spec.md      # current truth (updated only at archive)
+  changes/<change-id>/            # active change: proposal.md, design.md, tasks.md, specs/ deltas
+  changes/archive/<date>-<id>/    # history + base for future deltas
+  schemas/skills-rite/            # the fork: schema.yaml + artifact templates
+```
+
+### Lifecycle (`/opsx` commands)
+
+| Stage | Command | What happens |
+|---|---|---|
+| Explore | `/opsx:explore` | Thinking-partner mode — align the requirement, no implementation |
+| Propose | `/opsx:propose <idea>` | Scaffolds proposal → spec deltas → design → tasks with the gates below |
+| Validate | `openspec validate <id> --strict` + `./scripts/validate-rite.sh` | Gate before any code |
+| Apply | `/opsx:apply <id>` | Implements each task, ticks `[x]` with evidence |
+| Archive | `/opsx:archive <id>` | Merges deltas into `specs/`, moves the change to `archive/` |
+
+### The three mandatory gates
+
+- `design.md` → `## Canonical Home & Cross-Links (MANDATORY)` — every cross-cutting rule names its
+  single canonical skill; siblings link instead of restating.
+- `tasks.md` → `## Quality Gates (MANDATORY)` (second-to-last group) — adversarial review of every
+  touched skill: uniform frontmatter, English-only content, testable non-colliding triggers.
+- `tasks.md` → `## Validation & Closure (MANDATORY)` (last group) — strict validation green, catalog
+  discovery intact, docs updated, then archive.
+
+### Where enforcement actually happens
+
+The CLI's `openspec validate --strict` checks **delta-spec format only** — probe-verified on CLI
+1.6.0, it does **not** check custom template sections, so the forked schema alone is advisory (it
+feeds `/opsx` artifact generation). The **hard gate** is [`scripts/validate-rite.sh`](scripts/validate-rite.sh):
+it requires the three gate headings in every active change (closure group last) and runs
+`openspec validate --all --strict`, wired as the **"OpenSpec rite gate"** step in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml). Run it locally before pushing — CI is the
+backstop, not the first line.
+
+### Per-machine setup
+
+```bash
+npm install -g @fission-ai/openspec   # CLI (>= 1.6.0)
+openspec init --tools claude          # generates the /opsx commands into .claude/ (git-ignored, per machine)
+```
+
+### Board integration
+
+Work arrives through the [backlog automation](#%EF%B8%8F-backlog-automation-quickstart-backlog--execute-backlog):
+`/backlog <idea>` creates the card on the org Project, `/execute-backlog <n>` drives it through this
+rite to a PR (real example: [PR #18](https://github.com/solvelab/ai-skills/pull/18) — proposal,
+gates, strict + rite-gate validation, archive, evidence table).
+
+---
+
 ## ➕ How to Add a New Skill
+
+> Skill additions and edits go through the [Spec-Driven Rite](#-spec-driven-rite-openspec) above —
+> `/opsx:propose` first, code after the gates are green.
 
 ### 1. Create the canonical skill
 
@@ -605,6 +667,10 @@ git push origin master
 ---
 
 ## 🤝 Shared Conventions
+
+Process-wide conventions are enforced by the [Spec-Driven Rite](#-spec-driven-rite-openspec):
+authoring rules live in `openspec/specs/skills-authoring/spec.md`, catalog composition in
+`openspec/specs/skills-catalog/spec.md`.
 
 The `shared/conventions/` folder is for coding standards and patterns that apply across all AI tools. Place files here when the same convention should be followed regardless of which tool is being used.
 
