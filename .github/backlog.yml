@@ -1,0 +1,11 @@
+version: 1
+project:
+  owner: solvelab
+  number: 3
+fields:
+  status: Status
+  priority: Priority
+  size: Size
+  estimate: Estimate
+defaults:
+  status: Backlog
