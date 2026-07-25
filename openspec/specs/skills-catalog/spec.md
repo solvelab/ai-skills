@@ -1,7 +1,12 @@
 # skills-catalog Specification
 
 ## Purpose
-TBD - created by archiving change refactor-skills-quality-review. Update Purpose after archive.
+
+The composition of the published catalog and its discovery contract: which skills exist, which are
+superseded or removed, and the guarantee that `npx skills add <repo> --list` finds every skill at
+the expected count with no orphans or renamed leftovers. Changes that add, remove, or supersede
+skills are validated against this spec by the skills-rite Validation & Closure gate.
+
 ## Requirements
 ### Requirement: Catalog composition after the quality review
 

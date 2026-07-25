@@ -1,7 +1,13 @@
 # skills-authoring Specification
 
 ## Purpose
-TBD - created by archiving change refactor-skills-quality-review. Update Purpose after archive.
+
+Conventions governing how every skill in this catalog is written, for human contributors and AI
+agents alike: uniform frontmatter metadata, English as the catalog locale, a single canonical home
+for each cross-cutting rule (siblings link instead of restating), and empirically verified claims
+about external tool behavior. CI and the skills-rite Quality Gates enforce these requirements on
+every change that touches `skills/`.
+
 ## Requirements
 ### Requirement: Single canonical home per rule
 
