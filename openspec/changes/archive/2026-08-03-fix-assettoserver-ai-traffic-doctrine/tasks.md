@@ -69,5 +69,5 @@
 - [x] V.3 Wrappers in sync: second `./generate.sh` produced an empty `git diff` (idempotent)
 - [x] V.4 Catalog discovery intact: 30 skills generated, `devops` plugin group unchanged, README
       table and counts untouched
-- [ ] V.5 `openspec archive fix-assettoserver-ai-traffic-doctrine --yes` — deferred to after the
-      PR is merged, per this repo's rule that master merges happen by PR and cut the release
+- [x] V.5 `openspec archive fix-assettoserver-ai-traffic-doctrine --yes` — done on the branch,
+      matching the repo precedent (#20); `openspec validate --specs --strict` green afterwards
