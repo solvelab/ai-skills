@@ -77,19 +77,23 @@ Enabling traffic without the prerequisites produces silent-broken states, so gat
    (`traffic may be testable` / `keep traffic disabled`), not as tribal knowledge.
 2. Traffic slots in `entry_list.ini` get `AI=Fixed`, a `traffic_*` car model, and stay separate
    from the human car so players can't spawn traffic vehicles.
-3. Recount `MAX_CLIENTS` — it includes the AI slots.
-4. Start conservative and smoke-test before raising density. Validated baseline: 2 human slots +
-   25 `AI=Fixed` slots, with:
+3. Recount `MAX_CLIENTS` — it includes the AI slots. `EntryCarManager` allocates
+   `Math.Min(MaxClients, EntryList.Cars.Count)`, so slots past a stale `MAX_CLIENTS` are dropped
+   **silently, with no error**.
+4. Size the counts from the formula below — never by copying another server's numbers.
+
+The lane file may live at the track ROOT `ai/` dir and serve all layouts — empty
+`<layout>/ai/` dirs are fine; the validator accepts a root `fast_lane.ai|.aip`.
 
 ```yaml
 EnableAi: true
 AiParams:
-  MaxPlayerCount: 2
-  MaxAiTargetCount: 18
-  AiPerPlayerTargetCount: 18
+  MaxPlayerCount: 0            # entry limit, NOT density — see below. Keep 0.
+  MaxAiTargetCount: 0          # 0 = server derives it (preferred); see the rules below
+  AiPerPlayerTargetCount: 0    # 0 = server derives it (preferred)
   TrafficDensity: 1.0
-  NamePrefix: "DriveZone Traffic"
-  HideAiCars: true
+  NamePrefix: "Traffic"
+  HideAiCars: true             # needs CSP >= 0.1.78 client-side
   TwoWayTraffic: false
   WrongWayTraffic: true
   MaxSpeedKph: 85
@@ -99,8 +103,74 @@ AiParams:
   SpawnSafetyDistanceToPlayerMeters: 150
 ```
 
-The lane file may live at the track ROOT `ai/` dir and serve all layouts — empty
-`<layout>/ai/` dirs are fine; the validator accepts a root `fast_lane.ai|.aip`.
+### How many AI cars actually spawn
+
+Everything about density follows from one function (`Server/Ai/AiBehavior.cs`, tag
+`v0.0.55-pre25`). Read it before choosing any value:
+
+```csharp
+int playerCount = EntryCars.Count(car => car.Client != null && car.Client.IsConnected);
+var aiSlots     = EntryCars.Where(car => car.Client == null && car.AiControlled).ToList();
+int targetAiCount = Math.Min(
+        playerCount * Math.Min((int)Math.Round(AiPerPlayerTargetCount * TrafficDensity), aiSlots.Count),
+        MaxAiTargetCount);
+int overbooking = targetAiCount / aiSlots.Count;   // INTEGER division
+int rest        = targetAiCount % aiSlots.Count;
+for (int i = 0; i < aiSlots.Count; i++)
+    aiSlots[i].SetAiOverbooking(i < rest ? overbooking + 1 : overbooking);
+```
+
+| Rule | Why |
+|---|---|
+| `MaxAiTargetCount` **>= the AI slot count**, or slots die | integer division: target 18 over 25 slots gives `overbooking = 0`, and every slot from index `rest` on gets **zero** states. Those car models never appear in-game — while clients still download and checksum all of them |
+| It is a **total budget across all players**, not a CPU ceiling | the outer `Math.Min` caps the sum. Size it `perPlayerTarget * maxConcurrentPlayers`, or density silently halves when the second player joins |
+| `AiPerPlayerTargetCount` above the slot count does nothing | the inner `Math.Min` clamps it to `aiSlots.Count` |
+| A player never sees more AI cars than the slot count | `EntryCar.cs` emits one `PositionUpdateOut` per **slot** per player (`GetBestStateForPlayer`). Overbooking exists so N players each get their own instance of a slot — it does not thicken traffic for one driver. To raise what a single driver sees, add `AI=Fixed` slots |
+
+**Prefer the server's own arithmetic.** Left at `0`, `ACServerConfiguration` computes
+`AiPerPlayerTargetCount = aiSlots` and `MaxAiTargetCount = humanSlots * aiSlots` — correct by
+construction for any entry list, and it re-derives when the entry list changes. Hardcode only to go
+*below* that, and say why.
+
+`Min/MaxAiSafetyDistanceMeters` are **spawn-placement gates, not following distance** — they appear
+only in `IsPositionSafe` / `IsKeepingSafetyDistances`. Car-following is `_minObstacleDistance`
+(`AiState.cs`, a random 8–12 m). The draw is uniform in **squared** metres, so it skews high:
+raising the Min barely moves the mean gap, while lowering the Max moves it a lot.
+
+### `MaxPlayerCount` is an entry limit, not a traffic knob
+
+It lives under `AiParams`, which is exactly why it gets carried along when someone tunes traffic —
+and it is the most damaging value in the block. Above `0`, `AiSlotFilter` reports **every** car as
+closed, human slots included, as soon as `ConnectedCars.Count` reaches it; the next player is told
+the server is full while the lobby still advertises `MAX_CLIENTS`.
+
+**Keep it `0`.** Players can never take a traffic slot anyway — the same filter rejects `AI=Fixed`
+unconditionally — so the ceiling is already the number of slots without an `AI=` key.
+
+Two amplifiers make it near-invisible in testing: admins bypass the filter (whoever operates the
+server never reproduces it), and players still on the loading screen count as connected for up to
+`PlayerLoadingTimeoutMinutes`, so one stuck client burns capacity for minutes.
+
+### Judging whether the count is too high
+
+Do not guess from FPS. AssettoServer exposes Prometheus metrics on the HTTP port, and the tick loop
+is a **single thread** at `CLIENT_SEND_INTERVAL_HZ` (default 20 Hz = a 50 ms budget), so more cores
+do not help it. Read:
+
+| Metric | Meaning |
+|---|---|
+| `assettoserver_acserver_updateasync` p99 | main tick cost — keep well inside the budget |
+| `assettoserver_acserver_updateasync_late` | must stay flat; any slope means past capacity |
+| `assettoserver_aibehavior_update` p99 | spawn-point finder — the superlinear one |
+| `assettoserver_aistatecount` | plateauing below target means spawn-starved, not CPU-bound |
+
+Bandwidth usually binds before CPU: AI near a player is inside `NetworkBubbleDistance` and updates at
+full rate, so outbound scales with `players * AI-near-player`. Tunnelling game UDP over a TCP proxy
+makes this worse than the byte count suggests — one lost segment stalls every player's position
+stream at once, which reads in-game as "the AI cars freeze and jump".
+
+Plugin-side cost is a separate budget: per-tick loops over `EntryCarManager.EntryCars` scale with the
+slot count. That belongs to `assettoserver-plugin`.
 
 ## Docker / WSL2 orchestration
 
@@ -110,6 +180,15 @@ The lane file may live at the track ROOT `ai/` dir and serve all layouts — emp
   `extra_hosts: ["host.docker.internal:host-gateway"]`.
 - Run as a non-root user (`user: "${UID:-1000}:${GID:-1000}"`); runtime files in a named volume
   (`assettoserver_files`).
+- **Link every runtime dir to a mounted path — including the ones the server creates itself.** The
+  compiled AI spline cache is the trap: the server writes it to `cache/` **relative to its working
+  directory** and `mkdir`s it at runtime, so it never appears in a mount list written by hand. Left
+  unlinked it lands on the container's ephemeral layer and the spline is recompiled on every start
+  (tens of MB, seconds of boot). A named volume over the install dir hides this locally while
+  orchestrators that recreate containers pay it every time — so verify on the deployed target, not
+  on the dev box. Two follow-ons: a freshly provisioned volume is root-owned and needs a `chown` to
+  the server's UID before first boot, and the cache is derived data — single-replica storage, out of
+  backups, safe to delete (it regenerates).
 - WSL2 LAN exposure needs Windows-side plumbing — document it next to the compose file:
   `netsh interface portproxy add v4tov4 listenport=9600 connectaddress=$wslIp connectport=9600`
   (repeat for 8081) plus firewall rules for 9600/tcp, 9600/udp, 8081/tcp. The WSL IP changes;
