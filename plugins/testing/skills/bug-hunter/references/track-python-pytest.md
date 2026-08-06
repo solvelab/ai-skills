@@ -15,7 +15,9 @@ Run the E2E suite **before** any manual validation. Mirror existing `test_*_adve
 - **Dependency resilience**: mock the config/KV client to raise (timeout/connect error) → assert the
   fallback path and the negative cache (one attempt per fail-TTL); assert a real 404 is NOT
   negative-cached. (Definitions in `backend-resilience`.)
-- **Concurrency**: two concurrent requests on the same row/target. Note the fixture limit: SQLite test
+- **Concurrency**: fire N concurrent requests (100+, not two) on the same row/target and count how
+  many reached the dependency — a single-flight or lock guard is invisible at two callers.
+  Two concurrent requests on the same row/target remain the minimum case. Note the fixture limit: SQLite test
   fixtures don't enforce row locks — `SELECT ... FOR UPDATE` serialization is only truly validated
   against the real database (e.g. Postgres). State this limit in the test docstring.
 - **Rate-limit / reconnect persistence** where the change touches them.

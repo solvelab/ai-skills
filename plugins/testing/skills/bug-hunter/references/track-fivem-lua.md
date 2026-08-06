@@ -16,7 +16,8 @@ smoke.
   trigger unintended state.
 - **Lifecycle**: disconnect/close mid-flow (ESC included) releases locks/focus and cleans per-player
   state; resource restart doesn't leave orphaned globals.
-- **StateBag races**: concurrent writers to the same networked state don't corrupt it.
+- **StateBag races**: concurrent writers to the same networked state don't corrupt it — drive it with
+  a burst of writers, not a pair.
 
 ## Exit criteria
 
