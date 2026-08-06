@@ -43,7 +43,9 @@ to the `backlog` skill; consumes the same config.
    discovery/precedence as `backlog`). Number/search → `gh issue view` in the primary repo (or
    search across workspace repos). Not found → clear error, stop.
 2. **Read fully** — body, comments (later comments may amend scope), linked PRs, labels, board
-   status. Existing open PR for the item → report and ask before duplicating work.
+   status. Existing open PR for the item → report and ask before duplicating work. Resolve linked
+   PRs from the issue's own link graph, never from a text search — recipe and the measured failure
+   of the search approach: `references/board-sync.md` (*Finding the item's PRs*).
 3. **Completeness gate** — the item must have enough to execute: goal, scope, acceptance
    criteria. Also re-check against the *current* codebase (drift since grooming: files renamed,
    feature landed meanwhile). Gaps/contradictions → report and ask: proceed as-is (user accepts

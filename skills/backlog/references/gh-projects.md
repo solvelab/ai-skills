@@ -93,6 +93,12 @@ Only use option names returned by `/orgs/OWNER/issue-fields`. The board mirror m
 
 ## Duplicate check
 
+Search **key terms**, never the candidate title verbatim. GitHub's search drops punctuation-bearing
+tokens, so a conventional-commit style title finds nothing: measured on this catalog, an issue titled
+`refactor(r3f): split the 10 r3f skills into SKILL.md + references/` was found by
+`split r3f skills`, `r3f references split` and `r3f` — and **not** by `refactor(r3f)`, which
+returned zero. A verbatim search reporting "no duplicate" is the failure mode to avoid.
+
 ```bash
 gh issue list -R OWNER/REPO --search "KEY TERMS in:title,body" --state open \
   --json number,title,url --limit 10
