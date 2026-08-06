@@ -414,6 +414,11 @@ Project v2 in the org/user. Full details live in the skills themselves:
 
 ### Game (React Three Fiber — 10 topics)
 
+Every code block in these skills is compile-checked: blocks tagged `tsx` are complete modules that
+typecheck against `three@0.185` · `@react-three/fiber@9.7` · `@react-three/drei@10.7` · `react@19.2`,
+and illustrative fragments carry a `// excerpt` marker. Each skill states the stack it was verified
+against, and flags the R3F v10 `state.gl` → `state.renderer` rename that is coming.
+
 | Skill | Covers |
 |-------|--------|
 | **r3f-fundamentals** | Canvas, useFrame/useThree, JSX elements, events, refs, extend, Leva |

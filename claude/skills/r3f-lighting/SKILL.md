@@ -7,7 +7,7 @@ description: >-
   environment-lighting task. Loading HDR/texture files is covered in r3f-assets.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

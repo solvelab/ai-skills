@@ -7,7 +7,7 @@ description: >-
   r3f-materials.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -51,7 +51,7 @@ const ColorShiftMaterial = shaderMaterial(
 extend({ ColorShiftMaterial })
 
 function ShaderMesh() {
-  const materialRef = useRef()
+  const materialRef = useRef<THREE.ShaderMaterial>(null!)
 
   useFrame(({ clock }) => {
     materialRef.current.time = clock.elapsedTime
@@ -126,7 +126,7 @@ extend({ MyShaderMaterial })
 
 // 3. Use in component
 function MyMesh() {
-  const materialRef = useRef()
+  const materialRef = useRef<THREE.ShaderMaterial>(null!)
 
   useFrame(({ clock }) => {
     materialRef.current.time = clock.elapsedTime
@@ -153,6 +153,7 @@ function MyMesh() {
 The `key` prop on shaderMaterial enables live shader editing without page refresh:
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 const MyMaterial = shaderMaterial(
   { time: 0 },
   vertexShader,
@@ -313,7 +314,7 @@ uniform vec3 positions[3];
 
 ```tsx
 function AnimatedShader() {
-  const materialRef = useRef()
+  const materialRef = useRef<THREE.ShaderMaterial>(null!)
 
   useFrame(({ clock, mouse, viewport }) => {
     // Direct value update
@@ -379,7 +380,7 @@ import { useTexture } from '@react-three/drei'
 
 function TexturedShaderMesh() {
   const texture = useTexture('/textures/color.jpg')
-  const materialRef = useRef()
+  const materialRef = useRef<THREE.ShaderMaterial>(null!)
 
   return (
     <mesh>
@@ -444,7 +445,7 @@ const WaveMaterial = shaderMaterial(
 extend({ WaveMaterial })
 
 function WavePlane() {
-  const ref = useRef()
+  const ref = useRef<THREE.ShaderMaterial>(null!)
 
   useFrame(({ clock }) => {
     ref.current.time = clock.elapsedTime
@@ -604,7 +605,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
 function ModifiedStandardMaterial() {
-  const materialRef = useRef()
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null!)
   const shaderRef = useRef()
 
   useEffect(() => {
@@ -691,7 +692,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
 function InstancedShaderMesh({ count = 1000 }) {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.InstancedMesh>(null!)
 
   // Create instance attributes
   const { offsets, colors } = useMemo(() => {
@@ -756,7 +757,7 @@ function InstancedShaderMesh({ count = 1000 }) {
 
 ### With Vite/Webpack
 
-```tsx
+```glsl
 // shaders/vertex.glsl
 varying vec2 vUv;
 void main() {
@@ -796,6 +797,7 @@ export default {
 ## Material Properties
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <myShaderMaterial
   // Rendering
   transparent={true}
@@ -821,7 +823,7 @@ export default {
 
 ```tsx
 function DebugShaderMesh() {
-  const materialRef = useRef()
+  const materialRef = useRef<THREE.ShaderMaterial>(null!)
 
   useEffect(() => {
     // Log compiled shaders
@@ -885,3 +887,8 @@ color = mix(colorB, colorA, step(0.5, value));
 - `r3f-materials` - Built-in material types
 - `r3f-postprocessing` - Full-screen shader effects
 - `r3f-assets` - Texture sampling in shaders
+
+> **Verified against**: `three@0.185` · `@react-three/fiber@9.7` · `@react-three/drei@10.7` ·
+> `react@19.2`. Code blocks tagged `tsx` are complete modules and typecheck against that stack;
+> blocks marked `// excerpt` are illustrative fragments. R3F v10 (alpha) renames `state.gl` to
+> `state.renderer` and moves to `THREE.Timer` — check the migration guide before adopting it.

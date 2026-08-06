@@ -6,7 +6,7 @@ description: >-
   meshes.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -40,6 +40,7 @@ All Three.js geometries are available as JSX elements. The `args` prop passes co
 ### Basic Shapes
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // BoxGeometry(width, height, depth, widthSegments, heightSegments, depthSegments)
 <boxGeometry args={[1, 1, 1]} />
 <boxGeometry args={[2, 1, 0.5, 2, 2, 2]} />
@@ -78,6 +79,7 @@ All Three.js geometries are available as JSX elements. The `args` prop passes co
 ### Advanced Shapes
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // CapsuleGeometry(radius, length, capSegments, radialSegments)
 <capsuleGeometry args={[0.5, 1, 4, 16]} />
 
@@ -299,7 +301,7 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 
 function WavyPlane() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
 
   useFrame(({ clock }) => {
     const positions = meshRef.current.geometry.attributes.position
@@ -351,7 +353,7 @@ function InstancedBoxes() {
 }
 
 function AnimatedInstance({ index }) {
-  const ref = useRef()
+  const ref = useRef<THREE.Object3D>(null!)
 
   // Random initial position
   const position = useMemo(() => [
@@ -459,7 +461,7 @@ import * as THREE from 'three'
 
 function BufferParticles() {
   const count = 10000
-  const pointsRef = useRef()
+  const pointsRef = useRef<THREE.Points>(null!)
 
   const { positions, colors } = useMemo(() => {
     const positions = new Float32Array(count * 3)
@@ -571,6 +573,7 @@ function CurvedLines() {
 ### Dashed Line
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <Line
   points={[[0, 0, 0], [5, 0, 0]]}
   color="white"
@@ -647,6 +650,7 @@ function Text3DExample() {
 ### Center Geometry
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 import { Center } from '@react-three/drei'
 
 function CenteredModel() {
@@ -712,6 +716,7 @@ function SelectToZoom() {
 5. **Dispose unused geometry**: R3F handles this automatically
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // Good segment counts
 <sphereGeometry args={[1, 32, 32]} />   // Standard quality
 <sphereGeometry args={[1, 64, 64]} />   // High quality
@@ -730,3 +735,8 @@ const sharedGeometry = useMemo(() => new THREE.BoxGeometry(), [])
 - `r3f-fundamentals` - JSX elements and refs
 - `r3f-materials` - Materials for meshes
 - `r3f-shaders` - Custom vertex manipulation
+
+> **Verified against**: `three@0.185` · `@react-three/fiber@9.7` · `@react-three/drei@10.7` ·
+> `react@19.2`. Code blocks tagged `tsx` are complete modules and typecheck against that stack;
+> blocks marked `// excerpt` are illustrative fragments. R3F v10 (alpha) renames `state.gl` to
+> `state.renderer` and moves to `THREE.Timer` — check the migration guide before adopting it.

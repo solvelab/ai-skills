@@ -7,7 +7,7 @@ description: >-
   live in r3f-fundamentals; drag gestures in r3f-interaction.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

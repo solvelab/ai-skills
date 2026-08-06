@@ -7,7 +7,7 @@ description: >-
   environment-lighting task. Loading HDR/texture files is covered in r3f-assets.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -67,6 +67,7 @@ function Scene() {
 Illuminates all objects equally. No direction, no shadows.
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <ambientLight
   color="#ffffff"  // or color={new THREE.Color('#ffffff')}
   intensity={0.5}
@@ -78,6 +79,7 @@ Illuminates all objects equally. No direction, no shadows.
 Gradient from sky to ground. Good for outdoor scenes.
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <hemisphereLight
   color="#87ceeb"        // Sky color
   groundColor="#8b4513"  // Ground color
@@ -91,6 +93,7 @@ Gradient from sky to ground. Good for outdoor scenes.
 Parallel light rays. Simulates distant light (sun).
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <directionalLight
   color="#ffffff"
   intensity={1}
@@ -111,7 +114,7 @@ Parallel light rays. Simulates distant light (sun).
 
 // With target (light points at target)
 function DirectionalWithTarget() {
-  const lightRef = useRef()
+  const lightRef = useRef<THREE.DirectionalLight>(null!)
 
   return (
     <>
@@ -130,6 +133,7 @@ function DirectionalWithTarget() {
 Emits light in all directions. Like a light bulb.
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <pointLight
   color="#ffffff"
   intensity={1}
@@ -151,6 +155,7 @@ Emits light in all directions. Like a light bulb.
 Cone-shaped light. Like a flashlight.
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <spotLight
   color="#ffffff"
   intensity={1}
@@ -177,7 +182,7 @@ import { useHelper } from '@react-three/drei'
 import { SpotLightHelper } from 'three'
 
 function SpotLightWithHelper() {
-  const lightRef = useRef()
+  const lightRef = useRef<THREE.SpotLight>(null!)
   useHelper(lightRef, SpotLightHelper, 'cyan')
 
   return <spotLight ref={lightRef} position={[0, 5, 0]} />
@@ -189,10 +194,10 @@ function SpotLightWithHelper() {
 Rectangular area light. Great for soft, realistic lighting.
 
 ```tsx
-import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper'
+import { RectAreaLightHelper } from 'three/addons/helpers/RectAreaLightHelper.js'
 
 function AreaLight() {
-  const lightRef = useRef()
+  const lightRef = useRef<THREE.RectAreaLight>(null!)
 
   return (
     <>
@@ -218,6 +223,7 @@ function AreaLight() {
 ### Enable Shadows on Canvas
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <Canvas
   shadows  // or shadows="soft" | "basic" | "percentage" | "variance"
 >
@@ -226,6 +232,7 @@ function AreaLight() {
 ### Shadow Types
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // Basic shadows (fastest, hard edges)
 <Canvas shadows="basic">
 
@@ -242,6 +249,7 @@ function AreaLight() {
 ### Configure Shadow-Casting Objects
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // Light must cast shadows
 <directionalLight castShadow />
 
@@ -265,7 +273,7 @@ import { useHelper } from '@react-three/drei'
 import { CameraHelper } from 'three'
 
 function LightWithShadowHelper() {
-  const lightRef = useRef()
+  const lightRef = useRef<THREE.DirectionalLight>(null!)
 
   // Visualize shadow camera frustum
   useHelper(lightRef.current?.shadow.camera, CameraHelper)
@@ -290,6 +298,7 @@ function LightWithShadowHelper() {
 HDR environment lighting with presets or custom files.
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 import { Environment } from '@react-three/drei'
 
 // Preset environments
@@ -408,6 +417,7 @@ import { Stage } from '@react-three/drei'
 Fast fake shadows without shadow mapping.
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 import { ContactShadows } from '@react-three/drei'
 
 <ContactShadows
@@ -598,7 +608,7 @@ import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 
 function AnimatedLight() {
-  const lightRef = useRef()
+  const lightRef = useRef<THREE.PointLight>(null!)
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime
@@ -632,10 +642,10 @@ import {
 } from 'three'
 
 function LightWithHelpers() {
-  const dirLightRef = useRef()
-  const pointLightRef = useRef()
-  const spotLightRef = useRef()
-  const hemiLightRef = useRef()
+  const dirLightRef = useRef<THREE.DirectionalLight>(null!)
+  const pointLightRef = useRef<THREE.PointLight>(null!)
+  const spotLightRef = useRef<THREE.SpotLight>(null!)
+  const hemiLightRef = useRef<THREE.HemisphereLight>(null!)
 
   useHelper(dirLightRef, DirectionalLightHelper, 5, 'red')
   useHelper(pointLightRef, PointLightHelper, 1, 'green')
@@ -663,6 +673,7 @@ function LightWithHelpers() {
 6. **Use Environment**: More efficient than many lights
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // Selective shadows
 <mesh castShadow={isHero}>
   <boxGeometry />
@@ -682,3 +693,8 @@ function LightWithHelpers() {
 - `r3f-materials` - Material light response
 - `r3f-assets` - Environment maps
 - `r3f-postprocessing` - Bloom and light effects
+
+> **Verified against**: `three@0.185` · `@react-three/fiber@9.7` · `@react-three/drei@10.7` ·
+> `react@19.2`. Code blocks tagged `tsx` are complete modules and typecheck against that stack;
+> blocks marked `// excerpt` are illustrative fragments. R3F v10 (alpha) renames `state.gl` to
+> `state.renderer` and moves to `THREE.Timer` — check the migration guide before adopting it.
