@@ -45,4 +45,4 @@
       failures 26 → 5, with the residual explained
 - [x] V.6 Confirm no regression was introduced: every block now using `THREE.` without importing it
       already did so before this change
-- [ ] V.7 `openspec archive harden-r3f-skills --yes` after review
+- [x] V.7 `openspec archive harden-r3f-skills --yes` after review
