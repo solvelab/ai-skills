@@ -6,7 +6,7 @@ description: >-
   performance. Use when adding screen-space visual effects or selection outlines.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -78,6 +78,7 @@ function Scene() {
 ### Bloom (Glow)
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import { BlendFunction } from 'postprocessing'
 
@@ -159,7 +160,7 @@ import { EffectComposer, DepthOfField } from '@react-three/postprocessing'
 import { useRef } from 'react'
 
 function Scene() {
-  const targetRef = useRef()
+  const targetRef = useRef<THREE.Mesh>(null!)
 
   return (
     <>
@@ -467,6 +468,7 @@ function PostProcessing() {
 ### Using postprocessing Effect Class
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 import { forwardRef, useMemo } from 'react'
 import { Effect, BlendFunction } from 'postprocessing'
 import { Uniform } from 'three'
@@ -517,6 +519,7 @@ export const WaveDistortion = forwardRef(({ intensity = 1.0, blendFunction }, re
 ### Shader with wrapEffect
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 import { wrapEffect } from '@react-three/postprocessing'
 import { Effect, BlendFunction } from 'postprocessing'
 import { Uniform } from 'three'
@@ -593,8 +596,8 @@ import { useFrame } from '@react-three/fiber'
 import { EffectComposer, Bloom, ChromaticAberration } from '@react-three/postprocessing'
 
 function AnimatedEffects() {
-  const bloomRef = useRef()
-  const chromaticRef = useRef()
+  const bloomRef = useRef<React.ComponentRef<typeof Bloom>>(null!)
+  const chromaticRef = useRef<React.ComponentRef<typeof ChromaticAberration>>(null!)
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime
@@ -648,7 +651,7 @@ import { EffectComposer, GodRays } from '@react-three/postprocessing'
 import { useRef } from 'react'
 
 function Scene() {
-  const sunRef = useRef()
+  const sunRef = useRef<THREE.Mesh>(null!)
 
   return (
     <Canvas>
@@ -748,6 +751,7 @@ BlendFunction.VIVID_LIGHT    // Vivid Light
 5. **Profile with DevTools**: Monitor GPU usage
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // Disable all effects
 <EffectComposer enabled={performanceMode}>
   ...
@@ -767,3 +771,8 @@ const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent)
 - `r3f-shaders` - Custom shader development
 - `r3f-materials` - Emissive materials for bloom
 - `r3f-fundamentals` - Canvas and renderer setup
+
+> **Verified against**: `three@0.185` · `@react-three/fiber@9.7` · `@react-three/drei@10.7` ·
+> `react@19.2`. Code blocks tagged `tsx` are complete modules and typecheck against that stack;
+> blocks marked `// excerpt` are illustrative fragments. R3F v10 (alpha) renames `state.gl` to
+> `state.renderer` and moves to `THREE.Timer` — check the migration guide before adopting it.

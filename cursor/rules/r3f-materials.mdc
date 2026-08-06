@@ -50,6 +50,7 @@ function Scene() {
 No lighting calculations. Always visible, fast.
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <mesh>
   <boxGeometry />
   <meshBasicMaterial
@@ -326,6 +327,7 @@ function ShadowOnlyMesh() {
 ## Points and Lines Materials
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // Points material
 <points>
   <bufferGeometry />
@@ -362,6 +364,7 @@ function ShadowOnlyMesh() {
 All materials share these base properties:
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <meshStandardMaterial
   // Visibility
   visible={true}
@@ -399,7 +402,7 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 
 function AnimatedMaterial() {
-  const materialRef = useRef()
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null!)
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime
@@ -451,6 +454,7 @@ function SharedMaterial() {
 ## Multiple Materials
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // Different materials per face (BoxGeometry has 6 material groups)
 <mesh>
   <boxGeometry />
@@ -495,6 +499,7 @@ function TexturedMaterial() {
 ## Emissive Materials (Glow)
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // For bloom effect, emissive colors should exceed normal range
 <meshStandardMaterial
   color="black"
@@ -546,3 +551,8 @@ function getCachedMaterial(color) {
 - `r3f-assets` - Texture loading and configuration
 - `r3f-shaders` - Custom shader development
 - `r3f-lighting` - Light interaction with materials
+
+> **Verified against**: `three@0.185` · `@react-three/fiber@9.7` · `@react-three/drei@10.7` ·
+> `react@19.2`. Code blocks tagged `tsx` are complete modules and typecheck against that stack;
+> blocks marked `// excerpt` are illustrative fragments. R3F v10 (alpha) renames `state.gl` to
+> `state.renderer` and moves to `THREE.Timer` — check the migration guide before adopting it.

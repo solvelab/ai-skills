@@ -8,7 +8,7 @@ description: >-
   applying textures to PBR materials use r3f-materials.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -184,8 +184,8 @@ function Model() {
 
 ```tsx
 import { useLoader } from '@react-three/fiber'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 
 function Model() {
   const gltf = useLoader(GLTFLoader, '/model.glb', (loader) => {
@@ -221,8 +221,8 @@ function Model() {
 
 ```tsx
 import { useLoader } from '@react-three/fiber'
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader'
-import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader'
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'
+import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'
 
 function OBJModel() {
   const materials = useLoader(MTLLoader, '/model.mtl')
@@ -254,7 +254,7 @@ useFBX.preload('/model.fbx')
 
 ```tsx
 import { useLoader } from '@react-three/fiber'
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader'
+import { STLLoader } from 'three/addons/loaders/STLLoader.js'
 
 function STLModel() {
   const geometry = useLoader(STLLoader, '/model.stl')
@@ -271,7 +271,7 @@ function STLModel() {
 
 ```tsx
 import { useLoader } from '@react-three/fiber'
-import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader'
+import { PLYLoader } from 'three/addons/loaders/PLYLoader.js'
 
 function PLYModel() {
   const geometry = useLoader(PLYLoader, '/model.ply')
@@ -801,7 +801,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
 function CanvasTexture() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
   const textureRef = useRef()
 
   useEffect(() => {
@@ -884,8 +884,8 @@ import { useRef } from 'react'
 
 function RenderToTexture() {
   const fbo = useFBO(512, 512)
-  const meshRef = useRef()
-  const otherSceneRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
+  const otherSceneRef = useRef<THREE.Group>(null!)
 
   useFrame(({ gl, camera }) => {
     // Render other scene to FBO
@@ -952,6 +952,7 @@ function SpriteAnimation() {
 ### Material Texture Maps Reference
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <meshStandardMaterial
   // Base color (sRGB)
   map={colorTexture}
@@ -1002,7 +1003,7 @@ function SpriteAnimation() {
 import { useEffect, useRef } from 'react'
 
 function MeshWithUV2() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
 
   useEffect(() => {
     // Copy uv to uv2 for aoMap/lightMap
@@ -1083,3 +1084,8 @@ texture.dispose()
 - `r3f-lighting` - Environment lighting and IBL setup
 - `r3f-materials` - Applying PBR texture sets to materials
 - `r3f-fundamentals` - Suspense and Canvas basics
+
+> **Verified against**: `three@0.185` · `@react-three/fiber@9.7` · `@react-three/drei@10.7` ·
+> `react@19.2`. Code blocks tagged `tsx` are complete modules and typecheck against that stack;
+> blocks marked `// excerpt` are illustrative fragments. R3F v10 (alpha) renames `state.gl` to
+> `state.renderer` and moves to `THREE.Timer` — check the migration guide before adopting it.

@@ -7,7 +7,7 @@ description: >-
   input and object manipulation. Selection outline rendering lives in r3f-postprocessing.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -53,6 +53,7 @@ R3F provides built-in pointer events on mesh elements.
 ### Available Events
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <mesh
   // Click events
   onClick={(e) => {}}           // Click (pointerdown + pointerup on same object)
@@ -145,6 +146,7 @@ function HoverableMesh() {
 ### Selective Raycasting
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // Disable raycasting for specific objects
 <mesh raycast={() => null}>
   <boxGeometry />
@@ -205,7 +207,7 @@ import { OrbitControls } from '@react-three/drei'
 import { useRef, useEffect } from 'react'
 
 function Scene() {
-  const controlsRef = useRef()
+  const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null!)
 
   useEffect(() => {
     // Access controls methods
@@ -272,7 +274,7 @@ import { PointerLockControls } from '@react-three/drei'
 import { useRef } from 'react'
 
 function Scene() {
-  const controlsRef = useRef()
+  const controlsRef = useRef<React.ComponentRef<typeof PointerLockControls>>(null!)
 
   return (
     <>
@@ -297,7 +299,7 @@ import { CameraControls } from '@react-three/drei'
 import { useRef } from 'react'
 
 function Scene() {
-  const controlsRef = useRef()
+  const controlsRef = useRef<React.ComponentRef<typeof CameraControls>>(null!)
 
   const focusOnObject = async () => {
     // Smooth transition to target
@@ -358,9 +360,9 @@ import { TransformControls, OrbitControls } from '@react-three/drei'
 import { useRef, useState } from 'react'
 
 function Scene() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
   const [mode, setMode] = useState('translate')
-  const orbitRef = useRef()
+  const orbitRef = useRef<React.ComponentRef<typeof OrbitControls>>(null!)
 
   return (
     <>
@@ -465,8 +467,8 @@ import { DragControls, OrbitControls } from '@react-three/drei'
 import { useRef } from 'react'
 
 function Scene() {
-  const meshRef = useRef()
-  const orbitRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
+  const orbitRef = useRef<React.ComponentRef<typeof OrbitControls>>(null!)
 
   return (
     <>
@@ -510,7 +512,7 @@ const keyMap = [
 ]
 
 function Player() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
   const [, getKeys] = useKeyboardControls()
 
   useFrame((state, delta) => {
@@ -640,7 +642,7 @@ import * as THREE from 'three'
 
 function ClickToPlace() {
   const { camera, raycaster, pointer } = useThree()
-  const planeRef = useRef()
+  const planeRef = useRef<THREE.Mesh>(null!)
 
   const handleClick = (event) => {
     // Create intersection plane
@@ -742,7 +744,7 @@ import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 
 function AnimatedOnScroll() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
   const scroll = useScroll()
 
   useFrame(() => {
@@ -861,3 +863,8 @@ function ThrottledHover() {
 - `r3f-fundamentals` - Canvas and scene setup
 - `r3f-animation` - Animating interactions
 - `r3f-postprocessing` - Visual feedback effects (outline, selection)
+
+> **Verified against**: `three@0.185` · `@react-three/fiber@9.7` · `@react-three/drei@10.7` ·
+> `react@19.2`. Code blocks tagged `tsx` are complete modules and typecheck against that stack;
+> blocks marked `// excerpt` are illustrative fragments. R3F v10 (alpha) renames `state.gl` to
+> `state.renderer` and moves to `THREE.Timer` — check the migration guide before adopting it.

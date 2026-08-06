@@ -7,7 +7,7 @@ description: >-
   live in r3f-fundamentals; drag gestures in r3f-interaction.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -31,7 +31,7 @@ import { useGLTF, useAnimations } from '@react-three/drei'
 import { useEffect, useRef } from 'react'
 
 function AnimatedModel() {
-  const group = useRef()
+  const group = useRef<THREE.Object3D>(null!)
   const { scene, animations } = useGLTF('/models/character.glb')
   const { actions, names } = useAnimations(animations, group)
 
@@ -48,7 +48,7 @@ function AnimatedModel() {
 
 ```tsx
 function Character() {
-  const group = useRef()
+  const group = useRef<THREE.Object3D>(null!)
   const { scene, animations } = useGLTF('/models/character.glb')
   const { actions, mixer } = useAnimations(animations, group)
 
@@ -88,7 +88,7 @@ import { useGLTF, useAnimations } from '@react-three/drei'
 import { useState, useEffect, useRef } from 'react'
 
 function Character() {
-  const group = useRef()
+  const group = useRef<THREE.Group>(null!)
   const { scene, animations } = useGLTF('/models/character.glb')
   const { actions } = useAnimations(animations, group)
   const [currentAnim, setCurrentAnim] = useState('Idle')
@@ -115,7 +115,7 @@ function Character() {
 
 ```tsx
 function AnimatedModel() {
-  const group = useRef()
+  const group = useRef<THREE.Object3D>(null!)
   const { scene, animations } = useGLTF('/models/character.glb')
   const { actions, mixer } = useAnimations(animations, group)
 
@@ -146,7 +146,7 @@ function AnimatedModel() {
 
 ```tsx
 function CharacterController({ speed = 0 }) {
-  const group = useRef()
+  const group = useRef<THREE.Object3D>(null!)
   const { scene, animations } = useGLTF('/models/character.glb')
   const { actions } = useAnimations(animations, group)
 
@@ -342,7 +342,7 @@ import { useRef } from 'react'
 
 function MorphingFace() {
   const { scene, nodes } = useGLTF('/models/face.glb')
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Object3D>(null!)
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime()
@@ -366,7 +366,7 @@ function MorphingFace() {
 ```tsx
 function MorphControls({ morphInfluences }) {
   const { nodes } = useGLTF('/models/face.glb')
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Object3D>(null!)
 
   useFrame(() => {
     if (meshRef.current?.morphTargetInfluences) {
@@ -426,7 +426,7 @@ function SkeletalCharacter() {
 ```tsx
 function CharacterWithWeapon() {
   const { scene } = useGLTF('/models/character.glb')
-  const weaponRef = useRef()
+  const weaponRef = useRef<THREE.Mesh>(null!)
   const handBoneRef = useRef()
 
   useEffect(() => {
@@ -470,7 +470,7 @@ import { useRef } from 'react'
 import * as THREE from 'three'
 
 function SmoothFollow({ target }) {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
   const currentPos = useRef(new THREE.Vector3())
 
   useFrame((state, delta) => {
@@ -492,7 +492,7 @@ function SmoothFollow({ target }) {
 
 ```tsx
 function SpringMesh({ target = 0 }) {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
   const spring = useRef({
     position: 0,
     velocity: 0,
@@ -524,7 +524,7 @@ function SpringMesh({ target = 0 }) {
 
 ```tsx
 function OscillatingMesh() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime
@@ -589,7 +589,7 @@ import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 
 function TrailingMesh() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime
@@ -627,7 +627,7 @@ const useStore = create((set) => ({
 }))
 
 function AnimatedMesh() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
   const { isAnimating, speed } = useStore()
 
   useFrame((state, delta) => {
@@ -681,7 +681,7 @@ const useGameStore = create((set) => ({
 }))
 
 function Player() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
 
   useFrame((state, delta) => {
     // ✅ GOOD: getState() has no subscription overhead
@@ -711,7 +711,7 @@ Subscribe to state changes without triggering React re-renders:
 import { useEffect, useRef } from 'react'
 
 function Enemy() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
 
   useEffect(() => {
     // Subscribe directly - updates mesh without re-rendering component
@@ -768,7 +768,7 @@ Separate state-dependent UI from animated 3D objects:
 // ❌ BAD: Parent re-renders cause animation jank
 function BadPattern() {
   const [score, setScore] = useState(0)
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
 
   useFrame((_, delta) => {
     meshRef.current.rotation.y += delta  // Affected by score re-renders
@@ -793,7 +793,7 @@ function GoodPattern() {
 }
 
 function AnimatedMesh() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
 
   useFrame((_, delta) => {
     meshRef.current.rotation.y += delta  // Smooth, uninterrupted
@@ -1143,3 +1143,8 @@ if (phase === 'land') {
 - `r3f-assets` - Loading animated GLTF models
 - `r3f-fundamentals` - useFrame and animation loop
 - `r3f-shaders` - Vertex animation in shaders
+
+> **Verified against**: `three@0.185` · `@react-three/fiber@9.7` · `@react-three/drei@10.7` ·
+> `react@19.2`. Code blocks tagged `tsx` are complete modules and typecheck against that stack;
+> blocks marked `// excerpt` are illustrative fragments. R3F v10 (alpha) renames `state.gl` to
+> `state.renderer` and moves to `THREE.Timer` — check the migration guide before adopting it.

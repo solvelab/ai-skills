@@ -6,7 +6,7 @@ description: >-
   simulation, collision detection or character controllers.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -82,6 +82,7 @@ import { Physics } from '@react-three/rapier'
 For performance optimization with static scenes:
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <Canvas frameloop="demand">
   <Physics updateLoop="independent">
     {/* Physics only triggers render when bodies are active */}
@@ -96,6 +97,7 @@ Makes objects participate in physics simulation.
 ### Basic Usage
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 import { RigidBody } from '@react-three/rapier'
 
 // Dynamic body (affected by forces/gravity)
@@ -135,6 +137,7 @@ import { RigidBody } from '@react-three/rapier'
 ### RigidBody Properties
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <RigidBody
   // Transform
   position={[0, 5, 0]}
@@ -175,6 +178,7 @@ import { RigidBody } from '@react-three/rapier'
 RigidBody auto-generates colliders from child meshes:
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // Global default
 <Physics colliders="hull">
   <RigidBody>
@@ -206,6 +210,7 @@ RigidBody auto-generates colliders from child meshes:
 ### Manual Colliders
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 import {
   CuboidCollider,
   BallCollider,
@@ -245,6 +250,7 @@ import {
 For complex shapes:
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 import { MeshCollider } from '@react-three/rapier'
 
 <RigidBody colliders={false}>
@@ -365,6 +371,7 @@ function PositionControl() {
 ### On RigidBody
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <RigidBody
   name="player"
   onCollisionEnter={({ manifold, target, other }) => {
@@ -390,6 +397,7 @@ function PositionControl() {
 ### On Colliders
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <CuboidCollider
   args={[1, 1, 1]}
   onCollisionEnter={(payload) => console.log('Collider hit')}
@@ -402,6 +410,7 @@ function PositionControl() {
 Detect overlaps without physical collision:
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <RigidBody>
   {/* Visible mesh */}
   <mesh>
@@ -434,6 +443,7 @@ Detect overlaps without physical collision:
 Control which objects can collide:
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 import { interactionGroups } from '@react-three/rapier'
 
 // Group 0, interacts with groups 0, 1, 2
@@ -770,6 +780,7 @@ function SnapshotSystem() {
 From `@react-three/rapier-addons`:
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 import { Attractor } from '@react-three/rapier-addons'
 
 // Attract nearby bodies
@@ -794,6 +805,7 @@ import { Attractor } from '@react-three/rapier-addons'
 ## Debug Visualization
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <Physics debug>
   {/* All colliders shown as wireframes */}
 </Physics>
@@ -815,6 +827,7 @@ import { Attractor } from '@react-three/rapier-addons'
 7. **Fixed timestep**: More stable than variable
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // Performance-optimized setup
 <Physics
   timeStep={1/60}
@@ -833,3 +846,8 @@ import { Attractor } from '@react-three/rapier-addons'
 - `r3f-fundamentals` - R3F basics and hooks
 - `r3f-interaction` - User input and controls
 - `r3f-animation` - Combining physics with animation
+
+> **Verified against**: `three@0.185` · `@react-three/fiber@9.7` · `@react-three/drei@10.7` ·
+> `react@19.2`. Code blocks tagged `tsx` are complete modules and typecheck against that stack;
+> blocks marked `// excerpt` are illustrative fragments. R3F v10 (alpha) renames `state.gl` to
+> `state.renderer` and moves to `THREE.Timer` — check the migration guide before adopting it.

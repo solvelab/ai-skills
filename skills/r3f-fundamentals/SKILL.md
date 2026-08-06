@@ -7,7 +7,7 @@ description: >-
   useFrame use r3f-animation.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -24,7 +24,7 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 
 function RotatingBox() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
 
   useFrame((state, delta) => {
     meshRef.current.rotation.x += delta
@@ -125,7 +125,7 @@ import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 
 function AnimatedMesh() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
 
   useFrame((state, delta, xrFrame) => {
     // state: Full R3F state (see useThree)
@@ -267,6 +267,7 @@ All Three.js objects are available as JSX elements (camelCase).
 ### Meshes
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // Basic mesh structure
 <mesh
   position={[0, 0, 0]}       // x, y, z
@@ -281,7 +282,7 @@ All Three.js objects are available as JSX elements (camelCase).
 </mesh>
 
 // With ref
-const meshRef = useRef()
+const meshRef = useRef<THREE.Mesh>(null!)
 <mesh ref={meshRef} />
 // meshRef.current is the THREE.Mesh
 ```
@@ -291,6 +292,7 @@ const meshRef = useRef()
 Constructor arguments via `args` prop:
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // BoxGeometry(width, height, depth, widthSegments, heightSegments, depthSegments)
 <boxGeometry args={[1, 1, 1, 1, 1, 1]} />
 
@@ -307,6 +309,7 @@ Constructor arguments via `args` prop:
 ### Groups
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <group position={[5, 0, 0]} rotation={[0, Math.PI / 4, 0]}>
   <mesh position={[-1, 0, 0]}>
     <boxGeometry />
@@ -324,6 +327,7 @@ Constructor arguments via `args` prop:
 Use dashes for nested properties:
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <mesh
   position-x={5}
   rotation-y={Math.PI}
@@ -352,6 +356,7 @@ Use dashes for nested properties:
 Control how children attach to parents:
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <mesh>
   <boxGeometry />
   {/* Default: attaches as 'material' */}
@@ -439,6 +444,7 @@ function InteractiveBox() {
 Events bubble up through the scene graph:
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <group onClick={(e) => console.log('Group clicked')}>
   <mesh onClick={(e) => {
     e.stopPropagation()  // Stop bubbling to group
@@ -478,7 +484,7 @@ Register custom Three.js classes for JSX use:
 
 ```tsx
 import { extend } from '@react-three/fiber'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 // Extend once (usually at module level)
 extend({ OrbitControls })
@@ -538,11 +544,12 @@ function MeshWithRef() {
 ### Avoiding Re-renders
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 // BAD: Creates new object every render
 <mesh position={[x, y, z]} />
 
 // GOOD: Mutate existing position
-const meshRef = useRef()
+const meshRef = useRef<THREE.Mesh>(null!)
 useFrame(() => {
   meshRef.current.position.x = x
 })
@@ -567,7 +574,7 @@ function Scene() {
 }
 
 function AnimatedObject() {
-  const ref = useRef()
+  const ref = useRef<THREE.Mesh>(null!)
   useFrame((_, delta) => {
     ref.current.rotation.y += delta
   })
@@ -580,6 +587,7 @@ function AnimatedObject() {
 R3F auto-disposes geometries, materials, and textures. Override with:
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 <mesh dispose={null}>  {/* Prevent auto-dispose */}
   <boxGeometry />
   <meshStandardMaterial />
@@ -590,8 +598,8 @@ R3F auto-disposes geometries, materials, and textures. Override with:
 
 ### Fullscreen Canvas
 
-```tsx
-// styles.css
+```css
+/* styles.css */
 html, body, #root {
   margin: 0;
   padding: 0;
@@ -621,6 +629,7 @@ function ResponsiveScene() {
 ### Forwarding Refs
 
 ```tsx
+// excerpt — not a complete module; see the surrounding section for context
 import { forwardRef } from 'react'
 
 const CustomMesh = forwardRef((props, ref) => {
@@ -703,7 +712,7 @@ function DebugScene() {
 import { useControls, button } from 'leva'
 
 function DebugActions() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
 
   useControls({
     'Reset Position': button(() => {
@@ -766,7 +775,7 @@ function PerformanceMonitor() {
 
 ```tsx
 function AnimatedDebugMesh() {
-  const meshRef = useRef()
+  const meshRef = useRef<THREE.Mesh>(null!)
 
   const { speed, amplitude, enabled } = useControls('Animation', {
     enabled: true,
@@ -794,3 +803,8 @@ function AnimatedDebugMesh() {
 - `r3f-materials` - Material configuration
 - `r3f-lighting` - Lights and shadows
 - `r3f-interaction` - Controls and user input
+
+> **Verified against**: `three@0.185` · `@react-three/fiber@9.7` · `@react-three/drei@10.7` ·
+> `react@19.2`. Code blocks tagged `tsx` are complete modules and typecheck against that stack;
+> blocks marked `// excerpt` are illustrative fragments. R3F v10 (alpha) renames `state.gl` to
+> `state.renderer` and moves to `THREE.Timer` — check the migration guide before adopting it.
