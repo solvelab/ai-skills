@@ -43,4 +43,4 @@
 - [x] V.3 Wrappers in sync
 - [x] V.4 `scripts/validate-skills.py` 0 findings across 32 skills
 - [x] V.5 `scripts/selftest-validate-skills.py` 12/12
-- [ ] V.6 `openspec archive add-observability-skill --yes` after review
+- [x] V.6 `openspec archive add-observability-skill --yes` after review
