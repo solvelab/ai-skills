@@ -12,7 +12,7 @@ description: >-
   fivem-lua), or general .NET services.
 metadata:
   author: solvelab
-  version: 1.2.0
+  version: 1.3.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

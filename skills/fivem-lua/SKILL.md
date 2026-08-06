@@ -4,7 +4,7 @@ description: >-
   Conventions for writing FiveM (CitizenFX) server/client Lua resources. Use when working on FiveM/FXServer Lua — RegisterNetEvent/RegisterNUICallback handlers, fxmanifest, exports, NUI (SendNUIMessage/SetNuiFocus), threads/CreateThread, StateBags, or natives. Enforces the client-is-never-trusted boundary (validate payload + derive actor from `source`), explicit fxmanifest order, no busy `while true` loops, module-per-global pattern, and NUI focus/disconnect cleanup. Do NOT use for react-three-fiber or non-FiveM Lua.
 metadata:
   author: solvelab
-  version: 1.2.0
+  version: 1.3.0
   category: fivem
 license: MIT
 compatibility: Works in any environment with filesystem access.
@@ -47,6 +47,24 @@ RegisterNetEvent("res:doThing", function(targetId, amount)
   -- + permission/relationship check before acting on targetId
 end)
 ```
+
+- **A rejection nobody can see is not a defence.** Every `return` above drops a forged event
+  silently, so a server under attack looks exactly like a quiet one. Count and log rejections with
+  the source, and rate-limit on the counter — the spike *is* the signal:
+
+```lua
+local rejects = {}                                   -- [src] = count in the current window
+
+local function reject(src, event, reason)
+  rejects[src] = (rejects[src] or 0) + 1
+  print(("[sec] reject src=%s event=%s reason=%s count=%d"):format(src, event, reason, rejects[src]))
+  return false                                       -- callers: `if not ok then return end`
+end
+```
+
+  Reset the window on a timer, and treat a player whose count crosses a threshold as hostile
+  (drop, then kick) rather than validating them one message at a time forever. Without the counter
+  the rate-limit above has nothing to rate-limit on.
 
 ## fxmanifest
 
