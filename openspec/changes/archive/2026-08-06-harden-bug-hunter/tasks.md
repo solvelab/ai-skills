@@ -34,4 +34,4 @@
 - [x] V.3 Wrappers in sync: `./generate.sh` then clean `git diff` on generated trees
 - [x] V.4 `scripts/validate-skills.py` reports 0 findings across 31 skills
 - [x] V.5 `scripts/selftest-validate-skills.py` detects 11/11
-- [ ] V.6 `openspec archive harden-bug-hunter --yes` after review
+- [x] V.6 `openspec archive harden-bug-hunter --yes` after review
