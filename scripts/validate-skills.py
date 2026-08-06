@@ -9,6 +9,7 @@ Implements the mechanically checkable half of openspec/specs/skills-authoring:
   C5 versioned external APIs are pinned     (code-heavy skill without a version statement)
   C6 fence tags match content               (a block tagged X that is obviously not X)
   C7 no orphan wrapper skills               (every generated skill has a canonical source)
+  C8 no meta sections in SKILL.md           (triggers belong in the description, not the body)
 
 Exit 1 on any finding. Run from the repo root.
 """
@@ -221,6 +222,19 @@ def check_tags(skill: str, text: str) -> None:
             add(skill, "C6 wrong tag", f"block#{i} tagged {lang} but looks like JSON")
 
 
+# ── C8: meta sections ─────────────────────────────────────────────────────
+META_HEADING = re.compile(r"^## (How to Use|Trigger Test Cases|Prompt|Usage)\s*$", re.M | re.I)
+
+
+def check_meta(skill: str, text: str) -> None:
+    """A "Trigger Test Cases" or "How to Use" block is read only AFTER the skill has already
+    triggered, so it cannot influence routing — it is pure context cost at the moment it loads.
+    Triggers and anti-triggers belong in the frontmatter description, which is what the model
+    reads when choosing a skill."""
+    for m in META_HEADING.finditer(text):
+        add(skill, "C8 meta section", f"`{m.group(0).strip()}` — move its content to the description")
+
+
 # ── C7: no orphan wrapper skills ──────────────────────────────────────────
 def check_orphans() -> None:
     """A skill living only in a generated tree is outside generate.sh, outside the
@@ -245,6 +259,7 @@ def main() -> int:
         check_description(skill, text)
         check_pin(skill, text)
         check_tags(skill, text)
+        check_meta(skill, text)
         for ref in (p.parent / "references").glob("*.md"):
             rtext = ref.read_text(encoding="utf-8")
             check_refs(f"{skill}/{ref.name}", ref, rtext)

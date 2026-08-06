@@ -73,19 +73,3 @@ to the `backlog` skill; consumes the same config.
     to the PR(s); present summary: what changed, validation evidence, the criteria table with
     every verdict, deviations (if any, pre-approved), next human step (review/merge).
 
-## Trigger Test Cases
-
-Should trigger on:
-- "/execute-backlog 123"
-- "Implement issue #42"
-- "Pick up the backlog item about push notifications"
-- "Execute https://github.com/org/repo/issues/7"
-
-Should NOT trigger on:
-- "Create a backlog item for X" (backlog)
-- "Merge PR #12"
-- "Deploy the fix"
-- "Close issue #9"
-
-> **Verified against**: `gh 2.92.0`. Every subcommand and flag used below was probed
-> against that client.

@@ -4,7 +4,7 @@ description: >-
   Configure or customize the Claude Code status line — the shell-script status bar at the bottom of the CLI that shows model, effort tier, context usage, git state, cost (cumulative session + per-turn token cost), rate limits and prompt-cache health. Use when the user wants to set up, change, share, or debug their Claude Code status line / status bar, mentions statusLine in settings.json or a statusline.sh script, wants a context/token/cost/git/effort indicator in the CLI, or shares a status-line gist to install. Ships a ready-made 3-line script (references/statusline.sh) and the full list of available JSON fields (references/fields.md). Do NOT use for shell prompt themes (PS1, starship, powerlevel10k) or non-Claude-Code status bars.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.1.1
   category: tooling
 license: MIT
 compatibility: Works in Claude Code (CLI, desktop, IDE). Requires `jq` on PATH. Bash script targets macOS/Linux (incl. WSL); Git Bash on Windows.
@@ -165,20 +165,3 @@ for a secret (unlisted-but-linkable) gist. Manage with `gh gist edit|view|delete
   run. Cache slow git calls (keyed by `session_id`).
 - **Windows** — write the `command` path with forward slashes; Git Bash eats backslashes.
 
----
-
-## Trigger Test Cases
-
-Should trigger on:
-- "Configure my Claude Code status line"
-- "Add context / cost / git to my statusline"
-- "My statusline.sh isn't showing up"
-- "Make the status bar show cache usage"
-- "My friend sent me this statusline gist, install it"
-- "Share my status line with someone"
-
-Should NOT trigger on:
-- "Customize my shell prompt / PS1 / starship / powerlevel10k"
-- "Set up a tmux status bar"
-- "Change the VS Code status bar"
-- "Write documentation for this project"

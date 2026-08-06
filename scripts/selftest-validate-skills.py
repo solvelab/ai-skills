@@ -28,6 +28,8 @@ MUTATIONS = {
  "C6 wrong tag": ("skills/r3f-materials/SKILL.md",
      lambda s: s + "\n```tsx\nvarying vec2 vUv;\nvoid main() {}\n```\n"),
  "C7 orphan wrapper": (None, None),
+ "C8 meta section": ("skills/openspec/SKILL.md",
+     lambda s: s + "\n## Trigger Test Cases\n\nShould trigger on:\n- \"do the thing\"\n"),
 }
 
 fails = []
