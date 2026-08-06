@@ -40,4 +40,4 @@
 - [x] V.4 `scripts/validate-skills.py` reports 0 findings across 31 skills
 - [x] V.5 `scripts/selftest-validate-skills.py` detects 11/11
 - [x] V.6 The corrected PR-link recipe returns the right answer for issue #28 (0 linked PRs)
-- [ ] V.7 `openspec archive harden-backlog-flow --yes` after review
+- [x] V.7 `openspec archive harden-backlog-flow --yes` after review
