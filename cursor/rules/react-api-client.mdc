@@ -37,10 +37,16 @@ Implementation: `references/api-client.md`.
   message); known body `code` → itself; else status-derived; else `UNKNOWN`.
 - **Callers branch on `err.code` only** — never on HTTP status, never on message strings. Raw
   backend codes outside the enum stay readable on `err.raw.code` for feature-specific handling.
+- **Error paths never reach a domain parser.** Every non-2xx goes through `normalizeError`, which is
+  why an error body that is not the envelope at all still resolves to a code instead of throwing a
+  drift error. That case is real, not hypothetical: a request rejected by the reverse proxy for size
+  (`413`) or by a gateway never reaches the application's exception handlers, so its body is HTML or
+  empty. Handing it to a zod parser would report "payload drift" for what is actually a working
+  guard — see `python-rest-api` ("Request limits").
 
 ## Domain parsers: throw on drift
 
-Every response body goes through a zod schema per domain that validates the envelope AND
+Every **successful** response body goes through a zod schema per domain that validates the envelope AND
 transforms snake_case → camelCase. A missing/wrong-typed field **throws** — a forged or partial
 payload is a failure, never a half-built cache entry. The parser is the only place that knows the
 wire shape.
