@@ -18,6 +18,14 @@ are deltas against them.
 - Pick a unique change-id: kebab-case, **verb-led** (`add-`, `update-`, `remove-`, `refactor-`).
 - Scaffold `proposal.md`, `tasks.md`, `design.md` (only if needed), and one delta spec per affected
   capability.
+- **Every change needs at least one delta.** A change with no `specs/<capability>/spec.md` fails
+  validation, strict or not. When the work genuinely changes no requirement (a correction, a tooling
+  change), do not invent a new requirement to satisfy the tool — express the change as
+  `## MODIFIED Requirements` on the requirement it refines, restating it in full with its scenarios.
+  A near-duplicate `## ADDED` requirement is the wrong answer: it splits the doctrine.
+  - Probed on CLI **1.6.0**: the validator's own error message suggests setting `skip_specs: true` in
+    the change's `.openspec.yaml` for a change that touches no specs. **It has no effect** — neither
+    `skip_specs` nor `skipSpecs` suppresses the error. Treat the delta as mandatory.
 - Validate: `openspec validate <change-id> --strict` — fix until it passes.
 - **Do not start implementation until the proposal is approved.**
 

@@ -8,7 +8,7 @@ description: >-
   co-author reference in commits, PR titles, PR bodies, or PR descriptions.
 metadata:
   author: solvelab
-  version: 1.2.0
+  version: 1.3.0
   category: git
 license: MIT
 compatibility: Works in any environment with git access.

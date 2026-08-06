@@ -38,6 +38,12 @@ gh project item-add NUM --owner OWNER --url ISSUE_URL --format json --jq .id
 # → ITEM_ID (PVTI_…)
 ```
 
+**Capture that id — do not look it up again.** A freshly added item is not immediately visible to
+`gh project item-list`: querying it right after `item-add` returns an empty result, and the
+`item-edit` call then fails with `Could not resolve to a node with the global id of ''`. The same
+query returns the item (with the identical id) once the board catches up. Observed 2026-08-06 on
+Projects v2 with gh 2.92.0.
+
 ## Set fields (one call per field)
 
 ```bash
