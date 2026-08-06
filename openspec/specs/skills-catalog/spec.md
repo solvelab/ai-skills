@@ -6,18 +6,34 @@ The composition of the published catalog and its discovery contract: which skill
 superseded or removed, and the guarantee that `npx skills add <repo> --list` finds every skill at
 the expected count with no orphans or renamed leftovers. Changes that add, remove, or supersede
 skills are validated against this spec by the skills-rite Validation & Closure gate.
-
 ## Requirements
 ### Requirement: Catalog composition after the quality review
 
-The skills catalog SHALL contain 20 skills: the 17 retained/edited skills plus `backend-resilience`,
-`openspec`, and `r3f-assets`, with `r3f-loaders` and `r3f-textures` removed (superseded by `r3f-assets`).
+The catalog SHALL be exactly the set of `skills/<name>/SKILL.md` files. A skill present only in a
+generated tree (`claude/`, `codex/`, `cursor/`, `copilot/`, `plugins/`) is not a catalog skill: it
+escapes `generate.sh`, the CI frontmatter check, the content validator and the README index, while
+still installing for users. CI SHALL reject that state.
+
+The composition is not a frozen count. It changes by proposal, and the README index is the
+human-readable view of it.
 
 #### Scenario: npx discovery lists the full catalog
 
 - **WHEN** `npx skills add <repo> --list` runs against the repository root
-- **THEN** exactly 20 skills are discovered, including `backend-resilience`, `openspec` and `r3f-assets`
-- **AND** `r3f-loaders` and `r3f-textures` are absent
+- **THEN** every `skills/<name>/SKILL.md` is discovered
+- **AND** the set matches the README skill index
+
+#### Scenario: A skill in a generated tree without a source is rejected
+
+- **WHEN** a directory exists under `claude/skills/` or `codex/skills/` with no matching
+  `skills/<name>/SKILL.md`
+- **THEN** `scripts/validate-skills.py` reports it as an orphan wrapper and CI fails
+
+#### Scenario: Adding a skill goes through the canonical tree
+
+- **WHEN** a new skill is added
+- **THEN** it is written to `skills/<name>/SKILL.md`, its wrappers are produced by `./generate.sh`,
+  and it gains a README row — never hand-written into a generated tree
 
 ### Requirement: Generic doctrine is reusable outside FiveM
 
