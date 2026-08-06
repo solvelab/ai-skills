@@ -609,9 +609,19 @@ Because a checker that never fails is not a checker,
 [`scripts/selftest-validate-skills.py`](scripts/selftest-validate-skills.py) injects one known defect
 per check into a throwaway copy of the catalog and asserts each one is detected. Both run in CI.
 
+A third gate scans for credentials.
+[`scripts/scan-secrets.py`](scripts/scan-secrets.py) has two modes on purpose: by default it scans the
+**working tree** and fails the build on any credential class — that is the part that can be kept clean,
+so that is the part that gates. With `--history` it walks every blob in the full git history and
+**reports without gating**, because a secret removed in a later commit is still published and a gate
+that can never go green is a gate everyone learns to ignore. Private (RFC1918) addresses are reported
+as operational detail, never as a build failure.
+
 ```bash
 python3 scripts/validate-skills.py           # 0 findings expected
-python3 scripts/selftest-validate-skills.py  # 10/10 defect classes detected
+python3 scripts/selftest-validate-skills.py  # 12/12 defect classes detected
+python3 scripts/scan-secrets.py              # gate: no credentials in the working tree
+python3 scripts/scan-secrets.py --history    # audit: what the published history still contains
 ```
 
 ### Per-machine setup
