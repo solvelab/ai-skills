@@ -5,12 +5,13 @@ description: >-
   server's text logs, parses lines into normalized events, and ships them to a backend API.
   Distilled from a production collector for an Assetto Corsa server, but stack-agnostic. Use when
   building or reviewing a log tailer, log-to-event parser, file offset persistence, log rotation or
-  truncation handling, multi-line event correlation, shutdown flush, or idempotency/dedup keys for
-  shipped events. Do NOT use for configuring log aggregation stacks (Loki, Fluentd, Filebeat), for
-  the API that receives the events (that is python-rest-api), or for metrics/APM instrumentation.
+  truncation handling, partial-line reads, multi-line event correlation, backpressure, shutdown flush,
+  or idempotency/dedup keys for shipped events. Do NOT use for configuring log aggregation stacks
+  (Loki, Fluentd, Filebeat), for the API that receives the events (that is python-rest-api), or for
+  metrics/APM instrumentation of the monitored application.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: backend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

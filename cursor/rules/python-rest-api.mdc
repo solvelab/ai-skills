@@ -1,6 +1,6 @@
 ---
 description: >-
-  Conventions for Python REST APIs (FastAPI + pydantic v2), distilled from real solvelab production services. Use when creating or reviewing a Python API service — project layout, response envelope with centralized response codes, exception-handler registry (input errors are never raw 500), Field-constraint validation, tenant-isolation lookups, session-per-request DB access, pydantic-settings config, two-tier health endpoints, and the testing stack (SQLite unit fixtures, testcontainers integration marker, adversarial test naming, OpenAPI golden snapshot, Schemathesis fuzz gate). Also machine-to-machine service auth (named token catalog), domain-state idempotency with partial unique indexes, JSONB dialect variants, and out-of-process ingestion workers (UDP). The baseline that api-resilience-testing and bug-hunter assume.
+  Conventions for Python REST APIs (FastAPI + pydantic v2), distilled from real solvelab production services. Use when creating or reviewing a Python API service — project layout, response envelope with centralized response codes, exception-handler registry (input errors are never raw 500), Field-constraint validation, tenant-isolation lookups, session-per-request DB access, pydantic-settings config, two-tier health endpoints, and the testing stack (SQLite unit fixtures, testcontainers integration marker, adversarial test naming, OpenAPI golden snapshot, Schemathesis fuzz gate). Also machine-to-machine service auth (named token catalog), domain-state idempotency with partial unique indexes, JSONB dialect variants, request size/depth limits, and out-of-process ingestion workers (UDP). The baseline that api-resilience-testing and bug-hunter assume.
 alwaysApply: false
 ---
 
@@ -64,7 +64,7 @@ Register handlers in `main.py`; each maps a failure class to the envelope:
 | `AppException` subclasses | its own | typed business errors raised by services |
 | `RequestValidationError` | 422 | pydantic input rejection |
 | `IntegrityError` (unique/FK/not-null) | 409 | driven by request data, not a server fault |
-| `DataError`, `decimal.InvalidOperation`, `OverflowError` | 400 | bad numeric/literal input |
+| `DataError`, `decimal.InvalidOperation`, `OverflowError`, `RecursionError` | 400 | bad numeric/literal/nesting input |
 | `SQLAlchemyError` | 500 | genuine DB fault |
 | catch-all `Exception` | 500 | message hidden unless `APP_ENV == "dev"` |
 
@@ -78,6 +78,42 @@ Every numeric knob gets an explicit `Field` constraint and a described default:
 `Field(default=None, ge=1, le=128)`, `Decimal = Field(default=Decimal("0"), ge=0)`,
 `str = Field(..., max_length=255)`. Optional tuning fields default to `None` so downstream defaults
 aren't silently overridden.
+
+## Request limits — the framework has none
+
+The stock stack accepts a body of any size and any nesting depth, so "input errors are never a raw
+500" is false until you add two guards. Measured on fastapi 0.141.1 / pydantic 2.13.4:
+
+| Input | Stock behavior | Must be |
+|---|---|---|
+| 2 KB body of nested brackets (`"[" * 1000`) | **500** (`RecursionError`) | 400 |
+| 20 MB flat JSON body | **200** (fully buffered) | 413 |
+
+A 2 KB unauthenticated request that returns a 500 is a denial-of-service primitive, not an edge case.
+Both guards are additive and were verified to leave the happy path at 200:
+
+```python
+class BodyLimit(BaseHTTPMiddleware):                 # -> 413 before anything is parsed
+    async def dispatch(self, request: Request, call_next):
+        cl = request.headers.get("content-length")
+        if cl and int(cl) > settings.MAX_BODY_BYTES:
+            return JSONResponse(error_envelope(RC.PAYLOAD_TOO_LARGE), status_code=413)
+        return await call_next(request)
+
+@app.exception_handler(RecursionError)               # -> 400, not the catch-all 500
+async def too_deep(request: Request, exc: RecursionError): ...
+```
+
+Set `MAX_BODY_BYTES` from the largest legitimate payload, not from a round number, and enforce it at
+the reverse proxy too (`client_max_body_size`) so the app never buffers what it will reject. A
+chunked request has no `Content-Length` — cap the stream read as well when any endpoint accepts one.
+
+## Outbound calls
+
+Every call this service makes to another service, KV store, or third-party API carries an explicit
+timeout and a bounded retry policy. Doctrine, including the deadline budget and the negative-cache
+rules: `backend-resilience`. An outbound call with no timeout inside a request handler converts a
+dependency's slowdown into this service's outage.
 
 ## Tenant isolation (BOLA/IDOR)
 

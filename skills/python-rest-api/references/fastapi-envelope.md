@@ -79,6 +79,13 @@ class ConflictException(AppException):
     def __init__(self, message: str = "Conflict", code: str | None = None) -> None:
         super().__init__(message, status_code=409, code=code or RC.CONFLICT)
 
+class ValidationException(AppException):
+    """Semantic validation a service performs AFTER pydantic accepted the shape
+    (cross-field rules, business invariants). Pydantic's own rejection arrives as
+    RequestValidationError and is handled separately."""
+    def __init__(self, message: str = "Validation error", code: str | None = None, data: Any = None) -> None:
+        super().__init__(message, status_code=422, code=code or RC.VALIDATION_ERROR, data=data)
+
 
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
     logger.error("app_exception", path=request.url.path, method=request.method,
@@ -103,6 +110,10 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError) -
     logger.error("database_error", path=request.url.path, error=str(exc))
     if isinstance(exc, IntegrityError):
         # Unique/FK violations are driven by request data, not a server fault → 409, not 500.
+        # NOTE: the sniffing below matches Postgres driver text. On another backend, or after a
+        # driver reworded its message, it falls through to the generic integrity code — the 409 is
+        # still correct, only the specific code is lost. Prefer `exc.orig.sqlstate` (23505 unique,
+        # 23503 foreign key) when the driver exposes it, and keep this as the fallback.
         error_message, error_code = "Database integrity violation", RC.DATABASE_INTEGRITY_ERROR
         exc_str = str(exc).lower()
         if "duplicate key" in exc_str:
@@ -117,8 +128,20 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError) -
         "message": "Internal database error", "path": request.url.path})
 
 
+async def too_deep_handler(request: Request, exc: RecursionError) -> JSONResponse:
+    """A deeply-nested JSON body blows the parser's stack. Without this it reaches the
+    catch-all and becomes a 500 — a 5xx caused purely by input. Measured: a 2 KB body of
+    nested brackets returns 500 on a stock service, 400 with this handler registered."""
+    logger.warning("payload_too_deep", path=request.url.path)
+    return JSONResponse(status_code=400, content={
+        "status": "error", "code": RC.PAYLOAD_TOO_DEEP,
+        "message": "Request body nesting is too deep", "path": request.url.path})
+
+
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
-    """Wrap raw HTTPException (404, 405, ...) in the standard envelope."""
+    """Wrap raw HTTPException (404, 405, ...) in the standard envelope. In a service that
+    follows the 'never raise HTTPException directly' rule this only fires for framework-raised
+    ones — 405 from routing, 404 for an unknown path — which is exactly why it must stay."""
     code_map = {404: RC.NOT_FOUND, 405: RC.BAD_REQUEST, 401: RC.UNAUTHORIZED,
                 403: RC.FORBIDDEN, 409: RC.CONFLICT}
     code = code_map.get(exc.status_code, RC.ERROR)
@@ -130,9 +153,12 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.error("unhandled_exception", path=request.url.path,
                  error_type=type(exc).__name__, error=str(exc), exc_info=True)
+    # The real message is exposed ONLY in dev; production gets a fixed string so a stack
+    # trace, SQL fragment or internal path can never leak through the catch-all.
+    message = f"{type(exc).__name__}: {exc}" if settings.APP_ENV == "dev" else "Internal server error"
     return JSONResponse(status_code=500, content={
         "status": "error", "code": RC.INTERNAL_SERVER_ERROR,
-        "message": "Internal server error", "path": request.url.path})
+        "message": message, "path": request.url.path})
 ```
 
 ## main.py registration
@@ -141,9 +167,14 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
 app.add_exception_handler(AppException, app_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(SQLAlchemyError, sqlalchemy_exception_handler)
+app.add_exception_handler(RecursionError, too_deep_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 ```
+
+`RecursionError` must be registered **before** the `Exception` catch-all reaches it — Starlette
+resolves handlers by walking the exception's MRO, so the more specific class wins regardless of
+registration order, but keeping the order explicit documents the intent.
 
 Services raise the typed hierarchy; endpoints return `success(RC.X_CREATED, "...", data)`. The
 `ResponseCodes` class is a flat registry of UPPER_SNAKE_CASE string constants grouped by domain.

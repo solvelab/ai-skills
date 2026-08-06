@@ -78,7 +78,33 @@ Expect: **400/422** with the offending field named.
 ```json
 { "email": "<100 KB string>", "age": 30 }
 ```
-Expect: **400** (length) or **413 Payload Too Large**. Must not hang or OOM.
+Expect: **400** (per-field length) or **413 Payload Too Large** (whole body). Must not hang or OOM.
+
+Run the whole-body case too — not just the long field:
+
+```http
+POST /users
+Content-Type: application/json
+
+{"email":"aaaa…"}          # 20 MB
+```
+Measured on a stock FastAPI 0.141.1 service: **200**, body fully buffered in memory. There is no
+default body-size limit in the framework — a 413 only exists if someone added it. Assert it at the
+app AND at the reverse proxy.
+
+## 7b. Deeply nested payload (stack exhaustion)
+
+```http
+POST /users
+Content-Type: application/json
+
+[[[[[[[[[[ … ]]]]]]]]]]     # 1000 levels — about 2 KB on the wire
+```
+Measured on the same stock service: **500** (`RecursionError`). A 2 KB unauthenticated request that
+returns a 5xx is a denial-of-service primitive, and it violates the "input errors are never 5xx" rule
+that the rest of this catalog assumes. Expect **400** once the guard from `python-rest-api`
+("Request limits") is registered. Test at 1k and 10k levels — 200 levels still returns 422, so a
+shallow probe misses it entirely.
 
 ## 8. Malformed / truncated JSON
 
@@ -88,7 +114,8 @@ Content-Type: application/json
 
 { "email": "a@b.com", "age":
 ```
-Expect: **400** "invalid JSON". A 500 here is a bug.
+Expect: a **4xx** that names invalid JSON — **422** on the FastAPI baseline, 400 on many other stacks.
+A 500 here is a bug; the exact 4xx is the framework's choice, so assert the one yours returns.
 
 ## 9. Unknown / extra fields (and mass assignment)
 

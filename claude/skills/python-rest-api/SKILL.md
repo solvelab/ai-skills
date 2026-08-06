@@ -8,11 +8,11 @@ description: >-
   pydantic-settings config, two-tier health endpoints, and the testing stack (SQLite unit fixtures,
   testcontainers integration marker, adversarial test naming, OpenAPI golden snapshot, Schemathesis
   fuzz gate). Also machine-to-machine service auth (named token catalog), domain-state idempotency
-  with partial unique indexes, JSONB dialect variants, and out-of-process ingestion workers (UDP).
-  The baseline that api-resilience-testing and bug-hunter assume.
+  with partial unique indexes, JSONB dialect variants, request size/depth limits, and out-of-process
+  ingestion workers (UDP). The baseline that api-resilience-testing and bug-hunter assume.
 metadata:
   author: solvelab
-  version: 1.2.0
+  version: 1.3.0
   category: backend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
