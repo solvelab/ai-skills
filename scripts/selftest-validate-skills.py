@@ -27,6 +27,7 @@ MUTATIONS = {
      lambda s: s + "\n```tsx\n" + "const a = 1\n" * 45 + "```\n\nUses zod and vite.\n"),
  "C6 wrong tag": ("skills/r3f-materials/SKILL.md",
      lambda s: s + "\n```tsx\nvarying vec2 vUv;\nvoid main() {}\n```\n"),
+ "C7 orphan wrapper": (None, None),
 }
 
 fails = []
@@ -34,8 +35,12 @@ for check, (relpath, mutate) in MUTATIONS.items():
     with tempfile.TemporaryDirectory() as td:
         dst = pathlib.Path(td) / "repo"
         shutil.copytree(SRC, dst, ignore=shutil.ignore_patterns(".git", "node_modules"))
-        p = dst / relpath
-        p.write_text(mutate(p.read_text()))
+        if relpath is None:                       # C7: a wrapper skill with no canonical source
+            (dst / "claude" / "skills" / "ghost-skill").mkdir(parents=True)
+            (dst / "claude" / "skills" / "ghost-skill" / "SKILL.md").write_text("---\nname: ghost-skill\n---\n")
+        else:
+            p = dst / relpath
+            p.write_text(mutate(p.read_text()))
         out = subprocess.run([sys.executable, str(dst / "scripts" / "validate-skills.py")], cwd=dst, capture_output=True, text=True).stdout
         caught = check.split()[0] in out and check in out
         print(f"  {'CAUGHT ' if caught else 'MISSED '} {check}")
