@@ -191,7 +191,8 @@ prescribes SHALL be probed against that tool before publication.
 The mechanically checkable authoring rules SHALL be enforced by a script wired into CI, and that
 script SHALL carry a self-test that injects one known defect per check and asserts detection. Rules
 that cannot be checked mechanically SHALL be identified as review-only rather than left to imply
-coverage.
+coverage. A check that covers only **part** of its rule SHALL state the uncovered part in the check
+itself, so that a passing run is not read as full coverage.
 
 #### Scenario: A violation fails the build
 
@@ -209,6 +210,13 @@ coverage.
 
 - **WHEN** a checker dependency is unavailable in the environment
 - **THEN** the affected check is reported as skipped in the output instead of counting as a pass
+
+#### Scenario: Partial coverage is declared, not implied
+
+- **WHEN** a check enforces its rule only under some condition (a size threshold, a file type, a
+  language it can parse)
+- **THEN** the condition and what escapes it are stated in the check, and skills falling outside it
+  are reviewed by hand rather than assumed compliant
 
 ### Requirement: Checklists are scored against field defects
 
