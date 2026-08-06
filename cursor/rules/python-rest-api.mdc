@@ -1,6 +1,6 @@
 ---
 description: >-
-  Conventions for Python REST APIs (FastAPI + pydantic v2), distilled from real solvelab production services. Use when creating or reviewing a Python API service — project layout, response envelope with centralized response codes, exception-handler registry (input errors are never raw 500), Field-constraint validation, tenant-isolation lookups, session-per-request DB access, pydantic-settings config, two-tier health endpoints, and the testing stack (SQLite unit fixtures, testcontainers integration marker, adversarial test naming, OpenAPI golden snapshot, Schemathesis fuzz gate). Also machine-to-machine service auth (named token catalog), domain-state idempotency with partial unique indexes, JSONB dialect variants, request size/depth limits, and out-of-process ingestion workers (UDP). The baseline that api-resilience-testing and bug-hunter assume.
+  Conventions for Python REST APIs (FastAPI + pydantic v2), distilled from real solvelab production services. Use when creating or reviewing a Python API service — project layout, response envelope with centralized response codes, exception-handler registry (input errors are never raw 500), Field-constraint validation, tenant-isolation lookups, the async/sync lane rule for session-per-request DB access, pydantic-settings config, two-tier health endpoints, and the testing stack (SQLite unit fixtures, testcontainers integration marker, adversarial test naming, OpenAPI golden snapshot, Schemathesis fuzz gate). Also machine-to-machine service auth (named token catalog), domain-state idempotency with partial unique indexes, JSONB dialect variants, request size/depth limits, and out-of-process ingestion workers (UDP). The baseline that api-resilience-testing and bug-hunter assume.
 alwaysApply: false
 ---
 
@@ -121,9 +121,58 @@ Repository lookups for user-owned resources always take the pair — `find_by_id
 and services raise `NotFoundException` (not `ForbiddenException`) when the resource belongs to someone
 else, so existence is not leaked. Regression-tested in `tests/test_bola_guards.py`-style suites.
 
+## Async or sync — pick one lane per endpoint
+
+**Never `async def` + a synchronous `Session`.** A blocking call inside an `async def` handler holds
+the event loop for its whole duration, so the worker stops serving every other request until it
+returns. Measured with 10 concurrent 50 ms "queries" (`asyncio.gather`, Python 3.14): a blocking call
+inside `async def` took **501 ms** — perfectly serialized, ~10x the cost of one — against **50 ms**
+awaited. **10x**, and it grows with concurrency.
+
+Two coherent lanes; a service may use both, but never mix them inside one endpoint's call path:
+
+| Lane | Endpoint | Session | Why it works |
+|---|---|---|---|
+| **Sync** (default) | `def` | `Session(engine)` | FastAPI runs a `def` endpoint in a threadpool — the loop is never blocked |
+| **Async** | `async def` | `AsyncSession` | nothing blocks; every I/O is awaited |
+
+The sync lane is the right default: it is the cheaper migration, it is what the DB section below
+prescribes, and a threadpool handler is not a compromise. Reach for the async lane when the endpoint
+is I/O-bound on more than the database (fan-out to several services, streaming), and then commit to it
+end to end.
+
+**The trap is the mixed lane, and it is easy to fall into**: the middleware and exception handlers this
+skill prescribes are `async def`, because Starlette requires it. That does not make your endpoints
+async. Read the endpoint's own signature before choosing a session type.
+
+Async lane, the parts that change:
+
+```python
+engine = create_async_engine(settings.database_url, pool_pre_ping=True, pool_size=..., pool_recycle=...)
+AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+async def get_session() -> AsyncIterator[AsyncSession]:
+    async with AsyncSessionLocal() as session:
+        yield session
+```
+
+Repositories become `async def` and `await session.execute(...)`; `session.commit()` becomes
+`await session.commit()`. In `tests/conftest.py` the fixture becomes async and `pytest-asyncio` needs
+`asyncio_mode = "auto"` in the pytest config, or every async test is silently skipped as "not
+collected".
+
+**The failure mode that survives a green suite**: a test fixture that overrides `get_session` with a
+*sync* session against SQLite keeps passing, because a single test never has concurrency. The block
+only appears under load, in production. If you are on the async lane, the override must be async too.
+
+Verified against `SQLAlchemy 2.0.51` and `pytest-asyncio 1.4.0`.
+
+Outbound calls follow the same rule — `backend-resilience` ships `safe_call` and `safe_call_async` for
+exactly this reason. The DB half and the HTTP half of one request must be in the same lane.
+
 ## DB & transactions
 
-- `Session(engine)` per request via the `get_session` dependency; engine with `pool_pre_ping=True`,
+- **Sync lane** (see above): `Session(engine)` per request via the `get_session` dependency; engine with `pool_pre_ping=True`,
   bounded pool (`pool_size`/`max_overflow`), `pool_recycle`.
 - Atomicity by transaction scoping: validate → mutate → **one** `session.commit()` per request. No
   partial commits mid-operation.
