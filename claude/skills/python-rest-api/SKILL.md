@@ -13,7 +13,7 @@ description: >-
   ingestion workers (UDP). The baseline that api-resilience-testing and bug-hunter assume.
 metadata:
   author: solvelab
-  version: 1.4.0
+  version: 1.4.1
   category: backend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

@@ -91,8 +91,10 @@ def clamp_num(value, lo: float, hi: float, default: float) -> float:
     return max(lo, min(hi, v))
 ```
 
-The counter is part of the helper, not an afterthought: an alert on `rate(fallback_used)` is the only
-way a permanently-degraded service announces itself.
+The counter is part of the helper, not an afterthought: an alert on `rate(fallback_used_total[5m])` is
+the only way a permanently-degraded service announces itself. Where that counter is registered, what
+`op` and `err` may contain, and why `err` is the exception *type* and never `str(exc)`:
+`observability`.
 
 `asyncio.CancelledError` is a `BaseException` and correctly escapes `except Exception` — do **not**
 widen the catch to `BaseException`, that swallows shutdown and enclosing timeouts. In an `async def`
