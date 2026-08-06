@@ -74,13 +74,16 @@ def check_refs(skill: str, path: Path, text: str) -> None:
     text = FENCE.sub("", text)
     # a link inside an inline-code span is being shown AS an example of a link
     text = INLINE.sub(lambda m: "" if "](" in m.group(1) else m.group(0), text)
-    # references/ is always relative to the skill directory, even when cited from a reference file
-    base = path.parent if path.name == "SKILL.md" else path.parent.parent
+    # Two conventions coexist and both are correct:
+    #   - "../SKILL.md" from a reference file  -> resolve relative to the FILE
+    #   - "references/x.md" cited anywhere      -> resolve relative to the SKILL directory
+    # Accept either; a path is a defect only when neither resolves.
+    bases = [path.parent] if path.name == "SKILL.md" else [path.parent, path.parent.parent]
     for m in LINK.finditer(text):
         t = m.group(1).split("#")[0]
         if not t or t.startswith(("http", "mailto:", "#")) or PLACEHOLDER.search(t):
             continue
-        if not ((base / t).exists() or repo_has(t)):
+        if not (any((b / t).exists() for b in bases) or repo_has(t)):
             add(skill, "C1 missing path", f"link -> {t}")
 
     for m in INLINE.finditer(text):
@@ -89,7 +92,7 @@ def check_refs(skill: str, path: Path, text: str) -> None:
             continue
         # only judge paths that point inside this skill or into skills/
         if s.startswith("references/") or s.startswith("skills/"):
-            if not ((base / s).exists() or repo_has(s)):
+            if not (any((b / s).exists() for b in bases) or repo_has(s)):
                 add(skill, "C1 missing path", f"inline -> {s}")
 
     # cross-skill references: `skill-name` in backticks that looks like a skill slug

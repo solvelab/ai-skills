@@ -114,7 +114,9 @@ alwaysApply: false
 ---
 
 HEADER
-        body "$skill_md"
+        # Cursor has no file includes, so a relative "references/x.md" link would dangle
+        # inside cursor/rules/. Rewrite it to the canonical path, the way copilot does.
+        body "$skill_md" | sed -E "s#\\]\\(references/#](../../skills/${name}/references/#g"
     } > "$CURSOR_OUT/${name}.mdc"
 
     # --- GitHub Copilot ---
