@@ -9,7 +9,7 @@ description: >-
   mutations. Not for FiveM NUIs (CEF) — that is fivem-nui-react.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.1.1
   category: frontend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

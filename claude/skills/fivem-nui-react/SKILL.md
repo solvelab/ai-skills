@@ -10,7 +10,7 @@ description: >-
   react-api-client.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.0.1
   category: nui
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

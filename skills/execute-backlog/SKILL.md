@@ -14,7 +14,7 @@ description: >-
   deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.2.0
+  version: 1.2.1
   category: process
 license: MIT
 compatibility: >-
@@ -102,3 +102,6 @@ Should NOT trigger on:
 - "Merge PR #12"
 - "Deploy the fix"
 - "Close issue #9"
+
+> **Verified against**: `gh 2.92.0`. Every subcommand and flag used below was probed
+> against that client.
