@@ -5,6 +5,14 @@
 - [x] 1.3 Confirm the second symptom: a state file named after a `prompt_id` (`x`), from the same shift
 - [x] 1.4 Establish why #57's tests missed it — every synthetic payload supplied both ids
 
+## 1b. Find the cause the synthetic tests could not reach
+
+- [x] 1b.1 Instrument the running status line to record every real payload
+- [x] 1b.2 Observe that `current_usage` is per API CALL, not per turn: same `prompt_id` produced
+      `out = 627 -> 480 -> 587`, then `1854 -> 633` — non-monotonic
+- [x] 1b.3 Conclude that banking on `prompt_id` keeps only the last call of each turn
+- [x] 1b.4 Re-key the accumulator on the usage tuple; drop `prompt_id` entirely
+
 ## 2. Fix
 
 - [x] 2.1 Switch payload parse, state read and state write to `\x1f`
@@ -21,7 +29,12 @@
 - [x] 3.5 Old tab-format state: discarded, restarts cleanly
 - [x] 3.6 Garbage state: discarded
 - [x] 3.7 Model switch: `$0.54` + Haiku turn = `$0.58`, not repriced
-- [x] 3.8 `bash -n` clean; on-disk record carries 13 fields
+- [x] 3.8 `bash -n` clean; on-disk record carries 12 fields
+- [x] 3.9 Replay the 9 REAL captured payloads through the real script — monotonic, never dropped,
+      identical consecutive payloads bank nothing
+- [x] 3.10 Live check in the reporting session: `CUM_CR` 1 815 596 -> 3 634 233 and `CUM_OUT`
+      1 004 -> 1 846 across real turns
+- [x] 3.11 Capture tap removed from the shipped script
 
 ## 4. Document and sync
 
