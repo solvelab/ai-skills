@@ -12,7 +12,7 @@ description: >-
   fivem-lua), or general .NET services.
 metadata:
   author: solvelab
-  version: 1.2.0
+  version: 1.3.0
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -33,9 +33,12 @@ MUST be compiled against the upstream **source checkout at the exact tag matchin
 
 Encode this in the build, don't rely on discipline:
 
-- Do NOT hardcode the TFM — inherit it from upstream:
-  `<TargetFramework Condition="'$(TargetFramework)' == ''">net9.0</TargetFramework>` in the csproj,
-  and in the publish script detect the real one:
+- Do NOT hardcode the TFM — inherit it from upstream. **A fallback default here is a trap**: it is
+  used exactly when detection failed, which is when you can least afford a guess. Pin it to the
+  runtime you actually target and treat a mismatch as an error, not a default:
+  `<TargetFramework Condition="'$(TargetFramework)' == ''">net8.0</TargetFramework>` — upstream
+  **v0.0.54 targets `net8.0`** (verified against its `AssettoServer.csproj` at that tag). In the
+  publish script detect the real one:
   `awk -F'[><]' '/<TargetFramework>/{print $3; exit}' "$ASSETTOSERVER_SOURCE_DIR/AssettoServer/AssettoServer.csproj"`,
   then pass `-p:TargetFramework="$target_framework"` to `dotnet publish`.
 - Add an MSBuild guard target that hard-errors before Restore/Build/Publish when the upstream
@@ -121,13 +124,18 @@ public class MyPluginCommandModule : ACModuleBase
 ## Forbidden constructs (the runtime WILL crash or misbehave)
 
 Qmmands instantiates command modules by reflection, without DI. These three constructs compile
-fine and fail only inside the real runtime — enforce them with the bug-hunter gate below:
+fine and fail only inside the real runtime — enforce them with the bug-hunter gate below.
+
+**The third row is version-scoped.** It holds while the pinned runtime targets `net8.0`. When the pin
+moves to a runtime on .NET 9 or later the type exists and the ban must be lifted rather than carried
+forward — re-read the detected TFM at that point, and scope the Cecil assert to it instead of
+asserting it unconditionally.
 
 | Forbidden | Why | Do instead |
 |---|---|---|
 | `CommandContext.Services` (`get_Services()`) | crashes at command execution | static accessor bridge (below) |
 | Command-module constructor with parameters | Qmmands reflects a parameterless ctor; DI never runs | parameterless ctor + accessor |
-| `System.Threading.Lock` (C# 13 `lock` on `Lock`) | type missing in the host runtime | `private readonly object _lock = new();` |
+| `System.Threading.Lock` (C# 13 `lock` on `Lock`) | the type ships in **.NET 9**; the pinned runtime is **net8.0**, so it is absent at load time | `private readonly object _lock = new();` |
 
 **Static accessor bridge** — the sanctioned way to get services into command modules: the
 `IHostedService` publishes DI-built singletons into static accessors at `StartAsync`
