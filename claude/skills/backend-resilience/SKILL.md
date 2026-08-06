@@ -12,7 +12,7 @@ description: >-
   adaptation use fivem-fallback instead.
 metadata:
   author: solvelab
-  version: 2.0.0
+  version: 2.0.1
   category: backend
 license: MIT
 compatibility: Works in any environment with filesystem access.

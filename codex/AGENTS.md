@@ -25,6 +25,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `helm-migration` | `codex/skills/helm-migration/AGENTS.md` |
 | `k8s-tune-resources` | `codex/skills/k8s-tune-resources/AGENTS.md` |
 | `log-event-collector` | `codex/skills/log-event-collector/AGENTS.md` |
+| `observability` | `codex/skills/observability/AGENTS.md` |
 | `openspec-drivezone` | `codex/skills/openspec-drivezone/AGENTS.md` |
 | `openspec` | `codex/skills/openspec/AGENTS.md` |
 | `python-rest-api` | `codex/skills/python-rest-api/AGENTS.md` |

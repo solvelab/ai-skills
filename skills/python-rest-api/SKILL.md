@@ -13,7 +13,7 @@ description: >-
   ingestion workers (UDP). The baseline that api-resilience-testing and bug-hunter assume.
 metadata:
   author: solvelab
-  version: 1.4.0
+  version: 1.4.1
   category: backend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -233,7 +233,10 @@ through business code.
 
 - Versioned prefix (`/api/v1`) even at small scale.
 - Two-tier health: `GET /health` (liveness, no dependencies) and `GET /api/v1/health` (detailed,
-  includes DB connectivity).
+  includes DB connectivity). The third state — serving, but on fallbacks — belongs in the detailed
+  body: `observability`.
+- Request correlation: one id per request bound to `structlog` for its lifetime, returned in the
+  response header and propagated outbound. Rules and the middleware: `observability`.
 
 ## Testing
 

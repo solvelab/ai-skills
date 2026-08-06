@@ -1,0 +1,158 @@
+---
+description: >-
+  Correlation, metrics and tracing for a backend service — the request id bound to every log line and propagated outward, RED metrics per endpoint and per dependency, the registry the fallback counter lives in, and when OpenTelemetry earns its cost. Use when adding logging, metrics, tracing, a /metrics endpoint, a request-id or correlation-id middleware, health/readiness that reports degraded mode, or when asked why an outage was invisible. Enforces one id per request bound to the logger, route templates as labels (never raw paths or user ids), and a counter behind every fallback. Do NOT use for a log-shipping sidecar's own instrumentation (that is log-event-collector), for configuring an aggregation stack (Loki, Fluentd, Filebeat), or for choosing a vendor.
+alwaysApply: false
+---
+
+
+# Observability
+
+> **Verified against**: `fastapi 0.141.1` · `prometheus-client 0.26.0` · `structlog 26.1.0` ·
+> `opentelemetry-api 1.44.0` · `opentelemetry-instrumentation-fastapi 0.65b0`. Every construct below
+> was run: ids generated and preserved, route templates labelled, raw paths kept out of the registry,
+> counters and histograms exposed on `/metrics`.
+
+A service that degrades safely and silently has traded a crash for a mystery. `backend-resilience`
+says what to do when a dependency fails; this skill is how anyone finds out that it did.
+
+The order is the order of payoff: **correlate first, then count, then trace.** A request id costs one
+middleware and makes every existing log line useful. Tracing costs a collector and answers questions
+you cannot yet ask.
+
+## Correlate: one id per request, bound to the logger
+
+Accept the caller's id when there is one — it is how a trace survives across services — and generate
+one when there is not. Bind it to the logger for the request's lifetime so **every** line carries it
+without anyone remembering to pass it.
+
+```python
+from structlog.contextvars import bind_contextvars, clear_contextvars, merge_contextvars
+
+structlog.configure(processors=[merge_contextvars, ..., structlog.processors.JSONRenderer()])
+
+class Observability(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        clear_contextvars()                                    # never inherit the last request's id
+        rid = request.headers.get("x-request-id") or uuid.uuid4().hex
+        bind_contextvars(request_id=rid)
+        response = await call_next(request)
+        response.headers["X-Request-Id"] = rid                 # the caller can quote it in a ticket
+        return response
+```
+
+- **`clear_contextvars()` first, always.** Context vars outlive the request in a reused worker;
+  skipping the clear leaks the previous request's id onto this one's logs, which is worse than no id
+  because it is confidently wrong.
+- **Return the id in the response header.** A user reporting a failure hands you the id instead of a
+  timestamp and a guess.
+- **Propagate it outbound.** Every call this service makes forwards `X-Request-Id`, so a failure two
+  hops away is greppable from one string.
+- The id belongs in the log **context**, not in each message. A line that has to remember to include
+  it is a line that will forget.
+
+## Count: RED, and nothing with unbounded labels
+
+Rate, errors, duration — per endpoint and per outbound dependency. Three series answer most of
+"is it broken, since when, and where".
+
+```python
+REQUESTS = Counter("http_requests_total", "...", ["method", "route", "status"])
+LATENCY  = Histogram("http_request_duration_seconds", "...", ["method", "route"])
+FALLBACK = Counter("fallback_used_total", "...", ["op", "err"])     # see below
+
+route = request.scope["route"].path if "route" in request.scope else "unmatched"
+LATENCY.labels(request.method, route).observe(elapsed)
+REQUESTS.labels(request.method, route, str(response.status_code)).inc()
+```
+
+- **Label with the route template, never the raw path.** `"/items/{item_id}"` is one series;
+  `/items/7` is one series per item and will take down your metrics backend before it takes down your
+  service. Verified: with `request.scope["route"].path`, a request to `/items/7` produces
+  `route="/items/{item_id}"` and the string `/items/7` appears **nowhere** in `/metrics`.
+- **Never label with a user id, tenant id, email, session id, or anything a client controls.** That is
+  the same rule with a hostile edge: unbounded cardinality becomes a denial-of-service vector the
+  moment an attacker can mint label values.
+- **`"unmatched"` for a 404 on no route** — otherwise scanners walking your URL space create a series
+  each.
+- **Latency is a histogram, not an average.** An average hides the tail that users actually feel.
+- Expose with `app.mount("/metrics", make_asgi_app())`, and keep that route off the public listener.
+
+## The fallback counter lives here
+
+`backend-resilience` prescribes incrementing a counter inside the shared `safe_call` helper. This is
+where it is defined:
+
+```python
+FALLBACK = Counter("fallback_used_total", "Fallback taken instead of a live answer", ["op", "err"])
+```
+
+- `op` is the logical operation (`"pricing_config"`), **not** the URL.
+- `err` is the exception **type name**, never `str(exc)` — the message contains ids, hosts and
+  timestamps, and one distinct series per occurrence is the cardinality trap again.
+- Alert on the **rate**, not the total: `rate(fallback_used_total[5m]) > 0` means the service is
+  running on defaults right now. A service permanently on fallbacks looks perfectly healthy from the
+  outside, which is exactly why this counter exists.
+
+Measured while building this skill: in an A/B trial of the resilience doctrine, **no run emitted this
+counter** while the rule lived in a prose bullet. It only landed once the increment was written inside
+the helper body that gets copied. Put the metric where the code is copied from.
+
+## Health, readiness, and the third state
+
+`python-rest-api` defines two-tier health: `GET /health` (liveness, no dependencies) and
+`GET /api/v1/health` (detailed, includes the database). The state it does not cover is the one this
+skill exists for:
+
+- **liveness** — the process is up. Never touches a dependency; a slow database must not get you
+  restarted.
+- **readiness** — it can serve. Fails while a dependency needed to answer correctly is unavailable.
+- **degraded** — it *is* serving, on fallbacks. Liveness green, readiness green, and the detailed
+  endpoint reports which dependencies are being faked, sourced from the same fail-cache
+  `backend-resilience` already keeps.
+
+Degraded is a body field and a metric, not a status code. A service silently serving hardcoded config
+for three days is the failure this whole family is written to prevent.
+
+## Trace: only when a request has hops
+
+Tracing answers "which of the seven things this request touched was slow". With one service and one
+database, that question has one plausible answer and a histogram already gave it to you.
+
+Adopt it when a request crosses services, or when latency is spread across enough calls that you
+cannot reason about it. `FastAPIInstrumentor.instrument_app(app)` gives spans per request and per
+instrumented client without touching handler code.
+
+When you do adopt it, **make the trace id the request id** — or put both on every log line. Two
+independent correlation ids for the same request is worse than one, because every investigation starts
+by working out which one the other system used.
+
+Be honest about the ceiling: the published evaluation of repository-level context and tracing tooling
+shows gains that are real but uneven, and the most valuable part is usually the cheap part — the ids
+and the setup — not the span tree.
+
+## What not to instrument
+
+- **A span per loop iteration.** The overhead becomes the latency you are measuring.
+- **Request or response bodies in logs.** They carry credentials and personal data, and they are the
+  fastest way to turn a log store into a breach.
+- **A metric per business entity.** "orders_total per customer" is a cardinality bomb; put the
+  customer in a log line, the count in one series.
+- **Anything a client controls, as a label.** Repeated because it is the mistake that takes the
+  metrics backend down.
+- **Debug logs left at INFO.** Volume is a cost and a signal-to-noise problem; if it is not actionable,
+  it is not INFO.
+
+## What to test
+
+`bug-hunter`'s **Observable degradation** class is this skill's test: assert the log line and the
+counter, not only the fallback value. Concretely — a dependency timeout produces exactly one
+`fallback_used_total` increment with the right `op` and `err`; a request without `X-Request-Id` gets
+one generated and returned; a request with one keeps it; two sequential requests never share an id;
+and a route with a path parameter produces one series, not one per value.
+
+## See also
+
+- `backend-resilience` — what to do when a dependency fails; prescribes the counter this skill defines.
+- `python-rest-api` — the service baseline: envelope, two-tier health, the middleware this instruments.
+- `bug-hunter` — the adversarial rite whose Observable degradation class asserts the rules above.
+- `log-event-collector` — a log-shipping sidecar's own lag and error counters; different subject.
