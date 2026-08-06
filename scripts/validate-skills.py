@@ -8,6 +8,7 @@ Implements the mechanically checkable half of openspec/specs/skills-authoring:
   C4 description agrees with body           (heuristic: absolute promise vs qualifying rule)
   C5 versioned external APIs are pinned     (code-heavy skill without a version statement)
   C6 fence tags match content               (a block tagged X that is obviously not X)
+  C7 no orphan wrapper skills               (every generated skill has a canonical source)
 
 Exit 1 on any finding. Run from the repo root.
 """
@@ -210,7 +211,22 @@ def check_tags(skill: str, text: str) -> None:
             add(skill, "C6 wrong tag", f"block#{i} tagged {lang} but looks like JSON")
 
 
+# ── C7: no orphan wrapper skills ──────────────────────────────────────────
+def check_orphans() -> None:
+    """A skill living only in a generated tree is outside generate.sh, outside the
+    frontmatter check, outside this validator, and absent from the README."""
+    for tree in ("claude/skills", "codex/skills"):
+        base = ROOT / tree
+        if not base.is_dir():
+            continue
+        for d in sorted(base.iterdir()):
+            if d.is_dir() and d.name not in NAMES:
+                add(d.name, "C7 orphan wrapper",
+                    f"{tree}/{d.name} has no canonical skills/{d.name}/SKILL.md")
+
+
 def main() -> int:
+    check_orphans()
     for p in SKILLS:
         skill = p.parent.name
         text = p.read_text(encoding="utf-8")

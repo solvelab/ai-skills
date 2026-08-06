@@ -23,6 +23,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `fivem-lua` | `codex/skills/fivem-lua/AGENTS.md` |
 | `fivem-nui-react` | `codex/skills/fivem-nui-react/AGENTS.md` |
 | `helm-migration` | `codex/skills/helm-migration/AGENTS.md` |
+| `k8s-tune-resources` | `codex/skills/k8s-tune-resources/AGENTS.md` |
 | `log-event-collector` | `codex/skills/log-event-collector/AGENTS.md` |
 | `openspec-drivezone` | `codex/skills/openspec-drivezone/AGENTS.md` |
 | `openspec` | `codex/skills/openspec/AGENTS.md` |
