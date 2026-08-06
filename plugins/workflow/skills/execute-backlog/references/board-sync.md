@@ -2,7 +2,7 @@
 
 Reuses the `backlog` skill's config (`project.owner`, `project.number`, `fields.status`) and the
 same runtime-ID discipline: resolve project/field/option/item IDs fresh each run (see the
-`backlog` skill's `references/gh-projects.md` for the base recipes).
+`backlog` skill's `backlog/references/gh-projects.md` for the base recipes).
 
 ## Find the item for an issue
 

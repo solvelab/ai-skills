@@ -109,6 +109,7 @@ connected" line has the slot and car. Keep a `ParserContext` with maps
 (`attempts_by_steam_id`, `players_by_slot`) that early lines populate and later lines consume:
 
 ```python
+# excerpt — not a complete module; shown inside the parser loop
 if match := patterns.CONNECTED_RE.match(message):
     data = match.groupdict()
     attempt = self.context.attempts_by_steam_id.get(data["steam_id"], {})

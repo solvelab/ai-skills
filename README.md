@@ -596,6 +596,22 @@ it requires the three gate headings in every active change (closure group last) 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Run it locally before pushing — CI is the
 backstop, not the first line.
 
+A second gate checks the **content** of the skills themselves.
+[`scripts/validate-skills.py`](scripts/validate-skills.py) runs six checks over every
+`skills/*/SKILL.md` and its references — referenced paths exist, cross-skill references name a real
+skill, code blocks parse (bash/yaml/json/lua/python), the description states no policy the body
+contradicts, versioned external APIs are pinned, and fence tags match their content. It reports any
+check skipped for want of a tool rather than counting it as a pass.
+
+Because a checker that never fails is not a checker,
+[`scripts/selftest-validate-skills.py`](scripts/selftest-validate-skills.py) injects one known defect
+per check into a throwaway copy of the catalog and asserts each one is detected. Both run in CI.
+
+```bash
+python3 scripts/validate-skills.py           # 0 findings expected
+python3 scripts/selftest-validate-skills.py  # 10/10 defect classes detected
+```
+
 ### Per-machine setup
 
 ```bash

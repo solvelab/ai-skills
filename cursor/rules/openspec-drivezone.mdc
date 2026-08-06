@@ -59,7 +59,7 @@ Dependencies to cover per track:
 **2. `tasks.md` → group `## 3. Tests & Bug-Hunter (MANDATORY)`**
 
 Adversarial QA, not happy-path. → Methodology and per-stack scenarios: **[bug-hunter]**
-(`references/track-fivem-lua.md` for the resource, `references/track-python-pytest.md` for the
+(`bug-hunter/references/track-fivem-lua.md` for the resource, `bug-hunter/references/track-python-pytest.md` for the
 backend — pytest E2E runs **before** any in-game validation). For API-surface depth: **[api-resilience-testing]**.
 Trust-boundary rules exercised by the Lua track: **[fivem-lua]**.
 

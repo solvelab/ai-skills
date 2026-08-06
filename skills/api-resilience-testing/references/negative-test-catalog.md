@@ -30,7 +30,7 @@ Expect: **400/422** (after trim it is empty). Server should trim before storing.
 
 ## 4. Wrong type (type confusion)
 
-```json
+```jsonc
 { "email": 12345, "age": "thirty" }   // number for string, string for number
 { "email": "a@b.com", "age": true }    // boolean where int expected
 { "email": "a@b.com", "age": "30" }    // numeric string — is it coerced or rejected?
@@ -44,7 +44,7 @@ leave it ambiguous.
 
 A money field documented as `XXX.XX` (dot decimal) fed the locale variant:
 
-```json
+```jsonc
 { "amount": "1.234,56" }   // pt-BR thousands "." + decimal ","
 { "amount": "1234,56" }    // comma decimal
 { "amount": "R$ 100,00" }  // currency symbol + comma
@@ -58,7 +58,7 @@ vs `2026-12-31`).
 
 ## 5. Out-of-range / boundary numbers
 
-```json
+```jsonc
 { "email": "a@b.com", "age": -1 }     // below min
 { "email": "a@b.com", "age": 121 }    // above max
 { "email": "a@b.com", "age": 99999999999999999999 }  // overflow
@@ -67,7 +67,7 @@ Expect: **400/422** for each. Test min-1, min, max, max+1 explicitly.
 
 ## 6. Invalid format / enum
 
-```json
+```jsonc
 { "email": "not-an-email", "age": 30 }
 { "email": "a@b.com", "age": 30, "role": "superadmin" }  // not in enum
 ```
@@ -180,7 +180,7 @@ Expect: **404**, consistent error shape, no internal detail.
 
 ## 16. Injection probes
 
-```json
+```jsonc
 { "email": "a@b.com' OR '1'='1", "age": 30 }
 { "email": "<script>alert(1)</script>@b.com", "age": 30 }
 { "email": "../../etc/passwd", "age": 30 }
