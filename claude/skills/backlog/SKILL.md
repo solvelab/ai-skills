@@ -13,7 +13,7 @@ description: >-
   for non-GitHub trackers (Jira, Linear, Trello).
 metadata:
   author: solvelab
-  version: 1.0.1
+  version: 1.0.2
   category: process
 license: MIT
 compatibility: >-

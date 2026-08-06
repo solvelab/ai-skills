@@ -13,7 +13,7 @@ description: >-
   for non-GitHub trackers (Jira, Linear, Trello).
 metadata:
   author: solvelab
-  version: 1.0.1
+  version: 1.0.2
   category: process
 license: MIT
 compatibility: >-
@@ -112,3 +112,6 @@ Should NOT trigger on:
 - "Open a PR for this change"
 - "Create a ticket in Jira"
 - "List my GitHub issues"
+
+> **Verified against**: `gh 2.92.0`. Every subcommand and flag used below was probed
+> against that client. `gh project` moves fast — re-probe before trusting a recipe on an older CLI.

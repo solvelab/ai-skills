@@ -10,7 +10,7 @@ description: >-
   react-api-client.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.0.1
   category: nui
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -100,3 +100,8 @@ Full hook implementations + the Lua counterpart: `references/nui-bridge.md`.
 - `fivem-lua` — the Lua side: SetNuiFocus pairing, callback validation (payload is forgeable),
   disconnect/resource-stop cleanup.
 - `react-api-client` — for standalone (non-CEF) React SPAs talking to a REST API.
+
+> **Verified against**: `vite 8.2.0` + `terser 5.49.2`. The four build rules below were checked by
+> building with them: `base: './'` emits `./assets/…`, the flat `entryFileNames` produce hash-less
+> `assets/index.js` / `assets/index.css` matching `dist/assets/*`, and `drop_console` leaves zero
+> `console.log` in the bundle.

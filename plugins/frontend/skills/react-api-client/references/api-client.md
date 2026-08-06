@@ -117,6 +117,7 @@ Boot gate (per app): tokens-but-no-user → `GET /auth/me` → `setSession`, els
 ## Dedup nonce for paid mutations
 
 ```ts
+// excerpt — not a complete module; shown inside an async mutation handler
 const dedupKey = typeof crypto !== 'undefined' && crypto.randomUUID
   ? crypto.randomUUID()
   : `${Date.now()}-${Math.random().toString(36).slice(2)}`;  // non-secure context (LAN/IP)

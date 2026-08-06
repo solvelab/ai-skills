@@ -179,13 +179,20 @@ def check_description(skill: str, text: str) -> None:
 
 
 # ── C5: versioned APIs pinned ─────────────────────────────────────────────
-PIN = re.compile(r"[Vv]erified against|@[\d]+\.[\d]+|version[s]? pinned|targets? v?\d+\.\d+"
-                 r"|[Mm]easured on|pydantic v\d|SQLAlchemy \d|Python .{0,3}\d\.\d+|\b\w+ \d+\.\d+\+")
+# A pin is any concrete "this was checked against version X" statement, in prose or in a fence.
+PIN = re.compile(r"[Vv]erified against|[Mm]easured on|[Pp]robed on|version[s]? pinned"
+                 r"|@[\d]+\.[\d]+|targets? v?\d+\.\d+"
+                 r"|\b(?:runtime|tag|CLI|preset)\s+v?\d+\.\d+"
+                 r"|pydantic v\d|SQLAlchemy \d|Python .{0,3}\d\.\d+|\b\w+ \d+\.\d+")
 API_HINT = re.compile(r"@react-three|@react-spring|fastapi|pydantic|sqlalchemy|helm |kubectl|"
                       r"citizenfx|Qmmands|AssettoServer|openspec|gh project|zod|vite", re.I)
 
 
 def check_pin(skill: str, text: str) -> None:
+    """KNOWN LIMIT: only fires on skills carrying 40+ lines of fenced code. A skill that makes
+    the same versioned claims in prose (config keys, CLI flags, API names in bullets) escapes
+    this check and must be reviewed by hand. Widening the trigger produced false positives on
+    every skill that merely names a tool, so the gap is stated instead of guessed at."""
     blocks = FENCE.findall(text)
     code_lines = sum(len(b.splitlines()) for _, b in blocks)
     if code_lines < 40:
