@@ -47,4 +47,4 @@
 - [x] V.4 `scripts/validate-skills.py` 0 findings across 32 skills
 - [x] V.5 `scripts/selftest-validate-skills.py` 12/12
 - [x] V.6 `scripts/scan-secrets.py` clean
-- [ ] V.7 `openspec archive cumulative-statusline-tokens --yes` after review
+- [x] V.7 `openspec archive cumulative-statusline-tokens --yes` after review
