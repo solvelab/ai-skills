@@ -54,6 +54,26 @@ gh project item-edit --project-id PROJECT_ID --id ITEM_ID \
 - Final issue comment: list every PR, validation summary, the acceptance-criteria verdict table
   (`references/acceptance-tracking.md`), and any approved scope deviations.
 
+## Finding the item's PRs
+
+Resolve them from the issue's **link graph**, never from a text search over PR bodies:
+
+```bash
+# PRs that will close the issue (Closes/Fixes #n) — authoritative
+gh issue view <n> -R OWNER/REPO --json closedByPullRequestsReferences \
+  --jq '.closedByPullRequestsReferences[] | "\(.number) \(.title)"'
+
+# PRs that reference it without closing it
+gh api repos/OWNER/REPO/issues/<n>/timeline \
+  --jq '.[] | select(.event == "cross-referenced")
+             | .source.issue.pull_request.html_url // empty'
+```
+
+**Do NOT use `gh pr list --search "<n> in:body"`.** It matches the bare number anywhere in any PR
+body — a version string, a line count, an unrelated issue number. Measured on this catalog: for an
+issue with **zero** linked PRs, that search returned **three**, none of them related. It also misses
+a real link whose reference lives only in a commit message. Both failure directions at once.
+
 ## Recovery
 
 | Failure | Recovery |

@@ -26,6 +26,14 @@ fields:                # Project field names as shown by gh project field-list
   estimate: Estimate
 defaults:
   status: Backlog      # column for newly created items
+
+# Optional — read by `execute-backlog` when it advances the card. Absent keys fall back to
+# name heuristics; a name that is not among the board's Status options is warned about and
+# skipped, never fatal. Canonical definition: execute-backlog/references/board-sync.md
+columns:
+  ready: Ready
+  in_progress: In progress
+  review: In review
 labels:                # optional: intent → existing repo label
   feature: enhancement
   bug: bug
