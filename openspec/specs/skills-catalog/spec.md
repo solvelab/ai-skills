@@ -14,6 +14,9 @@ generated tree (`claude/`, `codex/`, `cursor/`, `copilot/`, `plugins/`) is not a
 escapes `generate.sh`, the CI frontmatter check, the content validator and the README index, while
 still installing for users. CI SHALL reject that state.
 
+A skill's topics MAY live in `skills/<name>/references/*.md`, reached from an index in its `SKILL.md`.
+A reference file is part of its skill, never a catalog entry of its own, and never carries frontmatter.
+
 The composition is not a frozen count. It changes by proposal, and the README index is the
 human-readable view of it.
 
@@ -22,6 +25,7 @@ human-readable view of it.
 - **WHEN** `npx skills add <repo> --list` runs against the repository root
 - **THEN** every `skills/<name>/SKILL.md` is discovered
 - **AND** the set matches the README skill index
+- **AND** no `references/*.md` file appears as a skill
 
 #### Scenario: A skill in a generated tree without a source is rejected
 
