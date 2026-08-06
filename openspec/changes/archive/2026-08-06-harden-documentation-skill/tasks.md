@@ -52,4 +52,4 @@
 - [x] V.4 CI frontmatter check passes locally on every `skills/*/SKILL.md`
 - [x] V.5 AGENTS.md trigger re-tested: a run against a checkout containing a `CLAUDE.md` produces or
       updates `AGENTS.md` (the first draft's unobservable condition produced it in zero runs)
-- [ ] V.6 `openspec archive harden-documentation-skill --yes` after review
+- [x] V.6 `openspec archive harden-documentation-skill --yes` after review
