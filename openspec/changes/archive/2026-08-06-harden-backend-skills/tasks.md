@@ -79,4 +79,4 @@
 - [x] V.3 Wrappers in sync: `./generate.sh` then clean `git diff` on generated trees
 - [x] V.4 CI frontmatter check passes locally (name == dir, semver, category, license on every
       `skills/*/SKILL.md`)
-- [ ] V.5 `openspec archive harden-backend-skills --yes` after all groups above and after review
+- [x] V.5 `openspec archive harden-backend-skills --yes` after all groups above and after review
