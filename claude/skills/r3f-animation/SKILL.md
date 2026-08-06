@@ -14,3 +14,5 @@ compatibility: Works in Claude Code, Claude.ai, and any environment with filesys
 ---
 
 Read and follow all instructions in ~/ai-skills/skills/r3f-animation/SKILL.md
+
+Reference files are in ~/ai-skills/skills/r3f-animation/references/ — read them when the skill instructions point to them.
