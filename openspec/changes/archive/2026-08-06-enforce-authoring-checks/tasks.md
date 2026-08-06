@@ -39,4 +39,4 @@
 - [x] V.4 CI frontmatter check passes locally
 - [x] V.5 `scripts/validate-skills.py` reports 0 findings across all 30 skills
 - [x] V.6 `scripts/selftest-validate-skills.py` detects 10/10 injected defect classes
-- [ ] V.7 `openspec archive enforce-authoring-checks --yes` after review
+- [x] V.7 `openspec archive enforce-authoring-checks --yes` after review
