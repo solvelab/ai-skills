@@ -17,12 +17,12 @@ Each topic is a reference file — read the one the task needs, not the whole se
 
 | Reference | Covers |
 |---|---|
-| [Models: useGLTF (Drei)](references/models-usegltf-drei.md) | Models: Quick Start, Models: useGLTF (Drei), Models: useLoader for GLTF (Core R3F) |
-| [Models: Other Model Formats](references/models-other-model-formats.md) | Models: Other Model Formats, Models: Clone for Multiple Instances, Models: useFont, Models: Error Handling, Models: Asset Caching |
-| [Models: Suspense Patterns](references/models-suspense-patterns.md) | Models: Suspense Patterns, Models: Performance Tips |
-| [Textures: useTexture Hook (Drei)](references/textures-usetexture-hook-drei.md) | Textures: Quick Start, Textures: useTexture Hook (Drei), Textures: useLoader for Textures (Core R3F) |
-| [Textures: Texture Configuration](references/textures-texture-configuration.md) | Textures: Texture Configuration, Textures: Environment Maps, Textures: Video Textures, Textures: Canvas Textures, Textures: Data Textures |
-| [Textures: Material Texture Maps Reference](references/textures-material-texture-maps-reference.md) | Textures: Render Targets, Textures: Texture Atlas / Sprite Sheet, Textures: Material Texture Maps Reference, Textures: Second UV Channel (for AO/Lightmaps), Textures: Suspense Loading, Textures: Performance Tips |
+| [Models: useGLTF (Drei)](../../skills/r3f-assets/references/models-usegltf-drei.md) | Models: Quick Start, Models: useGLTF (Drei), Models: useLoader for GLTF (Core R3F) |
+| [Models: Other Model Formats](../../skills/r3f-assets/references/models-other-model-formats.md) | Models: Other Model Formats, Models: Clone for Multiple Instances, Models: useFont, Models: Error Handling, Models: Asset Caching |
+| [Models: Suspense Patterns](../../skills/r3f-assets/references/models-suspense-patterns.md) | Models: Suspense Patterns, Models: Performance Tips |
+| [Textures: useTexture Hook (Drei)](../../skills/r3f-assets/references/textures-usetexture-hook-drei.md) | Textures: Quick Start, Textures: useTexture Hook (Drei), Textures: useLoader for Textures (Core R3F) |
+| [Textures: Texture Configuration](../../skills/r3f-assets/references/textures-texture-configuration.md) | Textures: Texture Configuration, Textures: Environment Maps, Textures: Video Textures, Textures: Canvas Textures, Textures: Data Textures |
+| [Textures: Material Texture Maps Reference](../../skills/r3f-assets/references/textures-material-texture-maps-reference.md) | Textures: Render Targets, Textures: Texture Atlas / Sprite Sheet, Textures: Material Texture Maps Reference, Textures: Second UV Channel (for AO/Lightmaps), Textures: Suspense Loading, Textures: Performance Tips |
 
 ## See also
 

@@ -18,9 +18,9 @@ Each topic is a reference file — read the one the task needs, not the whole se
 
 | Reference | Covers |
 |---|---|
-| [directionalLight](references/directionallight.md) | Quick Start, Light Types Overview, ambientLight, hemisphereLight, directionalLight, pointLight, spotLight, rectAreaLight |
-| [Drei Lighting Helpers](references/drei-lighting-helpers.md) | Shadow Setup, Drei Lighting Helpers |
-| [Common Lighting Setups](references/common-lighting-setups.md) | Common Lighting Setups, Animated Lighting, Light Helpers, Performance Tips |
+| [directionalLight](../../skills/r3f-lighting/references/directionallight.md) | Quick Start, Light Types Overview, ambientLight, hemisphereLight, directionalLight, pointLight, spotLight, rectAreaLight |
+| [Drei Lighting Helpers](../../skills/r3f-lighting/references/drei-lighting-helpers.md) | Shadow Setup, Drei Lighting Helpers |
+| [Common Lighting Setups](../../skills/r3f-lighting/references/common-lighting-setups.md) | Common Lighting Setups, Animated Lighting, Light Helpers, Performance Tips |
 
 ## See Also
 

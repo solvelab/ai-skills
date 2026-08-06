@@ -18,11 +18,11 @@ Each topic is a reference file — read the one the task needs, not the whole se
 
 | Reference | Covers |
 |---|---|
-| [RigidBody](references/rigidbody.md) | Quick Start, Installation, Physics Component, RigidBody |
-| [Colliders](references/colliders.md) | Colliders, Applying Forces |
-| [Collision Events](references/collision-events.md) | Collision Events, Sensors, Collision Groups |
-| [Joints](references/joints.md) | Joints |
-| [Accessing the World](references/accessing-the-world.md) | Instanced Physics, Accessing the World, Attractors, Debug Visualization, Performance Tips |
+| [RigidBody](../../skills/r3f-physics/references/rigidbody.md) | Quick Start, Installation, Physics Component, RigidBody |
+| [Colliders](../../skills/r3f-physics/references/colliders.md) | Colliders, Applying Forces |
+| [Collision Events](../../skills/r3f-physics/references/collision-events.md) | Collision Events, Sensors, Collision Groups |
+| [Joints](../../skills/r3f-physics/references/joints.md) | Joints |
+| [Accessing the World](../../skills/r3f-physics/references/accessing-the-world.md) | Instanced Physics, Accessing the World, Attractors, Debug Visualization, Performance Tips |
 
 ## See Also
 

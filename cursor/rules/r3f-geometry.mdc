@@ -18,9 +18,9 @@ Each topic is a reference file — read the one the task needs, not the whole se
 
 | Reference | Covers |
 |---|---|
-| [Built-in Geometries](references/built-in-geometries.md) | Quick Start, Built-in Geometries, Drei Shape Helpers |
-| [Custom BufferGeometry](references/custom-buffergeometry.md) | Custom BufferGeometry, Drei Instancing |
-| [Points (Particle Systems)](references/points-particle-systems.md) | Points (Particle Systems), Lines, Edges and Wireframe, Text Geometry, Geometry Utilities, Performance Tips |
+| [Built-in Geometries](../../skills/r3f-geometry/references/built-in-geometries.md) | Quick Start, Built-in Geometries, Drei Shape Helpers |
+| [Custom BufferGeometry](../../skills/r3f-geometry/references/custom-buffergeometry.md) | Custom BufferGeometry, Drei Instancing |
+| [Points (Particle Systems)](../../skills/r3f-geometry/references/points-particle-systems.md) | Points (Particle Systems), Lines, Edges and Wireframe, Text Geometry, Geometry Utilities, Performance Tips |
 
 ## See Also
 

@@ -18,10 +18,10 @@ Each topic is a reference file — read the one the task needs, not the whole se
 
 | Reference | Covers |
 |---|---|
-| [shaderMaterial (Drei)](references/shadermaterial-drei.md) | Quick Start, shaderMaterial (Drei) |
-| [Uniforms](references/uniforms.md) | Raw THREE.ShaderMaterial, Uniforms, Varyings |
-| [Common Shader Patterns](references/common-shader-patterns.md) | Common Shader Patterns |
-| [Instanced Shaders](references/instanced-shaders.md) | Extending Built-in Materials, GLSL Built-in Functions, Instanced Shaders, External Shader Files, Material Properties, Debugging Shaders, Performance Tips |
+| [shaderMaterial (Drei)](../../skills/r3f-shaders/references/shadermaterial-drei.md) | Quick Start, shaderMaterial (Drei) |
+| [Uniforms](../../skills/r3f-shaders/references/uniforms.md) | Raw THREE.ShaderMaterial, Uniforms, Varyings |
+| [Common Shader Patterns](../../skills/r3f-shaders/references/common-shader-patterns.md) | Common Shader Patterns |
+| [Instanced Shaders](../../skills/r3f-shaders/references/instanced-shaders.md) | Extending Built-in Materials, GLSL Built-in Functions, Instanced Shaders, External Shader Files, Material Properties, Debugging Shaders, Performance Tips |
 
 ## See Also
 

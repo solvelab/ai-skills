@@ -18,10 +18,10 @@ Each topic is a reference file — read the one the task needs, not the whole se
 
 | Reference | Covers |
 |---|---|
-| [useFrame Hook](references/useframe-hook.md) | Quick Start, Canvas Component, useFrame Hook |
-| [JSX Elements](references/jsx-elements.md) | useThree Hook, JSX Elements |
-| [Event Handling](references/event-handling.md) | Event Handling, primitive Element, extend Function, Refs and Imperative Access, Performance Patterns |
-| [Debugging with Leva](references/debugging-with-leva.md) | Common Patterns, Debugging with Leva |
+| [useFrame Hook](../../skills/r3f-fundamentals/references/useframe-hook.md) | Quick Start, Canvas Component, useFrame Hook |
+| [JSX Elements](../../skills/r3f-fundamentals/references/jsx-elements.md) | useThree Hook, JSX Elements |
+| [Event Handling](../../skills/r3f-fundamentals/references/event-handling.md) | Event Handling, primitive Element, extend Function, Refs and Imperative Access, Performance Patterns |
+| [Debugging with Leva](../../skills/r3f-fundamentals/references/debugging-with-leva.md) | Common Patterns, Debugging with Leva |
 
 ## See Also
 

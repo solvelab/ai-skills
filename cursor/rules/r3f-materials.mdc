@@ -18,9 +18,9 @@ Each topic is a reference file — read the one the task needs, not the whole se
 
 | Reference | Covers |
 |---|---|
-| [meshPhysicalMaterial (Advanced PBR)](references/meshphysicalmaterial-advanced-pbr.md) | Quick Start, Material Types Overview, meshBasicMaterial, meshStandardMaterial (PBR), meshPhysicalMaterial (Advanced PBR) |
-| [Drei Special Materials](references/drei-special-materials.md) | Drei Special Materials, Points and Lines Materials, Common Material Properties |
-| [Dynamic Materials](references/dynamic-materials.md) | Dynamic Materials, Multiple Materials, Material with Textures, Emissive Materials (Glow), Environment Maps, Custom Shader Materials, Performance Tips |
+| [meshPhysicalMaterial (Advanced PBR)](../../skills/r3f-materials/references/meshphysicalmaterial-advanced-pbr.md) | Quick Start, Material Types Overview, meshBasicMaterial, meshStandardMaterial (PBR), meshPhysicalMaterial (Advanced PBR) |
+| [Drei Special Materials](../../skills/r3f-materials/references/drei-special-materials.md) | Drei Special Materials, Points and Lines Materials, Common Material Properties |
+| [Dynamic Materials](../../skills/r3f-materials/references/dynamic-materials.md) | Dynamic Materials, Multiple Materials, Material with Textures, Emissive Materials (Glow), Environment Maps, Custom Shader Materials, Performance Tips |
 
 ## See Also
 
