@@ -26,23 +26,56 @@ the type.
 
 ## Type → icon mapping
 
-| Type | Icon | Use |
-|---|---|---|
-| `feat` | ✨ | new functionality |
-| `fix` | 🐛 | bug fix |
-| `refactor` | ♻️ | refactoring without behavior change |
-| `docs` | 📝 | documentation |
-| `chore` | 🧹 | maintenance tasks, configs, deps |
-| `test` | ✅ | tests |
-| `style` | 🎨 | formatting, style, no logic change |
-| `perf` | ⚡ | performance |
-| `ci` | 👷 | CI/CD |
-| `build` | 📦 | build system, dependencies |
-| `revert` | ⏪ | revert a previous commit |
-| `security` | 🔒 | security fixes |
+| Type | Icon | Use | Cuts a release? |
+|---|---|---|---|
+| `feat` | ✨ | new functionality | **minor** |
+| `fix` | 🐛 | bug fix | **patch** |
+| `perf` | ⚡ | performance | **patch** |
+| `refactor` | ♻️ | refactoring without behavior change | depends on config |
+| `docs` | 📝 | documentation | no |
+| `chore` | 🧹 | maintenance tasks, configs, deps | no |
+| `test` | ✅ | tests | no |
+| `style` | 🎨 | formatting, style, no logic change | no |
+| `ci` | 👷 | CI/CD | no |
+| `build` | 📦 | build system, dependencies | no |
+| `revert` | ⏪ | revert a previous commit | no |
+| `security` | 🔒 | security fixes | **no — see below** |
+
+Any type plus `!` (or a `BREAKING CHANGE:` footer) is a **major**, regardless of the row above.
 
 When the change doesn't cleanly fit one type (e.g. multiple concerns), pick the dominant one — don't
 stack icons.
+
+### The release column is a trap for two types
+
+Under the `conventionalcommits` preset, **only `feat`, `fix` and `perf` cut a release** unless the
+repo overrides it in `releaseRules`. Two consequences worth memorising:
+
+- **`security` ships nothing.** It is not a preset type, so a `🔒 security(auth): rotate leaked
+  token` commit produces no release and no changelog entry — the fix sits on the default branch
+  unreleased. Type a shippable security fix as **`fix`** and put the emphasis in the scope or body:
+  `🔒 fix(auth): rotate leaked service token`. Keep `security` only for changes that genuinely must
+  not trigger a release.
+- **`ci`, `test`, `build`, `style`, `revert` ship nothing either.** That is usually right, but it
+  means a change that users depend on must not be typed `ci` for tidiness.
+
+Verified in this repo: `🐛 fix(r3f): …` cut v2.0.1, while `✅ ci(skills): …` and
+`📝 docs(openspec): …` cut nothing (2026-08-06).
+
+### Repo-specific types override the defaults
+
+A repo can add types and change release levels in `.releaserc.json` → `releaseRules`. **Read that
+file before assuming.** In this catalog, for example:
+
+| Repo rule | Effect |
+|---|---|
+| `refactor` | patch (preset default would be none) |
+| `skill` | **minor** — a catalog-specific type for adding or reworking a skill |
+| `docs`, `chore` | explicitly none |
+
+The gitmoji prefix is optional as far as the release tooling is concerned — this repo's
+`headerPattern` (`^(?:[^\w\s]+\s+)?(\w+)…`) skips a leading non-word prefix — but it is
+mandatory by this convention. Never let the emoji *replace* the type.
 
 ## Hard rules
 
