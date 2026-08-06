@@ -13,7 +13,7 @@ description: >-
   for non-GitHub trackers (Jira, Linear, Trello).
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.1.1
   category: process
 license: MIT
 compatibility: >-
@@ -99,19 +99,3 @@ codebase.
 | Select option not found for a proposed value | Show available options; ask instead of guessing. |
 | Select field with an empty options array | Likely an org **issue field** mirrored into the board — resolve options via `GET /orgs/<owner>/issue-fields` and set through the issue-field-values endpoint (see `references/gh-projects.md`), not `item-edit`. |
 
-## Trigger Test Cases
-
-Should trigger on:
-- "/backlog add social login authentication"
-- "Create a backlog item for rate limiting"
-- "Turn this idea into an issue on our board"
-- "Add this to the backlog of the project"
-
-Should NOT trigger on:
-- "Implement issue #123" (execute-backlog)
-- "Open a PR for this change"
-- "Create a ticket in Jira"
-- "List my GitHub issues"
-
-> **Verified against**: `gh 2.92.0`. Every subcommand and flag used below was probed
-> against that client. `gh project` moves fast — re-probe before trusting a recipe on an older CLI.

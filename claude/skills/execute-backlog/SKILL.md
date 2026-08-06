@@ -14,7 +14,7 @@ description: >-
   deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.3.0
+  version: 1.3.1
   category: process
 license: MIT
 compatibility: >-

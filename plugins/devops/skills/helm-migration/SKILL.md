@@ -1,10 +1,10 @@
 ---
 name: helm-migration
 description: >-
-  Converts Kubernetes YAML manifests to Helm values.yaml and env.yaml following the solvelab chart template structure — requires a local copy of that chart template repository (the template-specific fields do not exist in stock Helm charts). Use when user mentions "migrate to helm", "convert yaml to helm", "generate values.yaml", "helm migration", "yaml to helm", shares a Kubernetes YAML and asks for Helm output. Always removes tolerations. Always generates values.yaml; generates env.yaml only when the source YAML defines secrets, configmaps or PVCs.
+  Converts Kubernetes YAML manifests to Helm values.yaml and env.yaml following the solvelab chart template structure — requires a local copy of that chart template repository (the template-specific fields do not exist in stock Helm charts). Use when user mentions "migrate to helm", "convert yaml to helm", "generate values.yaml", "helm migration", "yaml to helm", shares a Kubernetes YAML and asks for Helm output. Always removes tolerations. Always generates values.yaml; generates env.yaml only when the source YAML defines secrets, configmaps or PVCs. Do NOT use for writing plain Kubernetes manifests or docker-compose files, for authoring a Helm chart from scratch, or for documentation and code changes unrelated to a Helm migration.
 metadata:
   author: solvelab
-  version: 2.1.0
+  version: 2.2.0
   category: devops
 license: MIT
 compatibility: Requires a Helm charts template repository accessible on the local filesystem. Works best in Claude Code.
@@ -258,30 +258,6 @@ Rules:
 
 ---
 
-## How to Use
-
-Use this prompt to trigger the skill:
-```
-Migrate this YAML-file to Helm following the helm-migration skill.
-Charts template path: [PATH_TO_CHARTS_TEMPLATE]
-Source YAML-file: [PATH_TO_YAML_FILE]
-Save files to: [DESTINATION_PATH]
-```
-
-Claude will generate:
-- `values.yaml` — workload definition
-- `env.yaml` — secrets, configmaps and PVCs (only if present in source YAML)
-
-### Example
-```
-Migrate this YAML-file to Helm following the helm-migration skill.
-Charts template path: /path/to/charts-template
-Source YAML-file: /path/to/source/deployment.yaml
-Save files to: /path/to/output/helm/
-```
-
----
-
 ## Troubleshooting
 
 **Problem**: Field exists in YAML but not in charts template.
@@ -323,19 +299,3 @@ See `references/examples.md` for complete before/after examples of:
 - Deployment with secretKeyRef and commented resource limits
 - Deployment with PVC
 
----
-
-## Trigger Test Cases
-
-Should trigger on:
-- "Migrate this YAML to Helm"
-- "Convert this manifest to values.yaml"
-- "Generate values.yaml for this deployment"
-- "I need to helm-migrate this file"
-- "Create env.yaml from this YAML"
-
-Should NOT trigger on:
-- "Update the README"
-- "Fix this Python bug"
-- "Create a docker-compose file"
-- "Write documentation for this project"
