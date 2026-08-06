@@ -5,12 +5,13 @@ description: >-
   server's text logs, parses lines into normalized events, and ships them to a backend API.
   Distilled from a production collector for an Assetto Corsa server, but stack-agnostic. Use when
   building or reviewing a log tailer, log-to-event parser, file offset persistence, log rotation or
-  truncation handling, multi-line event correlation, shutdown flush, or idempotency/dedup keys for
-  shipped events. Do NOT use for configuring log aggregation stacks (Loki, Fluentd, Filebeat), for
-  the API that receives the events (that is python-rest-api), or for metrics/APM instrumentation.
+  truncation handling, partial-line reads, multi-line event correlation, backpressure, shutdown flush,
+  or idempotency/dedup keys for shipped events. Do NOT use for configuring log aggregation stacks
+  (Loki, Fluentd, Filebeat), for the API that receives the events (that is python-rest-api), or for
+  metrics/APM instrumentation of the monitored application.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: backend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -41,15 +42,35 @@ tests/             # unit tests + golden log fixture
 
 Keep it **dependency-free (stdlib-only) when the deploy target is a bare container** — `urllib`,
 `re`, `json`, `signal` cover everything a collector needs, and the image stays a plain
-`python:3.12-slim` with zero supply chain.
+`python:3.12-slim` with zero supply chain. When the runtime already ships an HTTP client, or the image
+isn't yours to keep minimal, use it: the rule is *no new supply chain for the sake of ergonomics*, not
+*stdlib at any cost*. `urllib` costs you connection pooling, per-phase timeouts and `Retry-After`
+parsing — pay that deliberately, not by default.
 
 ## Tailing — offset in bytes, rotation-proof
 
 - Pick the newest log file by mtime (`sorted(glob("*.txt"), key=mtime)[-1]`) each poll — servers
   start a new file per boot.
 - Persist the **byte offset** together with the file path it belongs to. On read: if the stored
-  path differs from the current file, start at 0; `seek(offset)`; after iterating, store
-  `handle.tell()`.
+  path differs from the current file, start at 0; `seek(offset)`.
+- **Advance the offset only to the last complete line** — never `handle.tell()` after iterating. A
+  poll that lands mid-write consumes a half-line, ships a truncated event, and loses the remainder
+  forever. Measured: one line arriving across two write flushes produced two bogus events and zero
+  correct ones.
+
+  ```python
+  with path.open("rb") as handle:
+      handle.seek(offset)
+      buf = handle.read()
+  cut = buf.rfind(b"\n")
+  if cut < 0:
+      return []                       # nothing complete yet — offset unchanged
+  offset += cut + 1
+  lines = buf[:cut].decode("utf-8", "replace").split("\n")
+  ```
+
+  Cap the held-back remainder (e.g. 1 MiB): a writer that never emits `\n` must not grow the buffer
+  without bound.
 - **Truncation/rotation guard**: `if offset > path.stat().st_size: offset = 0`. Without this, a
   rotated/truncated file silently yields nothing forever.
 - `start_at_end` option (seek to EOF when there is no stored state) so a fresh deploy doesn't
@@ -75,11 +96,21 @@ stale one.
 
 ## Idempotency — deterministic event_key + bounded seen-set
 
-- Every parsed event carries a deterministic `event_key`:
-  `f"player_connected:{steam_id}:{slot}:{line_hash(raw_line)}"` — type + stable ids + a hash of
-  the raw line. Singleton events use a constant key (`"server_started"`).
-- The seen-set is **bounded** (`processed_events[-1000:]`): dedup protects against re-reading the
-  recent window after a restart, not against infinite memory growth.
+- Every parsed event carries a deterministic `event_key` built from type + stable ids + **where the
+  line sits in the log**: `f"player_connected:{steam_id}:{slot}:{log_file}:{line_offset}"`.
+  Singleton events use a constant key (`"server_started"`).
+  Hashing the raw line instead collapses two genuinely distinct occurrences of a byte-identical line
+  into one key and silently drops the second — measured with two identical reconnect lines. The key
+  must be **stable** across a restart that re-reads the same bytes and **distinct** across two real
+  occurrences; the byte offset is both.
+- The seen-set is a **`set` for lookup plus a `deque(maxlen=N)` for the bound** — persist the deque,
+  rebuild the set on load. A plain list is O(n) per check (measured 37x slower at N=1000) and grows
+  unbounded the moment someone forgets the slice.
+- **Size the window against the worst replay, not the happy one.** The rotation guard
+  (`offset > size → offset = 0`) can re-read an entire file, so a file with more lines than N replays
+  straight past the dedup window. Either size N above the largest expected file, or make the backend
+  the idempotency authority (unique index on `event_key`) and treat the local ring as an optimization.
+  State which one the project chose.
 - Dispatch failure is **non-fatal**: log it, do NOT mark the key as seen, let the next scan retry.
   Only mark seen after the backend accepted the event.
 
@@ -114,9 +145,12 @@ Without this, every deploy leaves phantom "online" players in the backend.
 
 ## Backend client — small, honest, testable
 
-- Bounded retry on **connection** errors only (3 attempts, linear backoff `sleep(attempt)`);
-  HTTP errors (4xx/5xx with a response) raise immediately with the body in the message — they are
-  contract problems, not blips.
+- Retry policy follows `backend-resilience` (bounded attempts, exponential backoff + **jitter**, one
+  overall deadline). Collector specifics: retry **connection** errors plus 429/502/503/504, honoring
+  `Retry-After`; every other 4xx raises immediately with the body in the message — it is a contract
+  problem, not a blip. State the worst case next to the config: `attempts x timeout + backoff` must
+  stay under the poll interval, or the tailer falls behind while it retries (a 3x10s policy with
+  linear backoff is already 33s of blocked loop).
 - Service auth = one header (e.g. `X-Drivezone-Token`), added only when configured.
 - Unwrap the backend envelope at the client boundary (`data.get("data", data)`) so the rest of the
   collector never sees transport shape.
@@ -129,6 +163,22 @@ Every payload carries `source` (which collector), `event_version: 1` (forward-co
 `occurred_at` (parsed from the log timestamp, not "now"), and preserves the raw line in
 `payload.raw_line` — when a parser bug is found later, the raw material to re-derive is already
 in the backend. Ship to one generic endpoint (`POST /api/v1/events`); let the backend normalize.
+
+## Backpressure — the backend is the slow part
+
+The poll loop and the dispatcher must not be the same unbounded loop. Keep a **bounded** in-memory
+queue between "lines parsed" and "events shipped"; when it fills, **stop tailing** and leave the offset
+where it is, rather than dropping events or growing memory — the log file on disk is the buffer, and a
+better one than RAM. Batch dispatch when the backend offers a batch endpoint: per-event POSTs cap
+throughput at one round-trip per event and multiply the auth/TLS cost.
+
+## The collector's own observability
+
+A collector that silently falls behind is worse than one that crashes. Expose at minimum: **lag**
+(`file_size - offset`, in bytes), events parsed / shipped / failed since boot, last successful dispatch
+timestamp, and **unparsed-line count**. A rising unparsed-line count is the detector for the top risk
+this skill names below — the upstream changing its log format — and without it that risk is only
+discovered when someone notices missing data.
 
 ## Testing
 

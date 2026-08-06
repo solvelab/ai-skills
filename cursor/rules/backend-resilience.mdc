@@ -1,6 +1,6 @@
 ---
 description: >-
-  Resilience and fallback patterns for any service calling an unreliable dependency — external API, config store (Consul/KV), database, message broker, or another internal service. Use when adding or reviewing code that makes network calls that can time out, return 5xx, return partial payloads, or hit a dependency that is down — or when adding config fetch, retry logic, caching of failures, or degraded-mode behavior. Enforces safe defaults, one shared fallback helper, response-shape validation, clamping of remote values, bounded retries, negative caching, and in-flight deduplication. Examples in Python; the doctrine is language-agnostic. For the FiveM/Lua adaptation use fivem-fallback instead.
+  Resilience and fallback patterns for any service calling an unreliable dependency — external API, config store (Consul/KV), database, message broker, or another internal service. Use when adding or reviewing code that makes network calls that can time out, return 5xx, return partial payloads, or hit a dependency that is down — or when adding config fetch, retry logic, caching of failures, or degraded-mode behavior. Enforces explicit timeouts and a wall-clock deadline, retries only on idempotent operations with exponential backoff + jitter, safe defaults, one shared fallback helper, response-shape validation, clamping of remote values, negative caching with single-flight, and observable degradation. Examples in Python; the doctrine is language-agnostic. For the FiveM/Lua adaptation use fivem-fallback instead.
 alwaysApply: false
 ---
 
@@ -11,30 +11,76 @@ Defensive patterns for calling an unreliable dependency. The network boundary is
 5xx, partial payloads, dependency down, races. Every call needs a **safe default** so the service keeps
 working. Doctrine is stack-agnostic; examples are Python.
 
+Apply in this order — it is the order of risk reduction, and each layer assumes the one above it:
+**timeout → deadline → bounded retry (idempotent only) → negative cache + single-flight → fallback
+default → surface the degradation.**
+
 ## Principles
 
-1. **Every external call can fail.** A failed call must produce a safe default — never a crash, and
+1. **Every external call has an explicit timeout.** A call with no timeout is an unbounded outage
+   waiting to happen; a retry on a hung connection waits forever. Set connect and read timeouts
+   separately — never rely on the library default.
+2. **Bound the wall clock, not just the attempt count.** "3 attempts" says nothing about latency.
+   Give the whole operation a **deadline** and check it before each attempt; when the caller is
+   serving an HTTP request, that deadline must be shorter than the request's own budget.
+3. **Retry only what is safe to repeat.** GET/HEAD/PUT/DELETE are retriable. A POST that charges,
+   ships, or writes is retriable **only** with an idempotency key the dependency honors. Otherwise a
+   5xx is a final answer — surface it.
+4. **Every external call can fail.** A failed call must produce a safe default — never a crash, and
    never silent stale state presented as fresh.
-2. **One shared helper, not ad-hoc per module.** Scattered try/except + type-check copies drift.
+5. **One shared helper, not ad-hoc per module.** Scattered try/except + type-check copies drift.
    Provide a single `safe_call`/`with_fallback` utility and use it everywhere.
-3. **Validate the response shape**, not just transport success: check the type, the expected fields,
+6. **Validate the response shape**, not just transport success: check the type, the expected fields,
    and the status/code before trusting the data.
-4. **Clamp untrusted/remote numbers** into a sane range — a bad config value must not break the system.
-5. **Bound retries.** If the HTTP client already retries 5xx, don't stack an unbounded second retry
-   loop on top. Total attempts across all layers must be finite and known.
+7. **Clamp untrusted/remote numbers** into a sane range — a bad config value must not break the system.
+8. **Degradation is an event, not a silence.** Every fallback carries its cause into a log line and a
+   counter. A fallback nobody can see is indistinguishable from correct behavior.
+
+## Timeouts and the deadline budget
+
+```python
+TIMEOUT = httpx.Timeout(connect=1.0, read=2.0, write=2.0, pool=1.0)
+
+deadline = time.monotonic() + 3.0          # the WHOLE operation, retries included
+while time.monotonic() < deadline:
+    ...                                     # attempt; sleep only if it still fits in the deadline
+```
+
+Sizing rule: `attempts x timeout + total backoff <= deadline <= the caller's own budget`. If the
+numbers don't fit, cut the attempts — not the timeout. Worst-case latency must be a number you can
+state; if you can't state it, the policy is unbounded.
+
+Attempt counts above ~3 are almost always wrong on a request path. Measured worst cases for policies
+this catalog used to prescribe: 10 attempts at a 5s timeout = **50s**; the same client stacked under a
+20-attempt/3s boot loop = **~18 minutes** before a caller gets an answer.
 
 ## safe_call / clamp
 
+The helper must report **why** it fell back. Measured: four distinct causes — a dependency timeout, a
+`TypeError` from your own code, malformed JSON, and a `MemoryError` — collapsed into one
+indistinguishable `(False, fallback)` with zero log lines. An operator cannot tell a code bug from an
+outage, and neither can a dashboard.
+
 ```python
-from typing import Callable, TypeVar
+from typing import Awaitable, Callable, TypeVar
 
 T = TypeVar("T")
 
-def safe_call(fn: Callable[[], T], fallback: T) -> tuple[bool, T]:
-    """Returns (ok, value). On any failure returns (False, fallback) — never raises."""
+def safe_call(fn: Callable[[], T], fallback: T, *, op: str) -> tuple[bool, T]:
+    """Returns (ok, value). On failure returns (False, fallback) — never raises."""
     try:
         return True, fn()
-    except Exception:
+    except Exception as exc:                       # noqa: BLE001 — boundary helper, by design
+        logger.warning("fallback_used", op=op, err_type=type(exc).__name__, err=str(exc))
+        FALLBACK_TOTAL.labels(op=op, err=type(exc).__name__).inc()
+        return False, fallback
+
+async def safe_call_async(fn: Callable[[], Awaitable[T]], fallback: T, *, op: str) -> tuple[bool, T]:
+    try:
+        return True, await fn()
+    except Exception as exc:                       # noqa: BLE001
+        logger.warning("fallback_used", op=op, err_type=type(exc).__name__, err=str(exc))
+        FALLBACK_TOTAL.labels(op=op, err=type(exc).__name__).inc()
         return False, fallback
 
 def clamp_num(value, lo: float, hi: float, default: float) -> float:
@@ -45,61 +91,132 @@ def clamp_num(value, lo: float, hi: float, default: float) -> float:
     return max(lo, min(hi, v))
 ```
 
-## Config / KV with hardcoded fallback
+The counter is part of the helper, not an afterthought: an alert on `rate(fallback_used)` is the only
+way a permanently-degraded service announces itself.
 
-Remote config (Consul KV, a `/config/*` endpoint) WILL be unavailable sometimes. Always ship a
-hardcoded default and merge field-by-field; clamp ranges.
+`asyncio.CancelledError` is a `BaseException` and correctly escapes `except Exception` — do **not**
+widen the catch to `BaseException`, that swallows shutdown and enclosing timeouts. In an `async def`
+path use `safe_call_async`: the sync helper wrapped around a blocking client blocks the event loop for
+every concurrent request, which is worse than no resilience at all.
+
+## Retry: bounded, backed off, jittered
 
 ```python
-FALLBACK = {"xp_per_level": 100, "max_level": 50}   # hardcoded safe default
-
-ok, cfg = safe_call(lambda: kv_client.get_json("game/config"), None)
-if not ok or not isinstance(cfg, dict):
-    cfg = dict(FALLBACK)                            # degrade, don't crash — and log it
-max_level = clamp_num(cfg.get("max_level"), 1, 999, FALLBACK["max_level"])
+for attempt in range(1, MAX_ATTEMPTS + 1):
+    if time.monotonic() >= deadline:
+        break
+    try:
+        return call()
+    except RetryableError as exc:
+        if attempt == MAX_ATTEMPTS or not is_idempotent:
+            raise
+        delay = min(BASE * 2 ** (attempt - 1), CAP)
+        delay = random.uniform(0, delay)           # full jitter — NOT a fixed ramp
+        if exc.retry_after:                        # 429/503 Retry-After wins over your backoff
+            delay = max(delay, exc.retry_after)
+        if time.monotonic() + delay >= deadline:
+            break
+        time.sleep(delay)
 ```
 
-## Negative cache (avoid timeout cascade)
+- **Retryable**: connect/read timeouts, connection resets, 502/503/504, and 429 (honoring
+  `Retry-After`). **Not retryable**: any other 4xx — a 4xx is an answer.
+- **Jitter is not optional.** Fixed or purely exponential backoff synchronizes every client onto the
+  same retry instants and re-kills the dependency the moment it recovers.
+- **Do not stack retry layers.** If the HTTP client already retries, the caller must not. Total
+  attempts across all layers must be finite, known, and written down next to the config.
+- **Retry budget**: cap retries at ~10-20% of normal traffic (a token bucket per dependency). Past
+  that, shed to the fallback — retries during a broad outage *are* the outage.
 
-When a dependency is unreachable, cache the *failure* briefly (a few seconds) so every subsequent call
-doesn't wait out the full timeout. Re-query after the fail-TTL expires.
+## Negative cache + single-flight (avoid timeout cascade)
 
-**Exception:** a real 404 / "not found" is an answer, not a transport failure — do NOT negative-cache it.
-The same applies to any fast non-200 or a malformed body: only the path that pays the timeout gets
-negative-cached. Full production-extracted implementation (Consul KV, two caches, ACL auto-detect):
-`references/consul-kv-negative-cache.md`.
+When a dependency is unreachable, cache the *failure* briefly so every subsequent call doesn't wait out
+the full timeout — **and** guard the probe with a single-flight lock so a concurrent burst sends one
+probe, not N.
+
+Measured: 200 concurrent callers against a down dependency, negative cache alone → **38** callers still
+paid the full timeout (a burst all misses the cold cache together); with a single-flight guard → **1**.
+A negative cache without single-flight only protects *sequential* callers, which is not the shape an
+outage has.
 
 ```python
 _fail_until = 0.0
+_probe = threading.Lock()
 FAIL_TTL = 15.0
 
 def get_price(item_id: str) -> float | None:
     global _fail_until
     if time.monotonic() < _fail_until:
         return None                                  # known-down: fail fast
+    if not _probe.acquire(blocking=False):
+        return None                                  # someone is already probing — don't pile on
     try:
+        if time.monotonic() < _fail_until:           # re-check under the guard
+            return None
         return pricing_client.get(item_id)           # a 404 here returns None, not an exception
     except TransportError:
-        _fail_until = time.monotonic() + FAIL_TTL    # transport failure: back off
+        _fail_until = time.monotonic() + FAIL_TTL * random.uniform(0.8, 1.2)   # jitter the TTL
         return None
+    finally:
+        _probe.release()
+```
+
+- **Jitter the fail-TTL.** With a fixed TTL every caller retries on the same instant: measured 200
+  simultaneous probes at `t = TTL`. `FAIL_TTL * uniform(0.8, 1.2)` spreads them.
+- **Key the cache per dependency-key**, not one global flag, or one dead key blinds every other.
+- **Exception:** a real 404 / "not found" is an answer, not a transport failure — do NOT
+  negative-cache it. Same for any fast non-200 or a malformed body: only the path that pays the
+  timeout gets negative-cached. Full production-extracted implementation (Consul KV, two caches, ACL
+  auto-detect): `references/consul-kv-negative-cache.md`.
+- **When a fail-flag is not enough**: if the dependency degrades *slowly and partially* (some calls
+  succeed, latency climbs), it never trips. Use a real circuit breaker — open on an error *rate* over
+  a rolling window, half-open with a single trial call — with the same fallback behind it.
+
+## Config / KV with hardcoded fallback
+
+Remote config (Consul KV, a `/config/*` endpoint) WILL be unavailable sometimes. Always ship a
+hardcoded default and merge **field by field** — one bad field must not discard an otherwise valid
+response — and clamp ranges.
+
+```python
+FALLBACK = {"xp_per_level": 100, "max_level": 50}   # hardcoded safe default
+
+ok, cfg = safe_call(lambda: kv_client.get_json("game/config"), None, op="game_config")
+if not ok or not isinstance(cfg, dict):
+    cfg = dict(FALLBACK)                            # degrade, don't crash — already logged + counted
+max_level = clamp_num(cfg.get("max_level"), 1, 999, FALLBACK["max_level"])
 ```
 
 ## Startup config: retry then degrade
 
-At boot, retry the config fetch a bounded number of times, then start in degraded mode on the hardcoded
-fallback — a config outage must not prevent startup. Log the degradation and refresh when the
-dependency recovers (background task, health-check hook, or next request).
+At boot, retry the config fetch a bounded number of times **under a total boot deadline**, then start
+in degraded mode on the hardcoded fallback — a config outage must not prevent startup, and must not
+delay it indefinitely either. Log the degradation and refresh when the dependency recovers (background
+task, health-check hook, or next request).
 
 ## Surface failures to the caller
 
 A handler that depends on a downstream call must tell its caller when that call failed — an explicit
 error response or degraded-data marker — never a silent success with stale/empty data. (HTTP: 503 with
-a Problem Details body beats a fabricated 200.)
+an error body beats a fabricated 200.) Serving a last-known-good value is fine **only** when the
+response marks it stale (a `degraded: true` field or a `Warning` header).
+
+Readiness must reflect it too: a service running entirely on fallbacks is degraded, and the detailed
+health endpoint has to say so even while liveness stays green.
 
 ## Concurrency: deduplicate in-flight requests
 
 Guard against duplicate concurrent requests for the same key (single-flight / per-key lock) so N
 concurrent triggers don't spawn N identical downstream calls and overwrite each other out of order.
+This is the same guard the negative cache uses — implement it once, per key, and reuse it.
+
+## What to test (hand to `bug-hunter`)
+
+Every rule above is a test: dependency times out → fallback + one log line + one counter increment;
+dependency returns a partial or wrong-typed body → fallback, not a crash; a real 404 → NOT
+negative-cached; N concurrent callers with the dependency down → exactly one upstream attempt; retry of
+a non-idempotent write → does not double-apply; worst-case latency of the retry policy → asserted
+against the stated deadline.
 
 ## See also
 
@@ -107,3 +224,4 @@ concurrent triggers don't spawn N identical downstream calls and overwrite each 
 - `bug-hunter` — the adversarial-testing rite that validates fallback under "dependency down / partial
   payload / race".
 - `fivem-fallback` — the FiveM/Lua adaptation of this doctrine.
+- `python-rest-api` — the service baseline these outbound calls are made from.

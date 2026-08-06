@@ -47,14 +47,20 @@ trusting `data` — transport success is not payload validity.
 
 ```lua
 CreateThread(function()
-  for _ = 1, 20 do
+  local deadline = GetGameTimer() + 60000            -- bound the WALL CLOCK, not just the count
+  local wait = 500
+  while GetGameTimer() < deadline do
     local ok = SafeCall(refreshConfig, false)
     if ok then return end
-    Wait(3000)
+    Wait(math.random(wait, wait * 2))                -- jittered, growing backoff
+    wait = math.min(wait * 2, 8000)
   end
   -- still down → run on hardcoded fallback; log it; let a later event refresh
 end)
 ```
+
+The deadline is the point: a fixed `for 1, 20 do ... Wait(3000)` loop wrapped around a client that
+itself retries multiplies out to minutes of boot with no upper bound anyone wrote down.
 
 ## NUI callbacks must signal failure
 
@@ -74,11 +80,23 @@ end)
 
 ## Shared HTTP client (retry only on 5xx)
 
-All Lua→backend traffic goes through ONE shared wrapper: bounded retry (10×) **only on 5xx** — a
-4xx is an answer, not a transport failure (same doctrine as the 404 negative-cache exception) —
-service-token header injected without overwriting the caller's, and a loud-fail placeholder
-hostname so misconfig breaks visibly instead of silently hitting localhost. Production-extracted
-implementation: `references/http-client-retry.md`.
+All Lua→backend traffic goes through ONE shared wrapper: bounded retry **only on 5xx** — a 4xx is an
+answer, not a transport failure (same doctrine as the 404 negative-cache exception) — service-token
+header injected without overwriting the caller's, and a loud-fail placeholder hostname so misconfig
+breaks visibly instead of silently hitting localhost. Production-extracted implementation:
+`references/http-client-retry.md`.
+
+Bound it the way `backend-resilience` requires, because an attempt count alone does not:
+
+- **Give the call a deadline**, not just a retry count. 10 attempts at a 5s timeout is a 50s worst
+  case; the same client under the 20-attempt boot loop below reaches ~18 minutes. Keep the total under
+  what the caller (a player action, a NUI callback) can actually wait for — 3 attempts is the right
+  order of magnitude on a player-facing path.
+- **Jitter the wait** (`Wait(base * 2^n * math.random())`). A fixed ramp puts every FiveM instance on
+  the same retry instant and re-kills the backend as it recovers.
+- **Retry only what is safe to repeat.** A 5xx on a GET is a blip; a 5xx on "buy this item" is
+  ambiguous — the write may already have landed. Retry it only when the backend honors an idempotency
+  key you send on every attempt; otherwise surface the failure to the player.
 
 ## Concurrency
 

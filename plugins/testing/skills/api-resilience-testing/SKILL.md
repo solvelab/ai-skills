@@ -4,7 +4,7 @@ description: >-
   Tests REST/HTTP APIs beyond the happy path — negative, fuzz, contract, and security testing — to find critical failures before production. Use this skill whenever the work involves a REST API: adding or changing an endpoint, reviewing an API PR or diff, writing API tests, designing request/response schemas, or when the user says "test/harden/break/audit/review the API", "negative testing", "fuzz", "API robustness", "API security", "validate payloads", or asks about invalid inputs, status codes, error handling, auth/authz, or OpenAPI/Swagger contract validation. Produces an endpoint map, positive + negative scenarios, suggested automated tests, and a resilience checklist. Do NOT use for non-API or pure happy-path unit testing.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: testing
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -81,12 +81,19 @@ Run these in order. Produce concrete, runnable tests and a checklist — not pro
    403 authenticated-but-forbidden, 404 unknown resource, 405 wrong method,
    409 conflict, 413 too large, 415 unsupported media type, 422 semantic
    validation, 429 rate limit. A 500 on bad *input* is a bug — input errors must
-   be 4xx.
+   be 4xx. **Assert the code the stack actually returns, then decide whether the
+   difference is worth overriding** — a checklist that demands a code the
+   framework never emits marks a correct service as failing (see the baseline
+   table below).
 
-6. **Validate error responses are safe and useful.** Errors must be a consistent,
-   machine-readable shape (prefer RFC 9457 `application/problem+json`: type,
-   title, status, detail, instance). They must NOT leak stack traces, SQL,
-   internal paths, framework versions, or raw exception text. They MUST say
+6. **Validate error responses are safe and useful.** Errors must use **one
+   documented, machine-readable shape, applied to every error path** — the same
+   body for a 422 from the framework, a 409 from the database, and a 500 from
+   the catch-all. RFC 9457 `application/problem+json` (type, title, status,
+   detail, instance) is the right default for a greenfield API; an existing
+   documented envelope is equally valid and cheaper to keep — consistency is the
+   requirement, the specific shape is not. Errors must NOT leak stack traces,
+   SQL, internal paths, framework versions, or raw exception text. They MUST say
    clearly what was wrong so a client can fix it.
 
 7. **Verify authentication & authorization.** No token → 401. Expired/garbage/
@@ -125,14 +132,15 @@ Copy this per API/endpoint and mark `[x]` pass, `[ ]` gap.
 [ ] Over-length strings / oversized payload → 400/413
 [ ] Invalid format (email, uuid, date, enum) → 400/422
 [ ] Unknown/extra fields → ignored or rejected (documented, never crash)
-[ ] Malformed JSON / truncated body → 400 (not 500)
-[ ] Deeply nested / huge array payload → handled, no DoS
+[ ] Malformed JSON / truncated body → 4xx (not 500)
+[ ] Oversized payload → 413 (needs an explicit limit; no framework default)
+[ ] Deeply nested payload → 4xx (needs an explicit guard; 500 by default)
 
 ### Headers & content
-[ ] Missing Content-Type on a body request → 400/415
-[ ] Wrong Content-Type (text/plain for JSON) → 415
+[ ] Missing Content-Type on a body request → 4xx
+[ ] Wrong Content-Type (text/plain for JSON) → 4xx (415 only if you enforce it)
 [ ] Missing required custom headers → handled
-[ ] Unsupported Accept → 406 or sane default
+[ ] Unsupported Accept → 406 or sane default (200 by default — decide explicitly)
 
 ### Auth & authorization
 [ ] No token → 401
@@ -149,7 +157,7 @@ Copy this per API/endpoint and mark `[x]` pass, `[ ]` gap.
 
 ### Status codes & errors
 [ ] Input errors are 4xx, never 5xx
-[ ] Error body is consistent & machine-readable (ideally RFC 9457)
+[ ] Error body uses ONE documented shape on every error path (RFC 9457 if greenfield)
 [ ] No stack trace / SQL / internal path / version leaked in any error
 [ ] Error message is actionable (says what to fix)
 
@@ -165,6 +173,29 @@ Copy this per API/endpoint and mark `[x]` pass, `[ ]` gap.
 ```
 
 See `references/negative-test-catalog.md` for concrete request/response examples.
+
+## Baseline behavior — assert reality, not folklore
+
+A checklist that asserts a status code the framework never emits produces false failures. Measured on
+FastAPI 0.141.1 / pydantic 2.13.4 (the `python-rest-api` baseline), stock service, no extra handlers:
+
+| Negative case | Often asserted | Actually returned | Worth overriding? |
+|---|---|---|---|
+| Malformed / truncated JSON | 400 | **422** | No — 422 is a fine, consistent rejection |
+| Missing `Content-Type` on a body | 400/415 | **422** | No |
+| Wrong `Content-Type` (`text/plain`) | 415 | **422** | Only if a client contract needs 415 |
+| Unsupported `Accept` | 406 | **200** | Only if you really serve >1 media type |
+| Wrong path-param type (`/users/abc`) | 404 | **422** | No — the route matched, the value didn't |
+| Wrong HTTP method | 405 | **405** (with `Allow`) | Already correct |
+| Extra/unknown body field | rejected | **200**, ignored | Yes if the field is privileged (mass assignment) |
+| **2 KB body of nested brackets** | handled | **500** (`RecursionError`) | **Yes — this is the bug** |
+| **20 MB flat JSON body** | 413 | **200**, fully buffered | **Yes — no default limit exists** |
+
+The last two are not style preferences: a 2 KB unauthenticated request that returns 500 is a
+denial-of-service primitive. The guard belongs to the service baseline — see `python-rest-api`
+("Request limits"), which carries the verified middleware + handler.
+
+Re-run this table against your own stack and version before trusting any row of it.
 
 ---
 
@@ -198,8 +229,10 @@ See `references/negative-test-catalog.md` for concrete request/response examples
   endpoint, ask "what breaks it?" before approving.
 - **Contract as source of truth:** keep the OpenAPI spec accurate; a golden
   snapshot test of the generated schema catches accidental contract drift.
-- **Error standard:** adopt one error shape (RFC 9457) repo-wide so clients and
-  tests can rely on it and nothing leaks.
+- **Error standard:** adopt one error shape repo-wide — RFC 9457 for a greenfield
+  API, or the service's documented envelope where one already exists — so clients
+  and tests can rely on it and nothing leaks. Changing the shape of a live API is
+  a breaking change; consistency beats conformance here.
 
 ---
 
