@@ -5,7 +5,10 @@
 # Line 3: 📊 ctx | 🚦 5h | 7d                                                  (all progress meters)
 input=$(cat)
 
-IFS=$'\t' read -r MODEL DIR COST CTX EFFORT THINKING RL5 RL7 DUR ADDED REMOVED IN_TOK CACHE_W CACHE_R OUT_TOK SESSION_ID PROMPT_ID <<< "$(jq -r '[
+# NOTE: the separator is \x1f, not \t. Tab is an IFS *whitespace* character, so bash
+# collapses runs of it and drops empty fields — one absent value would shift every
+# later field left. \x1f is non-whitespace, so empty fields are preserved.
+IFS=$'\x1f' read -r MODEL DIR COST CTX EFFORT THINKING RL5 RL7 DUR ADDED REMOVED IN_TOK CACHE_W CACHE_R OUT_TOK SESSION_ID PROMPT_ID <<< "$(jq -r '[
   (.model.display_name // "Claude"),
   (.workspace.current_dir // .cwd // "."),
   (.cost.total_cost_usd // 0),
@@ -23,7 +26,7 @@ IFS=$'\t' read -r MODEL DIR COST CTX EFFORT THINKING RL5 RL7 DUR ADDED REMOVED I
   (.context_window.current_usage.output_tokens // 0),
   (.session_id // ""),
   (.prompt_id // "")
-] | map(tostring) | join("\t")' <<< "$input")"
+] | map(tostring) | join("\u001f")' <<< "$input")"
 
 # ANSI colors
 C_MODEL=$'\e[1;36m'; C_TREE=$'\e[32m'; C_COST=$'\e[1;33m'; C_EFFORT=$'\e[35m'
@@ -173,11 +176,24 @@ fi
 # Costs are committed per turn at that turn's rates, so switching model mid-session
 # does not reprice history.
 usage_state="${HOME}/.claude/statusline-usage/${SESSION_ID:-nosession}"
+# Separator is \x1f, never \t: tab is an IFS *whitespace* character, so bash collapses
+# runs of it and drops empty fields — one empty value (an unset prompt id, say) would
+# shift every later field left and silently corrupt the accumulator.
+US=$'\x1f'
 CUM_IN=0; CUM_CW=0; CUM_CR=0; CUM_OUT=0; CUM_IN_COST=0; CUM_OUT_COST=0
 LAST_PROMPT=""; LAST_IN=0; LAST_CW=0; LAST_CR=0; LAST_OUT=0; LAST_IN_COST=0; LAST_OUT_COST=0
 if [ -n "${SESSION_ID:-}" ] && [ -r "$usage_state" ]; then
-  IFS=$'\t' read -r LAST_PROMPT CUM_IN CUM_CW CUM_CR CUM_OUT CUM_IN_COST CUM_OUT_COST \
-                    LAST_IN LAST_CW LAST_CR LAST_OUT LAST_IN_COST LAST_OUT_COST < "$usage_state" || true
+  IFS="$US" read -r LAST_PROMPT CUM_IN CUM_CW CUM_CR CUM_OUT CUM_IN_COST CUM_OUT_COST \
+                    LAST_IN LAST_CW LAST_CR LAST_OUT LAST_IN_COST LAST_OUT_COST \
+                    < "$usage_state" 2>/dev/null || true
+  # A file in the old tab format, or a truncated one, leaves the tail empty or non-numeric.
+  # Discard it whole rather than accumulate onto garbage.
+  case "${LAST_OUT_COST:-}" in
+    ''|*[!0-9.]*)
+      CUM_IN=0; CUM_CW=0; CUM_CR=0; CUM_OUT=0; CUM_IN_COST=0; CUM_OUT_COST=0
+      LAST_PROMPT=""; LAST_IN=0; LAST_CW=0; LAST_CR=0; LAST_OUT=0
+      LAST_IN_COST=0; LAST_OUT_COST=0 ;;
+  esac
 fi
 
 # price the CURRENT turn (fresh input full price, cache write 1.25x, cache read 0.1x)
@@ -208,10 +224,12 @@ if [ -n "${SESSION_ID:-}" ]; then
     find "${usage_state%/*}" -maxdepth 1 -type f -mtime +30 -delete 2>/dev/null || true
   fi
   mkdir -p "${usage_state%/*}" 2>/dev/null
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-    "$LAST_PROMPT" "$CUM_IN" "$CUM_CW" "$CUM_CR" "$CUM_OUT" "$CUM_IN_COST" "$CUM_OUT_COST" \
-    "${IN_TOK:-0}" "${CACHE_W:-0}" "${CACHE_R:-0}" "${OUT_TOK:-0}" "$TURN_IN_COST" "$TURN_OUT_COST" \
-    > "$usage_state" 2>/dev/null || true
+  { printf '%s' "$LAST_PROMPT"
+    for v in "$CUM_IN" "$CUM_CW" "$CUM_CR" "$CUM_OUT" "$CUM_IN_COST" "$CUM_OUT_COST" \
+             "${IN_TOK:-0}" "${CACHE_W:-0}" "${CACHE_R:-0}" "${OUT_TOK:-0}" \
+             "$TURN_IN_COST" "$TURN_OUT_COST"; do printf '%s%s' "$US" "$v"; done
+    printf '\n'
+  } > "$usage_state" 2>/dev/null || true
 fi
 
 # displayed totals = banked turns + the turn in flight

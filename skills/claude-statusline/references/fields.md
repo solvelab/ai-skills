@@ -23,7 +23,7 @@ absent entirely.
 | `cost.total_api_duration_ms` | Time waiting on the API. |
 | `cost.total_lines_added` / `cost.total_lines_removed` | Lines the assistant changed this session. |
 | `context_window.total_input_tokens` / `total_output_tokens` | Tokens currently in context (not cumulative, since v2.1.132). |
-| — | **There is no cumulative token field.** `cost.total_cost_usd` is the only running total the payload carries. A session token total has to be accumulated by the script itself: key the state file on `session_id`, and commit a turn only when `prompt_id` changes — the status line re-renders many times per turn, so a naive `+=` multiplies. See `statusline.sh`. |
+| — | **There is no cumulative token field.** `cost.total_cost_usd` is the only running total the payload carries. A session token total has to be accumulated by the script itself: key the state file on `session_id`, and commit a turn only when `prompt_id` changes — the status line re-renders many times per turn, so a naive `+=` multiplies. See `statusline.sh`. **Never split that state — or the payload — on `\t`**: tab is an IFS *whitespace* character, so bash collapses runs of it and drops empty fields, shifting every later field left. One absent value silently corrupts the accumulator. Use `\x1f`. |
 | `context_window.context_window_size` | Max context (200000, or 1000000 for extended). |
 | `context_window.used_percentage` / `remaining_percentage` | Pre-computed context %; may be `null` early. |
 | `context_window.current_usage` | `{input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens}`. `null` before first API call and right after `/compact`. |
