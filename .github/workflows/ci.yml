@@ -80,6 +80,9 @@ jobs:
       - name: Skill validator self-test (the gate is itself gated)
         run: python3 scripts/selftest-validate-skills.py
 
+      - name: Secret scan (working tree)
+        run: python3 scripts/scan-secrets.py
+
       - name: OpenSpec rite gate (skills-rite schema)
         run: bash scripts/validate-rite.sh
 

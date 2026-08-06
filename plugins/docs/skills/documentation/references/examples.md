@@ -135,7 +135,7 @@ Edit `.env` with your settings:
 # =============================================================================
 # Database
 # =============================================================================
-DATABASE_URL=postgresql://orderflow:secret@db:5432/orderflow
+DATABASE_URL=postgresql://REPLACE_ME:REPLACE_ME@db:5432/orderflow
 
 # =============================================================================
 # Message Queue
