@@ -411,7 +411,7 @@ Project v2 in the org/user. Full details live in the skills themselves:
 
 | Skill | Triggers | What It Does |
 |-------|----------|--------------|
-| **claude-statusline** | "configure my Claude Code status line", statusLine in settings.json, statusline.sh, "add context/cost/git to my statusline", install a statusline gist | Sets up or customizes the Claude Code status bar — ships a ready-made 4-line script (model/context/git/cost/rate-limits/cache) plus the full JSON-field reference; safe install, custom-build rules, and gist sharing |
+| **claude-statusline** | "configure my Claude Code status line", statusLine in settings.json, statusline.sh, "add context/cost/git to my statusline", install a statusline gist | Sets up or customizes the Claude Code status bar — ships a ready-made 3-line script (model/effort/thinking/cost · repo/branch/diff/token-cost · context/rate-limits) plus the full JSON-field reference; safe install, custom-build rules, and gist sharing |
 
 ### Game (React Three Fiber — 10 topics)
 
