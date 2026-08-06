@@ -403,7 +403,7 @@ Project v2 in the org/user. Full details live in the skills themselves:
 
 | Skill | Triggers | What It Does |
 |-------|----------|--------------|
-| **documentation** | README, SETUP, TECHNICAL, CHANGELOG, "document this", "write the docs" | Analyzes the project first, then creates the documentation set the project actually needs |
+| **documentation** | README, SETUP, TECHNICAL, CHANGELOG, AGENTS.md, "document this", "write the docs" | Reads the code first, then creates only the documents the project earns — one purpose per page, claims written so a script can verify them (paths as links, trees rooted correctly, env tables from the config module), docs changed in the same commit as the code, and an `AGENTS.md` when a tool-specific instruction file already exists |
 | **helm-migration** | "migrate to helm", "convert yaml to helm", "generate values.yaml" | Converts K8s YAML to Helm values.yaml/env.yaml — **requires the solvelab chart template repository** |
 
 ### Tooling
