@@ -272,7 +272,7 @@ Ruff: `target-version` matching the runtime, `line-length = 100`, `select = ["E"
 ## See also
 
 - `api-resilience-testing` — the negative/fuzz/contract methodology this baseline is tested against.
-- `bug-hunter` — per-change adversarial rite (`references/track-python-pytest.md` assumes this stack).
+- `bug-hunter` — per-change adversarial rite (`bug-hunter/references/track-python-pytest.md` assumes this stack).
 - `backend-resilience` — fallback/negative-cache doctrine for calls this service makes to others.
 - `conventional-commit` — commit format used by these services' semantic-release pipelines.
 - `react-api-client` — the frontend counterpart consuming this envelope/code registry.

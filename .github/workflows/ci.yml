@@ -71,6 +71,15 @@ jobs:
           done
           exit $fail
 
+      - name: Skill content checks (paths, cross-refs, code blocks, pins)
+        run: |
+          python3 -m pip install --quiet pyyaml
+          sudo apt-get install -y -qq lua5.4 >/dev/null 2>&1 || true
+          python3 scripts/validate-skills.py
+
+      - name: Skill validator self-test (the gate is itself gated)
+        run: python3 scripts/selftest-validate-skills.py
+
       - name: OpenSpec rite gate (skills-rite schema)
         run: bash scripts/validate-rite.sh
 

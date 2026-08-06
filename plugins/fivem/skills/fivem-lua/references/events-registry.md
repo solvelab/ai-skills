@@ -34,6 +34,7 @@ end
 Consumers:
 
 ```lua
+-- excerpt — not a complete module; `...` stands for your handler body
 local Events = exports["events-catalog"]:GetEventsInstance()
 RegisterNetEvent(Events.serverEvents.MYRES_ACTION, function(payload) ... end)
 TriggerClientEvent(Events.clientEvents.MYRES_STATE, src, data)

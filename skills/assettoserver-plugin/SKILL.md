@@ -262,7 +262,7 @@ commit) next to the DLL — the deploy side refuses to sync a DLL without a rite
   doctrine, DirectWrite traps, packet layout mirroring, remote assets/audio by URL.
 - `assettoserver-ops` — operating the server that loads this plugin; the deploy/sync gate that
   consumes `plugin-rite-status.json`.
-- `bug-hunter` — the adversarial rite; `references/track-dotnet-plugin.md` is the generalized
+- `bug-hunter` — the adversarial rite; `bug-hunter/references/track-dotnet-plugin.md` is the generalized
   version of the Mono.Cecil published-artifact inspection.
 - `backend-resilience` — the fallback doctrine the backend-call section adapts to this runtime.
 - `conventional-commit` — commit format used by this repo.
