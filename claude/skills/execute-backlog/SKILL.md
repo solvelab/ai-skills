@@ -9,12 +9,13 @@ description: >-
   evidence, open pull request(s) linking the issue (Closes #n), and move the GitHub Project item to
   the review column. Use when the user invokes /execute-backlog <n>, says
   "implement issue #N", "execute this backlog item", "pick up this ticket", or wants an existing
-  issue turned into a PR. Uses the backlog skill's config (.github/backlog.yml or workspace
-  backlog.yml). Do NOT use for creating backlog items (that is backlog), for merging PRs, for
-  deploying, or for non-GitHub trackers.
+  issue turned into a PR. Second half of the backlog-first rite: the item it consumes is produced
+  by the backlog skill, and this skill carries it to a reviewable PR. Uses the backlog skill's
+  config (.github/backlog.yml or workspace backlog.yml). Do NOT use for creating backlog items
+  (that is backlog), for merging PRs, for deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.3.1
+  version: 1.4.0
   category: process
 license: MIT
 compatibility: >-

@@ -11,6 +11,16 @@ Portable rules for Claude Code. Included from `~/.claude/CLAUDE.md` via the `@` 
 - Prefer the best long-term outcome over speed.
 - Always stay technical and concrete.
 
+## Development Rite (backlog-first)
+Every code change starts as a backlog item. No exception for "small fixes" — small fixes are exactly what escapes traceability.
+1. Idea or bug → `/backlog <idea>` → issue in the GitHub Project.
+2. Issue → `/execute-backlog <n>` → branch, implementation, tests, PR with `Closes #n`.
+- **Diagnosing, reading, explaining and answering are free.** The rite starts when code is going to change.
+- **Plan mode is not a bypass.** An approved plan still becomes an issue before the first edit — `ExitPlanMode` approves the *plan*, it does not waive the rite.
+- If I ask for code without an issue, say so and offer to run `/backlog` first. I can waive it explicitly; without an explicit waiver, do not start editing.
+- Out of scope for the rite: personal config (`~/.claude`), scratchpad files, one-off ops commands.
+- OpenSpec is a complement, not a parallel path: bug/adjustment → backlog only; new capability, breaking change or architecture shift → backlog issue **plus** an OpenSpec proposal referenced from it.
+
 ## Commits & Pull Requests
 - NEVER include the `Co-Authored-By` line in commit messages. Do not add any AI attribution or co-author references to commits under any circumstances.
 - The same rule applies to **Pull Requests**: no AI attribution in the PR title, body, or description. Never add `🤖 Generated with Claude Code`, "Generated with", "Created by Claude", "Made with AI", or any line stating the commit/PR was produced by Claude, Anthropic, or any other AI. If a default PR-body template appends such a line (e.g. via `gh pr create`), strip it before submitting.

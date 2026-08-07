@@ -7,13 +7,15 @@ description: >-
   the GitHub issue and add it to the configured GitHub Project v2 with fields set
   (Status/Priority/Size/Estimate) via the gh CLI. Use when the user invokes /backlog <idea>, says
   "create a backlog item", "add this to the backlog", "turn this idea into an issue", "groom this
-  idea", or wants an idea registered in a GitHub Project. First run per repo/workspace launches a
+  idea", or wants an idea registered in a GitHub Project. Entry point of the backlog-first rite:
+  the item created here is what execute-backlog turns into a branch and a pull request.
+  First run per repo/workspace launches a
   config wizard that writes .github/backlog.yml (repo mode) or backlog.yml (workspace mode). Do NOT
   use for implementing an existing issue (that is execute-backlog), for creating pull requests, or
   for non-GitHub trackers (Jira, Linear, Trello).
 metadata:
   author: solvelab
-  version: 1.1.1
+  version: 1.2.0
   category: process
 license: MIT
 compatibility: >-
