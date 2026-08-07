@@ -63,6 +63,6 @@
 - [x] V.2 Catalog discovery intact: 33 skills, every `name` matching its directory, no orphan
       wrappers; `./generate.sh` leaves no diff
 - [x] V.3 README / docs updated — that is the entire change
-- [ ] V.4 `openspec archive fix-catalog-drift --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive fix-catalog-drift --yes` after all groups above are `[x]`
       — per this repo's established sequence this happens in a follow-up PR after the
       implementation PR merges (precedent: PR #61 shipped the active change, PR #62 archived it)
