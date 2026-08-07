@@ -6,12 +6,15 @@ context: |
   Conventions are governed by openspec/specs/skills-authoring (uniform frontmatter,
   English-only content, single canonical home per cross-cutting rule) and
   openspec/specs/skills-catalog (catalog composition, npx discovery).
-  The skills-rite schema forks vanilla spec-driven and forces three gates:
-  Canonical Home & Cross-Links (design.md), Quality Gates (tasks.md, second-to-last
-  group), Validation & Closure (tasks.md, last group).
+  The skills-rite schema forks vanilla spec-driven and forces four gates:
+  Evidence & Sources (tasks.md, first group), Canonical Home & Cross-Links (design.md),
+  Quality Gates (tasks.md, second-to-last group), Validation & Closure (tasks.md, last
+  group). The gate positions are enforced by scripts/validate-rite.sh, not by the
+  OpenSpec CLI, which checks delta-spec format only.
 
 rules:
   proposal:
     - Name the affected skills explicitly in Impact (catalog composition changes are breaking for consumers of npx discovery)
   tasks:
-    - Never drop the Quality Gates and Validation & Closure groups; they close the rite
+    - Never drop the Evidence & Sources, Quality Gates and Validation & Closure groups; they open and close the rite
+    - Never write a doctrine line whose evidence is not recorded in the Evidence & Sources group; record the command and its raw output, never a conclusion

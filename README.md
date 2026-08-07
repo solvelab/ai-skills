@@ -237,6 +237,11 @@ no tool call is denied, and the user can waive the rite explicitly.
             "type": "command",
             "command": "python3 /home/YOUR_USER/ai-skills/claude/global/hooks/backlog-rite.py",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 /home/YOUR_USER/ai-skills/claude/global/hooks/verify-rite.py",
+            "timeout": 10
           }
         ]
       }
@@ -249,8 +254,31 @@ It stays silent for prompts already inside the rite (`/backlog`, `/execute-backl
 command), for explicit waivers ("sem backlog", "skip the rite"), and for anything that does not look
 like a code change. It persists nothing and needs no credentials.
 
-> Like `personal-rules.md`, this is the **maintainer's** process. Edit the signal list and the
-> reminder text to match yours — the matcher covers Portuguese and English verbs by default.
+### The grounding rite (anti-achismo)
+
+`claude/global/hooks/verify-rite.py` is the second hook in the array above. It carries the
+[`verify-before-claiming`](skills/verify-before-claiming/) doctrine into context when a prompt reads
+as **a guess being caught or research being demanded** — "achismo", "você inventou", "de onde
+tirou", "essa flag não existe", "fora do escopo", "don't guess", "cite the source", "that's not what
+I asked". Same contract as the backlog hook: informs, never blocks, silent on explicit waivers
+("de cabeça", "pode chutar", "from memory is fine").
+
+**What it deliberately does not do.** It fires on *corrections*, not on the guess itself. The moment
+worth intercepting is internal to the model — "I am about to write a flag I have not read" — and no
+prompt regex can see it. A per-turn preventive matcher was rejected because every plausible signal
+list (library, API, flag, version) matches most technical prompts, and a reminder that fires on
+every prompt stops being read, which would also degrade the backlog reminder next to it. Preventive
+coverage lives in `personal-rules.md` instead, which loads once per session.
+
+**Where enforcement actually happens.** This hook runs in the maintainer's own Claude Code sessions.
+It does **not** run in CI, and it does not run for a contributor who clones this repo without wiring
+it — it cannot enforce anything on a pull request. The gate that survives an unwired contributor is
+`scripts/validate-rite.sh`, which refuses any active OpenSpec change whose `tasks.md` does not open
+with an `Evidence & Sources (MANDATORY)` group. The hook makes the guess less likely; CI makes the
+missing evidence visible.
+
+> Like `personal-rules.md`, this is the **maintainer's** process. Edit the signal lists and the
+> reminder text to match yours — both matchers cover Portuguese and English by default.
 
 ---
 

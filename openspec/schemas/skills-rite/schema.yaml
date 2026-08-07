@@ -1,6 +1,6 @@
 name: skills-rite
 version: 1
-description: ai-skills forked workflow - vanilla flow + mandatory gates (Canonical Home, Quality Gates, Validation & Closure)
+description: ai-skills forked workflow - vanilla flow + mandatory gates (Evidence & Sources, Canonical Home, Quality Gates, Validation & Closure)
 artifacts:
   - id: proposal
     generates: proposal.md
@@ -246,6 +246,19 @@ artifacts:
 
       MANDATORY GATES (this schema forks vanilla to force them — never drop
       them from the generated tasks.md):
+
+      - FIRST group: `## 1. Evidence & Sources (MANDATORY)` — probe before you
+      write. Every local path opened rather than recalled and recorded with the
+      commit or timestamp it was read at; every external tool, flag, config key,
+      API name or version probed against the installed version with the command
+      and a fragment of its raw output recorded; anything unprobeable written
+      down as an open question instead of stated as fact; and a scope check that
+      adjacent improvements were listed as follow-ups rather than performed. The
+      position is part of the gate — `scripts/validate-rite.sh` requires this to
+      be the first `## ` group, the mirror of the last-group constraint on
+      Validation & Closure. Evidence is a command plus its output, never a
+      conclusion: a row a reviewer can re-run in two seconds is the only kind
+      worth writing.
 
       - Second-to-last group: `## N. Quality Gates (MANDATORY)` — adversarial
       review of every skill touched: uniform frontmatter (name == directory,
