@@ -52,7 +52,7 @@ The marketplace ships **per-domain plugins** so a project enables only coherent 
 `ai-skills-fivem`, `ai-skills-nui` (NUI React/CEF), `ai-skills-frontend` (SPA API client),
 `ai-skills-game` (R3F + AssettoServer), `ai-skills-devops`, `ai-skills-docs`,
 `ai-skills-tooling` (Claude Code status line) — plus the full
-`ai-skills` bundle for whoever really wants all 30.
+`ai-skills` bundle for whoever really wants all 33.
 
 **B1 — manual**, inside Claude Code:
 
@@ -79,7 +79,7 @@ one accept, zero manual steps):
 ```
 
 Pick the groups that match the project (a FiveM repo takes `ai-skills-fivem`, an R3F game takes
-`ai-skills-game`, ...) — dumping all 30 skills into every project is noise, not help.
+`ai-skills-game`, ...) — dumping all 33 skills into every project is noise, not help.
 
 **B3 — user-level (whole machine)** — same snippet in `~/.claude/settings.json` enables the plugin
 for every project on the machine.
@@ -422,6 +422,10 @@ Project v2 in the org/user. Full details live in the skills themselves:
 
 ## 📦 Skills Available
 
+> Counts in this README and in the plugin manifests are hand-written and therefore drift. The
+> authority is the tree: `ls skills | wc -l`. If a number here disagrees with that command, the
+> command is right — fix the number in the same change that noticed it.
+
 ### Backend & testing
 
 | Skill | Triggers | What It Does |
@@ -666,10 +670,13 @@ last) and runs
 backstop, not the first line.
 
 A second gate checks the **content** of the skills themselves.
-[`scripts/validate-skills.py`](scripts/validate-skills.py) runs six checks over every
-`skills/*/SKILL.md` and its references — referenced paths exist, cross-skill references name a real
-skill, code blocks parse (bash/yaml/json/lua/python), the description states no policy the body
-contradicts, versioned external APIs are pinned, and fence tags match their content. It reports any
+[`scripts/validate-skills.py`](scripts/validate-skills.py) runs eight checks over every
+`skills/*/SKILL.md` and its references — referenced paths exist (C1), cross-skill references name a
+real skill (C2), code blocks parse (C3, bash/yaml/json/lua/python), the description states no policy
+the body contradicts (C4), versioned external APIs are pinned (C5), fence tags match their content
+(C6), no generated wrapper is orphaned from a canonical source (C7), and no meta section sits in a
+`SKILL.md` body where it cannot affect routing (C8). The list is the script's own docstring — run
+`grep -E '^  C[0-9]' scripts/validate-skills.py` rather than trusting this paragraph. It reports any
 check skipped for want of a tool rather than counting it as a pass.
 
 Because a checker that never fails is not a checker,
