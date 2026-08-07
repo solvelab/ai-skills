@@ -13,7 +13,9 @@ every change that touches `skills/`.
 Every cross-cutting rule SHALL be defined in exactly one skill and referenced by link (with at most a
 one-line summary) everywhere else. Canonical map: trust boundary → `fivem-lua`;
 fallback/negative-cache/clamping → `backend-resilience`; REST negative-testing checklist →
-`api-resilience-testing`; adversarial methodology → `bug-hunter`; OpenSpec lifecycle → `openspec`.
+`api-resilience-testing`; adversarial methodology → `bug-hunter`; OpenSpec lifecycle → `openspec`;
+claim verification, the research ladder, not-found reporting and the off-script scope guard →
+`verify-before-claiming`.
 
 #### Scenario: Orchestrator skill references instead of restating
 
@@ -21,17 +23,41 @@ fallback/negative-cache/clamping → `backend-resilience`; REST negative-testing
 - **THEN** each gate row links to the canonical skill with a one-line summary
 - **AND** no mechanism list from a sibling skill is reproduced inline
 
+#### Scenario: A stack-specific instance links to the general rule
+
+- **WHEN** a skill states a domain instance of a rule that has a canonical home elsewhere — reading
+  the CSP EmmyLua stub before calling an API, or reading the chart template before emitting a field
+- **THEN** the instance keeps its stack-specific text and gains one sentence linking to the canonical
+  skill for the general form, rather than reproducing the general rule inline
+
+#### Scenario: Doctrine that acquires a canonical home stops being restated
+
+- **WHEN** a rule previously stated in full inside one skill is given a canonical home
+- **THEN** the original statement is reduced to a link with at most a one-line summary, so the
+  catalog carries the doctrine exactly once
+
 ### Requirement: Uniform frontmatter metadata
 
 Every `skills/<name>/SKILL.md` SHALL carry: `name` (== directory), `description` (folded block scalar),
 `metadata.author: solvelab`, `metadata.version` (semver), `metadata.category` from the controlled set
-{backend, testing, fivem, game, devops, docs, git, process}, `license: MIT`, and `compatibility`.
+{backend, testing, fivem, game, devops, docs, git, process, nui, frontend, tooling}, `license: MIT`,
+and `compatibility`.
+
+The controlled set is the one the CI frontmatter check enforces. When the two disagree, the gate is
+authoritative and this document is corrected, because a contributor who follows a document that is
+behind its gate writes a change the build rejects.
 
 #### Scenario: CI rejects incomplete frontmatter
 
 - **WHEN** a skill is added or edited without `metadata.version`, `license`, or with a category outside
   the controlled set
 - **THEN** the CI validate job fails with a file-specific error
+
+#### Scenario: The documented set matches the enforced set
+
+- **WHEN** a category is added to the CI frontmatter check
+- **THEN** this requirement is updated in the same change, so no contributor reads a controlled set
+  that is narrower than the one the build accepts
 
 ### Requirement: English as catalog locale
 

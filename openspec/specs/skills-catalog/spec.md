@@ -234,3 +234,119 @@ work came from and where it goes next. Neither description SHALL restate the oth
 - **WHEN** a user reads the `backlog` description
 - **THEN** it names `execute-backlog` as the step that turns the created item into a pull request
 
+### Requirement: Claim verification has a canonical home
+
+The catalog SHALL contain one skill that governs how an agent establishes a fact before asserting or
+acting on it: an ordered research ladder that starts with the cheapest source and ends by asking the
+user, labels for what is verified, inferred and unknown, and a report for the case where the fact
+cannot be found. The skill SHALL define a claim to include anything acted on as if true, not only
+anything stated, so that delivering work the user did not ask for falls under the same rule as
+inventing an API.
+
+The doctrine SHALL be stack-agnostic. Skills that state a domain instance of it — reading a shipped
+SDK stub, reading a chart template, refusing to guess a Project field — SHALL link to it rather than
+restate the general rule.
+
+#### Scenario: A fact that cannot be found is reported, not substituted
+
+- **WHEN** the ladder is exhausted without establishing the fact
+- **THEN** the agent produces a report naming the question, the commands run at each rung, the rungs
+  that were unavailable and why, and what remains unknown
+- **AND** no plausible substitute is emitted in place of the missing fact
+
+#### Scenario: The doctrine degrades instead of failing when rungs are unavailable
+
+- **WHEN** the environment provides no web-fetch or web-search tool
+- **THEN** the ladder still runs over session context, the repository, the installed dependency and
+  the tool itself, and the unavailable rungs are named in the report
+- **AND** the absence of a rung is never treated as evidence that the unverified answer is probably
+  correct
+
+#### Scenario: The ladder declares when not to run
+
+- **WHEN** a claim is already established in this session, or is a construct the surrounding
+  toolchain would reject within seconds
+- **THEN** the doctrine states that no research is owed, so that the rule is affordable on ordinary
+  work rather than skipped wholesale as ceremony
+
+#### Scenario: Unrequested work is treated as an unverified claim
+
+- **WHEN** an agent adds a change the request did not ask for — an extra endpoint, a rename, an
+  unrelated fix found along the way
+- **THEN** the doctrine classifies it as an unverified claim about the user's intent, to be proposed
+  rather than performed
+
+### Requirement: A shipped checklist names the defect behind each row
+
+A catalog skill that ships a catalog of failure modes SHALL record, for every row, the defect that
+earned it, citable in this repository or in a named incident. A row whose origin cannot be named
+SHALL be removed rather than kept.
+
+#### Scenario: A row without provenance is not shipped
+
+- **WHEN** a plausible-sounding failure mode is proposed for the catalog
+- **THEN** it is added only if the defect that produced it can be cited, and is otherwise left out
+- **AND** the growth rule states that a row whose origin column is empty is removed, not kept
+
+### Requirement: The rite gates evidence before it gates quality
+
+The repository's spec-driven rite SHALL require every active change to open its task list with a
+group recording what was probed: local paths opened rather than recalled, external tools, flags,
+config keys, API names and versions checked against the installed version, and anything that could
+not be probed written down as an open question rather than stated as fact. The group SHALL be the
+first task group, and its presence and position SHALL be enforced by the same script that enforces
+the other mandatory groups, because the OpenSpec CLI validates delta-spec format only.
+
+Recorded evidence SHALL be a command together with a fragment of its raw output, never a conclusion,
+so that a reviewer can re-run it. The enforcing script SHALL state that it verifies the presence and
+position of the group and not the truth of its contents.
+
+#### Scenario: A change without recorded evidence fails the build
+
+- **WHEN** an active change's task list lacks the evidence group, or carries it somewhere other than
+  the first task group
+- **THEN** the rite gate script fails with a file-specific error naming the missing or misplaced
+  group, and the build does not pass
+
+#### Scenario: The gate declares what it cannot check
+
+- **WHEN** the gate passes
+- **THEN** the script's own header states that a ticked box with no probe behind it is
+  indistinguishable from one with, so that a green run is not read as verified evidence
+
+#### Scenario: A gate introduced mid-flight does not exempt existing work
+
+- **WHEN** a new mandatory group is added while a change is already open
+- **THEN** the open change is backfilled with the group in the same change that introduces the gate,
+  rather than being added to an exemption list
+
+### Requirement: The grounding rite is carried into context on correction
+
+The catalog SHALL ship an enforcement artifact that re-injects the anti-guessing doctrine when a
+prompt indicates a guess was caught or research is being demanded, in both of the catalog's working
+languages. The artifact SHALL inform rather than block: it never denies a tool call, it persists
+nothing, it needs no credentials, and an explicit waiver silences it.
+
+The artifact SHALL state which moment it does **not** cover, and the documentation SHALL name the
+layer that enforces evidence when the artifact is not wired, so that a reader does not mistake a
+per-session convenience for a gate.
+
+#### Scenario: A caught guess carries the doctrine into the turn
+
+- **WHEN** a prompt says the assistant invented something, demands a source, asks where a fact came
+  from, states that a flag or option does not exist, or says the work was out of scope
+- **THEN** the hook injects the research ladder, the labelling rule, the not-found rule and the scope
+  rule into that turn's context
+
+#### Scenario: The reminder is silent when the user waives it
+
+- **WHEN** the prompt explicitly permits an unverified answer
+- **THEN** the hook produces no output, because the rite is the user's to waive
+
+#### Scenario: The uncovered moment is declared, not implied
+
+- **WHEN** the artifact is documented
+- **THEN** the documentation states that it fires on corrections rather than on the guess itself,
+  that no prompt regex can observe the moment a model is about to guess, and that the artifact does
+  not run in CI or for a contributor who has not wired it
+

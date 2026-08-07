@@ -99,6 +99,6 @@
       it, at the expected count of 33, with no orphan or renamed leftovers
       (`bash scripts/validate-rite.sh` + the C7 orphan check inside `validate-skills.py`)
 - [x] V.3 README / docs updated where the change alters catalog composition or usage
-- [ ] V.4 `openspec archive add-verify-before-claiming --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive add-verify-before-claiming --yes` after all groups above are `[x]`
       — per this repo's established sequence this happens in a follow-up PR after the
       implementation PR merges (precedent: PR #61 shipped the active change, PR #62 archived it)
