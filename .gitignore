@@ -1,0 +1,6 @@
+# Python bytecode. The hooks under claude/global/hooks/ are run with python3, and
+# syntax-checking one with `python3 -m py_compile` leaves a __pycache__ beside it —
+# which is how claude/global/hooks/__pycache__/verify-rite.cpython-314.pyc reached
+# release 2.6.0 via an ordinary `git add -A`.
+__pycache__/
+*.py[cod]
