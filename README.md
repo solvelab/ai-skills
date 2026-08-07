@@ -215,6 +215,43 @@ EOF
 
 To customize: edit `~/ai-skills/claude/global/personal-rules.md` (or fork the repo).
 
+### Enforcing the rite (optional hook)
+
+The rules file states that every code change starts as a backlog item ([`backlog`](skills/backlog/) →
+[`execute-backlog`](skills/execute-backlog/)). A rule in context only works if the assistant notices
+it — and the failure mode is specific: a request to *diagnose* something drifts into implementing the
+fix, and no new prompt ever arrives to trigger the rite.
+
+`claude/global/hooks/backlog-rite.py` closes that gap. It is a `UserPromptSubmit` hook: the harness
+runs it on every prompt, and its output becomes context for that turn. It **informs, never blocks** —
+no tool call is denied, and the user can waive the rite explicitly.
+
+```jsonc
+// ~/.claude/settings.json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/YOUR_USER/ai-skills/claude/global/hooks/backlog-rite.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+It stays silent for prompts already inside the rite (`/backlog`, `/execute-backlog`, any slash
+command), for explicit waivers ("sem backlog", "skip the rite"), and for anything that does not look
+like a code change. It persists nothing and needs no credentials.
+
+> Like `personal-rules.md`, this is the **maintainer's** process. Edit the signal list and the
+> reminder text to match yours — the matcher covers Portuguese and English verbs by default.
+
 ---
 
 ## 📁 Repository Structure
