@@ -659,7 +659,8 @@ openspec/
 The CLI's `openspec validate --strict` checks **delta-spec format only** — probe-verified on CLI
 1.6.0, it does **not** check custom template sections, so the forked schema alone is advisory (it
 feeds `/opsx` artifact generation). The **hard gate** is [`scripts/validate-rite.sh`](scripts/validate-rite.sh):
-it requires the three gate headings in every active change (closure group last) and runs
+it requires the four gate headings in every active change (evidence group first, closure group
+last) and runs
 `openspec validate --all --strict`, wired as the **"OpenSpec rite gate"** step in
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Run it locally before pushing — CI is the
 backstop, not the first line.
