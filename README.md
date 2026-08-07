@@ -683,7 +683,17 @@ Because a checker that never fails is not a checker,
 [`scripts/selftest-validate-skills.py`](scripts/selftest-validate-skills.py) injects one known defect
 per check into a throwaway copy of the catalog and asserts each one is detected. Both run in CI.
 
-A third gate scans for credentials.
+A third gate looks at the repository as a whole, which is the slice the others miss —
+`validate-skills.py` walks only `skills/`, the secret scan hunts credentials, the rite gate reads
+OpenSpec changes, and the wrapper-sync step diffs generated trees.
+[`scripts/validate-repo-hygiene.py`](scripts/validate-repo-hygiene.py) runs two checks: **H1** no
+compiled Python artifact is tracked, and **H2** every `all N` skill count published in `README.md`
+and `.claude-plugin/marketplace.json` equals `ls skills | wc -l`. Both exist because both defects
+actually shipped — a `.pyc` reached release `2.6.0`, and the published counts drifted to 27 and 30
+against a tree of 32. It carries a `--selftest` mode on the same principle as the skill validator,
+and each check states in its own docstring what it does **not** cover.
+
+A fourth gate scans for credentials.
 [`scripts/scan-secrets.py`](scripts/scan-secrets.py) has two modes on purpose: by default it scans the
 **working tree** and fails the build on any credential class — that is the part that can be kept clean,
 so that is the part that gates. With `--history` it walks every blob in the full git history and

@@ -83,6 +83,12 @@ jobs:
       - name: Secret scan (working tree)
         run: python3 scripts/scan-secrets.py
 
+      - name: Repo hygiene (compiled artifacts, published counts)
+        run: python3 scripts/validate-repo-hygiene.py
+
+      - name: Repo hygiene self-test (the gate is itself gated)
+        run: python3 scripts/validate-repo-hygiene.py --selftest
+
       - name: OpenSpec rite gate (skills-rite schema)
         run: bash scripts/validate-rite.sh
 
