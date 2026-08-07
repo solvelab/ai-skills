@@ -44,6 +44,5 @@
 - [x] V.2 Catalog discovery intact: skill count unchanged, no orphan/renamed leftovers, mirrors in
       sync with sources
 - [x] V.3 README / docs updated where the change alters catalog composition or usage
-- [ ] V.4 `openspec archive add-backlog-first-rite --yes` after all groups above are `[x]`
-      — pending: this repo archives in a separate PR after the implementation PR merges
-      (see `docs(openspec): archive … and sync the spec delta` commits)
+- [x] V.4 `openspec archive add-backlog-first-rite --yes` after all groups above are `[x]`
+      — done in the archive PR that follows the implementation PR, per this repo's convention
