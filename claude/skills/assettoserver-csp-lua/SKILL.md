@@ -15,7 +15,7 @@ description: >-
   permissions), or for FiveM Lua (that is fivem-lua).
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.0.1
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

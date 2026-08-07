@@ -11,7 +11,7 @@ description: >-
   Do NOT use for vanilla OpenSpec on non-DriveZone projects — that is the openspec skill.
 metadata:
   author: solvelab
-  version: 2.1.0
+  version: 2.1.1
   category: process
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

@@ -15,7 +15,7 @@ description: >-
   (that is backlog), for merging PRs, for deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.4.0
+  version: 1.4.1
   category: process
 license: MIT
 compatibility: >-
@@ -42,9 +42,11 @@ to the `backlog` skill; consumes the same config.
 3. **Never commit to the default branch** — all work on `backlog/<issue-number>-<slug>`.
 4. **Scope is law** — the issue's Scope/Out of scope/Acceptance criteria bound the work. Any
    deviation: stop, explain why, get explicit approval, record the approved deviation as an issue
-   comment (`references/execution-flow.md`).
+   comment (`references/execution-flow.md`). The restate-before-acting block and the generic
+   off-script guard are `verify-before-claiming`.
 5. **Run only discovered commands** — validations come from the repo's own manifests/docs; never
-   invent commands, never run migrations/deploys/destructive steps without an explicit ask.
+   invent commands, never run migrations/deploys/destructive steps without an explicit ask. When
+   discovery finds no command, report the gap instead of inventing one (`verify-before-claiming`).
 6. **Faithful reporting** — failing checks are reported with their output; skipped validations are
    listed as skipped, never implied as passed.
 7. **Every checkbox gets a verdict** — before the PR, each acceptance criterion (and each rite

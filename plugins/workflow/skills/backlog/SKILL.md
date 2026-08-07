@@ -15,7 +15,7 @@ description: >-
   for non-GitHub trackers (Jira, Linear, Trello).
 metadata:
   author: solvelab
-  version: 1.2.0
+  version: 1.2.1
   category: process
 license: MIT
 compatibility: >-
@@ -40,7 +40,8 @@ codebase.
    loops back to a new preview.
 2. **No invention** — never guess org, repo, Project, field names or select options. Everything
    comes from config, `gh` output, or the user. Select values must be options returned by
-   `gh project field-list`.
+   `gh project field-list`. The general form — the research ladder and the report to write when
+   nothing is found — is `verify-before-claiming`.
 3. **Anti-generic gate** — the draft must cite real files, modules or features found in the
    repository. If context collection found nothing relevant, say so instead of padding.
 4. **Non-destructive** — never delete/close issues, never edit existing items, never merge. A

@@ -14,6 +14,9 @@ for the stock `acServer` with a .NET plugin loader (`EnablePlugins:` in `extra_c
 
 ## The two-contract rule (version pinning)
 
+Pinning is the build-time form of the general rule that your memory of an API is dated and the
+installed version wins: `verify-before-claiming`.
+
 The plugin is loaded by AssettoServer's `AssemblyLoadContext` into a specific runtime release. It
 MUST be compiled against the upstream **source checkout at the exact tag matching that runtime**
 (runtime 0.0.54 ↔ upstream tag v0.0.54). Anything else is undefined behavior at load time.

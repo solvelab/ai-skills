@@ -160,7 +160,10 @@ describing the execution:
 - **[bug-hunter]** — adversarial QA rite → the *Tests & Bug-Hunter* gate.
 - **[api-resilience-testing]** — API negative/fuzz/contract testing → reinforces the backend test gate.
 - **[fivem-lua]** — Lua resource conventions (trust boundary, fxmanifest, NUI) → implementation base.
+- **[verify-before-claiming]** — research-before-asserting doctrine; the reason this skill's "the CLI
+  does not check template sections" claim had to be probed rather than assumed.
 
+[verify-before-claiming]: ../verify-before-claiming/SKILL.md
 [openspec]: ../openspec/SKILL.md
 [backend-resilience]: ../backend-resilience/SKILL.md
 [fivem-fallback]: ../fivem-fallback/SKILL.md

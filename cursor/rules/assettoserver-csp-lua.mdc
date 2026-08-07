@@ -33,6 +33,9 @@ iteration; in this stack a wrong guess costs a deploy plus a human driving sessi
 
 ## Consult the SDK — never guess an API
 
+This is the stack-specific rung of a general ladder — session context, this repo, the installed
+source, the tool itself, version-pinned docs, search, then ask: `verify-before-claiming`.
+
 Every CSP install ships authoritative EmmyLua stubs, one per Lua context:
 
 ```

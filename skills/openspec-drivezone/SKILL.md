@@ -11,7 +11,7 @@ description: >-
   Do NOT use for vanilla OpenSpec on non-DriveZone projects — that is the openspec skill.
 metadata:
   author: solvelab
-  version: 2.1.0
+  version: 2.1.1
   category: process
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -172,7 +172,10 @@ describing the execution:
 - **[bug-hunter]** — adversarial QA rite → the *Tests & Bug-Hunter* gate.
 - **[api-resilience-testing]** — API negative/fuzz/contract testing → reinforces the backend test gate.
 - **[fivem-lua]** — Lua resource conventions (trust boundary, fxmanifest, NUI) → implementation base.
+- **[verify-before-claiming]** — research-before-asserting doctrine; the reason this skill's "the CLI
+  does not check template sections" claim had to be probed rather than assumed.
 
+[verify-before-claiming]: ../verify-before-claiming/SKILL.md
 [openspec]: ../openspec/SKILL.md
 [backend-resilience]: ../backend-resilience/SKILL.md
 [fivem-fallback]: ../fivem-fallback/SKILL.md
