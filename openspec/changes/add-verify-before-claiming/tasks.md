@@ -1,4 +1,37 @@
-## 1. Canonical skill
+## 1. Evidence & Sources (MANDATORY)
+
+<!-- Always the FIRST group: probe before you write. Record the COMMAND and a fragment of its
+     RAW OUTPUT, never a conclusion. Backfilled when the gate was introduced, from probes actually
+     run while this change was implemented. -->
+
+- [x] E.1 Every local path this change relies on was OPENED and read, not recalled. Read at
+      `c965689` on 2026-08-06: `skills/backlog/SKILL.md:36-51` (the `## CRITICAL:` numbered shape
+      cloned here), `skills/documentation/SKILL.md:34-36` (the doctrine that moves) and `:78-92`,
+      `:122-132`, `skills/execute-backlog/SKILL.md:41-50`, `skills/assettoserver-csp-lua/SKILL.md:50-71`,
+      `skills/assettoserver-plugin/SKILL.md:28-46`, `skills/helm-migration/SKILL.md:14-24`,
+      `skills/api-resilience-testing/SKILL.md:191-194`, `scripts/validate-skills.py:72-235`
+      (checks C1-C8, which constrain how this skill may be written), `generate.sh:150-168`
+      (`GROUP_DESC` and the `process -> workflow` mapping).
+- [x] E.2 Every external tool and version this change asserts was probed on this machine:
+      `rg --version` -> `ripgrep 14.1.1`; `git --version` -> `git version 2.47.3`;
+      `python3 --version` -> `Python 3.14.5`; `gh --version` -> `gh version 2.92.0 (2026-04-28)`;
+      `openspec --version` -> `1.6.0`; `node --version` -> `v26.0.0`; `npm --version` -> `11.14.1`;
+      `pnpm --version` -> `9.15.9`; `pip3 --version` -> `pip 26.1.1`; `uv --version` -> `uv 0.11.28`.
+      The absent-tool result is recorded too: `command -v` found no `yarn`, `poetry`, `cargo`, `go`,
+      `dotnet`, `gem` or `composer`, so `references/research-ladder.md` marks those ecosystems
+      unprobed instead of writing their commands as if checked.
+      Every one of the nine anti-pattern rows was re-read at its cited source before being written
+      down — the counts row was produced by `ls skills | wc -l` -> `32`, against
+      `.claude-plugin/marketplace.json` -> "all 27 skills" and `README.md:82` -> "all 30 skills".
+- [x] E.3 Anything that could NOT be probed is written down rather than stated as fact: the
+      ecosystems above are labelled unprobed inside `references/research-ladder.md`, and the skill's
+      `compatibility` field declares that rungs 4-5 need tools that may not exist in a given harness.
+- [x] E.4 Scope check: this change does only what the proposal asked. Noticed and **not** performed:
+      the drifted skill counts in `README.md` and `.claude-plugin/marketplace.json` and the stale
+      category set in `openspec/specs/skills-authoring/spec.md` — listed as follow-ups for a sibling
+      item, not fixed in passing, per this skill's own off-script guard.
+
+## 2. Canonical skill
 
 - [x] 1.1 Create `skills/verify-before-claiming/SKILL.md` with the 5 contracted frontmatter keys,
       `metadata.category: process`, and a description carrying pt-BR + English triggers plus four
@@ -22,7 +55,7 @@
 - [x] 1.11 Probe every command the skill prescribes on this machine and record the tool versions and
       the date in the skill body
 
-## 2. Cross-links and canonical map
+## 3. Cross-links and canonical map
 
 - [x] 2.1 `skills/documentation/SKILL.md` — shrink lines 34-36 to one line + link; add a `See also`
       bullet
@@ -30,14 +63,14 @@
       `assettoserver-csp-lua`, `assettoserver-plugin`, `helm-migration`, `openspec-drivezone`
 - [x] 2.3 Bump `metadata.version` on every touched skill
 
-## 3. Catalog composition
+## 4. Catalog composition
 
 - [x] 3.1 `README.md` — new row in the Process & git table
 - [x] 3.2 `generate.sh` `GROUP_DESC[workflow]` and `.claude-plugin/marketplace.json`
       `ai-skills-workflow` description name the new skill
 - [x] 3.3 Run `./generate.sh` and commit the regenerated `claude/ codex/ cursor/ copilot/ plugins/`
 
-## 4. Quality Gates (MANDATORY)
+## 5. Quality Gates (MANDATORY)
 
 <!-- Adversarial review of the skills touched — not happy-path. Every skill added or edited
      by this change gets checked against the skills-authoring spec. Keep the group number
@@ -57,7 +90,7 @@
 - [x] Q.7 No `## How to Use` / `## Usage` / `## Prompt` / `## Trigger Test Cases` section anywhere in
       the new skill (check C8 would fail the build)
 
-## 5. Validation & Closure (MANDATORY)
+## 6. Validation & Closure (MANDATORY)
 
 <!-- Always the last group. "Done" is verifiable, not an opinion. -->
 

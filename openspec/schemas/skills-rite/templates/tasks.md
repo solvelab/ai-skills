@@ -1,9 +1,25 @@
-## 1. <!-- Task Group Name -->
+## 1. Evidence & Sources (MANDATORY)
 
-- [ ] 1.1 <!-- Task description -->
-- [ ] 1.2 <!-- Task description -->
+<!-- Always the FIRST group: probe before you write. Record the COMMAND and a fragment of its
+     RAW OUTPUT, never a conclusion — a row a reviewer can re-run in two seconds is the only kind
+     worth writing. A claim with no evidence is a guess: drop the claim, or go get the evidence.
+     Doctrine: the verify-before-claiming skill. -->
 
-## 2. Quality Gates (MANDATORY)
+- [ ] E.1 Every local path this change relies on was OPENED and read, not recalled — recorded with
+      the commit or timestamp it was read at
+- [ ] E.2 Every external tool, CLI flag, config key, API name or version this change asserts was
+      probed against the installed version; the command and a fragment of its output are recorded
+- [ ] E.3 Anything that could NOT be probed is written down as an open question (design.md, or here
+      when there is no design.md) — never stated as fact, never filled with a plausible substitute
+- [ ] E.4 Scope check: this change does only what the proposal asked. Adjacent improvements noticed
+      along the way are listed here as follow-ups, not performed
+
+## 2. <!-- Task Group Name -->
+
+- [ ] 2.1 <!-- Task description -->
+- [ ] 2.2 <!-- Task description -->
+
+## 3. Quality Gates (MANDATORY)
 
 <!-- Adversarial review of the skills touched — not happy-path. Every skill added or edited
      by this change gets checked against the skills-authoring spec. Keep the group number
@@ -18,7 +34,7 @@
 - [ ] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
       its canonical skill (see design.md Canonical Home table)
 
-## 3. Validation & Closure (MANDATORY)
+## 4. Validation & Closure (MANDATORY)
 
 <!-- Always the last group. "Done" is verifiable, not an opinion. -->
 

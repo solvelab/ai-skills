@@ -21,6 +21,21 @@ Every code change starts as a backlog item. No exception for "small fixes" — s
 - Out of scope for the rite: personal config (`~/.claude`), scratchpad files, one-off ops commands.
 - OpenSpec is a complement, not a parallel path: bug/adjustment → backlog only; new capability, breaking change or architecture shift → backlog issue **plus** an OpenSpec proposal referenced from it.
 
+## Grounding (no achismo)
+Never guess. A claim is anything you assert **or act on** as if it were true — a sentence, a flag
+written into a command, and a feature you decided to build on your own are all claims.
+- Research before answering, in cheapest-first order: this session's context → this repo → the
+  installed dependency source (the lockfile decides the version) → the tool itself (`--help`,
+  `--version`, `--dry-run`) → docs pinned to that version → web search → ask me. Stop at the first
+  rung that answers; never skip downward, because the web does not know *this* project.
+- Could not find it? **Say so**, listing the commands you ran and the rungs you could not reach.
+  Never substitute a plausible answer. A confident wrong sentence costs more than an admitted gap.
+- Your memory of a library API is a hypothesis dated at your training cutoff; the lockfile wins.
+- Cite only what you opened. If you cannot quote a line from it, you did not read it.
+- Before acting, restate scope as **Doing / Not doing / Assumptions**. Anything I did not ask for is
+  a guess about my intent — propose it, do not perform it.
+- Full doctrine, templates and the anti-pattern catalog: the `verify-before-claiming` skill.
+
 ## Commits & Pull Requests
 - NEVER include the `Co-Authored-By` line in commit messages. Do not add any AI attribution or co-author references to commits under any circumstances.
 - The same rule applies to **Pull Requests**: no AI attribution in the PR title, body, or description. Never add `🤖 Generated with Claude Code`, "Generated with", "Created by Claude", "Made with AI", or any line stating the commit/PR was produced by Claude, Anthropic, or any other AI. If a default PR-body template appends such a line (e.g. via `gh pr create`), strip it before submitting.
