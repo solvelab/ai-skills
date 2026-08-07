@@ -10,7 +10,7 @@ description: >-
   api-resilience-testing.
 metadata:
   author: solvelab
-  version: 2.2.0
+  version: 2.2.1
   category: testing
 license: MIT
 compatibility: Works in any environment with filesystem access.
@@ -82,5 +82,7 @@ This pairs with the OpenSpec `tasks.md` "Testes & Bug-Hunter" gate used by `open
 
 - `api-resilience-testing` — full REST negative/fuzz/contract/security methodology and checklist; use
   it when the target is an API surface, not a single change.
+- `verify-before-claiming` — runs before the change: verify the contract you are about to test
+  against. A test written from a guessed contract passes for the wrong reason.
 - `backend-resilience` — the fallback behavior these tests assert.
 - `fivem-lua` — the trust-boundary rule (`source`, not client args) that the Lua track exercises.

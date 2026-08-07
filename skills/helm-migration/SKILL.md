@@ -4,7 +4,7 @@ description: >-
   Converts Kubernetes YAML manifests to Helm values.yaml and env.yaml following the solvelab chart template structure — requires a local copy of that chart template repository (the template-specific fields do not exist in stock Helm charts). Use when user mentions "migrate to helm", "convert yaml to helm", "generate values.yaml", "helm migration", "yaml to helm", shares a Kubernetes YAML and asks for Helm output. Always removes tolerations. Always generates values.yaml; generates env.yaml only when the source YAML defines secrets, configmaps or PVCs. Do NOT use for writing plain Kubernetes manifests or docker-compose files, for authoring a Helm chart from scratch, or for documentation and code changes unrelated to a Helm migration.
 metadata:
   author: solvelab
-  version: 2.2.0
+  version: 2.2.1
   category: devops
 license: MIT
 compatibility: Requires a Helm charts template repository accessible on the local filesystem. Works best in Claude Code.
@@ -18,7 +18,9 @@ You are a Helm chart expert. When asked to migrate a Kubernetes YAML file to Hel
 > the solvelab chart template as it stood when this skill was last revised (see `metadata.version`).
 > The template evolves independently, so **read the local copy first** (step 1 of the workflow) and let
 > it win on any disagreement. A field named here but absent from the local `values.yaml` means the
-> template moved — update this skill rather than emitting a field the chart will ignore.
+> template moved — update this skill rather than emitting a field the chart will ignore. A field you
+> cannot find in the local template is reported as not found, never emitted because it looks
+> plausible (`verify-before-claiming`).
 
 ---
 

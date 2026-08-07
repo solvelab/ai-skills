@@ -436,6 +436,7 @@ Project v2 in the org/user. Full details live in the skills themselves:
 | **conventional-commit** | creating/amending commits, commit messages, /commit, opening/editing PRs | Conventional Commits + gitmoji icon per type; forbids AI attribution in commits & PRs |
 | **backlog** | /backlog <idea>, "create a backlog item", "turn this idea into an issue" | Turns a natural-language idea into a context-rich GitHub issue placed in a Project v2 with fields set — repo & multi-repo workspace modes, first-run config wizard, preview before creation |
 | **execute-backlog** | /execute-backlog <n>, "implement issue #N", "pick up this ticket" | Drives an existing backlog item to a validated PR: completeness gate, plan approved before code, branch-per-item, repo-discovered validations, `Closes #n` linking, board moved to review — never merges or closes issues itself |
+| **verify-before-claiming** | "you invented that", "don't guess", "achismo", "pesquisa antes", "de onde tirou", "cite the source", "that flag does not exist", "out of scope" | Anti-guessing rite — cheapest-first research ladder (session context → this repo → the installed dependency → the tool itself → version-pinned docs → web search → the user), verified/inferred/unknown claim labelling, a not-found report that logs the commands it ran, the knowledge-cutoff rule (the lockfile wins), and the off-script scope guard |
 
 ### DevOps & docs
 

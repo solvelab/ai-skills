@@ -2,7 +2,7 @@
   "name": "ai-skills-workflow",
   "displayName": "AI Skills — workflow",
   "version": "2.4.0",
-  "description": "Commit format and OpenSpec spec-driven workflow (conventional-commit, openspec, openspec-drivezone)",
+  "description": "Commit format, OpenSpec spec-driven workflow and the anti-guessing rite (conventional-commit, openspec, openspec-drivezone, verify-before-claiming)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
   "license": "MIT"

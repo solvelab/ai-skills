@@ -12,7 +12,7 @@ description: >-
   fivem-lua), or general .NET services.
 metadata:
   author: solvelab
-  version: 1.3.0
+  version: 1.3.1
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -26,6 +26,9 @@ deliberate exception. The upstream host is `compujuckel/AssettoServer` — a CSP
 for the stock `acServer` with a .NET plugin loader (`EnablePlugins:` in `extra_cfg.yml`).
 
 ## The two-contract rule (version pinning)
+
+Pinning is the build-time form of the general rule that your memory of an API is dated and the
+installed version wins: `verify-before-claiming`.
 
 The plugin is loaded by AssettoServer's `AssemblyLoadContext` into a specific runtime release. It
 MUST be compiled against the upstream **source checkout at the exact tag matching that runtime**

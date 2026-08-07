@@ -15,7 +15,7 @@ description: >-
   permissions), or for FiveM Lua (that is fivem-lua).
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.0.1
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -48,6 +48,9 @@ iteration; in this stack a wrong guess costs a deploy plus a human driving sessi
   byte-identical — gate with `cmp -s` in the rite, not with good intentions.
 
 ## Consult the SDK — never guess an API
+
+This is the stack-specific rung of a general ladder — session context, this repo, the installed
+source, the tool itself, version-pinned docs, search, then ask: `verify-before-claiming`.
 
 Every CSP install ships authoritative EmmyLua stubs, one per Lua context:
 

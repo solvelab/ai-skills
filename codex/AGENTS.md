@@ -40,6 +40,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `r3f-postprocessing` | `codex/skills/r3f-postprocessing/AGENTS.md` |
 | `r3f-shaders` | `codex/skills/r3f-shaders/AGENTS.md` |
 | `react-api-client` | `codex/skills/react-api-client/AGENTS.md` |
+| `verify-before-claiming` | `codex/skills/verify-before-claiming/AGENTS.md` |
 
 ## Setup
 

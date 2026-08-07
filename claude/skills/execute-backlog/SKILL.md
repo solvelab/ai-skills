@@ -15,7 +15,7 @@ description: >-
   (that is backlog), for merging PRs, for deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.4.0
+  version: 1.4.1
   category: process
 license: MIT
 compatibility: >-

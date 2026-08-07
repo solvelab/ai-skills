@@ -246,5 +246,7 @@ Keep it concrete and runnable; favor real example payloads over description.
 
 - `bug-hunter` — the per-change adversarial-testing rite; use it after implementing a single change,
   and this skill when auditing an API surface.
+- `verify-before-claiming` — measure the stack's real baseline before asserting an expected status
+  code; a code taken from memory produces a test that fails for the wrong reason.
 - `backend-resilience` — the fallback/negative-cache/clamping behavior the "Limits & resilience"
   checklist section asserts.

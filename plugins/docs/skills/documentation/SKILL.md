@@ -10,7 +10,7 @@ description: >-
   same commit as the code. Do NOT use for non-software documentation tasks.
 metadata:
   author: solvelab
-  version: 3.0.1
+  version: 3.0.2
   category: docs
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -31,9 +31,9 @@ Never write a line of documentation before reading the code it describes.
 4. **Extract the facts**, don't invent them: env vars from the config module, endpoints from the
    router, commands from the manifest scripts / Makefile / CI, ports from the compose file.
 
-Only document what you read. If a fact matters and you could not verify it, say so in the doc
-("Deployment target: not documented in this repo") instead of guessing. A confident wrong sentence
-costs more than an admitted gap.
+Only document what you read. A fact that matters and could not be verified is written as an admitted
+gap ("Deployment target: not documented in this repo"), never guessed — the ladder for finding it and
+the report to write when it cannot be found are `verify-before-claiming`.
 
 ## Decide which documents exist
 
@@ -169,6 +169,8 @@ sections this project earns. The full skeleton and a worked example: `references
 
 - `references/templates.md` — README / SETUP / TECHNICAL skeletons.
 - `references/examples.md` — worked examples of good output per tier.
+- `verify-before-claiming` — how to research a fact before documenting it, and the report to write
+  when it cannot be found.
 - `conventional-commit` — the commit format that drives generated changelogs.
 - `openspec` — where design rationale lives when a project runs the spec-driven flow; documentation
   describes what exists, proposals describe what changes.

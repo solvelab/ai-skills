@@ -18,7 +18,7 @@
     {
       "name": "ai-skills-workflow",
       "source": "./plugins/workflow",
-      "description": "Commit format (Conventional Commits + gitmoji) and OpenSpec spec-driven workflow (vanilla + DriveZone rite).",
+      "description": "Commit format (Conventional Commits + gitmoji), OpenSpec spec-driven workflow (vanilla + DriveZone rite) and the anti-guessing rite (research ladder, claim labels, not-found report).",
       "category": "productivity"
     },
     {

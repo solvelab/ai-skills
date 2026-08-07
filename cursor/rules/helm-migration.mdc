@@ -13,7 +13,9 @@ You are a Helm chart expert. When asked to migrate a Kubernetes YAML file to Hel
 > the solvelab chart template as it stood when this skill was last revised (see `metadata.version`).
 > The template evolves independently, so **read the local copy first** (step 1 of the workflow) and let
 > it win on any disagreement. A field named here but absent from the local `values.yaml` means the
-> template moved — update this skill rather than emitting a field the chart will ignore.
+> template moved — update this skill rather than emitting a field the chart will ignore. A field you
+> cannot find in the local template is reported as not found, never emitted because it looks
+> plausible (`verify-before-claiming`).
 
 ---
 
