@@ -59,7 +59,9 @@ codebase.
 7. **Preview + approval** — show the complete issue markdown, target repo, labels, assignees and
    proposed field values. Only proceed on explicit approval.
 8. **Create** — in order, capturing outputs (exact commands in `references/gh-projects.md`):
-   `gh issue create` → `gh project item-add` → `gh project item-edit` per configured field.
+   `gh issue create` → `gh project item-add` → `gh project item-edit` per configured field. Repeat
+   the add (and the Status default) for every board in `extra_projects`, when configured — an issue
+   can live on several Projects at once (see `references/backlog-config.md`).
 9. **Report** — issue URL, project item confirmation, fields set, plus any warnings (skipped
    fields, partial failures + recovery commands).
 
@@ -81,6 +83,7 @@ codebase.
 | Config invalid / Project not found | Report the exact `gh` error; create nothing. |
 | Configured field absent in Project | Warn + skip that field; still create the issue. |
 | `item-add`/`item-edit` fails after issue creation | Keep the issue; report it + the exact manual recovery command. |
+| `extra_projects` board unreachable / field missing there | Warn + skip that board; the primary Project and the issue stand. A mirror is never a reason to fail the run. |
 | Select option not found for a proposed value | Show available options; ask instead of guessing. |
 | Select field with an empty options array | Likely an org **issue field** mirrored into the board — resolve options via `GET /orgs/<owner>/issue-fields` and set through the issue-field-values endpoint (see `references/gh-projects.md`), not `item-edit`. |
 

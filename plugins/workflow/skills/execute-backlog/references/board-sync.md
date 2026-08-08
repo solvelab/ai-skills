@@ -41,6 +41,14 @@ columns:
 Configured/heuristic name not among the Status options → warn, leave status untouched, continue
 (board sync is never a reason to fail the execution).
 
+**Mirrors.** When the config declares `extra_projects` (see the `backlog` skill's
+`backlog/references/backlog-config.md`), apply every transition to those boards too — resolve each board's
+own project/item/field/option IDs, match the column by **name**, and set Status only. Two boards
+cloned from the same template can share option IDs, so reusing an ID from the primary board looks
+correct until the day it silently writes the wrong column. A mirror that is unreachable, has no
+Status field, or has no column with that name → warn and skip it; the primary board and the
+execution result stand.
+
 ```bash
 gh project item-edit --project-id PROJECT_ID --id ITEM_ID \
   --field-id STATUS_FIELD_ID --single-select-option-id OPTION_ID
@@ -81,3 +89,4 @@ a real link whose reference lives only in a commit message. Both failure directi
 | item-edit fails | report exact command with resolved IDs; execution result stands |
 | PR created but issue comment failed | `gh issue comment <url> --body-file <file>` |
 | item missing from board | `gh project item-add` then retry the transition |
+| mirror board (`extra_projects`) rejects the edit | report the board + exact command; the primary board's state stands |
