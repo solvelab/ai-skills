@@ -60,9 +60,39 @@ defaults:
   status: Backlog
 ```
 
+## Mirroring an item onto a second board (`extra_projects`)
+
+A repository can be relevant to more than one Project: a website repo whose game page is tracked on
+that game's board, a shared library tracked by each consuming squad. An issue may belong to several
+Projects at once, so the item is **added** to each — never moved.
+
+```yaml
+project:                 # the primary board — owns field values and the lifecycle
+  owner: solvelab
+  number: 2
+extra_projects:          # optional mirrors, in addition to the primary
+  - owner: DriveZoneFivem
+    number: 1
+    # status: Backlog    # optional; default = the primary's defaults.status
+```
+
+Rules:
+
+- The primary Project stays the source of truth: `fields:`, `defaults:` and `columns:` describe it.
+- On each mirror the skills set **Status only**, using the option whose *name* matches (option IDs
+  are per-board and must be resolved fresh for each one — two boards cloned from the same template
+  can even share option IDs, which makes copying them look like it works right up until it doesn't).
+- Priority/Size/Estimate are left untouched on mirrors. An org **issue field** (Priority in a
+  solvelab board, say) cannot be set from another org's Project anyway.
+- A mirror that fails — board gone, no Status field, no matching option — produces a warning and is
+  skipped. It never fails the run and never blocks the primary board.
+- Cards on different boards drift: whoever moves one by hand should move the other. The skills only
+  sync the transitions they perform themselves.
+
 ## Validation rules
 
 - `project.owner` and `project.number` are required; anything else is optional.
+- Each entry in `extra_projects` requires `owner` and `number`; `status` is optional.
 - Unknown keys: warn and ignore (forward compatibility).
 - A `fields:` entry naming a field that does not exist in the Project → warn + skip that field at
   creation time (do not fail the run).
