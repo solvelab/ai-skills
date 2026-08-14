@@ -46,6 +46,12 @@ invent two different translations. This is DDD's ubiquitous language: the shared
 domain **terms**, and says nothing about plumbing verbs — `criarPedido`, `buscarUsuarios` and
 `salvarDados` translate the plumbing, which carries no domain meaning at all.
 
+**The exception is narrow on purpose.** It covers named instruments — a document, a registry, a tax
+regime, a payment rail — not any word that feels domain-flavoured. `simples` is the ordinary
+adjective and stays English; only `simples_nacional` names the regime. `pedido`, `entrega` and
+`saldo` all have exact English names and are not exceptions. If you cannot point at the law, the
+regulator or the provider's API that fixes the term, it is not one.
+
 **The gate is what makes the exception usable.** A kept term is legitimate only when:
 
 - the backlog item's Glossary lists it in the *keep-as-is* column, or

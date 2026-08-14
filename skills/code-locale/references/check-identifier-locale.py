@@ -78,16 +78,21 @@ VERBS = {
 NOUNS = {
     "usuario", "usuarios", "senha", "pedido", "pedidos", "cliente", "clientes", "produto",
     "produtos", "endereco", "cidade", "telefone", "pagamento", "entrega", "veiculo", "veiculos",
-    "motorista", "jogador", "jogadores", "arquivo", "arquivos", "pasta", "sobrenome", "fatura",
+    "motorista", "jogador", "jogadores", "arquivo", "arquivos", "sobrenome", "fatura",
     "cobranca", "cadastro", "empresa", "funcionario", "permissao", "tentativa", "quantidade",
     "preco", "desconto", "saldo", "corrida", "corridas", "compra", "venda", "estoque", "carrinho",
     "assinatura", "mensagem", "recibo", "apelido", "aniversario", "bairro", "estado", "codigo",
 }
+# `pasta` was here and was removed: the field score below found it firing on the English noun.
+
 
 # Words that exist in both languages. Keeping them out of the lexicon is what makes the check
 # usable; the assertion below stops a future contributor from quietly adding one back and turning
 # the gate into noise.
 ENGLISH_COLLISIONS = {
+    # `pasta` earned its place here: it shipped in the lexicon and fired on the English noun in
+    # vendored JavaScript during the first field score (970k lines, 2 hits, both false).
+    "pasta",
     "data", "total", "real", "local", "custom", "media", "agenda", "area", "sensor", "motor",
     "favor", "valor", "nota", "mesa", "banana", "final", "normal", "material", "capital", "animal",
     "central", "digital", "global", "legal", "modal", "moral", "natural", "oral", "radio", "solo",
@@ -95,9 +100,18 @@ ENGLISH_COLLISIONS = {
     "piano", "radar", "regime", "salsa", "silo", "tempo", "torso", "vista",
 }
 
-_overlap = (VERBS | NOUNS) & ENGLISH_COLLISIONS
+# Proper names and handles that the morphology tier wrongly matches. Not English words, so they do
+# not belong in ENGLISH_COLLISIONS, but not Portuguese either. This set grows only from a false
+# positive observed in real code — never from imagination — and each entry names where it was seen.
+# Seeds from the first field score (970k lines of vendored JavaScript): `sfrancia` (a GitHub
+# handle), `valencia` (a place name), both matched by `-ancia`.
+NOT_PORTUGUESE = {
+    "sfrancia", "valencia", "francia", "provencia", "florencia",
+}
+
+_overlap = (VERBS | NOUNS) & (ENGLISH_COLLISIONS | NOT_PORTUGUESE)
 assert not _overlap, (
-    "lexicon contains words that are also English: "
+    "lexicon contains words that are also English or known proper names: "
     + ", ".join(sorted(_overlap))
     + " — a word in both languages produces false positives and must stay out"
 )
@@ -105,10 +119,21 @@ assert not _overlap, (
 # Domain terms kept on purpose. Brazilian legal and regulatory instruments have no faithful English
 # translation, and inventing one destroys traceability to the law, the regulator's schema and the
 # payment provider's API. See `code-locale` for the rule that governs this list.
+# Deliberately SHORT. This list is the only place a foreign word passes with no reviewer seeing it,
+# so it holds unambiguous named instruments and nothing else. Anything else — a term that is
+# arguably domain-specific, a term someone likes better in Portuguese — goes through the item's
+# Glossary or an inline `locale-ok: <reason>`, where a human reads the reason. A broad auto-allow
+# list is how "it is a domain term" stops meaning anything.
+#
+# Two exclusions worth naming:
+#   - `simples` is NOT here. It is the ordinary adjective; only the compound `simples_nacional`
+#     names the tax regime, and `simples = True` must not pass silently.
+#   - Acronyms under MIN_SEGMENT (cpf, cep, pix, nfe, rg, sus, iss, cbo, mei, pis, ie, im) are not
+#     listed: the length floor already lets them through, and listing them would suggest this set
+#     is doing work it is not.
 DOMAIN_KEEP = {
-    "cpf", "cnpj", "cep", "boleto", "pix", "nfe", "nfse", "sefaz", "renavam", "crlv", "cnh",
-    "pis", "cofins", "icms", "iss", "ie", "im", "rg", "sus", "cnae", "cbo", "fgts", "inss",
-    "nota_fiscal", "notafiscal", "simples", "mei",
+    "cnpj", "boleto", "nfse", "sefaz", "renavam", "crlv", "cofins", "icms", "cnae", "fgts",
+    "inss", "nota_fiscal", "notafiscal", "simples_nacional",
 }
 
 # ── Language profiles ─────────────────────────────────────────────────────
@@ -226,7 +251,7 @@ def classify(segment: str) -> "str | None":
         return None
     if any(ord(c) > 127 for c in raw):
         return "non-ascii"
-    if raw in DOMAIN_KEEP or raw in KEYWORDS:
+    if raw in DOMAIN_KEEP or raw in KEYWORDS or raw in NOT_PORTUGUESE:
         return None
     if raw in VERBS:
         return "pt-verb"
@@ -235,6 +260,24 @@ def classify(segment: str) -> "str | None":
     if MORPHOLOGY.search(raw) and raw not in ENGLISH_COLLISIONS:
         return "pt-morphology"
     return None
+
+
+# Vendored and generated code is not this project's machine layer, and minified bundles produce
+# meaningless identifiers. Earned by the first field score: 7 of 9 findings came from
+# `.vscode-test/` bundles, which is how a real signal gets buried.
+VENDOR_PARTS = {
+    "node_modules", ".venv", "venv", "vendor", "dist", "build", "out", ".vscode-test",
+    "site-packages", "third_party", ".next", "__pycache__", "coverage",
+}
+MINIFIED_LINE = 400          # a source line this long is generated, not written
+
+
+def is_vendored(path: Path) -> bool:
+    return any(part in VENDOR_PARTS for part in path.parts) or ".min." in path.name
+
+
+def is_minified(text: str) -> bool:
+    return any(len(line) > MINIFIED_LINE for line in text.splitlines()[:200])
 
 
 def load_allowlist(start: Path) -> set:
@@ -348,6 +391,9 @@ SELFTEST_CLEAN = [
     ("english suffixes", "typescript", "const vendorId = 1; const level = 2; const memento = 3;\n"),
     # Regression: `Does` ends in -oes. Found in the catalog by the first full run of this check.
     ("english -oes", "csharp", "Assert.That(x, Does.NotContain(y)); var shoes = 1; var heroes = 2;\n"),
+    # Regression: both earned by the first field score over 970k lines of real code.
+    ("english pasta", "javascript", "const pasta = require('pasta'); const pastaSauce = 1;\n"),
+    ("proper name -ancia", "javascript", "const sfrancia = 1; const valencia = 2;\n"),
     ("PT lua comment", "lua", '-- cria o jogador\nlocal playerId = 1\n'),
 ]
 
@@ -392,6 +438,7 @@ def main(argv: "list[str] | None" = None) -> int:
     allow = load_allowlist(Path.cwd())
     findings: list = []
     skipped: list = []
+    vendored: list = []
 
     if args.diff:
         stream = sys.stdin if args.diff == "-" else open(args.diff, encoding="utf-8")
@@ -420,13 +467,22 @@ def main(argv: "list[str] | None" = None) -> int:
             if not lang:
                 skipped.append(str(path))
                 continue
-            findings.extend(scan_text(path.read_text(encoding="utf-8"), lang, str(path), allow))
+            if is_vendored(path):
+                vendored.append(str(path))
+                continue
+            body = path.read_text(encoding="utf-8")
+            if is_minified(body):
+                vendored.append(str(path))
+                continue
+            findings.extend(scan_text(body, lang, str(path), allow))
 
     for f in findings:
         print(f.render())
     print(f"\nfindings: {len(findings)}")
     if skipped:
         print(f"  skipped (no language profile): {len(skipped)} file(s) — reviewed by hand, not passed")
+    if vendored:
+        print(f"  skipped (vendored/generated/minified): {len(vendored)} file(s) — not this project's machine layer")
     return 1 if findings else 0
 
 
