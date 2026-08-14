@@ -5,7 +5,9 @@ type and priority.
 
 Omit any section that does not apply — an empty heading is worse than no heading. Every claim about
 the codebase must come from the context-collection step (real paths, real modules). Write the issue
-in the repository's working language (default: the language of its README).
+in the repository's working language (default: the language of its README). That governs the
+issue's **prose only** — the code the item produces is English regardless (`code-locale`), so fill
+the Glossary section below and leave no name to be improvised at implementation time.
 
 ```markdown
 ## Context
@@ -34,6 +36,18 @@ The outcome once done — observable, one paragraph.
 - FR1 …
 - FR2 …
 
+## Glossary (domain term → identifier)   <!-- required when the item produces code -->
+
+| Termo (PT) | Identifier (EN) | Origin |
+|---|---|---|
+| pedido | `order` | already used in `app/models/order.py` |
+| entrega | `delivery` | new — decided here |
+| nota fiscal | `nota_fiscal` | keep-as-is: legal document, no faithful translation |
+
+Harvest before deciding: every row is either taken from what the codebase already calls the concept,
+or marked `new — decided here`. A term neither the codebase nor the user resolves is a gap question,
+never a translation invented in the draft. Protocol: `code-locale`.
+
 ## Technical requirements
 
 - TR1 … (constraints: stack, patterns to follow — cite existing conventions/files)
@@ -41,6 +55,8 @@ The outcome once done — observable, one paragraph.
 ## Acceptance criteria
 
 - [ ] Verifiable statements, testable one by one.
+- [ ] When the item produces code: new identifiers, routes, keys and event names follow the Glossary
+      and `code-locale`.
 
 ## Dependencies
 

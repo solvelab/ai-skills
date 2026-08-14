@@ -143,7 +143,9 @@ sections this project earns. The full skeleton and a worked example: `references
    choice alone.
 5. **Real values, never `foo`/`bar`.** Realistic payloads, actual config values.
 6. **Warn about footguns** in bold, at the point of danger, not in a distant section.
-7. **Match the project's existing language and voice.** Portuguese docs stay Portuguese.
+7. **Match the project's existing language and voice.** Portuguese docs stay Portuguese — but an
+   identifier, route or config key quoted in the docs is copied from the code verbatim, never
+   translated (`code-locale`).
 
 ## Updating existing documentation
 
@@ -156,6 +158,8 @@ sections this project earns. The full skeleton and a worked example: `references
 
 ## See also
 
+- `code-locale` — an identifier, route or config key quoted in the docs is copied from the code,
+  never translated; docs prose keeps the project's language.
 - `references/templates.md` — README / SETUP / TECHNICAL skeletons.
 - `references/examples.md` — worked examples of good output per tier.
 - `verify-before-claiming` — how to research a fact before documenting it, and the report to write

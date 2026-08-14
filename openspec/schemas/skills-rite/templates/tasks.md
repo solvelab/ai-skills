@@ -33,6 +33,11 @@
       do NOT collide with a sibling skill's triggers; "Do NOT use for" boundary present where overlap exists
 - [ ] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
       its canonical skill (see design.md Canonical Home table)
+- [ ] Q.5 Every code example in a touched skill uses English identifiers, routes, keys and event
+      names; a term kept in another language carries its reason inline (`code-locale`).
+      Provenance: maintainer field report 2026-08-14 (issue #76) — Portuguese identifiers and route
+      paths shipped in target repos through this rite. Regression gate on the exemplar: the model
+      imitates the code it is shown
 
 ## 4. Validation & Closure (MANDATORY)
 

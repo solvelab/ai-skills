@@ -222,6 +222,7 @@ against the stated deadline.
 
 ## See also
 
+- `code-locale` — config keys and fallback metric/log field names are English even when the repo's prose is not; a domain term with no faithful translation is kept only when the item's glossary lists it.
 - `api-resilience-testing` — how to *test* an API against these failure modes (negative/fuzz/contract).
 - `bug-hunter` — the adversarial-testing rite that validates fallback under "dependency down / partial
   payload / race".

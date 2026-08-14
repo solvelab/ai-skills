@@ -12,13 +12,13 @@
     {
       "name": "ai-skills",
       "source": "./",
-      "description": "FULL bundle (all 33 skills). Prefer the per-domain plugins — enable only what fits the project.",
+      "description": "FULL bundle (all 34 skills). Prefer the per-domain plugins — enable only what fits the project.",
       "category": "productivity"
     },
     {
       "name": "ai-skills-workflow",
       "source": "./plugins/workflow",
-      "description": "Commit format (Conventional Commits + gitmoji), OpenSpec spec-driven workflow (vanilla + DriveZone rite) and the anti-guessing rite (research ladder, claim labels, not-found report).",
+      "description": "Commit format (Conventional Commits + gitmoji), OpenSpec spec-driven workflow (vanilla + DriveZone rite), the anti-guessing rite (research ladder, claim labels, not-found report) and the code-locale rule (English machine layer, repo-language prose).",
       "category": "productivity"
     },
     {

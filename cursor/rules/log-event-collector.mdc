@@ -189,6 +189,7 @@ not a patch to this one.
 
 ## See also
 
+- `code-locale` — event type names and dedup-key field names are English even when the repo's prose is not; a domain term with no faithful translation is kept only when the item's glossary lists it.
 - `python-rest-api` — the receiving API's conventions (generic event sink, envelope, service
   tokens).
 - `backend-resilience` — the general doctrine for services calling unreliable dependencies; this

@@ -80,6 +80,9 @@ jobs:
       - name: Skill validator self-test (the gate is itself gated)
         run: python3 scripts/selftest-validate-skills.py
 
+      - name: Identifier-locale detector self-test (the shipped script is itself gated)
+        run: python3 skills/code-locale/references/check-identifier-locale.py --selftest
+
       - name: Secret scan (working tree)
         run: python3 scripts/scan-secrets.py
 

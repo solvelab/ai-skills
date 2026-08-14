@@ -36,6 +36,24 @@ written into a command, and a feature you decided to build on your own are all c
   a guess about my intent — propose it, do not perform it.
 - Full doctrine, templates and the anti-pattern catalog: the `verify-before-claiming` skill.
 
+## Code Locale (prose is Portuguese, the machine layer is English)
+Commit subjects, PR bodies, issue text, docs and code comments follow the repo's working language.
+Everything a machine parses is English and ASCII: identifiers, function/class/file names, REST path
+segments and query params, DB tables and columns, enum values, event/topic names, config keys, log
+field keys.
+- Portuguese belongs in the **values**, never in the keys: `{"status": "pending", "label": "Pendente"}`.
+- A domain term with no faithful translation or with legal meaning (CPF, CNPJ, Nota Fiscal, PIX,
+  boleto) keeps its name, deaccented, inside English grammar: `validateCpf`, `nota_fiscal_number`.
+  It is legitimate only when the backlog item's Glossary lists it or the code carries an inline
+  `locale-ok: <reason>`. An unlisted Portuguese noun is a defect, not a domain term.
+- A foreign API that speaks Portuguese is mirrored only in its adapter/DTO (alias the wire name);
+  past that boundary the domain model is English.
+- Never improvise a translation — take the name from the codebase or the item's Glossary, and ask if
+  it is in neither. An invented translation is an unverified claim (see Grounding).
+- Existing code is not renamed for its own sake: new code is English, and a contract-bearing name
+  (route, persisted column, event name, deployed config key) changes only through a deprecation window.
+- Full doctrine, exception protocol, migration policy and the detector: the `code-locale` skill.
+
 ## Commits & Pull Requests
 - NEVER include the `Co-Authored-By` line in commit messages. Do not add any AI attribution or co-author references to commits under any circumstances.
 - The same rule applies to **Pull Requests**: no AI attribution in the PR title, body, or description. Never add `🤖 Generated with Claude Code`, "Generated with", "Created by Claude", "Made with AI", or any line stating the commit/PR was produced by Claude, Anthropic, or any other AI. If a default PR-body template appends such a line (e.g. via `gh pr create`), strip it before submitting.

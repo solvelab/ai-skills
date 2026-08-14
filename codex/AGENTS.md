@@ -16,6 +16,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `backlog` | `codex/skills/backlog/AGENTS.md` |
 | `bug-hunter` | `codex/skills/bug-hunter/AGENTS.md` |
 | `claude-statusline` | `codex/skills/claude-statusline/AGENTS.md` |
+| `code-locale` | `codex/skills/code-locale/AGENTS.md` |
 | `conventional-commit` | `codex/skills/conventional-commit/AGENTS.md` |
 | `documentation` | `codex/skills/documentation/AGENTS.md` |
 | `execute-backlog` | `codex/skills/execute-backlog/AGENTS.md` |

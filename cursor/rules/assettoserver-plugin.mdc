@@ -256,6 +256,7 @@ commit) next to the DLL — the deploy side refuses to sync a DLL without a rite
 
 ## See also
 
+- `code-locale` — plugin config keys, YAML file names and chat-command names are English even when the repo's prose is not; a domain term with no faithful translation is kept only when the item's glossary lists it.
 - `assettoserver-csp-lua` — the client side of the scripts and packets this plugin serves: render
   doctrine, DirectWrite traps, packet layout mirroring, remote assets/audio by URL.
 - `assettoserver-ops` — operating the server that loads this plugin; the deploy/sync gate that

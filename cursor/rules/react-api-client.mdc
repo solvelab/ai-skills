@@ -76,5 +76,6 @@ bug dies at the contract level.
 
 ## See also
 
+- `code-locale` — the domain model past the zod parser is English — that parser boundary is the anti-corruption layer even when the repo's prose is not; a domain term with no faithful translation is kept only when the item's glossary lists it.
 - `python-rest-api` — the backend envelope/code registry these conventions consume.
 - `fivem-nui-react` — React inside the game's CEF (different transport, same discipline).
