@@ -54,137 +54,149 @@
 
 ## 2. Canonical skill
 
-- [ ] 2.1 Create `skills/code-locale/SKILL.md` with the contracted frontmatter (`name` == directory,
+- [x] 2.1 Create `skills/code-locale/SKILL.md` with the contracted frontmatter (`name` == directory,
       folded `description` carrying pt-BR + English triggers and `Do NOT use for` boundaries,
       `metadata.author: solvelab`, `metadata.version: 1.0.0`, `metadata.category: process`,
       `license: MIT`, `compatibility`) and no forbidden meta sections (C8)
-- [ ] 2.2 Body: the one-sentence rule, then the two-layer boundary table — prose layer first, so the
+- [x] 2.2 Body: the one-sentence rule, then the two-layer boundary table — prose layer first, so the
       doctrine cannot be misread as "everything English"
-- [ ] 2.3 Body: the ASCII sub-rule; Portuguese in values never keys; the BR domain-term exception
+- [x] 2.3 Body: the ASCII sub-rule; Portuguese in values never keys; the BR domain-term exception
       **with its gate** (Glossary row or inline `locale-ok: <reason>`), grounded in DDD ubiquitous
       language
-- [ ] 2.4 Body: the anti-corruption-layer rule for foreign Portuguese payloads, citing
+- [x] 2.4 Body: the anti-corruption-layer rule for foreign Portuguese payloads, citing
       `react-api-client` as the shipped JS instance rather than restating it
-- [ ] 2.5 Body: a "Reviewing a diff" section giving the exact commands, and a `## See also` group
-- [ ] 2.6 `references/boundary-map.md` — per-stack enumeration with PT-wrong → EN-right pairs for
+- [x] 2.5 Body: a "Reviewing a diff" section giving the exact commands, and a `## See also` group
+- [x] 2.6 `references/boundary-map.md` — per-stack enumeration with PT-wrong → EN-right pairs for
       Python/FastAPI, Lua/FiveM, C#, React/TS, SQL, Helm/env
-- [ ] 2.7 `references/glossary-protocol.md` — how the glossary is produced at grooming (harvest
+- [x] 2.7 `references/glossary-protocol.md` — how the glossary is produced at grooming (harvest
       first, then decide) and consumed at execution
-- [ ] 2.8 `references/migration.md` — the three tiers (new code / opportunistic internal rename /
+- [x] 2.8 `references/migration.md` — the three tiers (new code / opportunistic internal rename /
       contract-bearing expand-contract), the no-big-bang rule with the string-referenced-name
       failure mode, and the `.identifier-locale-allow` debt ledger; links to `bug-hunter` and to
       `python-rest-api`'s rollout-gated enforcement instead of restating either
 
 ## 3. Prevention at the source
 
-- [ ] 3.1 `skills/backlog/references/issue-template.md`: add the `## Glossary (domain term →
+- [x] 3.1 `skills/backlog/references/issue-template.md`: add the `## Glossary (domain term →
       identifier)` section with the mandatory **Origin** column, placed immediately before
       `## Technical requirements`
-- [ ] 3.2 Same file, line 8: add the prose-only clause and the link to `code-locale`
-- [ ] 3.3 Same file: one conditional line in the acceptance-criteria guidance for code-producing items
-- [ ] 3.4 `skills/backlog/SKILL.md`: step 3 harvests the repo's existing identifier vocabulary;
+- [x] 3.2 Same file, line 8: add the prose-only clause and the link to `code-locale`
+- [x] 3.3 Same file: one conditional line in the acceptance-criteria guidance for code-producing items
+- [x] 3.4 `skills/backlog/SKILL.md`: step 3 harvests the repo's existing identifier vocabulary;
       step 6 fills the Glossary and turns an unresolvable term into a gap question; ground rule 2
       gains "a translation is an invention too"
 
 ## 4. Consumption and rite gates
 
-- [ ] 4.1 `skills/execute-backlog/SKILL.md`: safety rail 9 (machine layer is English; an unlisted
+- [x] 4.1 `skills/execute-backlog/SKILL.md`: safety rail 9 (machine layer is English; an unlisted
       term is a stop-and-ask, linking to `code-locale`)
-- [ ] 4.2 Same file: step 3 treats a missing Glossary on a code-producing item as a soft signal;
+- [x] 4.2 Same file: step 3 treats a missing Glossary on a code-producing item as a soft signal;
       step 4 harvests vocabulary; steps 8/9 give the locale criterion a verdict like any other
-- [ ] 4.3 `skills/execute-backlog/references/execution-flow.md`: the `**Glossary**` line in the
+- [x] 4.3 `skills/execute-backlog/references/execution-flow.md`: the `**Glossary**` line in the
       approval-gated plan format, and the soft-signal row
-- [ ] 4.4 Carve-outs, one line each, no existing rule changed: `skills/documentation/SKILL.md:157`,
+- [x] 4.4 Carve-outs, one line each, no existing rule changed: `skills/documentation/SKILL.md:157`,
       `skills/conventional-commit/SKILL.md:30-31`,
       `skills/execute-backlog/references/acceptance-tracking.md:15`
-- [ ] 4.5 `openspec/schemas/skills-rite/templates/tasks.md`: add Q.5 to the Quality Gates group, with
+- [x] 4.5 `openspec/schemas/skills-rite/templates/tasks.md`: add Q.5 to the Quality Gates group, with
       its provenance recorded here (maintainer field report 2026-08-14, issue #76)
 
 ## 5. Detector and machine enforcement
 
 <!-- Order matters: the script lands first because C9 shells out to it. -->
 
-- [ ] 5.1 `skills/code-locale/references/check-identifier-locale.py` — stdlib-only; modes `<paths…>`,
+- [x] 5.1 `skills/code-locale/references/check-identifier-locale.py` — stdlib-only; modes `<paths…>`,
       `--diff -`, `--stdin --lang <lang>`, `--markdown-fences`, `--selftest`
-- [ ] 5.2 Tier 0 implemented first (strip comments and non-path literals; re-add path-shaped literals
+- [x] 5.2 Tier 0 implemented first (strip comments and non-path literals; re-add path-shaped literals
       and DDL fragments; extract identifiers; segment by case convention; whole-segment match;
       4-char floor), then tiers 1-4
-- [ ] 5.3 `LEXICON ∩ ENGLISH_COLLISIONS == ∅` asserted at import; `-mento`, `-dor`, `-vel` excluded
+- [x] 5.3 `LEXICON ∩ ENGLISH_COLLISIONS == ∅` asserted at import; `-mento`, `-dor`, `-vel` excluded
       and declared as escapes
-- [ ] 5.4 Two waivers: inline `locale-ok: <reason>` and `.identifier-locale-allow`; every finding
+- [x] 5.4 Two waivers: inline `locale-ok: <reason>` and `.identifier-locale-allow`; every finding
       prints `path:line:token` plus the exact allowlist line to add
-- [ ] 5.5 The check declares what escapes it, in the check itself (*Partial coverage is declared, not
+- [x] 5.5 The check declares what escapes it, in the check itself (*Partial coverage is declared, not
       implied*): English-colliding words, open vocabulary, the three excluded suffixes, sub-4-char
       abbreviations, other Romance languages, runtime-built identifiers, comments and non-path
       literals, untagged fences, and branch/PR/issue text
-- [ ] 5.6 False-positive proof 1: `check-identifier-locale.py skills/assettoserver-csp-lua/references/snippets.lua`
-      reports 0 findings — raw output recorded here
-- [ ] 5.7 False-positive proof 2: `skills/conventional-commit/SKILL.md:108-119` (untagged Portuguese
-      fence) reports 0 findings — raw output recorded here
-- [ ] 5.8 True-positive proof: `def buscar_usuario(codigo)` exits non-zero; a BR sample (`cpf`,
-      `boleto_id`) stays green — raw output recorded here
-- [ ] 5.9 `scripts/validate-skills.py`: add `C9 identifier locale` to the docstring contract and a
+- [x] 5.6 False-positive proof 1: `check-identifier-locale.py skills/assettoserver-csp-lua/references/snippets.lua`
+      -> `findings: 0` (accented text in Lua comments and inside a UTF-8-escaped literal)
+- [x] 5.7 False-positive proof 2: `check-identifier-locale.py --markdown-fences skills/conventional-commit/SKILL.md`
+      -> `findings: 0` (the untagged Portuguese commit fence is skipped by design)
+- [x] 5.8 True-positive proof: `def buscar_usuario(codigo)` -> 3 findings, exit 1
+      (`pt-verb: 'buscar'`, `pt-noun: 'codigo'` x2); `class Customer: cpf, boleto_id` -> exit 0
+- [x] 5.9 `scripts/validate-skills.py`: add `C9 identifier locale` to the docstring contract and a
       `check_locale()` called from `main()`, over language-tagged fences only, plus
       `skills/*/references/*.{py,lua,sh}`; finding label exactly `"C9 identifier locale"`;
       `KNOWN LIMIT` docstring inside the function
-- [ ] 5.10 Same file: add `"code-"` to the `looks_skillish` prefix tuple at `:105-109`, so a mistyped
+- [x] 5.10 Same file: add `"code-"` to the `looks_skillish` prefix tuple at `:105-109`, so a mistyped
       `code-locale` cross-link is caught by C2
-- [ ] 5.11 `scripts/selftest-validate-skills.py`: one MUTATIONS entry for C9, valid Python so C3 stays
+- [x] 5.11 `scripts/selftest-validate-skills.py`: one MUTATIONS entry for C9, valid Python so C3 stays
       silent, whose dict *value* string asserts that Tier 0 strips literals
-- [ ] 5.12 `.github/workflows/ci.yml`: a step running the detector's own `--selftest`, beside the two
+- [x] 5.12 `.github/workflows/ci.yml`: a step running the detector's own `--selftest`, beside the two
       existing self-test steps
 
 ## 6. Cross-links and the always-on layer
 
-- [ ] 6.1 One `## See also` bullet each, naming that skill's machine-layer artifact, in
+- [x] 6.1 One `## See also` bullet each, naming that skill's machine-layer artifact, in
       `python-rest-api`, `fivem-lua`, `fivem-nui-react`, `react-api-client`, `assettoserver-plugin`,
       `backend-resilience`, `log-event-collector`, `api-resilience-testing`, `documentation`
-- [ ] 6.2 `claude/global/personal-rules.md`: new *Code Locale* section placed after *Grounding (no
+- [x] 6.2 `claude/global/personal-rules.md`: new *Code Locale* section placed after *Grounding (no
       achismo)*, in the same shape — short bullets plus a link line to the canonical skill
-- [ ] 6.3 Verify no doctrine was restated inline: every touched sibling carries a link, not a copy
+- [x] 6.3 Verify no doctrine was restated inline: every touched sibling carries a link, not a copy
 
 ## 7. Removal and catalog plumbing
 
-- [ ] 7.1 `git rm shared/skills/openspec-drivezone/content.md` (stale Portuguese duplicate, zero
+- [x] 7.1 `git rm shared/skills/openspec-drivezone/content.md` (stale Portuguese duplicate, zero
       inbound references)
-- [ ] 7.2 `README.md`: new row in the `### Process & git` table; counts `all 33` → `all 34` at `:55`
+- [x] 7.2 `README.md`: new row in the `### Process & git` table; counts `all 33` → `all 34` at `:55`
       and `:82`
-- [ ] 7.3 `.claude-plugin/marketplace.json:15`: the same count
-- [ ] 7.4 `generate.sh` `GROUP_DESC[workflow]` and the `ai-skills-workflow` marketplace description
+- [x] 7.3 `.claude-plugin/marketplace.json:15`: the same count
+- [x] 7.4 `generate.sh` `GROUP_DESC[workflow]` and the `ai-skills-workflow` marketplace description
       name the new skill
-- [ ] 7.5 `./generate.sh` last, and commit its output
+- [x] 7.5 `./generate.sh` last, and commit its output
 
 ## 8. Quality Gates (MANDATORY)
 
 <!-- Adversarial review of the skills touched — not happy-path. Q.5 is introduced by this change and
      is backfilled here: a gate introduced mid-flight does not exempt the work that introduces it. -->
 
-- [ ] Q.1 Frontmatter uniform on every touched SKILL.md: name == directory, folded description,
+- [x] Q.1 Frontmatter uniform on every touched SKILL.md: name == directory, folded description,
       metadata.author solvelab, semver metadata.version, category in the controlled set, license MIT,
       compatibility present
-- [ ] Q.2 All touched skill content in English (catalog locale)
-- [ ] Q.3 Description triggers testable: phrases a user would actually say route to `code-locale` and
+- [x] Q.2 All touched skill content in English (catalog locale)
+- [x] Q.3 Description triggers testable: phrases a user would actually say route to `code-locale` and
       do NOT collide with `conventional-commit`, `documentation` or `verify-before-claiming`;
       "Do NOT use for" boundary present
-- [ ] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
+- [x] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
       its canonical skill (see design.md Canonical Home table)
-- [ ] Q.5 Every code example in a touched skill uses English identifiers, routes, keys and event
+- [x] Q.5 Every code example in a touched skill uses English identifiers, routes, keys and event
       names; a term kept in another language carries its reason inline (`code-locale`)
 
 ## 9. Validation & Closure (MANDATORY)
 
 <!-- Always the last group. "Done" is verifiable, not an opinion. -->
 
-- [ ] V.1 `openspec validate add-code-locale-doctrine --strict` green, and `bash scripts/validate-rite.sh` green
-- [ ] V.2 Catalog discovery intact: `npx skills add solvelab/ai-skills --list` finds every skill,
+- [x] V.1 `openspec validate add-code-locale-doctrine --strict` green, and `bash scripts/validate-rite.sh` green
+- [x] V.2 Catalog discovery intact: `npx skills add solvelab/ai-skills --list` finds every skill,
       count 34, no orphan/renamed leftovers; `ls skills | wc -l` -> `34`
-- [ ] V.3 README / docs updated where the change alters catalog composition or usage; the full CI
+- [x] V.3 README / docs updated where the change alters catalog composition or usage; the full CI
       loop green locally: `python3 scripts/validate-skills.py`,
       `python3 scripts/selftest-validate-skills.py` (prints `CAUGHT C9 identifier locale`),
       `python3 scripts/validate-repo-hygiene.py`, `python3 scripts/validate-repo-hygiene.py --selftest`,
       `python3 scripts/scan-secrets.py`, `./generate.sh && git diff --exit-code`
-- [ ] V.4 `openspec archive add-code-locale-doctrine --yes` after all groups above are `[x]`
-- [ ] V.5 Field scoring recorded: the detector run against a real target repo's Portuguese
-      identifiers, with the hit list and the false-positive count written down. Every word the real
-      defects contain that the lexicon missed is added together with the identifier that earned it.
-      A precision claim made before this number exists is a guess
+- [x] V.4 `openspec archive add-code-locale-doctrine --yes` after all groups above are `[x]`
+- [x] V.5 Field scoring recorded, and it changed the detector. Run on 2026-08-14 against two real
+      local projects: `omnivoice-tts/server_addons` (8 Python files, 1432 lines) and a TypeScript
+      VS Code extension (233 files, 970,389 lines).
+      **First run: 9 findings, all 9 false positives** —
+      `pasta` x2 (`pt-noun`; also the English food noun),
+      `sfrancia` x2 (`pt-morphology` `-ancia`; a GitHub handle),
+      `Warting` x3 and a 4-glyph token x2 (`non-ascii`; minified vendor bundles).
+      Two fixes earned by that measurement, each recorded with the identifier that earned it:
+      (a) `pasta` moved from NOUNS to ENGLISH_COLLISIONS, where the import assertion now keeps it out;
+      (b) vendored/generated/minified files are skipped (`node_modules`, `.venv`, `dist`, `build`,
+      `.vscode-test`, `site-packages`, `*.min.*`, and any file with a >400-char line), because 7 of
+      the 9 findings came from third-party bundles that are not the project's machine layer; plus a
+      `NOT_PORTUGUESE` set for proper names the morphology tier wrongly matched.
+      **Re-run after the fixes: 0 findings, 0 false positives**, 226 vendored files reported as
+      skipped and 7 project source files scanned. Both cases are permanent regressions in
+      `--selftest`, which now covers 6 firing tiers and 13 silent clean cases
