@@ -58,10 +58,13 @@ jobs:
             head -1 "$f" | grep -q '^---$' || { echo "::error file=$f::Missing frontmatter"; fail=1; }
             grep -q '^name:' "$f" || { echo "::error file=$f::Missing name"; fail=1; }
             grep -q '^description:' "$f" || { echo "::error file=$f::Missing description"; fail=1; }
+            grep -q '^description: >-' "$f" || { echo "::error file=$f::description must be a folded block scalar ('description: >-')"; fail=1; }
             name="$(grep -m1 '^name:' "$f" | sed 's/^name: *//')"
             [ "$name" = "$dir" ] || { echo "::error file=$f::name '$name' != directory '$dir'"; fail=1; }
             grep -qE '^  version: [0-9]+\.[0-9]+\.[0-9]+' "$f" || { echo "::error file=$f::Missing metadata.version (semver)"; fail=1; }
-            grep -q '^license:' "$f" || { echo "::error file=$f::Missing license"; fail=1; }
+            grep -qx '  author: solvelab' "$f" || { echo "::error file=$f::metadata.author must be exactly 'solvelab'"; fail=1; }
+            grep -qx 'license: MIT' "$f" || { echo "::error file=$f::license must be exactly 'MIT'"; fail=1; }
+            grep -q '^compatibility:' "$f" || { echo "::error file=$f::Missing compatibility"; fail=1; }
             cat="$(grep -m1 '^  category:' "$f" | sed 's/^  category: *//')"
             if [ -z "$cat" ]; then
               echo "::error file=$f::Missing metadata.category"; fail=1
