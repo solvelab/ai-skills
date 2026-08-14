@@ -10,6 +10,7 @@ Implements the mechanically checkable half of openspec/specs/skills-authoring:
   C6 fence tags match content               (a block tagged X that is obviously not X)
   C7 no orphan wrapper skills               (every generated skill has a canonical source)
   C8 no meta sections in SKILL.md           (triggers belong in the description, not the body)
+  C9 identifier locale                      (English identifiers in code examples)
 
 Exit 1 on any finding. Run from the repo root.
 """
@@ -105,7 +106,8 @@ def check_refs(skill: str, path: Path, text: str) -> None:
                 looks_skillish = any(
                     s.startswith(p) for p in
                     ("r3f-", "fivem-", "openspec", "assettoserver-", "python-", "backend-",
-                     "api-", "log-", "react-", "bug-", "helm-", "k8s-", "claude-", "conventional-")
+                     "api-", "log-", "react-", "bug-", "helm-", "k8s-", "claude-", "conventional-",
+                     "code-")
                 )
                 ctx = text[max(0, m.start() - 90):m.end() + 40].lower()
                 cited_as_skill = any(k in ctx for k in ("skill", "see also", "use ", "that is "))
@@ -155,6 +157,55 @@ def check_blocks(skill: str, text: str) -> None:
                            "import sys,ast;ast.parse(sys.stdin.read())"], body)
             if rc > 0:
                 add(skill, "C3 python syntax", f"block#{i}: {err.splitlines()[-1][:90]}")
+
+
+# ── C9: identifier locale ─────────────────────────────────────────────────
+LOCALE_CHECKER = ROOT / "skills" / "code-locale" / "references" / "check-identifier-locale.py"
+
+
+LOCALE_HIT = re.compile(r"^(\S+?\.md):(\d+):\s+(\S+)\s+\[([^\]]+)\]")
+
+
+def check_locale() -> None:
+    """Flag non-English identifiers in the code this catalog teaches by example.
+
+    Invokes the SAME script the `code-locale` skill tells target repositories to wire into their own
+    CI, so a green catalog run is also proof that the shipped script executes. Its own detection
+    limits live in its docstring and are not repeated here.
+
+    ONE subprocess for the whole tree, deliberately: a call per fenced block made
+    `selftest-validate-skills.py` — which re-runs this validator once per injected defect — too slow
+    to finish, and a gate nobody waits for is a gate nobody keeps.
+
+    KNOWN LIMIT — this check covers less than the rule it enforces:
+      - Only fences carrying a language tag the checker profiles are scanned. An UNTAGGED fence is
+        skipped on purpose: `skills/conventional-commit/SKILL.md` ships an untagged block of
+        Portuguese commit examples, which is prose and must not be flagged.
+      - Only `*.md` under `skills/` is walked. Executable references (`references/*.py`, `*.sh`,
+        `*.lua`) are NOT scanned — the checker's own Portuguese lexicon is data, and a scanner that
+        fires on its own word list is noise.
+      - Prose, comments, docstrings and non-path string literals are never scanned; they are the
+        prose layer and follow the repository's language.
+      - Skipped entirely when the checker script is absent, and reported as skipped rather than
+        counted as a pass.
+    """
+    if not LOCALE_CHECKER.is_file():
+        return
+    rc, out = run([sys.executable, str(LOCALE_CHECKER), "--markdown-fences", str(ROOT / "skills")])
+    if rc != 1:
+        return
+    for line in out.splitlines():
+        m = LOCALE_HIT.match(line.strip())
+        if not m:
+            continue
+        rel = Path(m.group(1))
+        try:
+            parts = rel.relative_to(ROOT / "skills").parts
+        except ValueError:
+            parts = rel.parts
+        skill = parts[0] if parts else str(rel)
+        where = f"{skill}/{parts[-1]}" if len(parts) > 1 and parts[-1] != "SKILL.md" else skill
+        add(where, "C9 identifier locale", f"line {m.group(2)}: `{m.group(3)}` [{m.group(4)}]")
 
 
 # ── C4: description agrees with body ──────────────────────────────────────
@@ -251,6 +302,7 @@ def check_orphans() -> None:
 
 def main() -> int:
     check_orphans()
+    check_locale()
     for p in SKILLS:
         skill = p.parent.name
         text = p.read_text(encoding="utf-8")
@@ -271,6 +323,8 @@ def main() -> int:
     skipped = []
     if not LUAC:
         skipped.append("lua syntax (luac not installed)")
+    if not LOCALE_CHECKER.is_file():
+        skipped.append("identifier locale (check-identifier-locale.py missing)")
     try:
         import yaml  # noqa: F401
     except ImportError:

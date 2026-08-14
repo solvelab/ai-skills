@@ -13,7 +13,8 @@ Every checkbox list in the executed item's body that states a deliverable:
   sections, task mirrors of an OpenSpec `tasks.md`).
 
 Headings may be in the repo's working language (`Critérios de aceite`, `Testes & Bug-Hunter`) —
-match by position and meaning, never by an English literal.
+match by position and meaning, never by an English literal. That tolerance covers the item's prose
+only; the code the item produces is English regardless (`code-locale`).
 
 Never touch checkboxes outside the executed item: a parent issue, a sibling sub-issue, or a linked
 tracking issue is edited by whoever executes it.

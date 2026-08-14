@@ -10,8 +10,9 @@ Executable item needs, at minimum:
 - [ ] Affected repositories (workspace mode) or the issue lives in the repo to change.
 
 Soft signals worth flagging (not blockers): missing test strategy, missing technical requirements,
-stale file references (drift). Present gaps as a short list with a recommendation: proceed /
-refine via `/backlog` / abort.
+stale file references (drift), and a code-producing item with no Glossary — derive the rows during
+re-analysis rather than blocking (`code-locale`). Present gaps as a short list with a
+recommendation: proceed / refine via `/backlog` / abort.
 
 ## Plan format (presented for approval)
 
@@ -21,6 +22,7 @@ refine via `/backlog` / abort.
 **Interpretation**: 1-2 sentences — what will exist when done.
 **Repos/branches**: org/repo → backlog/<n>-<slug> (one line per repo, primary marked)
 **Changes**: per repo, file-level bullets (path → what and why)
+**Glossary**: term → identifier (from the item; rows derived here are marked NEW)
 **Tests**: what will be added/updated, framework, where
 **Validations**: the discovered commands that will run
 **Risks**: item risks + anything new found in re-analysis

@@ -19,7 +19,8 @@ the type.
 ```
 
 - Subject line language follows the repo's existing convention (solvelab project repos use
-  Portuguese; this catalog repo uses English) — check `git log` and match it.
+  Portuguese; this catalog repo uses English) — check `git log` and match it. The **code** the
+  commit carries is English regardless, and so is the `scope`, which names a module (`code-locale`).
 - Imperative mood, no trailing period.
 - Scope is optional but encouraged when the change is localized to a module/folder.
 - Body only when the "why" isn't obvious from the diff or subject.

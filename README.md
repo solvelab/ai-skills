@@ -52,7 +52,7 @@ The marketplace ships **per-domain plugins** so a project enables only coherent 
 `ai-skills-fivem`, `ai-skills-nui` (NUI React/CEF), `ai-skills-frontend` (SPA API client),
 `ai-skills-game` (R3F + AssettoServer), `ai-skills-devops`, `ai-skills-docs`,
 `ai-skills-tooling` (Claude Code status line) — plus the full
-`ai-skills` bundle for whoever really wants all 33.
+`ai-skills` bundle for whoever really wants all 34.
 
 **B1 — manual**, inside Claude Code:
 
@@ -79,7 +79,7 @@ one accept, zero manual steps):
 ```
 
 Pick the groups that match the project (a FiveM repo takes `ai-skills-fivem`, an R3F game takes
-`ai-skills-game`, ...) — dumping all 33 skills into every project is noise, not help.
+`ai-skills-game`, ...) — dumping all 34 skills into every project is noise, not help.
 
 **B3 — user-level (whole machine)** — same snippet in `~/.claude/settings.json` enables the plugin
 for every project on the machine.
@@ -469,6 +469,7 @@ Project v2 in the org/user. Full details live in the skills themselves:
 | **backlog** | /backlog <idea>, "create a backlog item", "turn this idea into an issue" | Turns a natural-language idea into a context-rich GitHub issue placed in a Project v2 with fields set — repo & multi-repo workspace modes, first-run config wizard, preview before creation |
 | **execute-backlog** | /execute-backlog <n>, "implement issue #N", "pick up this ticket" | Drives an existing backlog item to a validated PR: completeness gate, plan approved before code, branch-per-item, repo-discovered validations, `Closes #n` linking, board moved to review — never merges or closes issues itself |
 | **verify-before-claiming** | "you invented that", "don't guess", "achismo", "pesquisa antes", "de onde tirou", "cite the source", "that flag does not exist", "out of scope" | Anti-guessing rite — cheapest-first research ladder (session context → this repo → the installed dependency → the tool itself → version-pinned docs → web search → the user), verified/inferred/unknown claim labelling, a not-found report that logs the commands it ran, the knowledge-cutoff rule (the lockfile wins), and the off-script scope guard |
+| **code-locale** | naming a variable/function/route/column/event/config key, reviewing names in a diff, "código em português", "identificador em inglês", "should this be in English", "naming convention", "ubiquitous language" | Which natural language each artifact is written in — prose follows the repo, anything a machine parses is English and ASCII; the untranslatable-domain-term exception (CPF, boleto, nota fiscal) gated by the item's glossary or an inline `locale-ok:` reason; the anti-corruption layer for foreign payloads; new-code-only migration with expand/contract for contract-bearing names; ships a stdlib-only detector with `--diff` mode that this repo's CI runs and any project can wire into pre-commit |
 
 ### DevOps & docs
 

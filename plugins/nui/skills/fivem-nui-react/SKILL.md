@@ -97,6 +97,7 @@ Full hook implementations + the Lua counterpart: `references/nui-bridge.md`.
 
 ## See also
 
+- `code-locale` — NUI action names and message payload keys are English even when the repo's prose is not; a domain term with no faithful translation is kept only when the item's glossary lists it.
 - `fivem-lua` — the Lua side: SetNuiFocus pairing, callback validation (payload is forgeable),
   disconnect/resource-stop cleanup.
 - `react-api-client` — for standalone (non-CEF) React SPAs talking to a REST API.

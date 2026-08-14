@@ -310,6 +310,7 @@ Ruff: `target-version` matching the runtime, `line-length = 100`, `select = ["E"
 
 ## See also
 
+- `code-locale` — route paths, query params, envelope field names, DB tables and columns, and error-code constants are English even when the repo's prose is not; a domain term with no faithful translation is kept only when the item's glossary lists it.
 - `api-resilience-testing` — the negative/fuzz/contract methodology this baseline is tested against.
 - `bug-hunter` — per-change adversarial rite (`bug-hunter/references/track-python-pytest.md` assumes this stack).
 - `backend-resilience` — fallback/negative-cache doctrine for calls this service makes to others.

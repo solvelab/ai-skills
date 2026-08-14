@@ -30,6 +30,11 @@ MUTATIONS = {
  "C7 orphan wrapper": (None, None),
  "C8 meta section": ("skills/openspec/SKILL.md",
      lambda s: s + "\n## Trigger Test Cases\n\nShould trigger on:\n- \"do the thing\"\n"),
+ # Valid Python so C3 stays silent. The dict *value* 'endereco' is a string literal and must NOT
+ # be flagged — this mutation therefore also asserts that literal stripping still works.
+ "C9 identifier locale": ("skills/python-rest-api/SKILL.md",
+     lambda s: s + "\n```python\ndef criar_pedido(id_usuario):\n"
+                   "    return {'x': 'endereco'}\n```\n"),
 }
 
 fails = []

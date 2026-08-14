@@ -244,6 +244,7 @@ Keep it concrete and runnable; favor real example payloads over description.
 
 ## See also
 
+- `code-locale` — endpoint-map paths and test names are English even when the repo's prose is not; a domain term with no faithful translation is kept only when the item's glossary lists it.
 - `bug-hunter` — the per-change adversarial-testing rite; use it after implementing a single change,
   and this skill when auditing an API surface.
 - `verify-before-claiming` — measure the stack's real baseline before asserting an expected status
