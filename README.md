@@ -312,7 +312,6 @@ ai-skills/
 │   └── skills/                               # Generated: @-include wrappers
 ├── cursor/rules/                             # Generated: .mdc rules with content inlined
 ├── copilot/instructions/                     # Generated: .instructions.md link wrappers
-├── shared/conventions/                       # Cross-tool coding standards
 ├── VERSION                                   # Single source of truth for the collection version
 ├── CHANGELOG.md                              # Keep a Changelog format
 ├── generate.sh                               # Regenerates all tool wrappers from skills/
@@ -332,7 +331,6 @@ ai-skills/
 | `codex/skills/` | Generated OpenAI Codex wrappers using `@./path` file includes |
 | `cursor/rules/` | Generated Cursor .mdc rules with content inlined |
 | `copilot/instructions/` | Generated GitHub Copilot wrappers with markdown link references |
-| `shared/conventions/` | Coding standards shared across all tools |
 
 ---
 
@@ -790,18 +788,26 @@ Process-wide conventions are enforced by the [Spec-Driven Rite](#-spec-driven-ri
 authoring rules live in `openspec/specs/skills-authoring/spec.md`, catalog composition in
 `openspec/specs/skills-catalog/spec.md`.
 
-The `shared/conventions/` folder is for coding standards and patterns that apply across all AI tools. Place files here when the same convention should be followed regardless of which tool is being used.
+A coding standard that applies across tools and stacks — naming, commit format, error handling,
+API design — is **a skill**, not a separate file tree. Skills are what every tool actually loads:
+`install.sh` symlinks them into `~/.claude/skills/`, `generate.sh` mirrors them into the Codex,
+Cursor and Copilot trees, and `scripts/validate-skills.py` validates their links and code blocks.
 
-Examples of what belongs here:
-- Code style guides (naming, formatting, error handling)
-- Git conventions (commit messages, branch naming)
-- Architecture patterns (folder structure, layering rules)
-- API design standards (naming, versioning, error responses)
+`openspec/specs/skills-authoring/spec.md` (*Single canonical home per rule*) governs how such a rule
+is placed: it is defined in exactly one skill and referenced by a one-line link everywhere else.
+Worked examples in this catalog:
 
-Reference shared conventions from tool-specific skills when needed:
+| Cross-cutting rule | Canonical skill |
+|---|---|
+| Which language identifiers, routes and keys are written in | `skills/code-locale/` |
+| Research before asserting; report what could not be found | `skills/verify-before-claiming/` |
+| Commit and PR format | `skills/conventional-commit/` |
+
+Reference one from a sibling skill with a single line under its `## See also`, never by restating
+it:
 
 ```markdown
-Follow the conventions defined in shared/conventions/api-design.md.
+- `code-locale` — event names and StateBag keys are English even when the repo's prose is not.
 ```
 
 ---
