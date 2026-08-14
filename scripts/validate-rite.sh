@@ -52,6 +52,11 @@ for dir in "$CHANGES_DIR"/*/; do
   fi
 done
 
+# Evidence shape of the mandatory groups + the density report. Separate file because it is a
+# different KIND of check: this script asks whether the gate sections exist, that one asks whether
+# a ticked box says what it ran. Its own header declares what it cannot do.
+python3 scripts/validate-rite-evidence.py || fail=1
+
 if command -v openspec >/dev/null 2>&1; then
   openspec validate --all --strict || fail=1
 else

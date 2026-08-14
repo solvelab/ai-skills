@@ -3,7 +3,14 @@
 <!-- Always the FIRST group: probe before you write. Record the COMMAND and a fragment of its
      RAW OUTPUT, never a conclusion — a row a reviewer can re-run in two seconds is the only kind
      worth writing. A claim with no evidence is a guess: drop the claim, or go get the evidence.
-     Doctrine: the verify-before-claiming skill. -->
+     Doctrine: the verify-before-claiming skill.
+
+     Shape each box owes, gated by scripts/validate-rite-evidence.py once ticked:
+       E.1  a repo-relative path AND the commit sha or date it was read at
+       E.2  at least one `command` -> a fragment of its output
+       E.3  names the gap, or states explicitly that there is none
+       E.4  lists a follow-up, or states explicitly that there is none
+     The gate cannot tell a real output from an invented one — that is still the reviewer's job. -->
 
 - [ ] E.1 Every local path this change relies on was OPENED and read, not recalled — recorded with
       the commit or timestamp it was read at

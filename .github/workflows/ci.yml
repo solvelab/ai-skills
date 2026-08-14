@@ -95,6 +95,9 @@ jobs:
       - name: OpenSpec rite gate (skills-rite schema)
         run: bash scripts/validate-rite.sh
 
+      - name: Rite evidence self-test (the gate is itself gated)
+        run: python3 scripts/validate-rite-evidence.py --selftest
+
       - name: Claude plugin validation (best-effort)
         continue-on-error: true
         run: npx -y @anthropic-ai/claude-code@latest plugin validate . --strict || true
