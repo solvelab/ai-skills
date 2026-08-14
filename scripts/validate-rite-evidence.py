@@ -63,6 +63,11 @@ NEGATIVE = re.compile(r"\bnone\b|\bnothing\b|\bno gaps?\b|\bnenhum", re.I)
 
 findings: list[str] = []
 
+# GitHub turns `::error file=...` into a red annotation on the pull request. During --selftest the
+# findings are injected on purpose and their paths do not exist, so annotating them would put four
+# bogus failures on a PR whose job passed. Measured on run 31790712710 before this guard existed.
+annotate = True
+
 
 def add(check: str, path: Path, detail: str) -> None:
     # The selftest runs the checks against a temp copy, so the path is not always under ROOT.
@@ -72,7 +77,10 @@ def add(check: str, path: Path, detail: str) -> None:
         idx = path.parts.index(CHANGES.split("/")[0]) if CHANGES.split("/")[0] in path.parts else 0
         rel = str(Path(*path.parts[idx:]))
     findings.append(f"{check}: {rel}: {detail}")
-    print(f"::error file={rel}::{check} — {detail}")
+    if annotate:
+        print(f"::error file={rel}::{check} — {detail}")
+    else:
+        print(f"    injected: {check} — {detail}")
 
 
 # ── parsing ───────────────────────────────────────────────────────────────
@@ -231,7 +239,8 @@ DEFECTS = (("R1 evidence shape: E.1", _break_e1),
 
 
 def selftest() -> int:
-    global findings
+    global findings, annotate
+    annotate = False        # injected paths do not exist; see the note on `annotate`
     caught = 0
     for label, inject in DEFECTS:
         check, box = label.split(": ")
