@@ -35,8 +35,12 @@ KNOWN LIMIT — what this check does NOT catch. A passing run is not proof of fu
     5. Spanish, Italian and French are out of scope.
     6. Identifiers built at runtime escape: dynamic SQL, template strings, getattr, Lua table keys
        assembled from variables.
-    7. Comments, docstrings and non-path string literals are stripped before analysis. They are the
-       prose layer, and scanning them would fire on every correct Portuguese comment.
+    7. Comments, docstrings and non-path string literals are stripped before analysis, including
+       multi-line blocks (Python triple quotes, `/* */`, `--[[ ]]`) whose interior lines carry no
+       delimiter. They are the prose layer, and scanning them would fire on every correct
+       Portuguese comment. In --diff mode this holds only for blocks whose added lines are
+       contiguous in the hunk; a block opened in an added line and closed in an unchanged one keeps
+       the scanner in prose state to the end of the run, which under-reports rather than over-reports.
     8. In --markdown-fences mode, untagged fences are skipped. This is load-bearing, not an
        oversight: a fence of Portuguese commit-message examples is prose and must not be flagged.
     9. Branch names, PR titles and issue text are not files and are never scanned. They are
@@ -199,17 +203,41 @@ class Finding:
         )
 
 
-def strip_prose(line: str, lang: str) -> str:
+def strip_prose(line: str, lang: str, state: "str | None" = None) -> "tuple[str, str | None]":
     """Remove comments and string literals — the prose layer — but keep machine-layer literals.
 
     Character-scanned rather than regex-replaced, because a '#' inside a string is not a comment
     and a quote inside a comment does not open a string.
+
+    `state` carries an open block across lines: it is the closing delimiter still being waited for,
+    or None. Returns (code, new_state). Line-at-a-time scanning was the original design and it was
+    wrong — the interior lines of a `\"\"\"` docstring or a `/* */` block carry no delimiter at all,
+    so they were read as code and every Portuguese word in them was flagged as an identifier. On one
+    real Portuguese codebase that was 4219 of 4340 findings (see issue #85).
     """
-    line_syntax, _block, quotes = COMMENT_SYNTAX.get(lang, (["#"], [], ['"', "'"]))
+    line_syntax, blocks, quotes = COMMENT_SYNTAX.get(lang, (["#"], [], ['"', "'"]))
+
+    if state is not None:                           # continuing a block opened on an earlier line
+        close = line.find(state)
+        if close == -1:
+            return "", state                        # the whole line is prose
+        line = line[close + len(state):]            # resume scanning after the closer
+        state = None
+
     out: list[str] = []
-    i, n = 0, len(line)
-    while i < n:
-        ch = line[i]
+    i = 0
+    while i < len(line):
+        # Block openers are tested FIRST: `--[[` starts with the Lua line comment `--`, and `\"\"\"`
+        # starts with the Python quote `"`. Checking either of those first would swallow the block.
+        opener = next((o for o, _c in blocks if line.startswith(o, i)), None)
+        if opener is not None:
+            closer = next(c for o, c in blocks if o == opener)
+            close = line.find(closer, i + len(opener))
+            if close == -1:
+                return "".join(out), closer         # block runs past this line
+            out.append(" ")
+            i = close + len(closer)
+            continue
         if any(line.startswith(p, i) for p in line_syntax):
             break                                   # rest of the line is prose
         matched_quote = next((q for q in quotes if line.startswith(q, i)), None)
@@ -225,11 +253,9 @@ def strip_prose(line: str, lang: str) -> str:
                 out.append(" ")
             i = close + len(matched_quote)
             continue
-        out.append(ch)
+        out.append(line[i])
         i += 1
-    code = "".join(out)
-    # A DDL statement outside quotes still names tables and columns.
-    return code
+    return "".join(out), state
 
 
 def segments(identifier: str) -> list[str]:
@@ -296,14 +322,15 @@ def load_allowlist(start: Path) -> set:
 def scan_text(text: str, lang: str, path: str, allow: set, first_line: int = 1) -> list:
     findings = []
     lines = text.splitlines()
+    state: "str | None" = None                       # open block carried across lines
     for offset, raw in enumerate(lines):
         lineno = first_line + offset
+        code, state = strip_prose(raw, lang, state)
         if WAIVER_RE.search(raw):
             continue                                 # waived with a stated reason
         prev = lines[offset - 1] if offset else ""
         if WAIVER_RE.search(prev):
             continue                                 # waiver on the preceding line
-        code = strip_prose(raw, lang)
         for match in IDENT_RE.finditer(code):
             token = match.group(0)
             if token in allow or token.lower() in allow:
@@ -347,9 +374,24 @@ def scan_markdown_fences(path: Path, allow: set) -> list:
 def scan_diff(stream, allow: set) -> list:
     """Added lines only. This is what makes the rule adoptable in a legacy repository."""
     findings, path, lineno, lang = [], "<diff>", 0, None
+    run: list = []                                   # consecutive added lines, scanned together
+
+    def flush() -> None:
+        if not run or not lang:
+            run.clear()
+            return
+        body = "\n".join(t for _n, t in run)
+        base = run[0][0]
+        for f in scan_text(body, lang, path, allow, first_line=base):
+            idx = f.line - base
+            f.line = run[idx][0] if 0 <= idx < len(run) else f.line
+            findings.append(f)
+        run.clear()
+
     for raw in stream:
         line = raw.rstrip("\n")
         if line.startswith("+++ "):
+            flush()
             candidate = line[4:].strip()
             if candidate.startswith("b/"):
                 candidate = candidate[2:]
@@ -357,15 +399,21 @@ def scan_diff(stream, allow: set) -> list:
             lang = EXT_LANG.get(Path(path).suffix.lower())
             continue
         if line.startswith("@@"):
+            flush()
             m = re.search(r"\+(\d+)", line)
             lineno = int(m.group(1)) if m else 0
             continue
         if line.startswith("+") and not line.startswith("+++"):
             if lang:
-                findings.extend(scan_text(line[1:], lang, path, allow, first_line=lineno))
+                # Added lines are scanned as a RUN, not individually: a docstring opened on one
+                # added line closes on another, and scanning each alone reintroduces the very bug
+                # this mode is supposed to enforce against (issue #85). Runs are flushed whenever
+                # the file or the hunk changes.
+                run.append((lineno, line[1:]))
             lineno += 1
         elif not line.startswith("-"):
             lineno += 1
+    flush()
     return findings
 
 
@@ -377,6 +425,10 @@ SELFTEST_HITS = [
     ("pt-morphology", "python", "configuracao = {}\n"),
     ("pt-plural", "python", "permissoes = []\n"),
     ("route literal", "python", 'app.get("/api/v1/pedidos")\n'),
+    # Guards the opposite failure of the #85 fix: a scanner that enters a block and never leaves
+    # would report 0 everywhere and look perfect.
+    ("resumes after block", "python",
+     '"""\nDocstring em português com saldo e transação.\n"""\ndef buscar_usuario(x):\n    return x\n'),
 ]
 
 SELFTEST_CLEAN = [
@@ -395,6 +447,14 @@ SELFTEST_CLEAN = [
     ("english pasta", "javascript", "const pasta = require('pasta'); const pastaSauce = 1;\n"),
     ("proper name -ancia", "javascript", "const sfrancia = 1; const valencia = 2;\n"),
     ("PT lua comment", "lua", '-- cria o jogador\nlocal playerId = 1\n'),
+    # Regression for #85: interior lines of a multi-line block carry no delimiter. Scanning them
+    # line-by-line produced 4219 of 4340 findings on one real Portuguese codebase.
+    ("PT python docstring", "python",
+     '"""\nAtualiza o cadastro do usuario e devolve a transação.\nVerifica o saldo.\n"""\nx = 1\n'),
+    ("PT js block comment", "typescript",
+     "/*\n * calcula o saldo do usuario\n * verifica a transação\n */\nconst total = 1;\n"),
+    ("PT lua block comment", "lua",
+     "--[[\n  cria o jogador e devolve a permissão\n]]\nlocal playerId = 1\n"),
 ]
 
 
