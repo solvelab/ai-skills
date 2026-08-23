@@ -121,5 +121,6 @@
       `python3 scripts/selftest-validate-skills.py` e `python3 scripts/validate-repo-hygiene.py`
       verdes
 - [x] V.4 README / docs atualizados onde o change altera o fluxo de contribuição
-- [ ] V.5 `openspec archive add-spec-rite-gate --yes` — **após o merge**, em PR separado, conforme o
-      precedente `#78`/`#74`
+- [x] V.5 `openspec archive add-spec-rite-gate --yes` rodado após o merge do PR #90 (release
+      2.12.0), em PR separado, conforme o precedente `#78`/`#74` — sincronizou 3 requisitos
+      MODIFIED em `openspec/specs/skills-catalog/spec.md` (`Totals: + 0, ~ 3, - 0, → 0`)
