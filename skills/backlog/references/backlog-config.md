@@ -38,6 +38,11 @@ labels:                # optional: intent → existing repo label
   feature: enhancement
   bug: bug
 assignees: []          # optional default assignees (GitHub logins)
+
+# Optional — the repo's spec-driven policy. See "Spec rite" below.
+spec_rite:
+  tool: openspec
+  policy: required
 ```
 
 ## Workspace mode example
@@ -59,6 +64,31 @@ fields:
 defaults:
   status: Backlog
 ```
+
+## Spec rite (`spec_rite`)
+
+The policy belongs to the repository, not to this skill: both backlog skills run against
+repositories with different rites, so hardcoding one here would export a single project's process to
+every project.
+
+```yaml
+spec_rite:
+  tool: openspec        # which spec-driven workflow; read from openspec/config.yaml when present
+  policy: required      # required | triage | none
+```
+
+| `policy` | Meaning |
+|---|---|
+| `required` | Every code-producing item declares a change; the only exit is a written waiver with a reason |
+| `triage` | The workflow's own doctrine decides — `openspec`, *When a proposal is required* |
+| `none` | The repository carries the workflow but does not gate on it |
+
+**Key absent while the workflow is present ⇒ `required`.** An unstated policy is the absence of a
+decision, not permission to skip. No workflow present ⇒ the whole gate is a no-op and the drafted
+item carries no spec section.
+
+The verdict this key produces is consumed by `execute-backlog`
+(`execute-backlog/references/spec-rite.md`), which re-checks it and may raise it.
 
 ## Mirroring an item onto a second board (`extra_projects`)
 

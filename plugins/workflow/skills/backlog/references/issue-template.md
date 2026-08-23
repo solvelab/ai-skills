@@ -48,6 +48,22 @@ Harvest before deciding: every row is either taken from what the codebase alread
 or marked `new — decided here`. A term neither the codebase nor the user resolves is a gap question,
 never a translation invented in the draft. Protocol: `code-locale`.
 
+## Spec rite   <!-- required when the target repo runs a spec-driven workflow -->
+
+- Workflow / schema: `openspec`, schema `<name>` (from `openspec/config.yaml`; absent → vanilla)
+- Policy: `required` (from `spec_rite.policy`, or the fail-closed default)
+- Verdict: **change required** — id `<verb-led-change-id>`
+- Capabilities the delta touches: `<capability>` (ADDED / MODIFIED / REMOVED)
+
+<!-- or, when the work genuinely registers no requirement change: -->
+
+- Verdict: `Spec-rite: none — <the reason, one line>`
+
+The verdict is a decision recorded here, not one made at implementation time. `execute-backlog`
+re-checks it against the real change surface, raises it on its own when the work outgrew the item,
+and stops for the user before ever lowering it. Protocol:
+`execute-backlog/references/spec-rite.md`.
+
 ## Technical requirements
 
 - TR1 … (constraints: stack, patterns to follow — cite existing conventions/files)
@@ -80,6 +96,9 @@ conventions (cite the test dir/framework found).
 - `org/repo-a` — role in the implementation (primary).
 - `org/repo-b` — role.
 ```
+
+Omit the *Spec rite* section entirely in a repository with no such workflow — an empty heading is
+worse than no heading, and the gate is a no-op there.
 
 Field proposal guidance (shown in the preview with a 1-line rationale each):
 

@@ -27,7 +27,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
+        # fetch-depth: 0 — the spec-rite gate diffs this branch against its base. The default
+        # depth of 1 leaves no base revision, and a gate that cannot measure must not approve.
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Wrappers in sync with skills/
         run: |
@@ -96,10 +100,18 @@ jobs:
         run: python3 scripts/validate-repo-hygiene.py --selftest
 
       - name: OpenSpec rite gate (skills-rite schema)
+        # PR_BODY carries the waiver line the spec-rite gate reads. It is authored by whoever
+        # opened the pull request, including from a fork: the gate matches it as text and never
+        # executes or interpolates it.
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: bash scripts/validate-rite.sh
 
       - name: Rite evidence self-test (the gate is itself gated)
         run: python3 scripts/validate-rite-evidence.py --selftest
+
+      - name: Spec-rite self-test (the gate is itself gated)
+        run: python3 scripts/validate-spec-rite.py --selftest
 
       - name: Claude plugin validation (best-effort)
         continue-on-error: true

@@ -19,7 +19,7 @@ Every code change starts as a backlog item. No exception for "small fixes" — s
 - **Plan mode is not a bypass.** An approved plan still becomes an issue before the first edit — `ExitPlanMode` approves the *plan*, it does not waive the rite.
 - If I ask for code without an issue, say so and offer to run `/backlog` first. I can waive it explicitly; without an explicit waiver, do not start editing.
 - Out of scope for the rite: personal config (`~/.claude`), scratchpad files, one-off ops commands.
-- OpenSpec is a complement, not a parallel path: bug/adjustment → backlog only; new capability, breaking change or architecture shift → backlog issue **plus** an OpenSpec proposal referenced from it.
+- OpenSpec is a complement, not a parallel path — and in a repo that carries `openspec/`, the default is **fail-closed**: the backlog item also becomes an OpenSpec change, validated with `openspec validate <id> --strict` before the first edit outside `openspec/`. The exit is a written waiver, never a silent judgement: a line `Spec-rite: none — <reason>` in the PR body, which CI reads. A repo that carries the workflow and states no policy is treated as requiring the change; the policy itself lives in the repo's `spec_rite` config, not in my head. Classifying a change as "just an adjustment" is exactly how two blocking CI gates shipped unregistered and had to be backfilled — the classification now has to be written down to count.
 
 ## Grounding (no achismo)
 Never guess. A claim is anything you assert **or act on** as if it were true — a sentence, a flag

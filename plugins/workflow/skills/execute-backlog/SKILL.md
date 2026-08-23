@@ -10,12 +10,15 @@ description: >-
   the review column. Use when the user invokes /execute-backlog <n>, says
   "implement issue #N", "execute this backlog item", "pick up this ticket", or wants an existing
   issue turned into a PR. Second half of the backlog-first rite: the item it consumes is produced
-  by the backlog skill, and this skill carries it to a reviewable PR. Uses the backlog skill's
+  by the backlog skill, and this skill carries it to a reviewable PR. In a repository that runs a
+  spec-driven workflow (an openspec/ directory), it gates on that workflow before touching code:
+  the item's spec verdict is re-checked, the change is created and validated strict, and only then
+  does the plan go to approval. Uses the backlog skill's
   config (.github/backlog.yml or workspace backlog.yml). Do NOT use for creating backlog items
   (that is backlog), for merging PRs, for deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.5.0
+  version: 1.6.0
   category: process
 license: MIT
 compatibility: >-
@@ -30,6 +33,7 @@ Drive an existing issue to a reviewable pull request while keeping the board in 
 to the `backlog` skill; consumes the same config.
 
 - **Gates, plan format, scope-change protocol, multi-repo orchestration**: `references/execution-flow.md`
+- **Spec-driven gate: detection, verdict, upgrade/downgrade, archive timing**: `references/spec-rite.md`
 - **Discovering and running each repo's validations**: `references/validation-matrix.md`
 - **Ticking the item's checkboxes + evidence table + completeness gate**: `references/acceptance-tracking.md`
 - **Board transitions + PR↔issue linking + recovery**: `references/board-sync.md`
@@ -62,6 +66,13 @@ to the `backlog` skill; consumes the same config.
    repo's own established process for that stage (spec/proposal rites, implementation and test
    rites, review templates). The generic workflow here is the fallback, never an override
    (`references/execution-flow.md`, *Per-stage rite discovery*).
+10. **Spec-before-code is a hard gate too** — in a repo that runs a spec-driven workflow, no file
+   **outside that workflow's own directory** is edited before the change exists and its strict
+   validation is green. The policy belongs to the repo (`spec_rite.policy` in the backlog config);
+   a repo that carries the workflow and states no policy is treated as requiring the change. The
+   verdict the item carries is re-checked, never re-decided: raise it without asking, lower it only
+   with the user. The workflow's own lifecycle is not restated here — it is `openspec` (or the
+   project's fork, e.g. `openspec-drivezone`). Protocol: `references/spec-rite.md`.
 
 ## Workflow
 
@@ -83,24 +94,35 @@ to the `backlog` skill; consumes the same config.
    repositories section in workspace mode; verify local clones, offer `gh repo clone` for missing
    ones). Collect: current state of cited files, conventions, test setup, related recent changes,
    and the identifier vocabulary the repo already uses for the item's concepts (`code-locale`).
-5. **Implementation plan** — present: interpretation of the item, files to change per repo, the
-   Glossary, test strategy, validations to run, risks, estimated blast radius. **Wait for approval.**
-6. **Implement** — branch `backlog/<n>-<slug>` per affected repo; follow repo conventions and
-   project skills (e.g. `conventional-commit`, project-specific rites like OpenSpec when the repo
-   uses them). Names for anything new come from the approved Glossary (rail 8). Move the board item
+5. **Spec rite** — repo with a spec-driven workflow only; skip when there is none. Detect it and
+   the schema it runs, re-check the item's verdict against the surface the re-analysis just
+   measured, and — when the verdict requires it — create the change and validate it strict before
+   step 6. Raising a verdict needs no permission; lowering one does. Full protocol, detection
+   commands and archive timing: `references/spec-rite.md`.
+6. **Implementation plan** — present: interpretation of the item, files to change per repo, the
+   Glossary, test strategy, validations to run, risks, estimated blast radius. In a repo with a
+   spec rite, also the change id, the capabilities its delta touches and the strict-validation
+   output line. **Wait for approval.**
+7. **Implement** — branch `backlog/<n>-<slug>` per affected repo; follow repo conventions and
+   project skills (e.g. `conventional-commit`, and the repo's spec rite when it has one). Names for
+   anything new come from the approved Glossary (rail 8). A spec rite's task list is ticked task by
+   task as each one lands and is validated, never in a batch at the end. Move the board item
    to the configured in-progress column when work starts.
-7. **Tests** — add/update tests per the issue's test strategy and the repo's framework.
-8. **Validate** — discover and run the repo's checks (`references/validation-matrix.md`); fix
+8. **Tests** — add/update tests per the issue's test strategy and the repo's framework.
+9. **Validate** — discover and run the repo's checks (`references/validation-matrix.md`); fix
    findings; re-run until green or report honest blockers. A repo that wires an identifier-locale
    check is running one of its own discovered commands — never invent one where none exists.
-9. **Acceptance sweep** — walk the item's checkboxes one by one, assign each a verdict backed by
+10. **Acceptance sweep** — walk the item's checkboxes one by one, assign each a verdict backed by
     the validation evidence, tick the proven ones in the issue body (surgical read-modify-write),
     and gate on the rest: unmet or manual-only criteria stop the run for a decision before any PR
-    is opened (`references/acceptance-tracking.md`).
-10. **PR(s)** — one per changed repo; primary repo's PR body carries `Closes #n`, others reference
+    is opened (`references/acceptance-tracking.md`). A spec rite's mandatory closure group is part
+    of the sweep, not a separate afterthought.
+11. **PR(s)** — one per changed repo; primary repo's PR body carries `Closes #n`, others reference
     `Relates to <issue-url>`, plus the evidence table and a **Known gaps** section when the sweep
-    left anything unticked. No auto-merge. Follow `conventional-commit` PR rules when present.
-11. **Sync & report** — move the board item to the review column; comment on the issue with links
+    left anything unticked. Where the repo gates on a spec rite, the body also carries the line that
+    gate reads — the change id, or the written waiver and its reason (`references/spec-rite.md`).
+    No auto-merge. Follow `conventional-commit` PR rules when present.
+12. **Sync & report** — move the board item to the review column; comment on the issue with links
     to the PR(s); present summary: what changed, validation evidence, the criteria table with
-    every verdict, deviations (if any, pre-approved), next human step (review/merge).
-
+    every verdict, deviations (if any, pre-approved), next human step (review/merge). A change left
+    active on purpose is reported as pending, naming what closes it.

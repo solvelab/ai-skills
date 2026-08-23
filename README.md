@@ -226,6 +226,11 @@ fix, and no new prompt ever arrives to trigger the rite.
 runs it on every prompt, and its output becomes context for that turn. It **informs, never blocks** —
 no tool call is denied, and the user can waive the rite explicitly.
 
+Where the working directory carries `openspec/`, the reminder gains one extra sentence naming the
+spec gate: the item also becomes an OpenSpec change, validated strict before the first edit outside
+`openspec/`. The sentence is conditional on purpose — it never fires in a repo that has no such
+workflow, so the reminder does not teach a step that does not exist there.
+
 ```jsonc
 // ~/.claude/settings.json
 {
@@ -409,8 +414,17 @@ Daily flow:
 | Command | What happens |
 |---|---|
 | `/backlog <idea>` | analyzes the repo for real context → drafts a structured issue → **preview for approval** → creates the issue + adds it to the Project with fields set (card in **Backlog**) |
-| `/execute-backlog <n>` | reads the issue → completeness gate (card → **Ready**) → implementation plan for approval (card → **In progress**) → implements on `backlog/<n>-<slug>` following the repo's own rites → tests + validations → PR with `Closes #n` (card → **In review**) — never merges, never closes issues |
+| `/execute-backlog <n>` | reads the issue → completeness gate (card → **Ready**) → spec gate where the repo runs one → implementation plan for approval (card → **In progress**) → implements on `backlog/<n>-<slug>` following the repo's own rites → tests + validations → PR with `Closes #n` (card → **In review**) — never merges, never closes issues |
 | you merge the PR | issue auto-closes; the board's built-in *Item closed → Done* workflow moves the card to **Done** |
+
+**In a repo that runs a spec-driven workflow** (an `openspec/` directory), the two commands carry a
+third gate between them. `/backlog` records the verdict in the item — the change that will register
+the work, or a waiver written as a line with a reason — and `/execute-backlog` re-checks that verdict
+against the real change surface, creates the change, and validates it strict **before** editing
+anything outside `openspec/`. Raising a verdict needs no permission; lowering one stops for the user.
+The policy is the repo's, in the `spec_rite` key of the backlog config; a repo that carries the
+workflow and states no policy is treated as requiring the change. Protocol:
+[`spec-rite.md`](skills/execute-backlog/references/spec-rite.md).
 
 Requirements: `gh` ≥ 2.40 with the scopes above, write access to the target repos, and a GitHub
 Project v2 in the org/user. Full details live in the skills themselves:
@@ -667,6 +681,16 @@ last) and runs
 `openspec validate --all --strict`, wired as the **"OpenSpec rite gate"** step in
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Run it locally before pushing — CI is the
 backstop, not the first line.
+
+Every check above iterates over *active changes*, which means a pull request that opened none used to
+pass them all vacuously: the loop found nothing, `fail` stayed 0, and the gate printed `rite gate OK`.
+That is how PR #80 and PR #84 shipped blocking CI gates with no proposal and had to be registered
+retroactively by PR #88. [`scripts/validate-spec-rite.py`](scripts/validate-spec-rite.py) reads the
+**diff** instead: a pull request touching anything outside `openspec/` (beyond the paths the release
+automation writes) must carry an active change, a change archived in the same diff, or a waiver line
+`Spec-rite: none — <reason>` in its body. The waiver is authored by whoever opened the PR, including
+from a fork, so it is matched as text and never executed. The checkout runs at `fetch-depth: 0`
+because a gate with no base revision cannot measure, and a gate that cannot measure must not approve.
 
 A second gate checks the **content** of the skills themselves.
 [`scripts/validate-skills.py`](scripts/validate-skills.py) runs eight checks over every
