@@ -89,37 +89,37 @@
 
 ## 6. Doutrina, docs e árvore gerada
 
-- [ ] 6.1 `claude/global/personal-rules.md` descrevendo a mesma política que o gate enforça
-- [ ] 6.2 `README.md`: seção do hook e quickstart de backlog refletindo o gate de spec
-- [ ] 6.3 `./generate.sh` re-rodado e o resultado commitado (`claude/`, `codex/`, `cursor/`,
+- [x] 6.1 `claude/global/personal-rules.md` descrevendo a mesma política que o gate enforça
+- [x] 6.2 `README.md`: seção do hook e quickstart de backlog refletindo o gate de spec
+- [x] 6.3 `./generate.sh` re-rodado e o resultado commitado (`claude/`, `codex/`, `cursor/`,
       `copilot/`, `plugins/workflow/`)
 
 ## 7. Quality Gates (MANDATORY)
 
 <!-- Revisão adversarial dos skills tocados — não happy-path. -->
 
-- [ ] Q.1 Frontmatter uniforme em cada `SKILL.md` tocado: `name` == diretório, description folded,
+- [x] Q.1 Frontmatter uniforme em cada `SKILL.md` tocado: `name` == diretório, description folded,
       `metadata.author solvelab`, `metadata.version` semver, category no conjunto controlado,
       `license MIT`, `compatibility` presente
-- [ ] Q.2 Todo conteúdo de skill tocado em inglês (locale do catálogo)
-- [ ] Q.3 Triggers de description testáveis: as frases que roteiam para `backlog` e
+- [x] Q.2 Todo conteúdo de skill tocado em inglês (locale do catálogo)
+- [x] Q.3 Triggers de description testáveis: as frases que roteiam para `backlog` e
       `execute-backlog` não colidem entre si nem com `openspec` / `openspec-drivezone`; fronteira
       "Do NOT use for" presente
-- [ ] Q.4 Zero doutrina duplicada: o ciclo OpenSpec continua morando em `skills/openspec/` e as duas
+- [x] Q.4 Zero doutrina duplicada: o ciclo OpenSpec continua morando em `skills/openspec/` e as duas
       skills de backlog linkam, conforme a tabela Canonical Home do `design.md`
-- [ ] Q.5 Todo exemplo de código nos skills tocados usa identificadores, rotas, chaves e nomes de
+- [x] Q.5 Todo exemplo de código nos skills tocados usa identificadores, rotas, chaves e nomes de
       evento em inglês; termo mantido em outra língua carrega o motivo inline (`code-locale`)
 
 ## 8. Validation & Closure (MANDATORY)
 
 <!-- Sempre o último grupo. "Pronto" é verificável, não é opinião. -->
 
-- [ ] V.1 `openspec validate add-spec-rite-gate --strict` verde
-- [ ] V.2 `bash scripts/validate-rite.sh` verde neste branch (que carrega change ativa) e
+- [x] V.1 `openspec validate add-spec-rite-gate --strict` verde
+- [x] V.2 `bash scripts/validate-rite.sh` verde neste branch (que carrega change ativa) e
       `bash scripts/validate-rite.sh --selftest` verde
-- [ ] V.3 `bash generate.sh && git diff --exit-code` limpo; `python3 scripts/validate-skills.py`,
+- [x] V.3 `bash generate.sh && git diff --exit-code` limpo; `python3 scripts/validate-skills.py`,
       `python3 scripts/selftest-validate-skills.py` e `python3 scripts/validate-repo-hygiene.py`
       verdes
-- [ ] V.4 README / docs atualizados onde o change altera o fluxo de contribuição
+- [x] V.4 README / docs atualizados onde o change altera o fluxo de contribuição
 - [ ] V.5 `openspec archive add-spec-rite-gate --yes` — **após o merge**, em PR separado, conforme o
       precedente `#78`/`#74`

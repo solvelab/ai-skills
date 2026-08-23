@@ -1,6 +1,6 @@
 ---
 description: >-
-  Turn a natural-language idea into a structured GitHub backlog item: analyze the current repository (or multi-repo workspace) for real context, draft a rich issue (context, problem, scope, acceptance criteria, risks, affected files/repos), preview it for approval, then create the GitHub issue and add it to the configured GitHub Project v2 with fields set (Status/Priority/Size/Estimate) via the gh CLI. Use when the user invokes /backlog <idea>, says "create a backlog item", "add this to the backlog", "turn this idea into an issue", "groom this idea", or wants an idea registered in a GitHub Project. Entry point of the backlog-first rite: the item created here is what execute-backlog turns into a branch and a pull request. First run per repo/workspace launches a config wizard that writes .github/backlog.yml (repo mode) or backlog.yml (workspace mode). Do NOT use for implementing an existing issue (that is execute-backlog), for creating pull requests, or for non-GitHub trackers (Jira, Linear, Trello).
+  Turn a natural-language idea into a structured GitHub backlog item: analyze the current repository (or multi-repo workspace) for real context, draft a rich issue (context, problem, scope, acceptance criteria, risks, affected files/repos), preview it for approval, then create the GitHub issue and add it to the configured GitHub Project v2 with fields set (Status/Priority/Size/Estimate) via the gh CLI. Use when the user invokes /backlog <idea>, says "create a backlog item", "add this to the backlog", "turn this idea into an issue", "groom this idea", or wants an idea registered in a GitHub Project. Entry point of the backlog-first rite: the item created here is what execute-backlog turns into a branch and a pull request. In a repository that runs a spec-driven workflow (an openspec/ directory) the drafted item also declares its spec verdict — the change that will register the work, or a written waiver — so execute-backlog inherits a decision instead of making a new one. First run per repo/workspace launches a config wizard that writes .github/backlog.yml (repo mode) or backlog.yml (workspace mode). Do NOT use for implementing an existing issue (that is execute-backlog), for creating pull requests, or for non-GitHub trackers (Jira, Linear, Trello).
 alwaysApply: false
 ---
 
@@ -12,7 +12,7 @@ configured GitHub Project v2 — never a copy of the user's sentence, always gro
 codebase.
 
 - **Issue section template + writing guidance**: `references/issue-template.md`
-- **Config schema (both modes, precedence, wizard)**: `references/backlog-config.md`
+- **Config schema (both modes, precedence, wizard, `spec_rite`)**: `references/backlog-config.md`
 - **gh recipes for Projects v2 (IDs, item-edit, verification, recovery)**: `references/gh-projects.md`
 
 ## CRITICAL: Ground rules
@@ -34,6 +34,13 @@ codebase.
    fresh each run (they drift and differ per Project).
 6. Ask questions **only** when essential information is missing or ambiguous (max ~3, objective).
    Everything derivable from the repo must be derived, not asked.
+7. **Spec-rite gate** — in a repo that runs a spec-driven workflow, the item is not complete until
+   it declares its verdict: the change that will register the work, or a waiver written as a line
+   with a reason. The default is that the change is required; a repo carrying the workflow with no
+   stated policy is treated as requiring it, because an unstated policy is the absence of a
+   decision, not permission to skip. Never decide this silently — the verdict is a section of the
+   item and appears in the preview. The workflow's own lifecycle is not restated here: it is
+   `openspec`, or the project's fork (`openspec-drivezone` is one).
 
 ## Workflow
 
@@ -55,21 +62,33 @@ codebase.
    candidate → show it and ask whether to continue, enrich the existing issue instead, or cancel.
 5. **Gap questions** — only for essentials the repo cannot answer (e.g. which provider, which of
    two plausible scopes). Batch them in one round.
-6. **Draft** — fill the template from `references/issue-template.md`; omit sections that do not
+6. **Spec-rite triage** — repo with a spec-driven workflow only; skip when there is none:
+
+   ```bash
+   [ -d openspec ] && grep -m1 '^schema:' openspec/config.yaml   # which schema this repo runs
+   openspec list                                                 # a related change may be open
+   ```
+
+   Read `spec_rite.policy` from config (`references/backlog-config.md`); absent with the workflow
+   present ⇒ `required`. Then propose the verdict: a verb-led change id (`add-`, `update-`,
+   `remove-`, `refactor-`) plus the capabilities its delta will touch, or the waiver line and the
+   reason it is legitimate. An existing open change that already covers the idea is named instead
+   of a new one.
+7. **Draft** — fill the template from `references/issue-template.md`; omit sections that do not
    apply. When the item produces code, fill the **Glossary** from the vocabulary harvested in step 3
    before deciding any new name; a term neither the codebase nor the user resolves becomes a gap
    question in step 5, never a translation invented here (`code-locale`). Workspace mode adds
    *Affected repositories* (role per repo) and elects the **primary affected repo** (issue home,
    unless `issues_repo` is configured). Propose field values (Status default from config;
    Priority/Size/Estimate heuristics) each with a 1-line rationale.
-7. **Preview + approval** — show the complete issue markdown, target repo, labels, assignees and
-   proposed field values. Only proceed on explicit approval.
-8. **Create** — in order, capturing outputs (exact commands in `references/gh-projects.md`):
+8. **Preview + approval** — show the complete issue markdown, target repo, labels, assignees,
+   proposed field values and the spec verdict. Only proceed on explicit approval.
+9. **Create** — in order, capturing outputs (exact commands in `references/gh-projects.md`):
    `gh issue create` → `gh project item-add` → `gh project item-edit` per configured field. Repeat
    the add (and the Status default) for every board in `extra_projects`, when configured — an issue
    can live on several Projects at once (see `references/backlog-config.md`).
-9. **Report** — issue URL, project item confirmation, fields set, plus any warnings (skipped
-   fields, partial failures + recovery commands).
+10. **Report** — issue URL, project item confirmation, fields set, the spec verdict recorded, plus
+   any warnings (skipped fields, partial failures + recovery commands).
 
 ## Setup wizard (first run, per repo/workspace)
 

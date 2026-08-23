@@ -10,12 +10,15 @@ description: >-
   the review column. Use when the user invokes /execute-backlog <n>, says
   "implement issue #N", "execute this backlog item", "pick up this ticket", or wants an existing
   issue turned into a PR. Second half of the backlog-first rite: the item it consumes is produced
-  by the backlog skill, and this skill carries it to a reviewable PR. Uses the backlog skill's
+  by the backlog skill, and this skill carries it to a reviewable PR. In a repository that runs a
+  spec-driven workflow (an openspec/ directory), it gates on that workflow before touching code:
+  the item's spec verdict is re-checked, the change is created and validated strict, and only then
+  does the plan go to approval. Uses the backlog skill's
   config (.github/backlog.yml or workspace backlog.yml). Do NOT use for creating backlog items
   (that is backlog), for merging PRs, for deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.5.0
+  version: 1.6.0
   category: process
 license: MIT
 compatibility: >-
