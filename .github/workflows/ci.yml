@@ -100,11 +100,11 @@ jobs:
         run: python3 scripts/validate-repo-hygiene.py --selftest
 
       - name: OpenSpec rite gate (skills-rite schema)
-        # PR_BODY carries the waiver line the spec-rite gate reads. It is authored by whoever
-        # opened the pull request, including from a fork: the gate matches it as text and never
-        # executes or interpolates it.
-        env:
-          PR_BODY: ${{ github.event.pull_request.body }}
+        # The spec-rite gate reads the waiver line from the event payload the runner already wrote
+        # (GITHUB_EVENT_PATH). Handing the pull request body over through this step's `env:` block
+        # printed the whole body into the build log, because Actions echoes that block — measured
+        # on run 32648727841. The body is still untrusted input: the gate matches it as text and
+        # never executes or interpolates it.
         run: bash scripts/validate-rite.sh
 
       - name: Rite evidence self-test (the gate is itself gated)

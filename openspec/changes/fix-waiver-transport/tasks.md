@@ -34,19 +34,19 @@
 
 ## 2. Transporte: do env para o payload do evento
 
-- [ ] 2.1 `read_pr_body` em `scripts/validate-spec-rite.py`: `PR_BODY` quando definido, senão
+- [x] 2.1 `read_pr_body` em `scripts/validate-spec-rite.py`: `PR_BODY` quando definido, senão
       `pull_request.body` do arquivo em `GITHUB_EVENT_PATH`, senão vazio — precedência declarada em
       comentário
-- [ ] 2.2 Leitura defensiva: `json.load` em `try/except` estreito; payload ausente, ilegível ou sem a
+- [x] 2.2 Leitura defensiva: `json.load` em `try/except` estreito; payload ausente, ilegível ou sem a
       chave vira corpo vazio com aviso, nunca traceback
-- [ ] 2.3 `.github/workflows/ci.yml`: remover o bloco `env:` do passo do gate
-- [ ] 2.4 Cabeçalho do script atualizado: de onde a dispensa é lida e por que não do ambiente
+- [x] 2.3 `.github/workflows/ci.yml`: remover o bloco `env:` do passo do gate
+- [x] 2.4 Cabeçalho do script atualizado: de onde a dispensa é lida e por que não do ambiente
 
 ## 3. Cobertura do leitor novo
 
-- [ ] 3.1 `--selftest` cobre: payload sintético em arquivo temporário lido, arquivo ausente tratado,
+- [x] 3.1 `--selftest` cobre: payload sintético em arquivo temporário lido, arquivo ausente tratado,
       override `PR_BODY` vencendo o payload
-- [ ] 3.2 Os cenários `S0`/`S1`/`S2` e os seis casos de falso positivo continuam intactos e verdes
+- [x] 3.2 Os cenários `S0`/`S1`/`S2` e os seis casos de falso positivo continuam intactos e verdes
 
 ## 4. Quality Gates (MANDATORY)
 
