@@ -22,15 +22,24 @@ required, reviewable artifact; the review is what judges it. The selftest exerci
 rules against synthetic inputs, not the git plumbing that feeds them: a misconfigured checkout is
 caught by the CI-only base-resolution failure below, not by the selftest.
 
+The waiver is read from the event payload the runner already writes (GITHUB_EVENT_PATH), not from
+an environment variable handed to the step: GitHub Actions prints a step's `env:` block into the
+build log, so passing the pull request body that way published the whole body on every run —
+measured on run 32648727841. A gate must not become a disclosure channel for what it reads. PR_BODY
+survives as the deliberate override for running this outside CI.
+
 Exit 1 on any finding. Run from the repo root.
 Modes: (default) check this diff   |   --selftest inject one defect per rule and assert detection.
 """
 from __future__ import annotations
 
+import contextlib
+import json
 import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -107,6 +116,38 @@ def resolve_base(root: Path) -> str | None:
     return None
 
 
+def read_pr_body() -> str:
+    """The pull request body, without routing it through anything that echoes it.
+
+    Precedence, and the reason for it:
+      1. PR_BODY, when set — the only reason to set it explicitly is to want that exact value
+         (local runs, and the end-to-end probes of this gate).
+      2. pull_request.body from the file at GITHUB_EVENT_PATH — the payload the runner wrote for
+         itself. Nothing hands it over, so nothing prints it.
+      3. empty.
+
+    A payload that is missing, unreadable or without the key degrades to an empty body rather than
+    an error: the decision then falls to the rules that already exist, instead of the build failing
+    for a reason unrelated to the rite.
+    """
+    override = os.environ.get("PR_BODY")
+    if override is not None:
+        return override
+
+    event_path = os.environ.get("GITHUB_EVENT_PATH", "")
+    if not event_path:
+        return ""
+    try:
+        with open(event_path, encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        print(f"  spec-rite gate: event payload unreadable ({exc.__class__.__name__}) — "
+              "continuing with an empty body")
+        return ""
+    body = (payload.get("pull_request") or {}).get("body")
+    return body if isinstance(body, str) else ""
+
+
 def changed_paths(root: Path, base: str) -> list[str]:
     out = subprocess.run(["git", "-C", str(root), "diff", "--name-only", f"{base}...HEAD"],
                          capture_output=True, text=True, check=True).stdout
@@ -173,6 +214,63 @@ SILENT = [
 ]
 
 
+@contextlib.contextmanager
+def _env(**pairs):
+    """Set/unset env vars for one case and put the process back the way it was."""
+    saved = {k: os.environ.get(k) for k in pairs}
+    try:
+        for k, v in pairs.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        yield
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def selftest_reader() -> int:
+    """The reader is the surface this change adds, so it gets cases of its own.
+
+    Exercised against files written here rather than a real event: what a real payload proves that
+    this cannot is whether the key is present at all, and that is what the CI run of the pull
+    request answers. The fallbacks below are what make that answer non-fatal either way.
+    """
+    ok = 0
+    with tempfile.TemporaryDirectory() as td:
+        good = Path(td) / "event.json"
+        good.write_text(json.dumps({"pull_request": {"body": "Spec-rite: none — from payload"}}))
+        broken = Path(td) / "broken.json"
+        broken.write_text("{not json")
+        keyless = Path(td) / "keyless.json"
+        keyless.write_text(json.dumps({"issue": {"body": "wrong event"}}))
+        missing = Path(td) / "does-not-exist.json"
+
+        cases = [
+            ("payload body is read", {"PR_BODY": None, "GITHUB_EVENT_PATH": str(good)},
+             "Spec-rite: none — from payload"),
+            ("PR_BODY overrides the payload", {"PR_BODY": "override wins", "GITHUB_EVENT_PATH": str(good)},
+             "override wins"),
+            ("missing payload file degrades to empty", {"PR_BODY": None, "GITHUB_EVENT_PATH": str(missing)}, ""),
+            ("malformed payload degrades to empty", {"PR_BODY": None, "GITHUB_EVENT_PATH": str(broken)}, ""),
+            ("payload without the key degrades to empty", {"PR_BODY": None, "GITHUB_EVENT_PATH": str(keyless)}, ""),
+            ("no payload path at all degrades to empty", {"PR_BODY": None, "GITHUB_EVENT_PATH": None}, ""),
+        ]
+        for label, env, expected in cases:
+            with _env(**env):
+                got = read_pr_body()
+            if got == expected:
+                print(f"  READER  {label}")
+                ok += 1
+            else:
+                print(f"  READER FAIL  {label}   <-- got {got!r}, expected {expected!r}")
+    return ok
+
+
 def selftest() -> int:
     global findings, annotate
     annotate = False
@@ -196,9 +294,14 @@ def selftest() -> int:
             print(f"  SILENT  {label}")
             quiet += 1
 
+    reader_ok = selftest_reader()
+    reader_total = 6
+
     print(f"\n{caught}/{len(DEFECTS)} defect classes detected, "
-          f"{quiet}/{len(SILENT)} false-positive cases stayed silent")
-    return 0 if caught == len(DEFECTS) and quiet == len(SILENT) else 1
+          f"{quiet}/{len(SILENT)} false-positive cases stayed silent, "
+          f"{reader_ok}/{reader_total} reader cases correct")
+    return 0 if (caught == len(DEFECTS) and quiet == len(SILENT)
+                 and reader_ok == reader_total) else 1
 
 
 # ── main ──────────────────────────────────────────────────────────────────
@@ -224,7 +327,7 @@ def main() -> int:
         return 0
 
     paths = changed_paths(ROOT, base)
-    evaluate(paths, active_changes(ROOT), os.environ.get("PR_BODY", ""))
+    evaluate(paths, active_changes(ROOT), read_pr_body())
     print(f"  spec-rite gate: {len(findings)} findings "
           f"(base {base}, {len(paths)} changed path(s), "
           f"{len(active_changes(ROOT))} active change(s))")
