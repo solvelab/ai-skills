@@ -26,11 +26,21 @@
       resolve o fork — por isso o change foi criado com `openspec new change ... --schema skills-rite`);
       `ls openspec/changes/` -> `archive` (única entrada, o que torna o loop do gate vazio);
       `grep -rn -i "openspec" skills/backlog | wc -l` -> `0`;
-      `gh auth status` -> `Token scopes: 'admin:org', ..., 'project', 'repo', 'workflow', ...`
-- [ ] E.3 Aberto e registrado, não afirmado: o payload de `UserPromptSubmit` carrega a chave `cwd`?
-      A implementação probará o payload real antes de escrever a frase condicional; o fallback
-      `os.getcwd()` cobre o caso de não carregar. Nenhuma outra lacuna.
-- [ ] E.4 Follow-ups listados, não executados aqui: (a) `openspec templates` sem `--schema` ignorar o
+      `gh auth status` -> `Token scopes: 'admin:org', ..., 'project', 'repo', 'workflow', ...`;
+      docs oficiais de hooks (code.claude.com/docs/en/hooks, lidas em 2026-08-23) -> `cwd` é campo
+      comum de entrada de **todo** hook event, ao lado de `session_id`, `transcript_path`,
+      `permission_mode` e `hook_event_name`;
+      `echo '{"prompt":"corrige o bug X","cwd":"/tmp"}' | python3 claude/global/hooks/backlog-rite.py`
+      -> saída termina em `...ask before coding.` (sem a frase de spec), e o mesmo prompt com
+      `"cwd":"$PWD"` -> `... This repo runs a spec-driven rite (openspec/): ...`;
+      `python3 scripts/validate-spec-rite.py --selftest` ->
+      `3/3 defect classes detected, 6/6 false-positive cases stayed silent`
+- [x] E.3 A única lacuna aberta na proposta — se o payload de `UserPromptSubmit` carrega `cwd` —
+      foi fechada pelas docs oficiais em 2026-08-23: `cwd` é campo comum de todo hook event. O
+      fallback `os.getcwd()` ficou no código como defesa, não como suposição. Nenhuma outra lacuna
+      em aberto: o que o `--selftest` do gate novo não cobre (o encanamento de git que alimenta a
+      função de decisão) está declarado no `KNOWN LIMIT` do próprio script, não escondido.
+- [x] E.4 Follow-ups listados, não executados aqui: (a) `openspec templates` sem `--schema` ignorar o
       `openspec/config.yaml` é um comportamento do CLI 1.6.0 que merece item próprio (documentar ou
       reportar upstream); (b) os desvios equivalentes nos repositórios DriveZone ganham item em cada
       um, com rito próprio; (c) o archive deste change é PR separado, conforme o precedente `#78`/`#74`
@@ -73,9 +83,9 @@
 
 ## 5. Camada 1 — o hook nomeia o rito de spec onde ele existe
 
-- [ ] 5.1 Probar o payload real de `UserPromptSubmit` e registrar o resultado em `E.3`
-- [ ] 5.2 Frase condicional na `REMINDER`, emitida só quando há `openspec/` no diretório do payload
-- [ ] 5.3 Docstring do hook atualizada para descrever a condicional
+- [x] 5.1 Probar o payload real de `UserPromptSubmit` e registrar o resultado em `E.3`
+- [x] 5.2 Frase condicional na `REMINDER`, emitida só quando há `openspec/` no diretório do payload
+- [x] 5.3 Docstring do hook atualizada para descrever a condicional
 
 ## 6. Doutrina, docs e árvore gerada
 

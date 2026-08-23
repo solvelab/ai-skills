@@ -5,6 +5,12 @@ Reads the hook payload on stdin and, when the prompt looks like a request to cha
 code, prints a short reminder that becomes additional context for the turn. Silent
 otherwise: diagnosing, reading and answering are free.
 
+Where the working directory runs a spec-driven workflow, the reminder gains one extra
+sentence naming that workflow's gate. It is conditional on purpose: a reminder that
+fires everywhere stops being read, which would also cost the backlog sentence next to
+it. The payload's `cwd` is a documented field common to every hook event; os.getcwd()
+is the fallback for the case where it is missing.
+
 Why a hook and not only a rule in personal-rules.md: the harness runs this on every
 prompt, so enforcement does not depend on the assistant noticing a rule already in
 context. It informs — it never blocks a tool call, and the user can always waive.
@@ -24,6 +30,7 @@ reminder to match your own process instead of adopting it blindly.
 """
 
 import json
+import os
 import re
 import sys
 
@@ -61,6 +68,23 @@ REMINDER = (
     "The user may waive this explicitly; without a waiver, ask before coding."
 )
 
+# Appended only where the workflow exists. Naming a gate that is not there would teach a step the
+# repo does not have, and would spend the reminder's credibility on noise.
+SPEC_RITE = (
+    " This repo runs a spec-driven rite (openspec/): the item also becomes an OpenSpec change, "
+    "validated with `openspec validate <id> --strict`, BEFORE the first edit outside openspec/. "
+    "Skipping it needs a written waiver, not a silent judgement."
+)
+
+# Directory that marks the workflow. One name, checked literally — guessing at variants would be
+# the same achismo the rite exists to stop.
+SPEC_RITE_DIR = "openspec"
+
+
+def has_spec_rite(payload: dict) -> bool:
+    cwd = payload.get("cwd") or os.getcwd()
+    return os.path.isdir(os.path.join(cwd, SPEC_RITE_DIR))
+
 
 def main() -> int:
     try:
@@ -73,7 +97,10 @@ def main() -> int:
         return 0
 
     if CHANGE_SIGNALS.search(prompt):
-        print(REMINDER)
+        reminder = REMINDER
+        if has_spec_rite(payload):
+            reminder += SPEC_RITE
+        print(reminder)
 
     return 0
 
