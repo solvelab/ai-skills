@@ -52,24 +52,27 @@
 
 <!-- Revisão adversarial dos skills tocados — não happy-path. -->
 
-- [ ] Q.1 Frontmatter uniforme em cada `SKILL.md` tocado: nenhum skill é tocado por este change, e
+- [x] Q.1 Frontmatter uniforme em cada `SKILL.md` tocado: nenhum skill é tocado por este change, e
       isso é declarado aqui em vez de deixado em branco
-- [ ] Q.2 Todo conteúdo de skill tocado em inglês: nenhum skill tocado (ver Q.1)
-- [ ] Q.3 Triggers de description testáveis: nenhuma description muda
-- [ ] Q.4 Zero doutrina duplicada: a regra "um gate não publica o que lê" entra **dentro** do
+- [x] Q.2 Todo conteúdo de skill tocado em inglês: nenhum skill tocado (ver Q.1)
+- [x] Q.3 Triggers de description testáveis: nenhuma description muda
+- [x] Q.4 Zero doutrina duplicada: a regra "um gate não publica o que lê" entra **dentro** do
       requisito que já governa a dispensa, não num requisito vizinho, conforme a tabela Canonical
       Home do `design.md`
-- [ ] Q.5 Exemplos de código em inglês: o código tocado é script de CI, com identificadores em
+- [x] Q.5 Exemplos de código em inglês: o código tocado é script de CI, com identificadores em
       inglês vindos do Glossary da issue #92 (`read_pr_body`, `GITHUB_EVENT_PATH`, `PR_BODY`)
 
 ## 5. Validation & Closure (MANDATORY)
 
 <!-- Sempre o último grupo. "Pronto" é verificável, não é opinião. -->
 
-- [ ] V.1 `openspec validate fix-waiver-transport --strict` verde
-- [ ] V.2 `bash scripts/validate-rite.sh` verde neste branch e `--selftest` verde
-- [ ] V.3 `bash generate.sh && git diff --exit-code` limpo; `validate-skills.py`,
+- [x] V.1 `openspec validate fix-waiver-transport --strict` verde
+- [x] V.2 `bash scripts/validate-rite.sh` verde neste branch e `--selftest` verde
+- [x] V.3 `bash generate.sh && git diff --exit-code` limpo; `validate-skills.py`,
       `selftest-validate-skills.py` e `validate-repo-hygiene.py` verdes
-- [ ] V.4 No run de CI deste PR, o log do passo do gate não contém trecho do corpo do PR, e mostra
-      qual caminho de leitura rodou
+- [x] V.4 Run `32650044909` (job `97220085306`, PR #93): o bloco `env:` sumiu — o cabeçalho vai de
+      `shell: /usr/bin/bash -e {0}` direto para `##[endgroup]` — e o grep por seis trechos exclusivos
+      do corpo do PR (`canal de divulgação`, `add-mask`, `Known gaps`, `read_pr_body() lê`,
+      `O que foi descartado`, `Spec-rite: fix-waiver-transport`) retorna `0` em todos. O gate seguiu
+      medindo: `spec-rite gate: 0 findings (base origin/master, 8 changed path(s), 1 active change(s))`
 - [ ] V.5 `openspec archive fix-waiver-transport --yes` — **após o merge**, em PR separado
