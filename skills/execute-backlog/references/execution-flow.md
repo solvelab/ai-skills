@@ -20,6 +20,8 @@ recommendation: proceed / refine via `/backlog` / abort.
 ## Plan — #<n> <title>
 
 **Interpretation**: 1-2 sentences — what will exist when done.
+**Spec rite**: change id + capabilities the delta touches + the strict-validation output line, or
+the written waiver and its reason (omit the whole line in a repo with no spec rite)
 **Repos/branches**: org/repo → backlog/<n>-<slug> (one line per repo, primary marked)
 **Changes**: per repo, file-level bullets (path → what and why)
 **Glossary**: term → identifier (from the item; rows derived here are marked NEW)
@@ -51,8 +53,8 @@ part of the deliverable and must appear in the plan.
 
 | Stage | What to look for | Examples |
 |---|---|---|
-| Ready (grooming gate) | Does the project require a formal proposal/spec before code? | `openspec/` directory → run its propose → `validate --strict` flow before planning; RFC/ADR templates in `docs/` |
-| In progress (implementation) | Implementation and test rites, commit conventions | OpenSpec `apply` with tasks checked one by one; adversarial-test rites (e.g. bug-hunter); `conventional-commit` |
+| Ready (grooming gate) | Does the project require a formal proposal/spec before code? | A spec-driven workflow is not an example here — it is a hard gate with its own protocol: `references/spec-rite.md`. Other shapes: RFC/ADR templates in `docs/` |
+| In progress (implementation) | Implementation and test rites, commit conventions | The spec rite's task list ticked task by task; adversarial-test rites (e.g. bug-hunter); `conventional-commit` |
 | In review (PR) | Review rites: PR templates, required checklists, CI gates | `.github/PULL_REQUEST_TEMPLATE*`, CONTRIBUTING review rules, project code-review skills |
 
 Discovery sources, in order:
@@ -63,6 +65,10 @@ Discovery sources, in order:
 
 Conflict between the generic flow and a project rite → the project rite wins; state in the plan
 which rite is being followed per stage so the user sees it before approving.
+
+Discovery is a judgment, and a judgment is exactly what fails silently. Where the rite is
+spec-driven, do not rely on this table: rail 10 and `references/spec-rite.md` make it a gate with a
+default that fails closed.
 
 ## Multi-repo orchestration (workspace mode)
 
@@ -79,4 +85,6 @@ which rite is being followed per stage so the user sees it before approving.
 - Branch: `backlog/<issue-number>-<kebab-slug>` from the repo's default branch, freshly pulled.
 - Commits: repo's own convention (check its history and skills; `conventional-commit` applies when
   present — no AI attribution).
+- A spec rite's artifacts are committed **before** the first commit that changes anything else, so
+  the history shows the registration preceding the work rather than trailing it.
 - Small, reviewable commits; no squashing of unrelated concerns.

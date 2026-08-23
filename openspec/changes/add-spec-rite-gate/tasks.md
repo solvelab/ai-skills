@@ -52,14 +52,14 @@
 
 ## 3. Camada 3 — `execute-backlog` põe o gate de spec na espinha numerada
 
-- [ ] 3.1 Novo safety rail *Spec-before-code* em `skills/execute-backlog/SKILL.md`
-- [ ] 3.2 Novo passo numerado de spec-rite entre *Context re-analysis* e *Implementation plan*, e o
+- [x] 3.1 Novo safety rail *Spec-before-code* em `skills/execute-backlog/SKILL.md`
+- [x] 3.2 Novo passo numerado de spec-rite entre *Context re-analysis* e *Implementation plan*, e o
       plano passando a carregar change-id, capabilities e a saída do `--strict`
-- [ ] 3.3 Novo `skills/execute-backlog/references/spec-rite.md`: detecção, descoberta do schema,
+- [x] 3.3 Novo `skills/execute-backlog/references/spec-rite.md`: detecção, descoberta do schema,
       tabela de veredito, protocolo de upgrade/downgrade, timing do archive
-- [ ] 3.4 `references/execution-flow.md` deixa de tratar OpenSpec como exemplo e aponta para o novo
+- [x] 3.4 `references/execution-flow.md` deixa de tratar OpenSpec como exemplo e aponta para o novo
       reference; passo de PR passa a carregar a linha `Spec-rite:`
-- [ ] 3.5 `metadata.version` de `execute-backlog` bumpada e a descrição refletindo o gate novo
+- [x] 3.5 `metadata.version` de `execute-backlog` bumpada e a descrição refletindo o gate novo
 
 ## 4. Camada 2 — `backlog` passa a produzir o veredito por escrito
 
