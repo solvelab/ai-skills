@@ -126,7 +126,9 @@ which reads as approval of a pull request that recorded nothing. Therefore a pul
 touches paths outside the workflow's own directory SHALL be required to carry one of: an active
 change, a change archived within the same diff, or a waiver line in the pull request body naming a
 reason. Paths written by the release automation alone SHALL be exempt, and the check SHALL run only
-where a base revision to compare against exists.
+where a base revision to compare against exists. Where it runs in continuous integration and no base
+revision can be resolved, it SHALL fail rather than skip, because a gate that cannot measure must not
+approve — an unresolvable base there is a misconfigured checkout, not an exemption.
 
 The waiver SHALL be treated as untrusted input: it is authored by whoever opened the pull request,
 including from a fork, and SHALL be matched as text and never executed or interpolated into a
@@ -154,6 +156,12 @@ without reading the diff.
   neither an active change, nor a change archived in the same diff, nor a waiver line
 - **THEN** the rite gate fails, naming the offending path, rather than passing because the loop over
   active changes found nothing to check
+
+#### Scenario: A gate that cannot measure does not approve
+
+- **WHEN** the check runs in continuous integration and no base revision can be resolved
+- **THEN** it fails naming the missing fetch depth, rather than passing because it had nothing to
+  compare against
 
 #### Scenario: The waiver is a written line, not a judgment
 

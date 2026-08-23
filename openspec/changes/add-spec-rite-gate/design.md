@@ -80,6 +80,21 @@ está olhando, e o `github.event.pull_request.body` chega ao script sem API extr
 script casa por regex ancorada e nunca interpola em comando — a alternativa (avaliar a linha, ou
 passá-la a um shell) daria execução arbitrária a um contribuidor externo.
 
+**A checagem nova é um irmão em Python, não mais um bloco no bash.** `validate-rite.sh` já
+orquestra um irmão (`validate-rite-evidence.py`) com a justificativa de ser "um KIND de check
+diferente". Este é um terceiro: os dois primeiros iteram sobre changes ativas, este lê o diff. Além
+disso o `--selftest` do padrão da casa injeta defeito e afirma detecção — em bash isso exigiria
+fixtures de git a cada caso, enquanto a decisão modelada como função pura (`evaluate`) é exercitada
+com entradas sintéticas, incluindo os casos de falso positivo que precisam ficar em silêncio.
+`scripts/validate-rite.sh --selftest` encaminha para ele, então o comando da issue continua válido.
+O que o selftest não cobre — o encanamento de git que alimenta a função — é declarado no
+`KNOWN LIMIT` do script e coberto pela falha de base irresolvível no CI.
+
+**Base irresolvível falha no CI e é pulada localmente.** Se o gate não consegue diffar, ele não pode
+aprovar: no CI isso significa checkout mal configurado, e passar seria repetir o passe vazio numa
+forma nova. Fora do CI (clone raso, branch sem `origin/master`) a checagem se declara pulada, porque
+ali ela não é a defesa — o CI é.
+
 **`fetch-depth: 0` é pré-requisito, não detalhe.** `.github/workflows/ci.yml:28` usa
 `actions/checkout@v5` sem `with:`, ou seja profundidade 1: não existe base para `git diff`. Sem essa
 mudança a checagem nova não tem o que ler, e a forma de falha seria a pior possível — um gate que

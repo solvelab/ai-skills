@@ -37,17 +37,17 @@
 
 ## 2. Camada 4 — o gate de CI deixa de aprovar por vacuidade
 
-- [ ] 2.1 `scripts/validate-rite.sh`: nova checagem antes do loop atual — diff que toca caminho fora
+- [x] 2.1 `scripts/validate-rite.sh`: nova checagem antes do loop atual — diff que toca caminho fora
       de `openspec/` exige change ativa, diretório novo sob `openspec/changes/archive/` no próprio
       diff, ou a linha `Spec-rite: none — <motivo>` em `PR_BODY`
-- [ ] 2.2 Allowlist dos caminhos escritos só pela automação de release (`VERSION`, `CHANGELOG.md`,
+- [x] 2.2 Allowlist dos caminhos escritos só pela automação de release (`VERSION`, `CHANGELOG.md`,
       `.claude-plugin/*.json`) e restrição a evento `pull_request`
-- [ ] 2.3 `PR_BODY` tratado como entrada não confiável: regex ancorada, sem execução, sem
+- [x] 2.3 `PR_BODY` tratado como entrada não confiável: regex ancorada, sem execução, sem
       interpolação em comando
-- [ ] 2.4 `scripts/validate-rite.sh --selftest` injetando um defeito por regra nova, no padrão dos
+- [x] 2.4 `scripts/validate-rite.sh --selftest` injetando um defeito por regra nova, no padrão dos
       gates irmãos deste repositório
-- [ ] 2.5 Cabeçalho `KNOWN LIMIT` estendido: existência de change não é honestidade de change
-- [ ] 2.6 `.github/workflows/ci.yml`: `fetch-depth: 0` no checkout, `PR_BODY` no ambiente do passo do
+- [x] 2.5 Cabeçalho `KNOWN LIMIT` estendido: existência de change não é honestidade de change
+- [x] 2.6 `.github/workflows/ci.yml`: `fetch-depth: 0` no checkout, `PR_BODY` no ambiente do passo do
       gate, e passo de self-test do gate
 
 ## 3. Camada 3 — `execute-backlog` põe o gate de spec na espinha numerada

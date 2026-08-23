@@ -7,15 +7,23 @@
 # before it can merge or archive.
 #
 # KNOWN LIMIT: this checks that the gate SECTIONS are present and correctly
-# positioned. It cannot check that their boxes were earned — a ticked box with
-# no probe behind it looks identical to one with. The gate makes the evidence a
-# required, reviewable artifact; the review is what judges it.
+# positioned, and — through validate-spec-rite.py — that a change EXISTS at all.
+# It cannot check that either was earned: a ticked box with no probe behind it
+# looks identical to one with, and a change scaffolded to satisfy the gate passes
+# it. Existence is not honesty. The gate makes both a required, reviewable
+# artifact; the review is what judges them.
 #
-# Usage: scripts/validate-rite.sh   (from repo root; CI runs it on every PR)
+# Usage: scripts/validate-rite.sh              (from repo root; CI runs it on every PR)
+#        scripts/validate-rite.sh --selftest   (inject one defect per rule the
+#                                               new spec-rite check owns)
 set -uo pipefail
 
 CHANGES_DIR="openspec/changes"
 fail=0
+
+if [ "${1:-}" = "--selftest" ]; then
+  exec python3 scripts/validate-spec-rite.py --selftest
+fi
 
 for dir in "$CHANGES_DIR"/*/; do
   [ -d "$dir" ] || continue
@@ -56,6 +64,11 @@ done
 # different KIND of check: this script asks whether the gate sections exist, that one asks whether
 # a ticked box says what it ran. Its own header declares what it cannot do.
 python3 scripts/validate-rite-evidence.py || fail=1
+
+# Whether a change exists at all. Separate again, and for the reason the loop above makes obvious:
+# every check up to here iterates over active changes, so a pull request that opened none passes
+# them all vacuously. This one reads the diff instead of the changes directory.
+python3 scripts/validate-spec-rite.py || fail=1
 
 if command -v openspec >/dev/null 2>&1; then
   openspec validate --all --strict || fail=1
