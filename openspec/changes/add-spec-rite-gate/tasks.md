@@ -63,13 +63,13 @@
 
 ## 4. Camada 2 — `backlog` passa a produzir o veredito por escrito
 
-- [ ] 4.1 Novo ground rule de spec-rite em `skills/backlog/SKILL.md`, linkando `openspec` sem
+- [x] 4.1 Novo ground rule de spec-rite em `skills/backlog/SKILL.md`, linkando `openspec` sem
       restatar o ciclo
-- [ ] 4.2 Novo passo de triagem no workflow, antes do Draft, e o veredito entrando no preview
-- [ ] 4.3 Seção de spec-rite em `references/issue-template.md`, obrigatória quando há `openspec/`
-- [ ] 4.4 Chave `spec_rite` (`tool`, `policy`) documentada em `references/backlog-config.md`, com o
+- [x] 4.2 Novo passo de triagem no workflow, antes do Draft, e o veredito entrando no preview
+- [x] 4.3 Seção de spec-rite em `references/issue-template.md`, obrigatória quando há `openspec/`
+- [x] 4.4 Chave `spec_rite` (`tool`, `policy`) documentada em `references/backlog-config.md`, com o
       default fail-closed
-- [ ] 4.5 `metadata.version` de `backlog` bumpada e a descrição refletindo a triagem nova
+- [x] 4.5 `metadata.version` de `backlog` bumpada e a descrição refletindo a triagem nova
 
 ## 5. Camada 1 — o hook nomeia o rito de spec onde ele existe
 
