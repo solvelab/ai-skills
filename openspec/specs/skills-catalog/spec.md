@@ -193,12 +193,31 @@ the rule. The artifact SHALL inform rather than block: it never denies a tool ca
 always waive the rite explicitly. Diagnosing, reading and answering SHALL remain unrestricted — the
 rite applies only when code is going to change.
 
+In a repository that runs a spec-driven workflow, the rite SHALL NOT end at the backlog item. The
+spec artifact SHALL be named by the same enforcement artifact that names the backlog step, and the
+naming SHALL be conditional on that workflow being present, so that the reminder stays silent where
+it does not apply. A repository whose spec policy is unstated SHALL be treated as requiring the
+artifact, so that the absence of a decision is not read as permission to skip it.
+
+The decision to ship without a spec artifact SHALL be a written one. A judgment made silently by the
+assistant, or by a contributor in conversation, SHALL NOT satisfy the rite: the waiver SHALL exist as
+a reviewable line in the pull request, and the gate SHALL be what reads it.
+
 #### Scenario: A code-change request carries the rite into context
 
 - **WHEN** a prompt asks for an implementation, fix, refactor or removal
 - **THEN** the shipped `UserPromptSubmit` hook injects the rite reminder naming `/backlog` as the
   entry point and `/execute-backlog` as the second step
 - **AND** the reminder states that diagnosis is free and that an approved plan is not a waiver
+
+#### Scenario: The reminder names the spec rite only where it exists
+
+- **WHEN** the prompt matches a code-change signal and the working directory carries the
+  spec-driven workflow's directory
+- **THEN** the reminder also names the spec artifact as a step that precedes the first edit outside
+  that directory
+- **AND** the same prompt in a working directory without that workflow produces the reminder without
+  the spec sentence, so the added line never fires where it has no meaning
 
 #### Scenario: The reminder is silent inside its own rite
 
@@ -224,6 +243,19 @@ The `backlog` and `execute-backlog` descriptions SHALL identify each other as th
 single flow — creation then execution — so that a reader arriving at either one learns where the
 work came from and where it goes next. Neither description SHALL restate the other's workflow.
 
+Where the target repository runs a spec-driven workflow, both skills SHALL carry the gate that
+workflow imposes between them, and neither SHALL restate its lifecycle: the lifecycle has a canonical
+home in the catalog's own spec-driven skill, and the backlog skills SHALL link to it. The creating
+skill SHALL record the verdict — the artifact that will exist, or the written waiver — in the item
+itself, so the executing skill inherits a decision instead of making a new one. The executing skill
+SHALL re-check that verdict against the change it is about to make, SHALL raise it without asking
+when the work outgrew the item, and SHALL NOT lower it without the user, because a silent downgrade
+is the failure this gate exists to prevent.
+
+The policy SHALL be the repository's to set rather than the skills', because both skills run against
+repositories with different rites; a repository that states no policy while carrying the workflow
+SHALL be treated as requiring the artifact.
+
 #### Scenario: Entry point is discoverable from the execution skill
 
 - **WHEN** a user reads the `execute-backlog` description
@@ -233,6 +265,28 @@ work came from and where it goes next. Neither description SHALL restate the oth
 
 - **WHEN** a user reads the `backlog` description
 - **THEN** it names `execute-backlog` as the step that turns the created item into a pull request
+
+#### Scenario: The item carries its spec verdict
+
+- **WHEN** the creating skill drafts an item for a repository that runs the spec-driven workflow
+- **THEN** the drafted item declares either the change identifier and the capabilities its delta will
+  touch, or the written waiver and its reason
+- **AND** the verdict appears in the approval preview alongside the proposed field values
+
+#### Scenario: The executing skill refuses to edit before the artifact exists
+
+- **WHEN** the executing skill is about to change a file outside the spec-driven workflow's own
+  directory, in a repository whose policy requires the artifact
+- **THEN** it stops until the change exists and its strict validation is green, and the plan it
+  presents for approval carries the change identifier, the affected capabilities and the validation
+  output
+
+#### Scenario: A verdict is raised silently and lowered only by the user
+
+- **WHEN** re-analysis shows the work touches more than the item's waiver assumed
+- **THEN** the executing skill raises the verdict to requiring an artifact without asking
+- **AND** the reverse move — dropping a required artifact to a waiver — stops for an explicit user
+  decision rather than being taken by the assistant
 
 ### Requirement: Claim verification has a canonical home
 
@@ -305,9 +359,24 @@ explicitly declared absent — with a file-specific error naming the box and wha
 rules SHALL be per box kind rather than uniform, because the kinds do not share a shape and a
 uniform rule rejects boxes that are correct as written.
 
+The gate SHALL cover the **absence** of a change and not only the shape of one that is present. A
+gate whose checks are written as a loop over active changes passes vacuously when there are none,
+which reads as approval of a pull request that recorded nothing. Therefore a pull request whose diff
+touches paths outside the workflow's own directory SHALL be required to carry one of: an active
+change, a change archived within the same diff, or a waiver line in the pull request body naming a
+reason. Paths written by the release automation alone SHALL be exempt, and the check SHALL run only
+where a base revision to compare against exists. Where it runs in continuous integration and no base
+revision can be resolved, it SHALL fail rather than skip, because a gate that cannot measure must not
+approve — an unresolvable base there is a misconfigured checkout, not an exemption.
+
+The waiver SHALL be treated as untrusted input: it is authored by whoever opened the pull request,
+including from a fork, and SHALL be matched as text and never executed or interpolated into a
+command.
+
 Every enforcing script SHALL state that it verifies presence, position and shape, and **not the
 truth of the contents**: a box padded to satisfy the shape passes, and no script can tell an
-invented output from a real one.
+invented output from a real one. A script that also verifies that a change exists SHALL state that
+existence is not honesty — a change scaffolded to satisfy the gate passes it.
 
 The mandatory groups that are **not** gated on shape SHALL have their evidence density reported
 without affecting the exit code, so that a group whose boxes carry no probe is visible to a reviewer
@@ -320,6 +389,26 @@ without reading the diff.
 - **THEN** the rite gate script fails with a file-specific error naming the missing or misplaced
   group, and the build does not pass
 
+#### Scenario: A pull request that records nothing fails the build
+
+- **WHEN** a pull request's diff touches a path outside the workflow's own directory and carries
+  neither an active change, nor a change archived in the same diff, nor a waiver line
+- **THEN** the rite gate fails, naming the offending path, rather than passing because the loop over
+  active changes found nothing to check
+
+#### Scenario: A gate that cannot measure does not approve
+
+- **WHEN** the check runs in continuous integration and no base revision can be resolved
+- **THEN** it fails naming the missing fetch depth, rather than passing because it had nothing to
+  compare against
+
+#### Scenario: The waiver is a written line, not a judgment
+
+- **WHEN** the same diff is accompanied by a waiver line in the pull request body naming a reason
+- **THEN** the gate passes and the reason is visible to the reviewer in the pull request itself
+- **AND** the line is matched as text, never executed, because its author is whoever opened the pull
+  request
+
 #### Scenario: A ticked box that states a conclusion fails the build
 
 - **WHEN** a ticked box in the evidence group records a conclusion instead of the form its kind owes
@@ -331,6 +420,7 @@ without reading the diff.
 - **WHEN** the gate passes
 - **THEN** the enforcing scripts state that shape is not truth — a box padded to satisfy the rule is
   indistinguishable from an earned one — so that a green run is not read as verified evidence
+- **AND** they state that the existence of a change is not the honesty of one
 
 #### Scenario: A group that is reported rather than gated is not implied to be gated
 
