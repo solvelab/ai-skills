@@ -75,4 +75,6 @@
       do corpo do PR (`canal de divulgação`, `add-mask`, `Known gaps`, `read_pr_body() lê`,
       `O que foi descartado`, `Spec-rite: fix-waiver-transport`) retorna `0` em todos. O gate seguiu
       medindo: `spec-rite gate: 0 findings (base origin/master, 8 changed path(s), 1 active change(s))`
-- [ ] V.5 `openspec archive fix-waiver-transport --yes` — **após o merge**, em PR separado
+- [x] V.5 `openspec archive fix-waiver-transport --yes` rodado após o merge do PR #93 (release
+      2.12.1), em PR separado — `Totals: + 0, ~ 1, - 0, → 0` em
+      `openspec/specs/skills-catalog/spec.md`

@@ -373,6 +373,15 @@ The waiver SHALL be treated as untrusted input: it is authored by whoever opened
 including from a fork, and SHALL be matched as text and never executed or interpolated into a
 command.
 
+The same care SHALL apply to what the gate makes appear. A gate SHALL NOT publish the content it
+reads into a channel whose audience differs from that content's own: it reads the pull request body
+from the payload the runner already writes, rather than having it handed over through a mechanism the
+continuous-integration system echoes into the build log. Where the gate is nonetheless given the
+content explicitly — for local runs, or as a fallback — that path SHALL be the deliberate override
+and not the default. Failure to read the payload SHALL degrade to an empty body rather than an
+error, so that the decision stays with the rules that already exist instead of the build failing for
+a reason unrelated to the rite.
+
 Every enforcing script SHALL state that it verifies presence, position and shape, and **not the
 truth of the contents**: a box padded to satisfy the shape passes, and no script can tell an
 invented output from a real one. A script that also verifies that a change exists SHALL state that
@@ -408,6 +417,16 @@ without reading the diff.
 - **THEN** the gate passes and the reason is visible to the reviewer in the pull request itself
 - **AND** the line is matched as text, never executed, because its author is whoever opened the pull
   request
+
+#### Scenario: The gate does not publish what it reads
+
+- **WHEN** the gate needs the pull request body to look for a waiver
+- **THEN** it reads it from the event payload the runner already wrote, so no step hands the body
+  over through a mechanism that prints it into the build log
+- **AND** an explicit hand-over remains available as an override for running the gate outside
+  continuous integration, taking precedence when it is set
+- **AND** a payload that is missing, unreadable or without the key yields an empty body, leaving the
+  existing rules to decide, rather than failing the build
 
 #### Scenario: A ticked box that states a conclusion fails the build
 
