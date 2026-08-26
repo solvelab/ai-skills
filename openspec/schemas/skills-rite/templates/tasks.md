@@ -26,11 +26,37 @@
 - [ ] 2.1 <!-- Task description -->
 - [ ] 2.2 <!-- Task description -->
 
-## 3. Quality Gates (MANDATORY)
+## 3. Simulation & Field Proof (MANDATORY)
+
+<!-- Second-to-last but one: proof that the artifact was RUN, before the quality review discusses it.
+     Reading, probing, uniform frontmatter and a green strict validation can all hold while the
+     artifact was never executed once — measured on 2026-08-26 (issue #95), where a green selftest
+     and a green CI still shipped two defects that only an end-to-end run surfaced.
+
+     Exercise the artifact through the path its USER takes — the hook fired by the harness, the CLI
+     invoked as documented, the skill loaded in a session — and record what you OBSERVED, never what
+     you expected. Breaking it on purpose afterwards is a different job: the bug-hunter skill.
+     The doctrine behind "observed, not recalled" is verify-before-claiming.
+
+     Shape each box owes, gated by scripts/validate-rite-evidence.py once ticked:
+       S.1  an `entry point` -> a fragment of the OBSERVED output; or an explicit statement that the
+            change touches no runtime artifact
+       S.2  the case matrix as counts (n/n): what had to fire and did, what had to stay silent and
+            did, which known escapes stayed silent
+       S.3  names what escaped or misbehaved, or states explicitly that nothing did
+     The gate cannot tell a real observation from an invented one — that is still the reviewer's job. -->
+
+- [ ] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
+      observed output are recorded (or: this change touches no runtime artifact)
+- [ ] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
+      silent and did, known escapes that stayed silent
+- [ ] S.3 What escaped or behaved differently than expected is named here — or it is stated
+      explicitly that nothing did
+
+## 4. Quality Gates (MANDATORY)
 
 <!-- Adversarial review of the skills touched — not happy-path. Every skill added or edited
-     by this change gets checked against the skills-authoring spec. Keep the group number
-     as the second-to-last group. -->
+     by this change gets checked against the skills-authoring spec. Keep this group second-to-last. -->
 
 - [ ] Q.1 Frontmatter uniform on every touched SKILL.md: name == directory, folded description,
       metadata.author solvelab, semver metadata.version, category in the controlled set, license MIT,
@@ -46,7 +72,7 @@
       paths shipped in target repos through this rite. Regression gate on the exemplar: the model
       imitates the code it is shown
 
-## 4. Validation & Closure (MANDATORY)
+## 5. Validation & Closure (MANDATORY)
 
 <!-- Always the last group. "Done" is verifiable, not an opinion. -->
 

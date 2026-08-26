@@ -9,7 +9,8 @@ mandatory groups, 7 carried a command and its output (2%).
 
 This adds the half a script can honestly do.
 
-  R1 evidence shape   a ticked Evidence & Sources box states what was run, not a conclusion
+  R1 evidence shape     a ticked Evidence & Sources box states what was run, not a conclusion
+  R2 simulation shape   a ticked Simulation & Field Proof box states what was EXERCISED and observed
 
 and prints, without gating, how dense every mandatory group's evidence is, so a `Quality Gates 0/5`
 is visible on the pull request without reading the diff.
@@ -23,6 +24,15 @@ most recently written change, all correct as written.
   E.3  what could not be probed   names the gap, or states explicitly that there is none
   E.4  scope check           lists a follow-up, or states explicitly that there is none
 
+The simulation group asks a different question — not what was read before writing, but what was RUN
+before calling it delivered. Earned on 2026-08-26 (issue #95): a green `--selftest` and a green CI
+still shipped two defects that only an end-to-end run through the real harness surfaced.
+
+  S.1  artifact exercised    an `entry point` -> a fragment of the OBSERVED output, or an explicit
+                             statement that the change touches no runtime artifact
+  S.2  case matrix           counts, not adjectives: n/n fired, n/n silent, n/n escapes
+  S.3  what escaped          names it, or states explicitly that nothing did
+
 KNOWN LIMIT — what this gate does NOT do. A passing run is not proof the evidence is real.
   1. It cannot detect fabricated output. A box padded with `-> ok` passes every rule here. This
      repo already designed and rejected a stronger version for that reason
@@ -32,8 +42,9 @@ KNOWN LIMIT — what this gate does NOT do. A passing run is not proof the evide
   2. `Quality Gates` and `Validation & Closure` are reported, never gated. Several of their items
      are judgments rather than executions (`Q.3` is "triggers do not collide"), and demanding a
      command there manufactures padding.
-  3. Only the four E kinds have rules. A fifth `E.5` a change invents is counted in the density
-     report and otherwise unchecked.
+  3. Only the four E kinds and the three S kinds have rules. A fifth `E.5` a change invents is
+     counted in the density report and otherwise unchecked. Nothing here reads the artifact that S.1
+     names: a box can cite a command that was never run, and the gate cannot tell.
   4. Unticked boxes are ignored. The rule is about what a tick claims, not about progress.
   5. Only active changes are read; `openspec/changes/archive/` is history and is never re-litigated.
   6. It fires on nothing in the current corpus — every historical E box passes. That is calibration
@@ -60,6 +71,12 @@ ARROW = re.compile(r"->|→")
 SHA_OR_DATE = re.compile(r"`[0-9a-f]{7,40}`|\b20\d\d-\d\d-\d\d\b")
 PATH_IN_TICKS = re.compile(r"`[^`\s]+\.(?:md|py|sh|ya?ml|json|lua|tsx?|jsx?|cs|sql|toml|ini)[^`]*`")
 NEGATIVE = re.compile(r"\bnone\b|\bnothing\b|\bno gaps?\b|\bnenhum", re.I)
+# S.2 wants the matrix as numbers. `10/10` and `0 de 6` both count; a sentence claiming "todos os
+# casos passaram" does not, which is the whole point of asking for counts.
+COUNTS = re.compile(r"\b\d+\s*(?:/|de|of)\s*\d+\b")
+# The escape hatch S.1 accepts, paired with NEGATIVE so that "nothing to simulate" reads as a
+# deliberate statement rather than an accidental word match.
+NO_RUNTIME = re.compile(r"runtime|execut|runnable|artefato|artifact|script|hook|skill", re.I)
 
 findings: list[str] = []
 
@@ -157,7 +174,46 @@ def check_evidence_shape(root: Path) -> None:
                 add("R1 evidence shape", tasks, f"{box_id} {why}")
 
 
-CHECKS = (check_evidence_shape,)
+# ── R2: simulation shape ──────────────────────────────────────────────────
+# The evidence group asks what was READ and PROBED before writing. This one asks what was RUN before
+# calling it delivered — a different question, so a different shape per box, for the same reason the
+# E rules are per kind: a uniform rule rejects boxes that are correct as written.
+def _simulation_shape_ok(box_id: str, body: str) -> "tuple[bool, str]":
+    if box_id == "S.1":
+        # An explicit "no runtime artifact" is a valid answer: documentation-only work must not be
+        # pushed into inventing a simulation, exactly as E.3/E.4 accept an explicit absence.
+        if NEGATIVE.search(body) and NO_RUNTIME.search(body):
+            return True, ""
+        if not (BACKTICKED.search(body) and ARROW.search(body)):
+            return False, ("names no entry point and no observed output — record "
+                           "`what you ran` -> a fragment of what you SAW, or state explicitly that "
+                           "this change touches no runtime artifact")
+        return True, ""
+    if box_id == "S.2":
+        if not COUNTS.search(body):
+            return False, ("carries no counts — record the case matrix as numbers (n/n): what had to "
+                           "fire and did, what had to stay silent and did, which escapes stayed silent")
+        return True, ""
+    if box_id == "S.3":
+        if NEGATIVE.search(body) or len(body) > 120:
+            return True, ""
+        return False, "neither names what escaped nor states that nothing did"
+    return True, ""
+
+
+def check_simulation_shape(root: Path) -> None:
+    for tasks in active_task_files(root):
+        for group, box_id, ticked, body in parse_boxes(tasks.read_text(encoding="utf-8")):
+            if not ticked or "Simulation & Field Proof" not in group:
+                continue
+            if box_id not in ("S.1", "S.2", "S.3"):
+                continue
+            ok, why = _simulation_shape_ok(box_id, body)
+            if not ok:
+                add("R2 simulation shape", tasks, f"{box_id} {why}")
+
+
+CHECKS = (check_evidence_shape, check_simulation_shape)
 
 
 # ── density report (never gates) ──────────────────────────────────────────
@@ -190,7 +246,13 @@ _SCAFFOLD = """## 1. Evidence & Sources (MANDATORY)
 - [x] E.3 Nothing could not be probed: none outstanding
 - [x] E.4 Scope check: none noticed, no follow-ups
 
-## 2. Validation & Closure (MANDATORY)
+## 2. Simulation & Field Proof (MANDATORY)
+
+- [x] S.1 `python3 hook.py < payload.json` -> `findings: 2` on the Portuguese path
+- [x] S.2 Matrix: 10/10 defects caught, 6/6 correct cases silent, 4/4 known escapes silent
+- [x] S.3 Nothing escaped that was not already documented
+
+## 3. Validation & Closure (MANDATORY)
 
 - [x] V.1 `openspec validate x --strict` -> valid
 """
@@ -232,10 +294,34 @@ def _break_e4(tmp: Path) -> None:
         "- [x] E.4 Scope respected"), encoding="utf-8")
 
 
+def _break_s1(tmp: Path) -> None:
+    p = _seed(tmp)
+    p.write_text(p.read_text(encoding="utf-8").replace(
+        "- [x] S.1 `python3 hook.py < payload.json` -> `findings: 2` on the Portuguese path",
+        "- [x] S.1 Simulated the hook and it worked"), encoding="utf-8")
+
+
+def _break_s2(tmp: Path) -> None:
+    p = _seed(tmp)
+    p.write_text(p.read_text(encoding="utf-8").replace(
+        "- [x] S.2 Matrix: 10/10 defects caught, 6/6 correct cases silent, 4/4 known escapes silent",
+        "- [x] S.2 Every case in the matrix passed"), encoding="utf-8")
+
+
+def _break_s3(tmp: Path) -> None:
+    p = _seed(tmp)
+    p.write_text(p.read_text(encoding="utf-8").replace(
+        "- [x] S.3 Nothing escaped that was not already documented",
+        "- [x] S.3 Reviewed"), encoding="utf-8")
+
+
 DEFECTS = (("R1 evidence shape: E.1", _break_e1),
            ("R1 evidence shape: E.2", _break_e2),
            ("R1 evidence shape: E.3", _break_e3),
-           ("R1 evidence shape: E.4", _break_e4))
+           ("R1 evidence shape: E.4", _break_e4),
+           ("R2 simulation shape: S.1", _break_s1),
+           ("R2 simulation shape: S.2", _break_s2),
+           ("R2 simulation shape: S.3", _break_s3))
 
 
 def selftest() -> int:

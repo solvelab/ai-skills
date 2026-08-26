@@ -42,6 +42,11 @@ for dir in "$CHANGES_DIR"/*/; do
       *"Evidence & Sources (MANDATORY)"*) ;;
       *) echo "::error file=$tasks::'Evidence & Sources (MANDATORY)' must be the FIRST task group (found first: ${first_group:-none})"; fail=1 ;;
     esac
+    # Simulation & Field Proof asks the question the other groups cannot: was the artifact ever RUN?
+    # Position is not pinned here — first and last are the only structural anchors — but the schema
+    # places it before Quality Gates, so the review has the simulation's findings in hand.
+    grep -q 'Simulation & Field Proof (MANDATORY)' "$tasks" || {
+      echo "::error file=$tasks::Missing mandatory group 'Simulation & Field Proof (MANDATORY)'"; fail=1; }
     grep -q 'Quality Gates (MANDATORY)' "$tasks" || {
       echo "::error file=$tasks::Missing mandatory group 'Quality Gates (MANDATORY)'"; fail=1; }
     grep -q 'Validation & Closure (MANDATORY)' "$tasks" || {
