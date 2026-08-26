@@ -88,5 +88,5 @@
 - [x] V.2 Descoberta do catálogo intacta: `python3 scripts/validate-skills.py` verde e os 34 skills
       seguem publicados, sem órfão nem renomeado
 - [x] V.3 README/docs atualizados onde o uso muda (wiring do hook)
-- [ ] V.4 `openspec archive add-locale-write-gate --yes` depois que todos os grupos acima estiverem
+- [x] V.4 `openspec archive add-locale-write-gate --yes` depois que todos os grupos acima estiverem
       `[x]` — executado após o merge do PR, não antes
