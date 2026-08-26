@@ -103,4 +103,4 @@
 - [x] V.1 `openspec validate add-simulation-rite-gate --strict` verde
 - [x] V.2 Descoberta do catálogo intacta: `python3 scripts/validate-skills.py` verde, 34 skills
 - [x] V.3 README / docs atualizados onde o rito muda
-- [ ] V.4 `openspec archive add-simulation-rite-gate --yes` depois do merge do PR
+- [x] V.4 `openspec archive add-simulation-rite-gate --yes` depois do merge do PR
