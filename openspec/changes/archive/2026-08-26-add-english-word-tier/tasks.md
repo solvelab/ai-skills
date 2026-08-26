@@ -86,4 +86,4 @@
 - [x] V.1 `openspec validate add-english-word-tier --strict` verde
 - [x] V.2 Catálogo intacto: `python3 scripts/validate-skills.py` verde, 34 skills
 - [x] V.3 README / docs atualizados onde o uso muda
-- [ ] V.4 `openspec archive add-english-word-tier --yes` depois do merge
+- [x] V.4 `openspec archive add-english-word-tier --yes` depois do merge
