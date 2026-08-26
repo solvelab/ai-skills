@@ -132,7 +132,8 @@ python3 references/check-identifier-locale.py src/orders/service.py
 
 Read the output as a prompt, not a verdict: every finding prints `path:line:token` plus the exact
 waiver line to add. A finding the author judges correct as written costs one `locale-ok:` comment
-with a reason. **The check declares what escapes it in its own docstring** — a curated word list is
+with a reason. **The waiver covers its own line and the next one** — put it on the offending line or
+immediately above it, never at the top of a block, where it will not reach. **The check declares what escapes it in its own docstring** — a curated word list is
 not a language model, so a passing run is not proof of compliance, and names outside its reach are
 reviewed by hand.
 

@@ -94,6 +94,23 @@ def written_text(tool_name: str, tool_input: dict) -> str:
     return ""
 
 
+def first_line_of(path: Path, text: str) -> int:
+    """Where the written fragment starts in the file, so a finding points at a real line.
+
+    An Edit hands over `new_string` alone, and scanning it in isolation numbers its lines from 1 —
+    which reads as "line 1 of the file" and sends the reader to the wrong place. Locating the
+    fragment in the file that the tool has already written is what makes the number true. A fragment
+    that cannot be located (a replace_all whose copies differ, a file already changed again) falls
+    back to 1, which is the previous behaviour and never worse than it.
+    """
+    try:
+        body = path.read_text(encoding="utf-8")
+    except OSError:
+        return 1
+    index = body.find(text)
+    return body.count("\n", 0, index) + 1 if index >= 0 else 1
+
+
 def findings_for(check, file_path: str, text: str, cwd: str) -> list:
     path = Path(file_path)
     if check.is_vendored(path):
@@ -104,7 +121,8 @@ def findings_for(check, file_path: str, text: str, cwd: str) -> list:
     lang = check.EXT_LANG.get(path.suffix.lower())
     if lang and text:
         rel = check.project_relative(path, root)
-        findings.extend(check.scan_text(text, lang, str(rel), allow))
+        findings.extend(check.scan_text(text, lang, str(rel), allow,
+                                        first_line=first_line_of(path, text)))
     return findings
 
 
@@ -178,6 +196,10 @@ def selftest() -> int:
             "tool_name": "Write", "cwd": cwd, "tool_input": {}}),
         ("payload without tool_input is ignored", False, {"tool_name": "Write", "cwd": cwd}),
         ("empty payload is ignored", False, {}),
+        ("missing file on disk still reports the path", True, {
+            "tool_name": "Edit", "cwd": cwd,
+            "tool_input": {"file_path": f"{cwd}/servicos/x.py", "old_string": "a",
+                           "new_string": "b = 1\n"}}),
     ]
     failed = []
     for name, should_report, payload in cases:

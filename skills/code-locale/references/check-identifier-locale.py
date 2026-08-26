@@ -58,6 +58,10 @@ KNOWN LIMIT — what this check does NOT catch. A passing run is not proof of fu
        check's. A rename appears as an add, so the new name is measured and the old one is not.
     13. A file name has nowhere to carry an inline `locale-ok:` comment, so ALLOWLIST_FILE is its only
        waiver — the path or one of its segments, one per line.
+    14. An inline waiver covers ITS OWN line and the next one, nothing further. A waiver written at
+       the top of a multi-line construct does not reach the offending line three lines down, and the
+       finding stands. Measured while writing this tier: the same mistake was made twice, once in
+       this docstring and once in a test fixture.
 
 Exit code: 1 if any finding, else 0.
 """
