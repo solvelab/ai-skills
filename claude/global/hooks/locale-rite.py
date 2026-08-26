@@ -60,6 +60,12 @@ CONTEXT_CAP = 8000
 
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 
+ADVISORY_HEADER = (
+    "CODE-LOCALE (advisory): the write that just landed carries a word the English list does not "
+    "know. If it is English, it belongs in programming-words.txt; if it is not, rename it. This is a "
+    "question, not a verdict — the check is not sure, which is why it does not fail the run.\n\n"
+)
+
 HEADER = (
     "CODE-LOCALE: the write that just landed carries a non-English name in the machine layer. "
     "Identifiers, file and directory names are English (code-locale skill); comments, docstrings "
@@ -117,23 +123,32 @@ def findings_for(check, file_path: str, text: str, cwd: str) -> list:
         return []
     root = Path(cwd) if cwd else Path.cwd()
     allow = check.load_allowlist(root)
-    findings = list(check.scan_path(path, allow, root))
+    english = check.load_english() if hasattr(check, "load_english") else None
+    findings = list(check.scan_path(path, allow, root, english))
     lang = check.EXT_LANG.get(path.suffix.lower())
     if lang and text:
         rel = check.project_relative(path, root)
         findings.extend(check.scan_text(text, lang, str(rel), allow,
-                                        first_line=first_line_of(path, text)))
+                                        first_line=first_line_of(path, text), english=english))
     return findings
 
 
 def report(findings: list) -> dict:
-    body = HEADER + "\n".join(f.render() for f in findings)
+    # Gating first, advisory after, and the header says which is which: an advisory finding is a
+    # question for the author ("is this English?"), not a defect the check is sure of.
+    gating = [f for f in findings if not getattr(f, "advisory", False)]
+    advisory = [f for f in findings if getattr(f, "advisory", False)]
+    body = (HEADER if gating else ADVISORY_HEADER) + "\n".join(f.render() for f in gating + advisory)
     if len(body) > CONTEXT_CAP:
         body = body[:CONTEXT_CAP - 80].rstrip() + "\n    … truncated; run the check on the file for the rest."
-    count = len(findings)
+    parts = []
+    if gating:
+        parts.append(f"{len(gating)} non-English name{'s' if len(gating) != 1 else ''}")
+    if advisory:
+        parts.append(f"{len(advisory)} unrecognised word{'s' if len(advisory) != 1 else ''} (advisory)")
     return {
         "hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": body},
-        "systemMessage": f"code-locale: {count} non-English name{'s' if count != 1 else ''} in the last write",
+        "systemMessage": "code-locale: " + ", ".join(parts) + " in the last write",
     }
 
 

@@ -1,0 +1,33 @@
+# not-english.txt — entries removed from the imported English list.
+#
+# `english-words.txt.gz` is public-domain and permissive on purpose: a big list favours the false
+# negative, which is the safe direction for an advisory tier. But permissive also means it carries
+# words that are not English at all, and every one of those silences the very defect this check
+# exists to find.
+#
+# Measured on 2026-08-26: of 28 common Portuguese words tested against the imported list, 11 were
+# present. Each line below is one of them, with the reason it is removed. Removing a word makes the
+# check LOUDER, so the bar is the opposite of the one for `programming-words.txt`: add a line only
+# when the word is not English, and say why.
+#
+# A word that exists in both languages is NOT removed — `valor`, `data`, `local`, `total`, `media`
+# and `agenda` stay, because removing them would fire on correct English code. Those live in
+# ENGLISH_COLLISIONS and are declared in the check's KNOWN LIMIT 1 as out of reach for both
+# questions.
+
+chave       # PT "key"; no English sense
+nome        # PT "name"; no English sense
+campo       # PT "field"; English is "field"
+carga       # PT "load/cargo"; English is "cargo"
+porta       # PT "door/port"; the only English use is the anatomical "porta hepatis"
+massa       # PT "mass/dough"; English is "mass"
+ponto       # PT "point/stop"; English is "point"
+troca       # PT "exchange"; English is "swap" or "exchange"
+fila        # PT "queue"; English is "queue"
+acesso      # PT "access"; English is "access"
+prazo       # PT "deadline"; English is "deadline"
+saldo       # PT "balance"; English is "balance"
+
+# `dados` is deliberately NOT here. It is the plural of the English "dado" (a rectangular groove in
+# woodworking), so removing it would fire on correct English. It is the same both-languages case as
+# `data` and stays out of reach — see KNOWN LIMIT 1.

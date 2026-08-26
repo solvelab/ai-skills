@@ -14,6 +14,8 @@ Stdlib-only, Python 3.9+. Copy it into a target repository and wire it into pre-
     check-identifier-locale.py --markdown-fences DIR  scan language-tagged fences in .md files
     check-identifier-locale.py --stdin --lang python  scan stdin as one file
     check-identifier-locale.py --selftest            prove every tier still fires
+    check-identifier-locale.py --gate-unknown FILE   make en-unknown findings fail the run
+    check-identifier-locale.py --en-dict LIST FILE   answer "is this English?" from another list
 
 WHY --diff IS THE DEFAULT ADOPTION MODE
     Whole-tree enforcement turns a legacy repository red on day one, and a check that blocks every
@@ -26,10 +28,10 @@ KNOWN LIMIT — what this check does NOT catch. A passing run is not proof of fu
        (`data`, `total`, `real`, `local`, `custom`, `nota`, `valor`, `sensor`, `motor`, `area`,
        `agenda`, `media`, `mesa`, `favor`). `dataUsuario` is caught through `usuario`; a bare
        `data` is not, and never will be.
-    2. This is a word list, not a language model. Open vocabulary escapes: any Portuguese noun
-       outside LEXICON passes — in an identifier and in a path segment alike. A directory named
-       `prazos/` or a field named `chaveAcesso` is missed today, and the fix for one word is one
-       lexicon entry, never a rule that guesses.
+    2. The Portuguese lexicon is a word list, not a language model, so any Portuguese noun outside
+       it passes the GATING tiers. Since 2026-08-26 the closed-world question catches most of what
+       escapes there — `prazos/` and `chaveAcesso` are reported as `en-unknown` — but as an ADVISORY
+       finding that does not fail the run. Gating on it is `--gate-unknown`, opt-in.
     3. Suffixes -mento, -dor and -vel are NOT rules, because of `memento`, `vendor` and `level`.
        A CI blocker on `vendorId` would end the rule, so those families escape by design.
     4. Segments under MIN_SEGMENT characters are skipped, so abbreviations escape: `qtd`, `usr`,
@@ -62,12 +64,30 @@ KNOWN LIMIT — what this check does NOT catch. A passing run is not proof of fu
        the top of a multi-line construct does not reach the offending line three lines down, and the
        finding stands. Measured while writing this tier: the same mistake was made twice, once in
        this docstring and once in a test fixture.
+    15. The English list is imported and deliberately permissive, so it carries words that are not
+       English at all — measured 2026-08-26, 11 of 28 common Portuguese words were in it. That is
+       what `not-english.txt` subtracts, one audited line at a time. A Portuguese word still in the
+       list passes the closed-world question silently, and the fix is one line in that file.
+    16. A word that is genuinely English AND Portuguese (`data`, `local`, `total`, `valor`, `dados`)
+       passes BOTH questions and always will. Neither a lexicon nor a dictionary can separate them
+       without reading the surrounding meaning.
+    17. `en-unknown` is advisory by default: it never changes the exit code unless --gate-unknown is
+       passed. A run that prints advisory findings and exits 0 is behaving as designed.
 
-Exit code: 1 if any finding, else 0.
+THE TWO QUESTIONS
+    `pt-verb`, `pt-noun`, `pt-morphology` ask "is this word Portuguese?" — open world, high
+    confidence, and they GATE. `en-unknown` asks "is this word English?" — closed world, lower
+    confidence, and it is ADVISORY: it prints and counts separately, and only fails the run under
+    --gate-unknown. Inverting the question is what stops an unknown word from being treated as
+    approved; keeping it advisory is what stops a legacy tree from turning red on day one, which is
+    the same reason --diff exists.
+
+Exit code: 1 if any gating finding, else 0. With --gate-unknown, advisory findings count too.
 """
 from __future__ import annotations
 
 import argparse
+import gzip
 import io
 import re
 import sys
@@ -77,6 +97,19 @@ from pathlib import Path
 MIN_SEGMENT = 4
 ALLOWLIST_FILE = ".identifier-locale-allow"
 WAIVER_RE = re.compile(r"locale-ok\s*:\s*(\S.*)$")
+
+# ── The second question: is this word English? ────────────────────────────
+# The lexicon below answers "is this word Portuguese?", and its own KNOWN LIMIT 2 says what that
+# costs: the open vocabulary is the whole language, so an unknown word is treated as approved. The
+# closed-world question inverts the failure: what the check does not recognise is surfaced.
+#
+# The lists ship beside this file rather than being read from the host, so the same segment produces
+# the same verdict on a laptop, in CI and inside a write-time hook. Provenance, licence and the
+# measurement that rejected the host dictionary: english-words.SOURCE.md.
+ENGLISH_WORDS_FILE = "english-words.txt.gz"
+PROGRAMMING_WORDS_FILE = "programming-words.txt"
+NOT_ENGLISH_FILE = "not-english.txt"
+_english_cache: "set | None" = None
 
 # ── Portuguese signals ────────────────────────────────────────────────────
 # Tier 2: morphology, matched against a whole segment.
@@ -210,10 +243,19 @@ CAMEL_SPLIT = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 
 
 class Finding:
-    def __init__(self, path: str, line: int, token: str, segment: str, tier: str):
+    def __init__(self, path: str, line: int, token: str, segment: str, tier: str,
+                 advisory: bool = False):
         self.path, self.line, self.token, self.segment, self.tier = path, line, token, segment, tier
+        self.advisory = advisory
 
     def render(self) -> str:
+        if self.advisory:
+            return (
+                f"{self.path}:{self.line}: {self.token}  [{self.tier}: '{self.segment}']\n"
+                f"    not in the English word list — if this is English, add it to "
+                f"{PROGRAMMING_WORDS_FILE} or to {ALLOWLIST_FILE}; if it is not, rename it.\n"
+                f"    advisory: this finding does not fail the run (see --gate-unknown)"
+            )
         return (
             f"{self.path}:{self.line}: {self.token}  [{self.tier}: '{self.segment}']\n"
             f"    machine layer must be English (code-locale). If this name is correct as written, "
@@ -232,10 +274,18 @@ class PathFinding(Finding):
     printing the inline form here would name a waiver the author cannot apply.
     """
 
-    def __init__(self, path: str, token: str, segment: str, tier: str):
-        super().__init__(path, 0, token, segment, f"path-{tier}")
+    def __init__(self, path: str, token: str, segment: str, tier: str, advisory: bool = False):
+        super().__init__(path, 0, token, segment, f"path-{tier}", advisory=advisory)
 
     def render(self) -> str:
+        if self.advisory:
+            return (
+                f"{self.path}: {self.token}  [{self.tier}: '{self.segment}']\n"
+                f"    not in the English word list — if this is English, add it to "
+                f"{PROGRAMMING_WORDS_FILE}; if it is not, rename the file or grandfather the path "
+                f"in {ALLOWLIST_FILE}.\n"
+                f"    advisory: this finding does not fail the run (see --gate-unknown)"
+            )
         return (
             f"{self.path}: {self.token}  [{self.tier}: '{self.segment}']\n"
             f"    file and directory names are machine layer and must be English (code-locale).\n"
@@ -361,6 +411,65 @@ def load_allowlist(start: Path) -> set:
     return allow
 
 
+def load_english(en_dict: "str | None" = None) -> set:
+    """The English + programming vocabulary, loaded once per run.
+
+    Lazy on purpose: the hook runs on every write, and a run with no candidate segment must not pay
+    to decompress 367k words. An explicit --en-dict that cannot be read is an error, never a silent
+    fall back to the bundled list — a check that quietly answers from a different source than the one
+    the caller named is worse than one that stops.
+    """
+    global _english_cache
+    if _english_cache is not None:
+        return _english_cache
+    here = Path(__file__).resolve().parent
+    words: set = set()
+    if en_dict:
+        p = Path(en_dict)
+        if not p.is_file():
+            raise SystemExit(f"error: --en-dict {en_dict!r} is not a readable file")
+        opener = gzip.open if p.suffix == ".gz" else open
+        with opener(p, "rt", encoding="utf-8", errors="ignore") as fh:
+            words.update(w.strip().lower() for w in fh if w.strip())
+    else:
+        bundled = here / ENGLISH_WORDS_FILE
+        if bundled.is_file():
+            with gzip.open(bundled, "rt", encoding="utf-8") as fh:
+                words.update(w.strip() for w in fh if w.strip())
+    prog = here / PROGRAMMING_WORDS_FILE
+    if prog.is_file():
+        for raw in prog.read_text(encoding="utf-8").splitlines():
+            line = raw.split("#", 1)[0].strip().lower()
+            if line:
+                words.add(line)
+    # Subtraction runs last, and it is what keeps a permissive imported list from silencing the
+    # defect: measured 2026-08-26, 11 of 28 common Portuguese words were present in it.
+    blocked = here / NOT_ENGLISH_FILE
+    if blocked.is_file():
+        for raw in blocked.read_text(encoding="utf-8").splitlines():
+            line = raw.split("#", 1)[0].strip().lower()
+            if line:
+                words.discard(line)
+    _english_cache = words
+    return words
+
+
+def is_english(segment: str, words: set) -> bool:
+    """Known outright, or a compound of two known words.
+
+    The compound rule is what keeps the curated list from becoming the same open-vocabulary chase the
+    foreign lexicon already is: `selftest`, `allowlist`, `frontmatter` and `bytecode` are ordinary
+    English twice over, and enumerating every such pairing by hand would never end.
+    """
+    seg = segment.lower()
+    if seg in words:
+        return True
+    for i in range(3, len(seg) - 2):          # both halves at least 3 characters
+        if seg[:i] in words and seg[i:] in words:
+            return True
+    return False
+
+
 def project_relative(path: Path, root: "Path | None") -> Path:
     """The part of the path the scanned project owns.
 
@@ -387,7 +496,27 @@ def path_parts(rel: Path) -> list:
     return [p for p in (*rel.parts[:-1], name) if p]
 
 
-def scan_path(path: Path, allow: set, root: "Path | None" = None) -> list:
+def advisory_for(token: str, segs: list, allow: set, english: "set | None") -> "tuple | None":
+    """The closed-world question, asked only where the foreign lexicon stayed silent.
+
+    One segment produces at most one finding: a `pt-*` tier already spoke for this token, so the
+    advisory never doubles up on it — high confidence is what the reader should see first.
+    """
+    if english is None:
+        return None
+    for seg in segs:
+        low = seg.lower()
+        if len(low) < MIN_SEGMENT or not low.isalpha() or not low.isascii():
+            continue
+        if low in DOMAIN_KEEP or low in KEYWORDS or low in allow or seg in allow:
+            continue
+        if not is_english(low, english):
+            return token, seg
+    return None
+
+
+def scan_path(path: Path, allow: set, root: "Path | None" = None,
+              english: "set | None" = None) -> list:
     """Check the path itself — the artifact class the doctrine names first and the check used to skip.
 
     Every exclusion that protects identifiers protects a path segment too (vendored trees, the
@@ -403,17 +532,25 @@ def scan_path(path: Path, allow: set, root: "Path | None" = None) -> list:
     for part in path_parts(rel):
         if part in allow or part.lower() in allow or part.lower() in DOMAIN_KEEP:
             continue
+        hit = False
         for seg in segments(part):
             tier = classify(seg)
             if tier == "non-ascii" and deaccent(seg).lower() in DOMAIN_KEEP:
                 continue
             if tier:
                 findings.append(PathFinding(rel_str, part, seg, tier))
+                hit = True
                 break
+        if not hit:
+            advisory = advisory_for(part, segments(part), allow, english)
+            if advisory:
+                findings.append(PathFinding(rel_str, advisory[0], advisory[1], "en-unknown",
+                                            advisory=True))
     return findings
 
 
-def scan_text(text: str, lang: str, path: str, allow: set, first_line: int = 1) -> list:
+def scan_text(text: str, lang: str, path: str, allow: set, first_line: int = 1,
+              english: "set | None" = None) -> list:
     findings = []
     lines = text.splitlines()
     state: "str | None" = None                       # open block carried across lines
@@ -431,13 +568,20 @@ def scan_text(text: str, lang: str, path: str, allow: set, first_line: int = 1) 
                 continue
             if token.lower() in DOMAIN_KEEP:
                 continue
+            hit = False
             for seg in segments(token):
                 tier = classify(seg)
                 if tier == "non-ascii" and deaccent(seg).lower() in DOMAIN_KEEP:
                     continue
                 if tier:
                     findings.append(Finding(path, lineno, token, seg, tier))
+                    hit = True
                     break
+            if not hit:
+                advisory = advisory_for(token, segments(token), allow, english)
+                if advisory:
+                    findings.append(Finding(path, lineno, advisory[0], advisory[1], "en-unknown",
+                                            advisory=True))
     return findings
 
 
@@ -445,7 +589,7 @@ def scan_text(text: str, lang: str, path: str, allow: set, first_line: int = 1) 
 FENCE_RE = re.compile(r"^([ \t]*)```(\w*)\n(.*?)^\1```", re.S | re.M)
 
 
-def scan_markdown_fences(path: Path, allow: set) -> list:
+def scan_markdown_fences(path: Path, allow: set, english: "set | None" = None) -> list:
     """Only language-tagged fences. An untagged fence may be prose — see KNOWN LIMIT 8."""
     text = path.read_text(encoding="utf-8")
     findings = []
@@ -461,11 +605,11 @@ def scan_markdown_fences(path: Path, allow: set) -> list:
                 for line in body.splitlines()
             )
         first = text[: m.start(3)].count("\n") + 1
-        findings.extend(scan_text(body, lang, str(path), allow, first_line=first))
+        findings.extend(scan_text(body, lang, str(path), allow, first_line=first, english=english))
     return findings
 
 
-def scan_diff(stream, allow: set) -> list:
+def scan_diff(stream, allow: set, english: "set | None" = None) -> list:
     """Added lines only. This is what makes the rule adoptable in a legacy repository."""
     findings, path, lineno, lang = [], "<diff>", 0, None
     run: list = []                                   # consecutive added lines, scanned together
@@ -477,7 +621,7 @@ def scan_diff(stream, allow: set) -> list:
             return
         body = "\n".join(t for _n, t in run)
         base = run[0][0]
-        for f in scan_text(body, lang, path, allow, first_line=base):
+        for f in scan_text(body, lang, path, allow, first_line=base, english=english):
             idx = f.line - base
             f.line = run[idx][0] if 0 <= idx < len(run) else f.line
             findings.append(f)
@@ -499,7 +643,7 @@ def scan_diff(stream, allow: set) -> list:
             path = candidate
             lang = EXT_LANG.get(Path(path).suffix.lower())
             if adds_file and path != "/dev/null":
-                findings.extend(scan_path(Path(path), allow))
+                findings.extend(scan_path(Path(path), allow, english=english))
             adds_file = False
             continue
         if line.startswith("@@"):
@@ -583,6 +727,36 @@ SELFTEST_PATH_CLEAN = [
 ]
 
 
+SELFTEST_EN_UNKNOWN = [
+    ("pt noun outside the lexicon", "prazo_final = 1\n", True),
+    ("pt noun the imported list carried", "chave_acesso = 2\n", True),
+    ("english identifier", "shipping_cost = 3\n", False),
+    ("english compound", "selftest_allowlist = 4\n", False),
+    ("programming vocabulary", "argv_stdin_rglob = 5\n", False),
+    ("both-language word stays silent", "data_local_total = 6\n", False),
+]
+
+
+def selftest_english() -> list:
+    """The closed-world tier: fires on what it does not know, silent on English and on our vocabulary."""
+    failed = []
+    words = load_english()
+    for name, src, should_fire in SELFTEST_EN_UNKNOWN:
+        got = [f for f in scan_text(src, "python", "<selftest>", set(), english=words) if f.advisory]
+        ok = bool(got) == should_fire
+        label = "en-hit" if should_fire else "en-clean"
+        mark = ("CAUGHT " if got else "MISSED ") if should_fire else ("CLEAN  " if not got else "FALSE+ ")
+        print(f"  {mark} {label}/{name}")
+        if not ok:
+            failed.append(f"{label}/{name}")
+    # An advisory must never double up on a segment the foreign lexicon already gated.
+    both = scan_text("pedido_id = 1\n", "python", "<selftest>", set(), english=words)
+    if len(both) != 1 or both[0].advisory:
+        failed.append("en-clean/no double finding on a pt-* hit")
+    print(f"  {'CLEAN  ' if len(both) == 1 and not both[0].advisory else 'FAILED '} en-clean/one segment, one finding")
+    return failed
+
+
 def selftest_paths() -> list:
     """The path tier, exercised through the same public entry point the CLI uses."""
     failed = []
@@ -635,6 +809,7 @@ def selftest() -> int:
         if got:
             failed.append(f"clean/{name} -> {got[0].token}:{got[0].segment}")
     failed.extend(selftest_paths())
+    failed.extend(selftest_english())
     print()
     if failed:
         print("selftest FAILED: " + "; ".join(failed))
@@ -642,7 +817,9 @@ def selftest() -> int:
     print(
         f"selftest OK: {len(SELFTEST_HITS)} content tiers fire, {len(SELFTEST_CLEAN)} clean cases "
         f"stay silent, {len(SELFTEST_PATH_HITS) + 1} path tiers fire, "
-        f"{len(SELFTEST_PATH_CLEAN) + 3} path cases stay silent"
+        f"{len(SELFTEST_PATH_CLEAN) + 3} path cases stay silent, "
+        f"{sum(1 for c in SELFTEST_EN_UNKNOWN if c[2])} en-unknown tiers fire, "
+        f"{sum(1 for c in SELFTEST_EN_UNKNOWN if not c[2]) + 1} en-unknown cases stay silent"
     )
     return 0
 
@@ -657,25 +834,32 @@ def main(argv: "list[str] | None" = None) -> int:
     ap.add_argument("--markdown-fences", action="store_true",
                     help="scan language-tagged fences inside .md files")
     ap.add_argument("--selftest", action="store_true")
+    ap.add_argument("--en-dict", metavar="PATH",
+                    help="word list to answer 'is this English?' instead of the bundled one")
+    ap.add_argument("--gate-unknown", action="store_true",
+                    help="make en-unknown findings fail the run (default: advisory)")
+    ap.add_argument("--no-english", action="store_true",
+                    help="skip the English tier entirely (only the pt-* tiers run)")
     args = ap.parse_args(argv)
 
     if args.selftest:
         return selftest()
 
     allow = load_allowlist(Path.cwd())
+    english = None if args.no_english else load_english(args.en_dict)
     findings: list = []
     skipped: list = []
     vendored: list = []
 
     if args.diff:
         stream = sys.stdin if args.diff == "-" else open(args.diff, encoding="utf-8")
-        findings.extend(scan_diff(stream, allow))
+        findings.extend(scan_diff(stream, allow, english))
     elif args.stdin:
         lang = EXT_LANG.get("." + (args.lang or ""), args.lang)
         if lang not in COMMENT_SYNTAX:
             print(f"skipped: stdin (unknown language {args.lang!r})")
             return 0
-        findings.extend(scan_text(sys.stdin.read(), lang, "<stdin>", allow))
+        findings.extend(scan_text(sys.stdin.read(), lang, "<stdin>", allow, english=english))
     else:
         targets: list = []
         for p in args.paths:
@@ -689,7 +873,7 @@ def main(argv: "list[str] | None" = None) -> int:
         for path in targets:
             if args.markdown_fences:
                 if path.suffix.lower() == ".md":
-                    findings.extend(scan_markdown_fences(path, allow))
+                    findings.extend(scan_markdown_fences(path, allow, english))
                 continue
             if is_vendored(path):
                 vendored.append(str(path))
@@ -697,7 +881,7 @@ def main(argv: "list[str] | None" = None) -> int:
             # The path tier runs BEFORE the language test on purpose: a file type with no language
             # profile still has a name, and skipping the whole file would let `relatorio.xlsx` and
             # `cadastro.tf` through the one check that can read them.
-            findings.extend(scan_path(path, allow, root))
+            findings.extend(scan_path(path, allow, root, english))
             lang = EXT_LANG.get(path.suffix.lower())
             if not lang:
                 skipped.append(str(path))
@@ -706,16 +890,21 @@ def main(argv: "list[str] | None" = None) -> int:
             if is_minified(body):
                 vendored.append(str(path))
                 continue
-            findings.extend(scan_text(body, lang, str(path), allow))
+            findings.extend(scan_text(body, lang, str(path), allow, english=english))
 
-    for f in findings:
+    gating = [f for f in findings if not f.advisory]
+    advisory = [f for f in findings if f.advisory]
+    for f in gating + advisory:
         print(f.render())
-    print(f"\nfindings: {len(findings)}")
+    print(f"\nfindings: {len(gating)}")
+    if advisory:
+        state = "gating (--gate-unknown)" if args.gate_unknown else "advisory — they do not fail this run"
+        print(f"  en-unknown: {len(advisory)} segment(s) not in the English word list — {state}")
     if skipped:
         print(f"  skipped (no language profile): {len(skipped)} file(s) — reviewed by hand, not passed")
     if vendored:
         print(f"  skipped (vendored/generated/minified): {len(vendored)} file(s) — not this project's machine layer")
-    return 1 if findings else 0
+    return 1 if gating or (args.gate_unknown and advisory) else 0
 
 
 if __name__ == "__main__":
