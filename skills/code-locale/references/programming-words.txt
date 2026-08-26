@@ -1,0 +1,200 @@
+# programming-words.txt — vocabulary that belongs to this profession, not to English.
+#
+# Curated here, MIT like the rest of the repository, and kept apart from english-words.txt.gz on
+# purpose: that list is imported public-domain English and must stay auditable as such, while every
+# line below is a decision someone made and a reviewer can question.
+#
+# Rules for adding a line:
+#   - it must be a word a programmer writes in code and a dictionary will never carry
+#     (`stdin`, `argparse`, `rglob`), not an English word the dictionary already has;
+#   - it must be ASCII, lowercase, one per line, at least 4 characters — shorter segments never
+#     reach this check (MIN_SEGMENT);
+#   - it must NOT be a Portuguese word. This file is not a back door for the locale rule: adding
+#     `pedido` here would silence the very defect the check exists to find.
+#
+# Seeded on 2026-08-26 from the segments this repository's own code produced that the English list
+# did not know — measured, not imagined.
+
+# ── Python: builtins, stdlib modules and common members ──────────────────
+args
+argparse
+argv
+classmethod
+contextlib
+contextmanager
+copytree
+dataclass
+dataclasses
+defaultdict
+dirname
+endswith
+enumerate
+findall
+finditer
+fullmatch
+getattr
+getcwd
+hasattr
+importlib
+isalpha
+isascii
+isdigit
+isdir
+isfile
+isinstance
+iterdir
+itertools
+lstrip
+makedirs
+mkdir
+mtime
+namedtuple
+nargs
+metavar
+pathlib
+printf
+pycache
+pytest
+readlines
+relpath
+removeprefix
+removesuffix
+rglob
+rstrip
+setattr
+setdefault
+shutil
+splitlines
+startswith
+staticmethod
+stderr
+stdin
+stdout
+subprocess
+sysconfig
+tempfile
+traceback
+unicodedata
+venv
+zipfile
+
+# ── Shell, tooling and CI ────────────────────────────────────────────────
+bash
+chmod
+chown
+esac
+grep
+luac
+mktemp
+nohup
+pipefail
+sudo
+ubuntu
+uniq
+xargs
+zsh
+
+# ── Lua ──────────────────────────────────────────────────────────────────
+elseif
+ipairs
+pcall
+tostring
+tonumber
+
+# ── JavaScript, TypeScript and the browser ───────────────────────────────
+async
+await
+bundler
+javascript
+jsonify
+localstorage
+nodejs
+npmrc
+querystring
+stringify
+typescript
+webpack
+
+# ── Formats, protocols and config ────────────────────────────────────────
+config
+dotenv
+frontmatter
+gzip
+https
+json
+jsonl
+markdown
+metadata
+mimetype
+regex
+semver
+toml
+utf8
+uuid
+xhtml
+yaml
+pyyaml
+
+# ── Version control, review and release ──────────────────────────────────
+changelog
+checkout
+commitish
+gitignore
+github
+gitlab
+oneline
+readme
+rebase
+refname
+repo
+worktree
+worktrees
+
+# ── Compounds and terms of art this repository writes ────────────────────
+allowlist
+backticked
+bytecode
+callable
+checkbox
+codebase
+deaccent
+denylist
+dwrite
+filepath
+hashtags
+hostname
+idempotent
+lineno
+linter
+lookahead
+middleware
+minified
+multiline
+namespace
+runtime
+selftest
+serializer
+struct
+timestamp
+tokenizer
+validator
+vendored
+wordlist
+xhigh
+
+# ── Names of tools, products and projects this catalog talks about ───────
+anthropic
+assettoserver
+claude
+codex
+copilot
+cursor
+docker
+fivem
+kubernetes
+openspec
+plugin
+plugins
+postgres
+solvelab
+sqlite

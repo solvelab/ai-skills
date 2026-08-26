@@ -19,15 +19,16 @@ description: >-
   translation.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: process
 license: MIT
 compatibility: >-
   The doctrine is language- and stack-agnostic and needs no runtime. The shipped detector
   `references/check-identifier-locale.py` needs Python 3.9+ and no third-party package; it
   tokenizes Python, Lua, JavaScript, TypeScript, C#, SQL, YAML, JSON and Bash, measures the path of
-  every file it is given, and reports the contents of any other file type as skipped rather than
-  passing. The optional write-time hook `claude/global/hooks/locale-rite.py` needs a harness that
+  every file it is given, reports the contents of any other file type as skipped rather than
+  passing, and ships the public-domain word list that answers its second question (read with the
+  standard library's gzip module, so there is still no third-party package). The optional write-time hook `claude/global/hooks/locale-rite.py` needs a harness that
   emits a post-write tool event; it was built against Claude Code 2.1.246 and exits silently
   anywhere else.
 ---

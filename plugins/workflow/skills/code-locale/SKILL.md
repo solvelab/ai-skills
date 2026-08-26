@@ -19,15 +19,16 @@ description: >-
   translation.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.2.0
   category: process
 license: MIT
 compatibility: >-
   The doctrine is language- and stack-agnostic and needs no runtime. The shipped detector
   `references/check-identifier-locale.py` needs Python 3.9+ and no third-party package; it
   tokenizes Python, Lua, JavaScript, TypeScript, C#, SQL, YAML, JSON and Bash, measures the path of
-  every file it is given, and reports the contents of any other file type as skipped rather than
-  passing. The optional write-time hook `claude/global/hooks/locale-rite.py` needs a harness that
+  every file it is given, reports the contents of any other file type as skipped rather than
+  passing, and ships the public-domain word list that answers its second question (read with the
+  standard library's gzip module, so there is still no third-party package). The optional write-time hook `claude/global/hooks/locale-rite.py` needs a harness that
   emits a post-write tool event; it was built against Claude Code 2.1.246 and exits silently
   anywhere else.
 ---
@@ -146,6 +147,34 @@ check's. A file name has nowhere to carry `# locale-ok:`, so its only waiver is 
 
 Probed on 2026-08-14 with `Python 3.14.5`; the detector uses only the standard library, so it has no
 pinned dependency.
+
+## Two questions, not one
+
+The tiers above ask **"is this word Portuguese?"**. That question has a floor no list can raise: the
+open vocabulary is the whole language, so a noun outside the lexicon is treated as approved. Adding
+words fixes one word at a time — measured, and the reason `prazo` and `chave` walked through a check
+that had just been extended twice.
+
+The check therefore asks a second question — **"is this word English?"** — and reports every segment
+it does not recognise, from a word list shipped beside it (public domain; provenance, licence and the
+measurement that rejected the host's dictionary are in `references/english-words.SOURCE.md`).
+Vocabulary that belongs to programming rather than to English lives in `references/programming-words.txt`;
+entries that the imported list carries but are not English at all are subtracted in
+`references/not-english.txt`, one audited line each. A segment that splits into two known words is
+known, so ordinary compounds never become manual entries.
+
+That question is **advisory**: it prints, it counts separately, and it does not fail the run. Gating
+a closed-world question on day one turns a legacy tree red and gets the check switched off in a week
+— the same reason `--diff` is the adoption mode. `--gate-unknown` is there for a repository that has
+measured its own noise and wants the gate.
+
+```bash
+# what it looks like on a repository that is already English — measured here, 977 segments
+python3 references/check-identifier-locale.py .     # advisory: 4 segments (0.41%)
+```
+
+Precedence is fixed: a segment a Portuguese tier already reported is never reported again by the
+English one. High confidence is what the reader sees first.
 
 ## Catching it at the write, not at the review
 
