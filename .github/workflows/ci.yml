@@ -116,9 +116,17 @@ jobs:
       - name: Spec-rite self-test (the gate is itself gated)
         run: python3 scripts/validate-spec-rite.py --selftest
 
-      - name: Claude plugin validation (best-effort)
-        continue-on-error: true
-        run: npx -y @anthropic-ai/claude-code@latest plugin validate . --strict || true
+      - name: Claude plugin validation (vendor validator, blocking)
+        # Was `continue-on-error: true` AND `|| true` — disabled twice over, so it never failed a
+        # build. Measured on 2026-08-26 with claude 2.1.246: `plugin validate . --strict` passes on
+        # this repository, and against a fixture holding a SKILL.md with no description it exits
+        # non-zero with "Validation failed (--strict treats warnings as errors)". It checks the
+        # manifest and the skills' frontmatter; name-vs-directory is scripts/validate-skills.py's
+        # job, so the two are complementary and both stay.
+        #
+        # The version is pinned on purpose: a blocking gate on @latest fails this repository's builds
+        # on someone else's release schedule. Bump it deliberately, after running it locally.
+        run: npx -y @anthropic-ai/claude-code@2.1.246 plugin validate . --strict
 
   # ─── Job 2: Semantic Release ─────────────────────────────────
   release:

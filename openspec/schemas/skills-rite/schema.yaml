@@ -260,6 +260,17 @@ artifacts:
       conclusion: a row a reviewer can re-run in two seconds is the only kind
       worth writing.
 
+      - Third-to-last group: `## N. Simulation & Field Proof (MANDATORY)` — proof
+      that the artifact was RUN, not only read and reviewed. Exercise it through
+      the path its user takes (the hook fired by the harness, the CLI invoked as
+      documented, the skill loaded in a session) and record the entry point plus a
+      fragment of the OBSERVED output, the case matrix as counts, and what escaped.
+      A change that touches no runtime artifact says so explicitly instead of
+      inventing a simulation. The position is part of the gate: it sits before the
+      quality review, because what the simulation finds is what that review needs
+      to discuss. Earned on 2026-08-26 (issue #95), where a green selftest and a
+      green CI still shipped two defects that only an end-to-end run surfaced.
+
       - Second-to-last group: `## N. Quality Gates (MANDATORY)` — adversarial
       review of every skill touched: uniform frontmatter (name == directory,
       folded description, metadata.author solvelab, semver version, category in

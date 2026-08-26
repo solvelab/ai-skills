@@ -78,15 +78,22 @@ to the `backlog` skill; consumes the same config.
    step 6. Raising a verdict needs no permission; lowering one does. Full protocol, detection
    commands and archive timing: `references/spec-rite.md`.
 6. **Implementation plan** — present: interpretation of the item, files to change per repo, the
-   Glossary, test strategy, validations to run, risks, estimated blast radius. In a repo with a
-   spec rite, also the change id, the capabilities its delta touches and the strict-validation
-   output line. **Wait for approval.**
+   Glossary, test strategy, validations to run, risks, estimated blast radius. When the item ships a
+   runtime artifact — a skill, a hook, a script someone runs — the plan also names **how it will be
+   exercised end to end**, through the path its user takes, because that is what the sweep will ask
+   for later. In a repo with a spec rite, also the change id, the capabilities its delta touches and
+   the strict-validation output line. **Wait for approval.**
 7. **Implement** — branch `backlog/<n>-<slug>` per affected repo; follow repo conventions and
    project skills (e.g. `conventional-commit`, and the repo's spec rite when it has one). Names for
    anything new come from the approved Glossary (rail 8). A spec rite's task list is ticked task by
    task as each one lands and is validated, never in a batch at the end. Move the board item
    to the configured in-progress column when work starts.
-8. **Tests** — add/update tests per the issue's test strategy and the repo's framework.
+8. **Tests** — add/update tests per the issue's test strategy and the repo's framework. A test suite
+   the artifact passes is not proof it runs: **exercise it once through its real entry point** and
+   record what you observed, with the case matrix as counts. A green selftest and a green pipeline
+   shipped two defects that only an end-to-end run surfaced (measured 2026-08-26, issue #95). Where
+   the repo's spec rite carries a simulation group, this is what fills it; breaking the artifact on
+   purpose afterwards is `bug-hunter`, a different job.
 9. **Validate** — discover and run the repo's checks (`references/validation-matrix.md`); fix
    findings; re-run until green or report honest blockers. A repo that wires an identifier-locale
    check is running one of its own discovered commands — never invent one where none exists.
@@ -96,8 +103,8 @@ to the `backlog` skill; consumes the same config.
     is opened (`references/acceptance-tracking.md`). A spec rite's mandatory closure group is part
     of the sweep, not a separate afterthought.
 11. **PR(s)** — one per changed repo; primary repo's PR body carries `Closes #n`, others reference
-    `Relates to <issue-url>`, plus the evidence table and a **Known gaps** section when the sweep
-    left anything unticked. Where the repo gates on a spec rite, the body also carries the line that
+    `Relates to <issue-url>`, plus the evidence table, the simulation's measured counts when the item
+    shipped a runtime artifact, and a **Known gaps** section when the sweep left anything unticked. Where the repo gates on a spec rite, the body also carries the line that
     gate reads — the change id, or the written waiver and its reason (`references/spec-rite.md`).
     No auto-merge. Follow `conventional-commit` PR rules when present.
 12. **Sync & report** — move the board item to the review column; comment on the issue with links

@@ -699,21 +699,29 @@ openspec/
 | Apply | `/opsx:apply <id>` | Implements each task, ticks `[x]` with evidence |
 | Archive | `/opsx:archive <id>` | Merges deltas into `specs/`, moves the change to `archive/` |
 
-### The three mandatory gates
+### The four mandatory gates
 
 - `design.md` → `## Canonical Home & Cross-Links (MANDATORY)` — every cross-cutting rule names its
   single canonical skill; siblings link instead of restating.
+- `tasks.md` → `## Simulation & Field Proof (MANDATORY)` (third-to-last group) — proof the artifact
+  was **run**, not only read: the entry point exercised, a fragment of the output observed, and the
+  case matrix as counts. A change touching no runtime artifact says so explicitly. It exists because
+  a green selftest and a green pipeline still shipped two defects that only an end-to-end run
+  surfaced (2026-08-26, issue #95).
 - `tasks.md` → `## Quality Gates (MANDATORY)` (second-to-last group) — adversarial review of every
   touched skill: uniform frontmatter, English-only content, testable non-colliding triggers.
 - `tasks.md` → `## Validation & Closure (MANDATORY)` (last group) — strict validation green, catalog
   discovery intact, docs updated, then archive.
+
+`tasks.md` also opens with `## Evidence & Sources (MANDATORY)` (first group) — what was read and
+probed before anything was written. Evidence is what you *read*; simulation is what you *ran*.
 
 ### Where enforcement actually happens
 
 The CLI's `openspec validate --strict` checks **delta-spec format only** — probe-verified on CLI
 1.6.0, it does **not** check custom template sections, so the forked schema alone is advisory (it
 feeds `/opsx` artifact generation). The **hard gate** is [`scripts/validate-rite.sh`](scripts/validate-rite.sh):
-it requires the four gate headings in every active change (evidence group first, closure group
+it requires the five gate headings in every active change (evidence group first, closure group
 last) and runs
 `openspec validate --all --strict`, wired as the **"OpenSpec rite gate"** step in
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Run it locally before pushing — CI is the
