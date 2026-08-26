@@ -19,14 +19,17 @@ description: >-
   translation.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: process
 license: MIT
 compatibility: >-
   The doctrine is language- and stack-agnostic and needs no runtime. The shipped detector
   `references/check-identifier-locale.py` needs Python 3.9+ and no third-party package; it
-  tokenizes Python, Lua, JavaScript, TypeScript, C#, SQL, YAML, JSON and Bash, and reports any
-  other file type as skipped rather than passing.
+  tokenizes Python, Lua, JavaScript, TypeScript, C#, SQL, YAML, JSON and Bash, measures the path of
+  every file it is given, and reports the contents of any other file type as skipped rather than
+  passing. The optional write-time hook `claude/global/hooks/locale-rite.py` needs a harness that
+  emits a post-write tool event; it was built against Claude Code 2.1.246 and exits silently
+  anywhere else.
 ---
 
 # Code locale — prose follows the repo, the machine layer is English
@@ -129,12 +132,37 @@ python3 references/check-identifier-locale.py src/orders/service.py
 
 Read the output as a prompt, not a verdict: every finding prints `path:line:token` plus the exact
 waiver line to add. A finding the author judges correct as written costs one `locale-ok:` comment
-with a reason. **The check declares what escapes it in its own docstring** — a curated word list is
+with a reason. **The waiver covers its own line and the next one** — put it on the offending line or
+immediately above it, never at the top of a block, where it will not reach. **The check declares what escapes it in its own docstring** — a curated word list is
 not a language model, so a passing run is not proof of compliance, and names outside its reach are
 reviewed by hand.
 
+**The path is checked too**, because a file and a directory are named by the machine layer like any
+identifier. The path measured is the one relative to the working directory — a Portuguese folder
+*above* the project is not the project's machine layer. In `--diff` mode only files the diff **adds**
+have their path measured: renaming an existing file is the migration policy's decision, not the
+check's. A file name has nowhere to carry `# locale-ok:`, so its only waiver is the allowlist file
+`.identifier-locale-allow` — one path or segment per line — and the finding prints the line to add.
+
 Probed on 2026-08-14 with `Python 3.14.5`; the detector uses only the standard library, so it has no
 pinned dependency.
+
+## Catching it at the write, not at the review
+
+A review-time check catches the name after it is written, spread across a diff, when renaming costs
+the most. `claude/global/hooks/locale-rite.py` closes that distance: it runs on the harness event
+that follows a file write, feeds the written path and the written content to the same check, and
+returns the findings to the assistant before the next turn. Silent when the write is clean, never
+blocking — the rite informs, and the author decides.
+
+This exists because doctrine in context was measured to be insufficient: with this skill installed
+and the rule loaded, Portuguese identifiers and file names still reached code in new sessions. The
+same argument the repository already applies to its other rites applies here — enforcement must not
+depend on the assistant noticing a rule it already has.
+
+The findings travel in the field the harness reads for that event, not on plain standard output;
+the hook's own docstring records the probe that established which one. Wiring: the README's hooks
+section.
 
 ## Existing code
 
