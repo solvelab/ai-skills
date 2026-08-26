@@ -27,7 +27,9 @@ KNOWN LIMIT — what this check does NOT catch. A passing run is not proof of fu
        `agenda`, `media`, `mesa`, `favor`). `dataUsuario` is caught through `usuario`; a bare
        `data` is not, and never will be.
     2. This is a word list, not a language model. Open vocabulary escapes: any Portuguese noun
-       outside LEXICON passes.
+       outside LEXICON passes — in an identifier and in a path segment alike. A directory named
+       `prazos/` or a field named `chaveAcesso` is missed today, and the fix for one word is one
+       lexicon entry, never a rule that guesses.
     3. Suffixes -mento, -dor and -vel are NOT rules, because of `memento`, `vendor` and `level`.
        A CI blocker on `vendorId` would end the rule, so those families escape by design.
     4. Segments under MIN_SEGMENT characters are skipped, so abbreviations escape: `qtd`, `usr`,
@@ -45,14 +47,24 @@ KNOWN LIMIT — what this check does NOT catch. A passing run is not proof of fu
        oversight: a fence of Portuguese commit-message examples is prose and must not be flagged.
     9. Branch names, PR titles and issue text are not files and are never scanned. They are
        convention-only.
-    10. Only the languages in COMMENT_SYNTAX are tokenized. Files with any other extension are
-       skipped and reported as skipped, never counted as passing.
+    10. Only the languages in COMMENT_SYNTAX are tokenized for CONTENT. Files with any other
+       extension have their path measured and their content reported as skipped, never as passing.
+    11. The path tier measures the path relative to the working directory, or the file's own name
+       when the file lies outside it. A Portuguese directory ABOVE the project — a home directory, a
+       mount point, a machine name — is never reported, because it is not the project's machine layer.
+    12. In --diff mode the path is measured only for files the diff ADDS, decided by the
+       `--- /dev/null` header the diff itself writes. A file that already exists is never reported on
+       its name: renaming it is the migration policy's decision (references/migration.md), not this
+       check's. A rename appears as an add, so the new name is measured and the old one is not.
+    13. A file name has nowhere to carry an inline `locale-ok:` comment, so ALLOWLIST_FILE is its only
+       waiver — the path or one of its segments, one per line.
 
 Exit code: 1 if any finding, else 0.
 """
 from __future__ import annotations
 
 import argparse
+import io
 import re
 import sys
 import unicodedata
@@ -86,6 +98,11 @@ NOUNS = {
     "cobranca", "cadastro", "empresa", "funcionario", "permissao", "tentativa", "quantidade",
     "preco", "desconto", "saldo", "corrida", "corridas", "compra", "venda", "estoque", "carrinho",
     "assinatura", "mensagem", "recibo", "apelido", "aniversario", "bairro", "estado", "codigo",
+    # Added 2026-08-26 with the path tier (issue #95): the three words that name a *file* more often
+    # than they name a variable in a Brazilian codebase, and the reason `servicos_pedido/` used to be
+    # caught only through its second half. None collides with an English word — `calculus`, `service`
+    # and `report` are the English forms, and the assertion below is what keeps that honest.
+    "servico", "servicos", "calculo", "relatorio", "relatorios",
 }
 # `pasta` was here and was removed: the field score below found it firing on the English noun.
 
@@ -200,6 +217,27 @@ class Finding:
             f"      # locale-ok: <why this term has no faithful English name>\n"
             f"    or grandfather it in {ALLOWLIST_FILE}:\n"
             f"      {self.token}"
+        )
+
+
+class PathFinding(Finding):
+    """A finding on the path itself — a directory name or the file's own name.
+
+    Rendered apart from an identifier finding for one mechanical reason: a file name has nowhere to
+    carry an inline `locale-ok:` comment, so the allowlist is the ONLY waiver available to it, and
+    printing the inline form here would name a waiver the author cannot apply.
+    """
+
+    def __init__(self, path: str, token: str, segment: str, tier: str):
+        super().__init__(path, 0, token, segment, f"path-{tier}")
+
+    def render(self) -> str:
+        return (
+            f"{self.path}: {self.token}  [{self.tier}: '{self.segment}']\n"
+            f"    file and directory names are machine layer and must be English (code-locale).\n"
+            f"    A file name carries no inline waiver — grandfather the path or the segment in "
+            f"{ALLOWLIST_FILE}:\n"
+            f"      {self.path}"
         )
 
 
@@ -319,6 +357,58 @@ def load_allowlist(start: Path) -> set:
     return allow
 
 
+def project_relative(path: Path, root: "Path | None") -> Path:
+    """The part of the path the scanned project owns.
+
+    An absolute path carries segments the project never chose — the home directory, the mount point,
+    the machine's own name — and scanning them reports on someone's user name rather than on code.
+    Inside `root` the relative path is measured; outside it, only the file's own name. `root=None`
+    means the caller already handed a project-relative path (diff mode does).
+    """
+    if root is None:
+        return path
+    try:
+        return path.resolve().relative_to(root.resolve())
+    except (ValueError, OSError):
+        return Path(path.name)
+
+
+def path_parts(rel: Path) -> list:
+    """Directory names plus the file's own name with its suffix chain removed.
+
+    The suffix is stripped by splitting on the FIRST dot rather than with `Path.stem`, because
+    `.d.ts` and `.spec.ts` leave a second suffix behind that would be scanned as a name segment.
+    """
+    name = rel.name.split(".", 1)[0]
+    return [p for p in (*rel.parts[:-1], name) if p]
+
+
+def scan_path(path: Path, allow: set, root: "Path | None" = None) -> list:
+    """Check the path itself — the artifact class the doctrine names first and the check used to skip.
+
+    Every exclusion that protects identifiers protects a path segment too (vendored trees, the
+    length floor, kept domain terms, the allowlist), so the two halves cannot drift apart.
+    """
+    if is_vendored(path):
+        return []
+    rel = project_relative(path, root)
+    rel_str = str(rel)
+    if rel_str in allow or rel_str.lower() in allow:
+        return []
+    findings = []
+    for part in path_parts(rel):
+        if part in allow or part.lower() in allow or part.lower() in DOMAIN_KEEP:
+            continue
+        for seg in segments(part):
+            tier = classify(seg)
+            if tier == "non-ascii" and deaccent(seg).lower() in DOMAIN_KEEP:
+                continue
+            if tier:
+                findings.append(PathFinding(rel_str, part, seg, tier))
+                break
+    return findings
+
+
 def scan_text(text: str, lang: str, path: str, allow: set, first_line: int = 1) -> list:
     findings = []
     lines = text.splitlines()
@@ -375,6 +465,7 @@ def scan_diff(stream, allow: set) -> list:
     """Added lines only. This is what makes the rule adoptable in a legacy repository."""
     findings, path, lineno, lang = [], "<diff>", 0, None
     run: list = []                                   # consecutive added lines, scanned together
+    adds_file = False                                # the previous `--- ` header said /dev/null
 
     def flush() -> None:
         if not run or not lang:
@@ -390,6 +481,12 @@ def scan_diff(stream, allow: set) -> list:
 
     for raw in stream:
         line = raw.rstrip("\n")
+        if line.startswith("--- "):
+            # `--- /dev/null` is the diff's own statement that the file is being ADDED. The path
+            # tier fires only there: a file that already exists would be reported on every diff
+            # that touches it, and renaming it is the migration policy's call, not this check's.
+            adds_file = line[4:].strip() == "/dev/null"
+            continue
         if line.startswith("+++ "):
             flush()
             candidate = line[4:].strip()
@@ -397,6 +494,9 @@ def scan_diff(stream, allow: set) -> list:
                 candidate = candidate[2:]
             path = candidate
             lang = EXT_LANG.get(Path(path).suffix.lower())
+            if adds_file and path != "/dev/null":
+                findings.extend(scan_path(Path(path), allow))
+            adds_file = False
             continue
         if line.startswith("@@"):
             flush()
@@ -458,6 +558,64 @@ SELFTEST_CLEAN = [
 ]
 
 
+SELFTEST_PATH_HITS = [
+    ("pt-noun dir", "servicos_pedido/shipping.py"),
+    ("pt-verb file", "orders/calcular_frete.py"),
+    ("pt-morphology file", "app/configuracao.ts"),
+    # `.xlsx` has no language profile, so the content scanner never opens this file. The lexicon
+    # word is deliberate: `relatorio` was tried first and is NOT in the lexicon (KNOWN LIMIT 2),
+    # which would have made this case prove nothing about the path tier.
+    ("no language profile", "reports/cadastro_mensal.xlsx"),
+    ("double suffix", "orders/pedido.spec.ts"),
+]
+
+SELFTEST_PATH_CLEAN = [
+    ("english path", "orders/shipping_cost.py"),
+    ("vendored PT path", "node_modules/servicos_pedido/calculo.js"),
+    ("short segments", "usr/qtd/end.py"),
+    ("english collisions", "data/media/local_total.py"),
+    ("BR domain term", "invoices/nota_fiscal.py"),
+    ("dotfile", "orders/.eslintrc.json"),
+]
+
+
+def selftest_paths() -> list:
+    """The path tier, exercised through the same public entry point the CLI uses."""
+    failed = []
+    for name, rel in SELFTEST_PATH_HITS:
+        got = scan_path(Path(rel), set())
+        print(f"  {'CAUGHT ' if got else 'MISSED '} path-hit/{name}")
+        if not got:
+            failed.append(f"path-hit/{name}")
+    for name, rel in SELFTEST_PATH_CLEAN:
+        got = scan_path(Path(rel), set())
+        print(f"  {'CLEAN  ' if not got else 'FALSE+ '} path-clean/{name}")
+        if got:
+            failed.append(f"path-clean/{name} -> {got[0].token}:{got[0].segment}")
+    # The allowlist is the only waiver a file name has; prove it actually silences one.
+    waived = scan_path(Path("servicos_pedido/shipping.py"), {"servicos_pedido/shipping.py"})
+    print(f"  {'CLEAN  ' if not waived else 'FALSE+ '} path-clean/allowlisted path")
+    if waived:
+        failed.append("path-clean/allowlisted path")
+    waived_seg = scan_path(Path("servicos_pedido/shipping.py"), {"servicos_pedido"})
+    print(f"  {'CLEAN  ' if not waived_seg else 'FALSE+ '} path-clean/allowlisted segment")
+    if waived_seg:
+        failed.append("path-clean/allowlisted segment")
+    # Diff mode: an ADDED Portuguese path fires, a MODIFIED one with the same path does not.
+    added = scan_diff(io.StringIO(
+        "--- /dev/null\n+++ b/servicos_pedido/shipping.py\n@@ -0,0 +1 @@\n+x = 1\n"), set())
+    print(f"  {'CAUGHT ' if added else 'MISSED '} path-hit/diff adds file")
+    if not added:
+        failed.append("path-hit/diff adds file")
+    modified = scan_diff(io.StringIO(
+        "--- a/servicos_pedido/shipping.py\n+++ b/servicos_pedido/shipping.py\n"
+        "@@ -1 +1,2 @@\n x = 1\n+y = 2\n"), set())
+    print(f"  {'CLEAN  ' if not modified else 'FALSE+ '} path-clean/diff modifies existing file")
+    if modified:
+        failed.append("path-clean/diff modifies existing file")
+    return failed
+
+
 def selftest() -> int:
     failed = []
     for name, lang, src in SELFTEST_HITS:
@@ -472,11 +630,16 @@ def selftest() -> int:
         print(f"  {status} clean/{name}")
         if got:
             failed.append(f"clean/{name} -> {got[0].token}:{got[0].segment}")
+    failed.extend(selftest_paths())
     print()
     if failed:
         print("selftest FAILED: " + "; ".join(failed))
         return 1
-    print(f"selftest OK: {len(SELFTEST_HITS)} tiers fire, {len(SELFTEST_CLEAN)} clean cases stay silent")
+    print(
+        f"selftest OK: {len(SELFTEST_HITS)} content tiers fire, {len(SELFTEST_CLEAN)} clean cases "
+        f"stay silent, {len(SELFTEST_PATH_HITS) + 1} path tiers fire, "
+        f"{len(SELFTEST_PATH_CLEAN) + 3} path cases stay silent"
+    )
     return 0
 
 
@@ -518,17 +681,22 @@ def main(argv: "list[str] | None" = None) -> int:
                                else sorted(f for f in path.rglob("*") if f.is_file()))
             else:
                 targets.append(path)
+        root = Path.cwd()
         for path in targets:
             if args.markdown_fences:
                 if path.suffix.lower() == ".md":
                     findings.extend(scan_markdown_fences(path, allow))
                 continue
+            if is_vendored(path):
+                vendored.append(str(path))
+                continue
+            # The path tier runs BEFORE the language test on purpose: a file type with no language
+            # profile still has a name, and skipping the whole file would let `relatorio.xlsx` and
+            # `cadastro.tf` through the one check that can read them.
+            findings.extend(scan_path(path, allow, root))
             lang = EXT_LANG.get(path.suffix.lower())
             if not lang:
                 skipped.append(str(path))
-                continue
-            if is_vendored(path):
-                vendored.append(str(path))
                 continue
             body = path.read_text(encoding="utf-8")
             if is_minified(body):

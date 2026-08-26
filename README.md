@@ -282,6 +282,43 @@ it — it cannot enforce anything on a pull request. The gate that survives an u
 with an `Evidence & Sources (MANDATORY)` group. The hook makes the guess less likely; CI makes the
 missing evidence visible.
 
+### The locale rite (English machine layer, measured at the write)
+
+`claude/global/hooks/locale-rite.py` is the third hook, and the only one that measures an artifact
+instead of matching a prompt. It runs on `PostToolUse` for `Write|Edit`, feeds the written **path**
+and the written **content** to [`check-identifier-locale.py`](skills/code-locale/references/check-identifier-locale.py),
+and returns the findings to the assistant. Silent when the write is clean.
+
+```jsonc
+// ~/.claude/settings.json — alongside the UserPromptSubmit block above
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/YOUR_USER/ai-skills/claude/global/hooks/locale-rite.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Why a different event.** The other two rites match a prompt, so a reminder is the best they can do.
+This one has the artifact in hand — the name that was just written — so it measures instead of
+reminding. The findings travel in `hookSpecificOutput.additionalContext`, not on plain stdout:
+`PostToolUse` is not one of the events that turn stdout into context (`UserPromptSubmit`,
+`UserPromptExpansion`, `SessionStart` are), so a hook that printed would be silently useless.
+
+Same contract as the other two: informs, never blocks, persists nothing, needs no credentials — and
+where the check itself is missing it exits silently instead of failing, because an absent gate must
+not present itself as an error.
+
 > Like `personal-rules.md`, this is the **maintainer's** process. Edit the signal lists and the
 > reminder text to match yours — both matchers cover Portuguese and English by default.
 

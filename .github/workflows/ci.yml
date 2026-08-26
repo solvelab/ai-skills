@@ -90,6 +90,9 @@ jobs:
       - name: Identifier-locale detector self-test (the shipped script is itself gated)
         run: python3 skills/code-locale/references/check-identifier-locale.py --selftest
 
+      - name: Locale write-gate hook self-test (the shipped hook is itself gated)
+        run: python3 claude/global/hooks/locale-rite.py --selftest
+
       - name: Secret scan (working tree)
         run: python3 scripts/scan-secrets.py
 
