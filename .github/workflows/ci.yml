@@ -139,8 +139,20 @@ jobs:
       version: ${{ steps.check_release.outputs.version }}
     steps:
       - name: Checkout
+        # ref: master — NOT the triggering commit. On a push event checkout defaults to github.sha,
+        # so a run queued behind a later merge works on a HEAD that is already behind the remote,
+        # and semantic-release then refuses to publish: measured on run 32959050372 (commit 4875a6c,
+        # PR #102, a feat), which exited green having published nothing.
+        # Checking out the tip is safe because master runs are serialized by the concurrency group
+        # above (cancel-in-progress: false): this job never runs while another master run is in
+        # flight, so it publishes what is due for every commit up to the tip, and the next run finds
+        # nothing left to release.
+        # The commit released may therefore be newer than the one Validate examined in THIS run.
+        # Each of those commits passed Validate on its own pull request; master is protected and
+        # takes no direct push other than the [skip ci] release commit.
         uses: actions/checkout@v5
         with:
+          ref: master
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -171,7 +183,35 @@ jobs:
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
+        # The output is teed to a file so the next step can inspect it. pipefail is set explicitly:
+        # the default shell for a `run:` block on Linux is `bash -e {0}`, without pipefail, and
+        # without it a semantic-release failure would be masked by tee's exit code.
+        run: |
+          set -o pipefail
+          npx semantic-release 2>&1 | tee semantic-release.log
+
+      - name: Fail if the release was skipped because the checkout was behind
+        # A tripwire, not a routine path: with `ref: master` above this condition should no longer
+        # occur. It stays because the failure it covers already happened once in silence, and
+        # because the checkout fix rests on a premise — the concurrency serialization — that a
+        # future edit could remove without noticing.
+        #
+        # Why the log and not the exit code: semantic-release@25.0.9 handles this case in
+        # index.js:87-96 — verifyAuth runs `git push --dry-run` (git.js:209), it fails
+        # non-fast-forward, isBranchUpToDate (git.js:296) confirms the branch is behind, and the
+        # function logs the line below and returns false. That false reaches cli.js:55, which
+        # returns 0. The process exits SUCCESS having published nothing, which is byte-for-byte the
+        # same outcome as a legitimate docs-only push. Only the log tells them apart.
+        #
+        # WHAT THIS DOES NOT COVER: it matches one string emitted by the pinned semantic-release
+        # version installed above. An upstream rewording silences it with no signal, and it says
+        # nothing about any other reason a release might be skipped. A green run here is not proof
+        # that a release was due and published — it is proof that this one refusal did not happen.
+        run: |
+          if grep -qF 'is behind the remote one' semantic-release.log; then
+            echo "::error::semantic-release refused to publish: the checked-out branch is behind the remote one. The release job must run against the tip of master (see the 'ref: master' comment on this job's checkout step). Nothing was published by this run."
+            exit 1
+          fi
 
       - name: Check if new release was created
         id: check_release
