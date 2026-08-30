@@ -345,6 +345,31 @@
   @keyframes swimTailSideways { 0%,100% { transform: rotate(-8deg) } 50% { transform: rotate(8deg) } }
   @keyframes whalePectoral    { 0%,100% { transform: rotate(-7deg) } 50% { transform: rotate(9deg) } }
 
+  /* Turtle. FIVE stages, from the kinematics: thrust is almost entirely on the downstroke, so the
+     downstroke is short and fast and the recovery is long and slow — a stronger asymmetry than the
+     bird's. The shell does not flex at all; only the limbs work. */
+  /* Sign was inverted on the first pass — at 0%, which the script calls the top of the recovery,
+     the flipper was at the BOTTOM. The frozen-pose strip found it in one look. In this geometry a
+     POSITIVE rotation lifts the paddle. The upper bound is also capped: swung further the paddle
+     lay across the shell, which a flipper hinged at the shoulder cannot do. */
+  @keyframes turtleStroke {
+    0%   { transform: rotate(24deg) }    /* top of the recovery, flippers high */
+    30%  { transform: rotate(-30deg) }   /* DOWNSTROKE — fast, and where the thrust is */
+    45%  { transform: rotate(-34deg) }   /* sweep: the tip travels in toward the shell */
+    80%  { transform: rotate(12deg) }    /* upstroke — slow, folded, no thrust */
+    95%  { transform: rotate(24deg) }    /* extension back to the top */
+    100% { transform: rotate(24deg) }    /* brief glide before the next beat */
+  }
+  @keyframes turtleSweep {
+    0%   { transform: rotate(-20deg) }
+    30%  { transform: rotate(8deg) }
+    45%  { transform: rotate(22deg) }    /* the clap: paddle swept inward under the shell */
+    80%  { transform: rotate(-14deg) }
+    100% { transform: rotate(-20deg) }
+  }
+  @keyframes turtleHeave { 0%,100% { transform: translateY(1.6px) } 35% { transform: translateY(-1.8px) } }
+  @keyframes turtleRudder { 0%,100% { transform: rotate(-3deg) } 50% { transform: rotate(3deg) } }
+
   /* Ferdinand */
   @keyframes swayPalm  { from { transform: rotate(-3.5deg) } to { transform: rotate(3.5deg) } }
   @keyframes sked      { 0% { transform: scale(.35); opacity: .85 } 100% { transform: scale(4.2); opacity: 0 } }
@@ -2222,6 +2247,174 @@ creature({
   },
 })
 
+creature({
+  id: 'turtle',
+  title: 'Green sea turtle',
+  latin: 'Chelonia mydas',
+  view: 'profile — the stroke is vertical, as with the cetaceans',
+  mechanism: 'UNDERWATER FLIGHT · flippers flap like wings · rigid shell: the body does not undulate',
+  build(host) {
+    const svg = document.createElementNS(SVG_NAMESPACE, 'svg')
+    svg.setAttribute('viewBox', '-64 -40 128 80')
+    svg.setAttribute('class', 'mini')
+    host.appendChild(svg)
+
+    // Built by running the method from a blank page, to test whether the method works. Phase 1's
+    // sheet, filled before anything was drawn:
+    //
+    //   MECHANISM   The fore flippers FLAP like wings — "underwater flight". They are the whole of
+    //               the thrust. The rear flippers steer and stabilise; they barely move.
+    //   PHASES      FIVE stages, not four. The stroke is a closed loop with a "sweep" in which the
+    //               flipper tip travels in toward the centre of the shell — a clapping motion —
+    //               rather than a simple up-and-down arc.
+    //   ASYMMETRY   Thrust occurs almost ENTIRELY on the downstroke. More extreme than a bird's.
+    //   CHANGES     The flipper sweeps INWARD as well as down, so the stroke is a loop in two axes.
+    //   PROPORTIONS Carapace width is 76-82% of its length. Adult shell strongly vaulted. Margin
+    //               emarginate over the neck and fore flippers, DEEPLY emarginate over the rear
+    //               ones. Head small relative to the body.
+    //   MARKS       Heart-shaped shell with scutes; ONE visible claw on the outer edge of each
+    //               flipper; long paddle fore flippers.
+    //   UNKNOWN     Flipper length as a fraction of straight carapace length was not found. The
+    //               value used here is set by eye and is flagged as such rather than presented as
+    //               measured.
+    //
+    // The one fact that shapes everything: THE SHELL IS RIGID. Where the dolphin's body carries a
+    // travelling wave, this animal's does not move at all — only the limbs work. Giving a turtle a
+    // dolphin's body wave would be the same class of error as giving a shark a cetacean's fluke.
+
+    const shell = '#4a5f43', shellDark = '#3b4d36', scute = '#5c7152'
+    const skin = '#6b7f63', plastron = '#c9c48d'
+    const L = 100
+
+    const root = el(svg, 'g')
+    root.style.transformBox = 'view-box'
+    root.style.transformOrigin = '0px 0px'
+    // A shallow heave only — the thrust moves the animal, but nothing in it flexes.
+    root.style.animation = 'turtleHeave 2.6s ease-in-out infinite'
+
+    // FAR flipper first, behind the body, lagging slightly.
+    flipper(root, -0.10, '#42553c', 0.85)
+
+    // Rear flipper: small, held out as a rudder, with only a slight trim adjustment. Drawn before
+    // the shell so its root is covered — the midline case of the join rule.
+    const rear = el(root, 'g')
+    rear.style.transformBox = 'view-box'
+    rear.style.transformOrigin = `${(0.5 - 0.80) * L}px ${0.07 * L}px`
+    rear.style.animation = 'turtleRudder 2.6s ease-in-out infinite'
+    el(rear, 'path', {
+      d: `M${(0.5 - 0.74) * L} ${0.055 * L} `
+       + `C${(0.5 - 0.83) * L} ${0.105 * L}, ${(0.5 - 0.93) * L} ${0.135 * L}, ${(0.5 - 1.00) * L} ${0.130 * L} `
+       + `C${(0.5 - 0.97) * L} ${0.095 * L}, ${(0.5 - 0.88) * L} ${0.055 * L}, ${(0.5 - 0.78) * L} ${0.020 * L} Z`,
+      fill: skin,
+    })
+
+    // Neck and head: SMALL, which is diagnostic. Drawn before the shell so the neck's root is
+    // covered by it.
+    el(root, 'path', {
+      d: `M${(0.5 - 0.16) * L} ${-0.030 * L} `
+       + `C${(0.5 - 0.08) * L} ${-0.070 * L}, ${(0.5 - 0.02) * L} ${-0.080 * L}, ${(0.5 + 0.02) * L} ${-0.068 * L} `
+       + `C${(0.5 + 0.05) * L} ${-0.050 * L}, ${(0.5 + 0.052) * L} ${-0.020 * L}, ${(0.5 + 0.03) * L} ${-0.002 * L} `
+       + `C${(0.5 - 0.02) * L} ${0.018 * L}, ${(0.5 - 0.10) * L} ${0.020 * L}, ${(0.5 - 0.16) * L} ${0.010 * L} Z`,
+      fill: skin,
+    })
+    el(root, 'circle', { cx: (0.5 + 0.012) * L, cy: -0.042 * L, r: 1.15, fill: '#13180f' })
+    // Beak: short and blunt. A green turtle's jaw is serrated, not hooked — a hooked beak is a
+    // hawksbill, which is the neighbour this must not be mistaken for.
+    el(root, 'path', {
+      d: `M${(0.5 + 0.048) * L} ${-0.028 * L} C${(0.5 + 0.062) * L} ${-0.020 * L}, ${(0.5 + 0.062) * L} ${-0.006 * L}, ${(0.5 + 0.046) * L} ${0} Z`,
+      fill: '#8b8f5f',
+    })
+
+    // The CARAPACE, from a profile table. Vaulted: the crown sits a little forward of centre, and
+    // the margin dips over the neck and again, deeply, over the rear flippers.
+    const carapace = [
+      { x: 0.000, back: 0.020, belly: 0.020 },   // front margin, over the neck
+      { x: 0.060, back: 0.090, belly: 0.048 },
+      { x: 0.150, back: 0.140, belly: 0.078 },
+      { x: 0.260, back: 0.168, belly: 0.096 },
+      { x: 0.380, back: 0.176, belly: 0.104 },   // crown, forward of centre
+      { x: 0.500, back: 0.170, belly: 0.100 },
+      { x: 0.620, back: 0.152, belly: 0.090 },
+      { x: 0.740, back: 0.120, belly: 0.072 },
+      { x: 0.850, back: 0.082, belly: 0.050 },
+      { x: 0.930, back: 0.048, belly: 0.030 },
+      { x: 0.985, back: 0.018, belly: 0.014 },   // rear margin
+    ]
+    el(root, 'path', { d: fusiform(carapace, L), fill: shell })
+
+    // Plastron: the pale underside. From the same table, tapering at both ends.
+    const taper = (x) => Math.min(1, Math.max(0, Math.min((x - 0.04) / 0.16, (0.94 - x) / 0.18)))
+    el(root, 'path', {
+      d: fusiform(carapace.map((s) => ({
+        x: s.x,
+        back: -s.belly * 0.55 * taper(s.x),
+        belly: s.belly * 0.96 * taper(s.x),
+      })), L),
+      fill: plastron, opacity: 0.9,
+    })
+
+    // Scutes: four pairs of costals plus the vertebral row. Drawn as seams rather than filled
+    // shapes — they read at size and cost four strokes.
+    for (let i = 1; i <= 4; i++) {
+      const x = 0.13 + i * 0.165
+      const s = carapace.reduce((a, b) => (Math.abs(b.x - x) < Math.abs(a.x - x) ? b : a))
+      el(root, 'path', {
+        d: `M${(0.5 - x) * L} ${-s.back * L * 0.98} C${(0.5 - x - 0.02) * L} ${-s.back * L * 0.55}, ${(0.5 - x - 0.025) * L} ${-s.back * L * 0.2}, ${(0.5 - x - 0.02) * L} ${s.belly * L * 0.18}`,
+        fill: 'none', stroke: shellDark, 'stroke-width': 0.8, opacity: 0.55,
+      })
+    }
+    // The vertebral ridge: one long seam along the crown.
+    el(root, 'path', {
+      d: 'M' + carapace.filter((s) => s.x > 0.05 && s.x < 0.95)
+        .map((s) => `${((0.5 - s.x) * L).toFixed(1)} ${(-s.back * L * 0.62).toFixed(1)}`).join(' L'),
+      fill: 'none', stroke: scute, 'stroke-width': 1.1, opacity: 0.6,
+    })
+
+    // NEAR flipper last, over the shell.
+    flipper(root, 0, skin, 1)
+
+    function flipper(parent, lag, fill, opacity) {
+      // Shoulder sits at the front margin, low. Two segments as with the wing — upper arm and the
+      // paddle — because the sweep is a fold plus a rotation, not one rotation.
+      const shoulder = el(parent, 'g', { opacity })
+      shoulder.style.transformBox = 'view-box'
+      shoulder.style.transformOrigin = `${(0.5 - 0.19) * L}px ${0.045 * L}px`
+      shoulder.style.animation = `turtleStroke 2.6s cubic-bezier(.3,0,.35,1) ${(lag * 2.6).toFixed(2)}s infinite`
+
+      const wrist = el(shoulder, 'g')
+      wrist.style.transformBox = 'view-box'
+      wrist.style.transformOrigin = `${(0.5 - 0.32) * L}px ${0.115 * L}px`
+      // The sweep: the tip travels IN toward the shell as well as up. Lagging the shoulder gives
+      // the closed loop the research describes, instead of a flat arc.
+      wrist.style.animation = `turtleSweep 2.6s cubic-bezier(.3,0,.35,1) ${((lag - 0.14) * 2.6).toFixed(2)}s infinite`
+
+      // The paddle: long, broad, bluntly rounded, with a single claw on the leading edge — the
+      // recognition mark from the sheet, and one path.
+      el(wrist, 'path', {
+        d: `M${(0.5 - 0.27) * L} ${0.080 * L} `
+         + `C${(0.5 - 0.36) * L} ${0.135 * L}, ${(0.5 - 0.47) * L} ${0.205 * L}, ${(0.5 - 0.58) * L} ${0.250 * L} `
+         + `C${(0.5 - 0.625) * L} ${0.266 * L}, ${(0.5 - 0.655) * L} ${0.250 * L}, ${(0.5 - 0.635) * L} ${0.220 * L} `
+         + `C${(0.5 - 0.55) * L} ${0.170 * L}, ${(0.5 - 0.42) * L} ${0.110 * L}, ${(0.5 - 0.30) * L} ${0.048 * L} Z`,
+        fill,
+      })
+      el(wrist, 'path', {
+        d: `M${(0.5 - 0.60) * L} ${0.243 * L} L${(0.5 - 0.645) * L} ${0.232 * L} L${(0.5 - 0.615) * L} ${0.222 * L} Z`,
+        fill: '#c9c48d',
+      })
+
+      // Upper arm, drawn over the paddle's root: the flipper is one colour, so the buried case of
+      // the join rule applies and there is nothing to blend.
+      el(shoulder, 'path', {
+        d: `M${(0.5 - 0.155) * L} ${0.020 * L} `
+         + `C${(0.5 - 0.24) * L} ${0.060 * L}, ${(0.5 - 0.31) * L} ${0.110 * L}, ${(0.5 - 0.345) * L} ${0.140 * L} `
+         + `C${(0.5 - 0.315) * L} ${0.160 * L}, ${(0.5 - 0.26) * L} ${0.130 * L}, ${(0.5 - 0.20) * L} ${0.090 * L} `
+         + `C${(0.5 - 0.175) * L} ${0.070 * L}, ${(0.5 - 0.16) * L} ${0.048 * L}, ${(0.5 - 0.155) * L} ${0.020 * L} Z`,
+        fill,
+      })
+    }
+  },
+})
+
 // ── The primitives themselves, each as a self-contained loop ────────────────
 // The scenes are compositions; these are the parts. Rendered live so the vocabulary can be seen
 // rather than read — a reader who has watched `sway` next to `oscillate` never confuses them again.
@@ -2432,6 +2625,31 @@ const sceneCss = `
      moment the animal was rendered large. */
   @keyframes swimTailSideways { 0%,100% { transform: rotate(-8deg) } 50% { transform: rotate(8deg) } }
   @keyframes whalePectoral    { 0%,100% { transform: rotate(-7deg) } 50% { transform: rotate(9deg) } }
+
+  /* Turtle. FIVE stages, from the kinematics: thrust is almost entirely on the downstroke, so the
+     downstroke is short and fast and the recovery is long and slow — a stronger asymmetry than the
+     bird's. The shell does not flex at all; only the limbs work. */
+  /* Sign was inverted on the first pass — at 0%, which the script calls the top of the recovery,
+     the flipper was at the BOTTOM. The frozen-pose strip found it in one look. In this geometry a
+     POSITIVE rotation lifts the paddle. The upper bound is also capped: swung further the paddle
+     lay across the shell, which a flipper hinged at the shoulder cannot do. */
+  @keyframes turtleStroke {
+    0%   { transform: rotate(24deg) }    /* top of the recovery, flippers high */
+    30%  { transform: rotate(-30deg) }   /* DOWNSTROKE — fast, and where the thrust is */
+    45%  { transform: rotate(-34deg) }   /* sweep: the tip travels in toward the shell */
+    80%  { transform: rotate(12deg) }    /* upstroke — slow, folded, no thrust */
+    95%  { transform: rotate(24deg) }    /* extension back to the top */
+    100% { transform: rotate(24deg) }    /* brief glide before the next beat */
+  }
+  @keyframes turtleSweep {
+    0%   { transform: rotate(-20deg) }
+    30%  { transform: rotate(8deg) }
+    45%  { transform: rotate(22deg) }    /* the clap: paddle swept inward under the shell */
+    80%  { transform: rotate(-14deg) }
+    100% { transform: rotate(-20deg) }
+  }
+  @keyframes turtleHeave { 0%,100% { transform: translateY(1.6px) } 35% { transform: translateY(-1.8px) } }
+  @keyframes turtleRudder { 0%,100% { transform: rotate(-3deg) } 50% { transform: rotate(3deg) } }
 
   /* Ferdinand */
   @keyframes swayPalm  { from { transform: rotate(-3.5deg) } to { transform: rotate(3.5deg) } }

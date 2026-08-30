@@ -225,6 +225,36 @@ Four checks, in this order. Each one caught defects the others could not.
 5  VERIFY    frozen poses · large on a grid · reduced-motion · measured cost
 ```
 
+---
+
+## Does it work? One measured trial
+
+The method was written after the fact, from defects found the hard way on a gull, a dolphin, a
+humpback and a shark. That makes it a description of hindsight, which is not evidence that it helps
+anyone going forward. So it was tested on an object nobody here had drawn: a **green sea turtle**,
+run from a blank page through all five phases in order.
+
+**Result: two iterations to an acceptable figure, against six for the dolphin.**
+
+What each phase actually contributed, and what it would have cost to skip it:
+
+| Phase | What it produced | What skipping it would have cost |
+|---|---|---|
+| **1 · Research** | The stroke has **five** stages, not the four a bird has, and includes a *sweep* where the tip travels in toward the shell. Thrust is **almost entirely** on the downstroke — a stronger asymmetry than a bird's. | A symmetric four-phase flap. Plausible, and wrong. |
+| **1 · Research** | Carapace width is 76-82% of length; the shell is strongly vaulted; the head is **small**; there is one visible claw per flipper. | Proportions by eye, which is what made the first gull head 50% too large. |
+| **1 · Research** | **The shell is rigid.** The body does not undulate at all. | This is the big one. Every previous swimmer here carries a travelling body wave, and reaching for the same spine chain would have been automatic — and would have been the same class of error as giving a shark a cetacean's fluke. |
+| **3 · Script** | Named the five stages with durations before any keyframe: downstroke 30% and fast, sweep 15%, upstroke 35% and slow, extension 15%, brief glide. | Two keyframes and an ease, which is how a metronome is built. |
+| **2 · Geometry** | Shell from a profile table; flipper as an explicit outline; head and rear flipper drawn before the shell so their roots are covered. | The join notch, three times, as before. |
+| **5 · Verify** | The frozen-pose strip caught an inverted stroke sign in one look — at 0%, which the script called the top of the recovery, the flipper was at the bottom — and a swing wide enough to lay the paddle across the shell. | Both are invisible in motion. They would have shipped. |
+
+The honest reading: **the method does not make the first attempt correct.** It made the first
+attempt *wrong in ways the verification step catches immediately*, which is a different and more
+useful property. The two defects it left were both sign and range errors in phase 4 — cheap, local,
+and found by a check that takes one command.
+
+What it removed entirely was the expensive class: the wrong mechanism, the wrong proportions, the
+wrong view, and the model-level mistakes that no amount of curve-tuning can fix.
+
 ## What this method costs, and when to skip it
 
 Phases 1 and 3 are perhaps twenty minutes for an object nobody has drawn before, and they are the
