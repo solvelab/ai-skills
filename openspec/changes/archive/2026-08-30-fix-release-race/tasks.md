@@ -154,9 +154,33 @@
       -> (nenhuma saida: o -e abortou no pipeline, que e o comportamento desejado)
       ```
 
-      O `ref: master` (2.1) **não** foi exercitado aqui: o job `release` só roda em `push` para
-      `master`, e a run deste pull request não o executa. Ele é comprovado no merge desta própria
-      change, e a run resultante fica registrada no corpo do PR.
+      O `ref: master` (2.1) foi comprovado no merge desta própria change — o job `release` só roda
+      em `push` para `master`, então a run do pull request não o executava. Run
+      [33321015762](https://github.com/solvelab/ai-skills/actions/runs/33321015762), commit de merge
+      `3f21979`:
+
+      ```
+      gh run view 33321015762 --log --job <Semantic Release>
+      -> Checking out the ref
+      -> /usr/bin/git checkout --progress --force -B master refs/remotes/origin/master
+      -> The next release version is 2.15.1
+      -> Created tag v2.15.1
+      -> Published release 2.15.1 on default channel
+      -> New release detected: v2.15.1 (was: v2.15.0)
+      ```
+
+      ```
+      gh run view 33321015762 --json conclusion,jobs
+      -> conclusion: success
+      -> job Validate: success
+      -> job Semantic Release: success
+      ```
+
+      O step `Fail if the release was skipped because the checkout was behind` executou nessa run e
+      ficou mudo, que é o comportamento correto quando a publicação acontece. A string
+      `is behind the remote one` aparece duas vezes no log do **job**, mas só porque o runner ecoa o
+      próprio script do step (linhas 314-316 do log); o tripwire lê `semantic-release.log`, o arquivo
+      com a saída do processo, e não o log do job — por isso não auto-disparou.
 
 - [x] S.2 Matriz de casos medida, em contagens
 
@@ -200,4 +224,4 @@
 - [x] V.2 Descoberta do catálogo intacta: contagem de skills inalterada, sem órfão ou renomeado
 - [x] V.3 README / docs atualizados onde a change altera composição ou uso do catálogo — **não se
       aplica**: nada da composição muda
-- [ ] V.4 `openspec archive fix-release-race --yes` depois que todos os grupos acima estiverem `[x]`
+- [x] V.4 `openspec archive fix-release-race --yes` depois que todos os grupos acima estiverem `[x]`
