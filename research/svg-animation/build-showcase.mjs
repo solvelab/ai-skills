@@ -325,10 +325,22 @@ const page = `<title>SVG Motion Field Guide</title>
       <div class="phase"><b>0 · Frame</b><span>The object in one sentence. The view chosen by the
         <em>mechanism</em>, not by taste. The size it will be read at. What it must not be mistaken
         for.</span></div>
-      <div class="phase"><b>1 · Research</b><span>Nine fields, filled before anything is drawn:
-        mechanism, phases, asymmetries, what changes shape, proportions in units of the whole,
-        materials by name, recognition marks, scale relations, and the unknowns — written down
-        rather than guessed.</span></div>
+      <div class="phase"><b>1 · Research</b><span>Nine fields before anything is drawn: mechanism,
+        phases, asymmetries, what changes shape, proportions in units of the whole, materials by
+        name, recognition marks, scale relations, and the unknowns — written down rather than
+        guessed.</span></div>
+      <div class="phase"><b>1b · Anchor map</b><span>WHERE each part sits, as a fraction in
+        <em>both</em> axes, plus its extent. A gull's shoulder is at 0.22 L <em>and on the top of
+        the back</em>; the fold is at 39% of the half-span, not the middle. Writing only the first
+        number is how a flipper ends up sprouting from a spine.</span></div>
+      <div class="phase"><b>1c · Kinematics</b><span>HOW FAR each joint travels — angular amplitude,
+        stroke plane angle, range of motion, forward sweep, degrees of freedom, up:down ratio, span
+        ratio. These are <em>published numbers</em>, and knowing the terms is what makes them
+        findable. They also verify: measured back out of the built gull, its folded elbow is 133.9°
+        against a published 130°.</span></div>
+      <div class="phase"><b>1d · Depth order</b><span>What is in front of what, one line per part.
+        It is the third input to the join rule, and writing it at research time prevents discovering
+        at render time that a tail has been painted over the body it hangs from.</span></div>
       <div class="phase"><b>2 · Geometry</b><span>Decompose by what moves together. A mass comes
         from a <em>profile table</em>; a feature from an <em>explicit outline</em>. Join parts by the
         three-case colour rule. Then render it large against a grid and look at it.</span></div>

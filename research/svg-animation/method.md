@@ -49,6 +49,74 @@ entry that must be written down rather than guessed.
 | **Scale relations** | Ratios that are observable and free to honour | A smaller bird beats faster; a bigger network is a bigger island |
 | **Unknowns** | What could not be established | Written down, not filled with a plausible substitute |
 
+### 1b — The anchor map: WHERE each part sits
+
+The sheet above says what the object does. It does not say **where anything is**, and that omission
+produced most of the defects in this directory: wings emerging from a neck, a flipper rooted at
+mid-body instead of behind the head, a fin's fold placed at the midpoint instead of at 39%.
+
+For every part, record its anchor as a **fraction of the whole, in both axes**:
+
+| Part | Anchor along | Anchor across | Extent |
+|---|---|---|---|
+| gull wing | 0.22 L from the bill | at the top of the back | span 1.15 L per side |
+| gull wing fold (wrist) | **39% of the half-span** from the shoulder | — | hand ≈ 2× the arm |
+| dolphin pectoral | 0.24 L from the snout | on the belly line | 0.14 L |
+| humpback pectoral | 0.28 L | on the belly line | **0.30 L** |
+| dolphin dorsal | 0.42 L | on the midline | height 0.10 L |
+
+Write it as a table before drawing. Two rules that fall out of it:
+
+- **Anchor to a landmark, not to a number you like.** "Just behind the head", "at the widest point",
+  "where the peduncle begins" — then convert to a fraction and record both.
+- **State the anchor's axis.** A pectoral is at 0.28 L *along* **and on the ventral surface**. The
+  humpback's flipper was drawn above the axis and appeared to sprout from the spine, because only
+  the first number had been written down.
+
+### 1c — Kinematics: HOW FAR each joint travels
+
+The last field, and the one whose absence caused the most rework. A cycle written as "the wing goes
+up and down" leaves every angle to be guessed, and guessed angles produced an inverted stroke twice,
+an amplitude that folded a shark's peduncle into a fork, and a turtle flipper that lay across its
+own shell.
+
+These quantities are **measured and published**, and the reason to know their names is that the
+names are what make them findable:
+
+| Quantity | What it is | Example found |
+|---|---|---|
+| **angular amplitude** | angle between the highest and lowest wingtip position, in the stroke plane | the number that sets your keyframe range |
+| **stroke plane angle** | angle of that plane relative to the horizontal | why a downstroke goes down *and forward* |
+| **joint range of motion** | per joint, in degrees | gull elbow ≈ **130°** |
+| **forward sweep** | travel in the second axis | gull ≈ **15°**; pigeon reaches ≈ 50° |
+| **degrees of freedom** | how many axes each joint has | bird forelimb: shoulder 3, elbow 1, wrist 2 |
+| **upstroke:downstroke ratio** | the asymmetry, as a number | sets the keyframe *positions*, not just the values |
+| **span ratio** | how much the span shortens on recovery | the fold, quantified |
+
+Search these terms with the species name and you get papers with numbers. Search "how a bird flies"
+and you get adjectives.
+
+**These numbers also VERIFY, not just build.** Once the object exists, compute the quantity back out
+of the geometry and compare it to the published value. The gull here was built by trial before this
+phase existed; measured afterwards its most-folded elbow angle is **133.9°** against a published
+**130°**. That is a pass — and it is a check that can be run on any joint of any object, in a few
+lines, at any time.
+
+One caution, earned: the first attempt at that check computed the angle without normalising and
+reported 196°, which would have prompted "fixing" a wing that was already correct. **A verification
+step is code too.** Wrong verification is worse than none, because it manufactures confident
+changes in the wrong direction.
+
+**Where a number genuinely cannot be found**, write the value you chose and mark it as set by eye —
+as the turtle's flipper length is marked here. An estimate labelled as an estimate is honest; an
+estimate presented as a measurement is the failure mode this whole method exists to prevent.
+
+### 1d — Depth order: WHAT IS IN FRONT OF WHAT
+
+One line per part, front to back. It is the third input to the join rule in phase 2.3, and writing
+it down at research time is what prevents discovering at render time that a tail has been painted
+over the body it hangs from.
+
 **Output:** the filled sheet. Every later decision cites a row of it.
 
 **Where to look, cheapest first:** what the project already contains (a codebase that draws this
@@ -212,8 +280,13 @@ Four checks, in this order. Each one caught defects the others could not.
 
 ```
 0  FRAME     object in one sentence · view chosen by mechanism · read size · what it is not
-1  RESEARCH  mechanism · phases · asymmetries · what changes shape · proportions in units of the
-             whole · materials by name · recognition marks · unknowns written down
+1  RESEARCH  a. mechanism · phases · asymmetries · what changes shape · proportions in units of
+                the whole · materials by name · recognition marks · unknowns written down
+             b. ANCHOR MAP    where each part sits, as a fraction in BOTH axes, plus its extent
+             c. KINEMATICS    per joint: angular amplitude · stroke plane angle · range of motion ·
+                              forward sweep · degrees of freedom · up:down ratio · span ratio
+                              — these are published numbers; the terms are what make them findable
+             d. DEPTH ORDER   what is in front of what, one line per part
 2  GEOMETRY  decompose by what moves together
              mass → profile table · feature → explicit outline
              join by the colour rule · declare the light · fade fields out

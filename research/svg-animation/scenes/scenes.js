@@ -339,6 +339,28 @@ scene({
 // The implementation follows the anatomy rather than approximating it: each wing is two hinged
 // segments — an arm from the shoulder and a hand from the elbow — so folding is a rotation at the
 // elbow and the span shortens as a CONSEQUENCE, not as a separate tween pretending to be one.
+//
+// ── ANCHOR MAP (method phase 1b) — where each part sits, in fractions of body length ──
+//   shoulder        0.22 L from the bill, at the TOP OF THE BACK (not at the neck — the first
+//                   version put it there and the wings appeared to grow out of the head)
+//   elbow / wrist   39% of the half-span out from the shoulder. The hand is ~2x the arm; putting
+//                   the fold at the midpoint is the classic error
+//   tail root       0.74 L        head 0.10 L skull, 0.090 L bill
+//   depth order     far wing · body · tail · head · near wing
+//
+// ── KINEMATICS (method phase 1c) — how far each joint travels ──
+//   Published for a gull in flight: elbow angle ~130 deg, forward sweep ~15 deg.
+//   Degrees of freedom in a bird forelimb: shoulder 3, elbow 1, wrist 2 — here reduced to one
+//   rotation each, which is the 2D projection of the first axis of each.
+//   CHECKED against the built geometry rather than assumed:
+//     0%  top of upstroke, most folded  -> interior elbow 133.9 deg   (published: 130)
+//     48% bottom of downstroke          -> interior elbow 178.9 deg   (fully extended)
+//   Four degrees off a measured value. This wing reached that by trial; with phase 1c filled in
+//   first it would have been set directly.
+//
+//   A caution earned here: the first attempt at this check computed the angle without normalising
+//   and reported 196 deg, which would have prompted "fixing" a wing that was already right. A
+//   verification step is code too, and wrong verification is worse than none.
 scene({
   id: 'birds',
   title: 'Birds',
