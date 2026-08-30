@@ -238,6 +238,18 @@ const page = `<title>SVG Motion Field Guide</title>
   :root[data-motion="reduced"] .switch .state::after { content: "on"; color: var(--good); }
   :root:not([data-motion="reduced"]) .switch .state::after { content: "off"; }
 
+  /* ── bestiary ───────────────────────────────────────────── */
+  .creatures { display: flex; flex-direction: column; gap: 1px; background: var(--line);
+    border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  .creature { background: var(--surface); padding: 16px 18px 14px; }
+  .creature .box { height: 190px; }
+  .creature .box svg { width: 100%; height: 100%; display: block; }
+  .creature .id { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+  .creature .id b { font-family: var(--serif); font-size: 1.1rem; font-weight: 600; color: var(--ink); }
+  .creature .id i { font-family: var(--serif); font-style: italic; color: var(--muted); font-size: 0.9rem; }
+  .creature .mech { font-family: var(--mono); font-size: 0.76rem; color: var(--accent); margin-top: 5px; }
+  .creature .view { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); margin-top: 3px; }
+
   /* ── primitive strip ────────────────────────────────────── */
   .primitives {
     display: grid; gap: 1px; background: var(--line);
@@ -346,6 +358,27 @@ const page = `<title>SVG Motion Field Guide</title>
 
 <section>
   <div class="wrap">
+    <span class="eyebrow">Bestiary — mechanics, isolated</span>
+    <div class="prose stack" style="margin-bottom:28px">
+      <h2>The view is chosen by the mechanism</h2>
+      <p>Each animal alone and large, because a mechanism cannot be judged at forty pixels inside a
+        landscape. And they are here to make one comparison possible.</p>
+      <p>A dolphin and a shark both "swim with the tail", and their mechanics are <strong>opposites</strong>.
+        Cetaceans descend from land mammals whose spines flex up and down, so their flukes are
+        <strong>horizontal</strong> and they oscillate dorsoventrally. Sharks descend from fish whose
+        spines flex side to side, so the caudal fin is <strong>vertical</strong> and they undulate
+        laterally.</p>
+      <p>So the dolphin and the whale are drawn in profile and the shark <strong>from above</strong>.
+        Draw them all from the side and the shark's entire stroke happens in the plane you cannot
+        see — a lie that costs nothing to make and everything to keep. Choosing the view is part of
+        the research, not a styling decision.</p>
+    </div>
+    <div class="creatures" id="creatures"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
     <span class="eyebrow">The vocabulary</span>
     <div class="prose stack" style="margin-bottom:30px">
       <h2>Twelve behaviours the scenes are made of</h2>
@@ -430,7 +463,7 @@ const page = `<title>SVG Motion Field Guide</title>
 
 <script>__SCENES_SOURCE__</script>
 <script>
-  const { scenes, primitives, reducedMotionCss } = window.SvgScenes
+  const { scenes, primitives, creatures, reducedMotionCss } = window.SvgScenes
 
   const reduced = document.createElement('style')
   reduced.textContent = reducedMotionCss
@@ -458,6 +491,21 @@ const page = `<title>SVG Motion Field Guide</title>
     fig.appendChild(cap)
     plates.appendChild(fig)
     s.build(stage)
+  }
+
+  const bestiary = document.getElementById('creatures')
+  for (const c of creatures) {
+    const cell = document.createElement('div')
+    cell.className = 'creature stage'
+    const box = document.createElement('div')
+    box.className = 'box'
+    cell.appendChild(box)
+    cell.insertAdjacentHTML('beforeend',
+      \`<div class="id"><b>\${escapeHtml(c.title)}</b><i>\${escapeHtml(c.latin)}</i></div>
+       <div class="mech">\${escapeHtml(c.mechanism)}</div>
+       <div class="view">view: \${escapeHtml(c.view)}</div>\`)
+    bestiary.appendChild(cell)
+    c.build(box)
   }
 
   const strip = document.getElementById('primitives')

@@ -70,6 +70,27 @@ what reads as wrong.
 - **What the viewer recognises it by** — often one or two details doing all the work. A gull is
   read from its swept hand and its deep chest long before any colour is resolved.
 
+### The view is part of the research
+
+A dolphin and a shark both "swim with the tail", and their mechanics are opposites. Cetaceans
+descend from land mammals whose spines flex up and down, so their flukes are **horizontal** and they
+oscillate dorsoventrally **[source]**. Sharks descend from fish whose spines flex side to side, so
+the caudal fin is **vertical** and they undulate laterally.
+
+Draw both in profile and one of them is a lie: the shark's entire stroke happens in the plane the
+viewer cannot see. So in the bestiary the cetaceans are drawn in profile and the shark from above.
+
+**Choose the view in which the mechanism is visible.** It is a research decision, not a styling one,
+and getting it wrong cannot be recovered by any amount of drawing skill.
+
+Two more findings from the same pass, both of which contradict the obvious guess:
+
+- The fold in a gull's wing sits at **39% of the half-span, close to the body** — the hand is nearly
+  twice the arm. Putting the fold at the midpoint is the classic error and it is what produces the
+  wrong wing.
+- **Fast lamniform sharks — the great white, the mako — have a near-symmetrical tail**, not the
+  upper-lobe-dominant tail of most sharks. The exception is the one everybody draws as the rule.
+
 ### How to check it
 
 Render the key poses side by side, frozen, and look at them — the way an animator checks a cycle
@@ -77,7 +98,26 @@ before it moves. Every defect in the bird above was invisible in motion and obvi
 six frozen frames: the wings emerging from the neck, the mixed viewpoint, the joint gap opening as
 the elbow rotated, the whole downstroke hidden behind the body.
 
-That check is now the first thing to do, not the last.
+That check is now the first thing to do, not the last. It caught, in order: wings emerging from the
+neck; a mixed viewpoint (mirrored wings, which is the view from below, on a body drawn from the
+side); the joint gap opening as the elbow rotated; a patch added to close that gap surfacing as a
+lump on the bird's back; and a wedge of background between a dolphin's melon and its trunk. Every
+one of them was invisible in motion.
+
+The joint is worth one more line, because the fix that worked is structural rather than cosmetic.
+Two rigid shapes meeting along an edge **always** reopen somewhere once their rotations diverge, and
+no tuning of the two outlines closes it. A patch that rotates with the far shape eventually escapes
+from under the near one. What works is geometry: extend the parent shape **past the pivot**, so that
+because it does not rotate with the child, it covers the child's root at every angle.
+
+### Proportions belong in units of the whole
+
+Also taken from the maintainer's `Gulls.tsx`, which had already learned this: express every measure
+as a fraction of total length, so the final scale is a single multiplier. For *Larus argentatus* —
+wingspan 2.30 L, bill 0.090 L, tail 0.279 L, skull 0.10 L. Checked against those, the first head
+here was 0.15 L and the bill 0.13 L, both far too large, which is why it read as a cartoon. The
+numbers are free to look up and they remove an entire class of "something is off but I cannot say
+what".
 
 ## 0b. Colour comes from materials, not from a hue ramp
 

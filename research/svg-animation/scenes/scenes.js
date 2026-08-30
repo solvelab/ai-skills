@@ -384,7 +384,7 @@ scene({
       // Far wing first, so the body occludes its root. Dimmer, because it is on the other side of
       // the body and further from the light — and lagging slightly, because a bird's two wings are
       // never exactly in phase from this angle.
-      wing(g, -0.045, '#2b3540', 0.9)
+      wing(g, -0.022, '#2b3540', 0.9)
 
       // Body: deep chest forward, tapering to the tail. A gull in cruise carries its mass ahead of
       // the wing root, which is what makes the silhouette read as flying rather than floating.
@@ -397,10 +397,22 @@ scene({
       // Tail: a short fan, angled down a little. Not a spike — a spike reads as a second beak.
       el(g, 'path', { d: 'M-11.5 0.4 C -15 -0.8, -19.5 -1.6, -22 -0.4 C -19 1.2, -15 2.4, -11.5 2.6 Z', fill: '#39434f' })
 
-      // Head: set forward and slightly high, on a short neck that the chest curve implies.
-      el(g, 'circle', { cx: 13.2, cy: -2.6, r: 3.3, fill: '#39434f' })
-      el(g, 'path', { d: 'M15.8 -3 L21.5 -2.1 L15.8 -1.2 Z', fill: '#e0a33f' })
-      el(g, 'circle', { cx: 14.4, cy: -3.4, r: 0.7, fill: '#101820' })
+      // Head and bill are ONE PIECE, and that is not a shortcut — it is the diagnostic feature.
+      // On a gull the apex of the skull sits BEHIND the eye, with a low, swept-back forehead
+      // running in a continuous ramp to the bill tip. A pigeon is the exact opposite: high, domed
+      // forehead. A round head with a bill stuck on the front is a pigeon, whatever else is right.
+      // Proportions from the species, in units of total length L (bill to tail), L ≈ 43.5 here:
+      // skull 0.10 L, bill 0.090 L. The previous head was 0.15 L and the bill 0.13 L — both far
+      // too big, which is why it read as a cartoon.
+      el(g, 'path', {
+        d: 'M9.6 -4.1 C 11.6 -5.2, 13.8 -5.1, 15.1 -3.9 '   // low forehead, apex behind the eye
+         + 'C 16.2 -3.2, 18.4 -2.9, 20 -2.5 '               // continuous ramp into the bill
+         + 'L20.1 -1.9 C 18.2 -1.5, 16 -1.2, 14.6 -1 '
+         + 'C 12 -1, 10.2 -2.2, 9.6 -4.1 Z',
+        fill: '#39434f',
+      })
+      el(g, 'path', { d: 'M16.4 -3.2 C 18 -2.9, 19.6 -2.6, 20.4 -2.2 L20.4 -1.8 C 19 -1.6, 17.4 -1.4, 16.2 -1.3 Z', fill: '#e0a33f' })
+      el(g, 'circle', { cx: 13.1, cy: -3.3, r: 0.62, fill: '#101820' })
 
       // Near wing last, over the body.
       wing(g, 0, '#39434f', 1)
@@ -413,32 +425,53 @@ scene({
         shoulder.style.animation =
           `wingArm ${beat}s cubic-bezier(.34,0,.3,1) ${(phase + lag).toFixed(3)}s infinite`
 
-        // Arm: shoulder to elbow, carrying the secondaries. Broad and blunt — this is the part
-        // that gives a wing its area, and drawing it as a line is what made the first version
-        // read as a stick.
-        el(shoulder, 'path', {
-          // The elbow end is blunt and overlaps where the hand starts: a wing has no hinge gap,
-          // and two shapes meeting at a single point open one the moment they rotate apart.
-          d: 'M3.4 -2.4 C 1 -5.6, -3 -7.4, -7.6 -7.2 C -8 -5, -6.4 -2.6, -2.2 -1.4 '
-           + 'C -0.2 -1.8, 2 -2, 3.4 -2.4 Z',
-          fill,
-        })
-
+        // ORDER MATTERS, and it is the anatomy that dictates it: the hand goes in FIRST and the
+        // arm is drawn OVER it. On a real wing the secondaries overlap the base of the primaries,
+        // and here that overlap is also what closes the joint. Two shapes meeting along an edge
+        // open a visible gap the moment their rotations diverge — which is exactly what the first
+        // version did, and what a strip of ten frozen frames showed immediately.
         const elbow = el(shoulder, 'g')
         elbow.style.transformBox = 'view-box'
-        elbow.style.transformOrigin = '-6.4px -6.4px'
-        // The elbow leads the shoulder by a fraction of the cycle. That lag is what makes the tip
-        // trail and then whip through, instead of the wing moving as one rigid plank.
+        elbow.style.transformOrigin = '-7.4px -6.8px'
+        // The hand leads the arm by a fraction of the cycle. That lag is what makes the tip trail
+        // and then whip through, instead of the wing moving as one rigid plank.
         elbow.style.animation =
           `wingHand ${beat}s cubic-bezier(.34,0,.3,1) ${(phase + lag - beat * 0.13).toFixed(3)}s infinite`
 
-        // Hand: elbow to tip, carrying the primaries. Long, swept back, tapering to a point, with
-        // a hint of separated tips at the trailing edge.
+        // Hand: the primaries. Its root runs far enough up the arm that the arm always covers it,
+        // through the whole range of the elbow. Long, swept, tapering to a point.
+        //
+        // The fold sits at 39% of the half-span, close to the body — the hand is nearly twice the
+        // arm. Putting the fold at the midpoint is the classic error and it is what produces the
+        // wrong wing.
         el(elbow, 'path', {
-          d: 'M-5.4 -7.6 C -10.6 -9.4, -16.6 -10.2, -22 -9.4 C -19.6 -7 , -13.6 -4.2, -6.6 -2.6 '
-           + 'C -6.4 -4.2, -5.8 -6, -5.4 -7.6 Z',
+          d: 'M-2.4 -6.6 C -9.5 -9.8, -16.8 -10.7, -22.4 -9.6 '
+           + 'C -19.4 -6.8, -12.5 -3.6, -3.6 -1.1 '
+           + 'C -3.2 -3, -2.8 -4.9, -2.4 -6.6 Z',
           fill,
         })
+        // Black wingtip with white mirrors. This is what makes the eye read "gull" at twenty
+        // pixels, and it costs a fill, not geometry.
+        el(elbow, 'path', {
+          d: 'M-14.5 -9.4 C -17.6 -10.3, -20.4 -10.2, -22.4 -9.6 '
+           + 'C -20.6 -8, -18 -6.6, -15.2 -5.4 '
+           + 'C -14.8 -6.8, -14.6 -8.2, -14.5 -9.4 Z',
+          fill: '#151b23', opacity: opacity * 0.92,
+        })
+        el(elbow, 'circle', { cx: -20.4, cy: -9.1, r: 0.55, fill: '#e9eef5', opacity: opacity * 0.85 })
+        el(elbow, 'circle', { cx: -17.9, cy: -8.4, r: 0.45, fill: '#e9eef5', opacity: opacity * 0.7 })
+
+        // Arm: the secondaries. Broad and blunt, and wide enough at the elbow end to sit over the
+        // hand's root in every pose. This is the part that gives a wing its area — drawing it as a
+        // line is what made the first version read as a stick.
+        el(shoulder, 'path', {
+          d: 'M3.6 -2.2 C 1.4 -5.8, -3.4 -8.6, -10.6 -8.4 '
+           + 'C -11.4 -5.2, -7.4 -1.8, -1.8 -0.5 '
+           + 'C 0.4 -1.1, 2.4 -1.8, 3.6 -2.2 Z',
+          fill,
+        })
+
+
       }
 
       return g
@@ -1123,6 +1156,278 @@ scene({
   },
 })
 
+// ── The creatures: mechanics, isolated ──────────────────────────────────────
+// A bestiary rather than a scene. Each animal is shown alone and large, because the point is the
+// MECHANISM, and a mechanism is not judgeable at forty pixels inside a landscape.
+//
+// The rule this set exists to teach, and which cost the birds two rewrites to learn:
+//
+//   CHOOSE THE VIEW IN WHICH THE MECHANISM IS VISIBLE.
+//
+// A dolphin and a shark both "swim with the tail", and their mechanics are opposites. Cetaceans
+// descend from land mammals whose spines flex UP AND DOWN, so their flukes are HORIZONTAL and they
+// oscillate dorsoventrally. Sharks descend from fish whose spines flex SIDE TO SIDE, so their
+// caudal fin is VERTICAL and they undulate laterally. Draw both from the side and one of them is a
+// lie: the shark's whole stroke happens in the plane you cannot see. So the dolphin is shown in
+// profile and the shark from above, and that choice is not a stylistic one.
+const creatures = []
+const creature = (def) => { creatures.push(def); return def }
+
+/** A chain of hinged segments carrying a travelling wave — the spine of every swimmer here. */
+function spine(host, segments, animation, beat, phaseStep) {
+  const nodes = []
+  let parent = host
+  for (let i = 0; i < segments.length; i++) {
+    const g = el(parent, 'g')
+    g.style.transformBox = 'view-box'
+    g.style.transformOrigin = `${segments[i].pivotX}px ${segments[i].pivotY}px`
+    // Each segment lags the one before it. That lag IS the travelling wave: without it the animal
+    // flexes as one rigid hinge, which reads as a windscreen wiper rather than a swimmer.
+    g.style.animation = `${animation} ${beat}s ease-in-out ${(-i * phaseStep * beat).toFixed(3)}s infinite`
+    nodes.push(g)
+    parent = g
+  }
+  return nodes
+}
+
+creature({
+  id: 'dolphin',
+  title: 'Dolphin',
+  latin: 'Tursiops truncatus',
+  view: 'profile — the stroke is vertical, so profile is where it shows',
+  mechanism: 'dorsoventral oscillation · horizontal fluke · body wave from mid-body back',
+  build(host) {
+    const svg = document.createElementNS(SVG_NAMESPACE, 'svg')
+    svg.setAttribute('viewBox', '-58 -30 116 60')
+    svg.setAttribute('class', 'mini')
+    host.appendChild(svg)
+
+    const skin = '#4c6076', belly = '#c8d6e2'
+    const root = el(svg, 'g')
+    // Whole-body rise and fall: a swimming cetacean does not hold its head still while the tail
+    // works — the thrust moves the entire animal.
+    root.style.transformBox = 'view-box'
+    root.style.transformOrigin = '0px 0px'
+    root.style.animation = 'swimHeave 1.9s ease-in-out infinite'
+
+    // Head and trunk: fusiform, deepest just behind the head, tapering to a narrow peduncle.
+    el(root, 'path', {
+      d: 'M-6 -9.5 C 6 -11.5, 20 -9, 30 -4.5 C 34 -3, 36 -1.5, 37.5 -0.5 '
+       + 'C 36 0.8, 33 2.2, 29 3.6 C 18 7.4, 4 8.6, -6 7.2 Z',
+      fill: skin,
+    })
+    el(root, 'path', {
+      d: 'M-4 6.4 C 6 8.2, 18 7, 28 3.6 C 31 2.4, 34 1, 36 0 C 33 1.6, 26 4.6, 16 6.4 C 6 8, -1 7.6, -4 6.4 Z',
+      fill: belly,
+    })
+    // MELON then ROSTRUM, in that order, because that is the diagnostic pair. The melon is the
+    // round fatty forehead that bulges ABOVE and AHEAD of the eye and then drops sharply into a
+    // distinct crease; the rostrum is a separate, near-cylindrical beak below it. Draw the head as
+    // one taper into a point and you get a generic fish — which is what the first attempt did.
+    el(root, 'path', {
+      // Rooted well back inside the trunk (x=12), so the melon grows out of the body instead of
+      // sitting on it. Started at the body's leading edge, it left a wedge of background between
+      // the two outlines — invisible in motion, obvious in a still.
+      d: 'M12 -10.6 C 22 -12.2, 32 -11.2, 38 -7.8 '   // melon: bulges up and forward
+       + 'C 40 -6.4, 40.5 -4.8, 40 -3.6 '             // and drops steeply into the crease
+       + 'C 34 -2.2, 24 -2.4, 14 -4.6 Z',
+      fill: skin,
+    })
+    // Rostrum: short and blunt for a bottlenose — about 0.06 of body length, not a swordfish bill.
+    el(root, 'path', {
+      d: 'M37.5 -4.6 C 42 -3.8, 45.8 -2.9, 48.2 -1.8 '
+       + 'C 45.6 -0.3, 42 0.4, 37.4 0.2 '
+       + 'C 37.8 -1.5, 37.8 -3.2, 37.5 -4.6 Z',
+      fill: skin,
+    })
+    // The mouthline: a long curve that lifts at the back. It is the whole of the "dolphin smile",
+    // and it costs one stroke.
+    el(root, 'path', {
+      d: 'M47 -1.4 C 43 -0.6, 38 0.2, 33.5 0.2 C 31.5 0.2, 30 -0.2, 29 -0.8',
+      fill: 'none', stroke: '#33475c', 'stroke-width': 0.7, 'stroke-linecap': 'round',
+    })
+    el(root, 'circle', { cx: 32.5, cy: -3.6, r: 1.0, fill: '#101820' })
+    // Blowhole, on top, behind the melon's crest.
+    el(root, 'ellipse', { cx: 25, cy: -9.4, rx: 1.5, ry: 0.7, fill: '#33475c' })
+    // Dorsal fin: falcate — concave along the trailing edge, not a triangle. That curve is the
+    // difference between a dolphin's fin and a shark's.
+    el(root, 'path', {
+      d: 'M8 -10 C 11 -17, 15.5 -21, 19.5 -22 '
+       + 'C 17 -18.5, 15.5 -14, 15.5 -9.4 Z',
+      fill: skin,
+    })
+    // Pectoral flipper: set LOW and FORWARD, near the head, and small. Placed mid-body and large
+    // it reads as a second tail, which is exactly how the first version failed.
+    el(root, 'path', {
+      d: 'M24 4.4 C 22 9.4, 18 13.6, 13.5 15.4 C 15 10.6, 17.5 6.8, 21 4.2 Z',
+      fill: '#41556b',
+    })
+
+    // Tail stock: three segments, each lagging the last, ending in the fluke. The lag is what
+    // makes the flex read as a wave passing down the body instead of a hinge opening.
+    const tail = spine(root, [
+      { pivotX: -4, pivotY: -1 },
+      { pivotX: -16, pivotY: -0.6 },
+      { pivotX: -27, pivotY: -0.4 },
+    ], 'swimFlukeUpDown', 1.9, 0.13)
+
+    el(tail[0], 'path', { d: 'M-4 -8.4 C -10 -8, -15 -7, -18 -5.6 C -18 -3, -18 1.6, -18 4 C -14 5.6, -9 6.6, -4 7 Z', fill: skin })
+    el(tail[1], 'path', { d: 'M-17 -5.8 C -22 -4.8, -26 -3.6, -28 -2.6 C -28 -1, -28 1.2, -28 2.6 C -25 3.4, -21 4.4, -17 4.2 Z', fill: skin })
+    // The fluke itself: horizontal, notched at the centre, swept back. Drawn as the last segment so
+    // it carries the accumulated lag and trails the peduncle.
+    el(tail[2], 'path', {
+      d: 'M-27 -2.4 C -33 -3.6, -41 -6.2, -47 -8.6 C -41 -6.2, -35 -3, -31 -0.4 '
+       + 'C -35 2.2, -41 5.2, -47 7.4 C -41 5.4, -33 3, -27 2 Z',
+      fill: skin,
+    })
+  },
+})
+
+creature({
+  id: 'whale',
+  title: 'Humpback whale',
+  latin: 'Megaptera novaeangliae',
+  view: 'profile — same vertical stroke as the dolphin, at a quarter of the rate',
+  mechanism: 'dorsoventral oscillation · enormous pectorals (⅓ of body length) · ventral pleats',
+  build(host) {
+    const svg = document.createElementNS(SVG_NAMESPACE, 'svg')
+    svg.setAttribute('viewBox', '-64 -34 128 68')
+    svg.setAttribute('class', 'mini')
+    host.appendChild(svg)
+
+    const skin = '#37485c', belly = '#b9c8d6', fin = '#2c3a4b'
+    const root = el(svg, 'g')
+    root.style.transformBox = 'view-box'
+    root.style.transformOrigin = '0px 0px'
+    root.style.animation = 'swimHeave 5.4s ease-in-out infinite'
+
+    // Body: far bulkier than the dolphin, widest a third back, with a blunt head. The genus name
+    // means "big wing" — the pectorals are the diagnostic feature and they are about a third of
+    // total length, which is longer than almost anyone draws them.
+    el(root, 'path', {
+      d: 'M-8 -13 C 4 -16, 20 -14, 32 -8 C 38 -5, 42 -2.5, 44 -1 '
+       + 'C 42 1.5, 37 5, 30 8 C 16 14, 2 15, -8 12 Z',
+      fill: skin,
+    })
+    el(root, 'path', {
+      d: 'M-6 10.5 C 4 13.5, 16 12.5, 28 7 C 34 4.2, 39 1.2, 42 -0.4 '
+       + 'C 37 3, 28 8, 16 11 C 6 13.4, -2 12.6, -6 10.5 Z',
+      fill: belly,
+    })
+    // Ventral pleats: the grooved throat. Cheap lines, and without them the belly reads as plastic.
+    for (let i = 0; i < 7; i++) {
+      el(root, 'path', {
+        d: `M${26 - i * 3.2} ${8.4 - i * 0.55} C ${30 - i * 3.2} ${7 - i * 0.5}, ${34 - i * 3.2} ${4 - i * 0.4}, ${37 - i * 3.2} ${1.6 - i * 0.3}`,
+        fill: 'none', stroke: '#8fa2b4', 'stroke-width': 0.55, opacity: 0.5,
+      })
+    }
+    // Knobbly head — tubercles, one hair each. Another feature nobody draws, and the one that
+    // says "humpback" rather than "generic whale".
+    for (const [x, y] of [[36, -5.4], [31, -7.6], [26, -9.4], [40, -3.2], [34.5, -2.2], [29, -1.2]]) {
+      el(root, 'circle', { cx: x, cy: y, r: 1.15, fill: '#2f3f51' })
+    }
+    el(root, 'circle', { cx: 33, cy: -3.2, r: 1.1, fill: '#101820' })
+    // Small, far-back dorsal on a hump — the name.
+    el(root, 'path', { d: 'M4 -14.6 C 6 -18.5, 9 -20, 11.5 -19.6 C 9.5 -17.4, 9 -15.6, 9.2 -13.8 Z', fill: skin })
+    // Pectoral: vast, scalloped along the leading edge, white underneath. It sculls slowly.
+    const pec = el(root, 'g')
+    pec.style.transformBox = 'view-box'
+    pec.style.transformOrigin = '22px 6px'
+    pec.style.animation = 'whalePectoral 5.4s ease-in-out infinite'
+    el(pec, 'path', {
+      d: 'M26 0.5 C 22 11, 13 22, 2 28 C -2 30, -5 30, -4 27 C 1 20, 10 10, 18 1.5 Z',
+      fill: '#dbe6ee',
+    })
+    el(pec, 'path', {
+      d: 'M24 3 C 21 10, 15 18, 7 24 C 4 26, 1 27, 1.5 25 C 5 20, 12 12, 18 4.6 Z',
+      fill: fin, opacity: 0.28,
+    })
+
+    const tail = spine(root, [
+      { pivotX: -6, pivotY: -1 },
+      { pivotX: -22, pivotY: -0.6 },
+      { pivotX: -36, pivotY: -0.4 },
+    ], 'swimFlukeUpDown', 5.4, 0.14)
+
+    el(tail[0], 'path', { d: 'M-6 -12 C -14 -11, -20 -9.4, -24 -7.4 C -24 -3.6, -24 3, -24 5.6 C -19 8, -12 10, -6 11 Z', fill: skin })
+    el(tail[1], 'path', { d: 'M-23 -7.6 C -30 -6, -35 -4.4, -38 -3 C -38 -1, -38 1.8, -38 3.6 C -34 4.8, -29 6.2, -23 5.8 Z', fill: skin })
+    el(tail[2], 'path', {
+      d: 'M-37 -2.8 C -46 -5, -56 -9.4, -62 -13 C -55 -9, -47 -4.2, -42 -0.5 '
+       + 'C -47 3.4, -55 8, -62 11.6 C -56 8.2, -46 3.8, -37 1.8 Z',
+      fill: skin,
+    })
+  },
+})
+
+creature({
+  id: 'shark',
+  title: 'Shark',
+  latin: 'Carcharodon / lamniform build',
+  view: 'FROM ABOVE — the stroke is lateral, and in profile it would be invisible',
+  mechanism: 'lateral undulation · vertical caudal fin · thunniform: the wave lives in the rear third',
+  build(host) {
+    const svg = document.createElementNS(SVG_NAMESPACE, 'svg')
+    svg.setAttribute('viewBox', '-58 -30 116 60')
+    svg.setAttribute('class', 'mini')
+    host.appendChild(svg)
+
+    const back = '#54636e', flank = '#6b7a85'
+    const root = el(svg, 'g')
+
+    // Seen from above: a conical snout, the widest point at the pectorals, then a long taper to a
+    // narrow peduncle. Fast lamniform sharks are near-symmetrical in the tail, unlike the
+    // upper-lobe-dominant tail of most other sharks — the great white and mako are the exception
+    // that gets drawn as the rule.
+    el(root, 'path', {
+      d: 'M44 0 C 40 -2.6, 34 -5.2, 26 -7 C 14 -9.4, 2 -9.4, -8 -7.6 '
+       + 'C -8 7.6, 2 9.4, 14 9.4, 26 7, 44 0 Z',
+      fill: back,
+    })
+    // Correcting the sloppy shorthand above with an explicit outline: nose, left flank, tail
+    // stock, right flank.
+    root.lastChild.setAttribute('d',
+      'M44 0 C 39 -3.4, 32 -6, 24 -7.6 C 14 -9.4, 2 -9.2, -8 -7 '
+      + 'C -10 -4, -10 4, -8 7 C 2 9.2, 14 9.4, 24 7.6 C 32 6, 39 3.4, 44 0 Z')
+
+    // Pectorals: long, narrow, swept — the wings that hold it up, since a shark has no swim bladder.
+    el(root, 'path', { d: 'M18 -6.4 C 12 -14, 2 -21, -6 -24 C -2 -17, 6 -10, 14 -5.6 Z', fill: '#4e5d69' })
+    el(root, 'path', { d: 'M18 6.4 C 12 14, 2 21, -6 24 C -2 17, 6 10, 14 5.6 Z', fill: '#4e5d69' })
+    // Dorsal fin, seen from above as a narrow blade along the midline.
+    el(root, 'path', { d: 'M6 -1.6 C 2 -2, -4 -2, -8 -1.4 L-8 1.4 C -4 2, 2 2, 6 1.6 Z', fill: '#46545f' })
+    el(root, 'circle', { cx: 30, cy: -4.2, r: 1.1, fill: '#141c22' })
+    el(root, 'circle', { cx: 30, cy: 4.2, r: 1.1, fill: '#141c22' })
+    // Gill slits: five, angled, just ahead of the pectorals.
+    for (let i = 0; i < 5; i++) {
+      el(root, 'path', {
+        d: `M${24 - i * 2.6} -6.6 C ${23 - i * 2.6} -5, ${23 - i * 2.6} -3.4, ${24 - i * 2.6} -2`,
+        fill: 'none', stroke: '#3d4a54', 'stroke-width': 0.6,
+      })
+      el(root, 'path', {
+        d: `M${24 - i * 2.6} 6.6 C ${23 - i * 2.6} 5, ${23 - i * 2.6} 3.4, ${24 - i * 2.6} 2`,
+        fill: 'none', stroke: '#3d4a54', 'stroke-width': 0.6,
+      })
+    }
+
+    // The wave lives in the rear third — thunniform, not anguilliform. The head barely moves, and
+    // that restraint is the difference between a shark and an eel.
+    const tail = spine(root, [
+      { pivotX: -8, pivotY: 0 },
+      { pivotX: -22, pivotY: 0 },
+      { pivotX: -34, pivotY: 0 },
+    ], 'swimTailSideways', 1.35, 0.16)
+
+    el(tail[0], 'path', { d: 'M-7 -7.2 C -13 -6.4, -18 -5.2, -22 -4 C -22 4, -22 4, -22 4 C -18 5.2, -13 6.4, -7 7.2 Z', fill: back })
+    el(tail[1], 'path', { d: 'M-21 -4.2 C -26 -3.2, -31 -2.4, -34 -1.8 L-34 1.8 C -31 2.4, -26 3.2, -21 4.2 Z', fill: back })
+    // Caudal fin, from above: a narrow vertical blade, so it reads as a thin sweeping line rather
+    // than the broad fluke of a cetacean. That contrast is the entire lesson of this bestiary.
+    el(tail[2], 'path', {
+      d: 'M-33 -2 C -40 -1.6, -48 -1.2, -54 -0.8 L-54 0.8 C -48 1.2, -40 1.6, -33 2 Z',
+      fill: back,
+    })
+    el(tail[2], 'path', { d: 'M-40 -1.5 C -46 -3.6, -52 -5.4, -55 -6 C -50 -3.6, -45 -2, -40 -1.2 Z', fill: flank, opacity: 0.75 })
+  },
+})
+
 // ── The primitives themselves, each as a self-contained loop ────────────────
 // The scenes are compositions; these are the parts. Rendered live so the vocabulary can be seen
 // rather than read — a reader who has watched `sway` next to `oscillate` never confuses them again.
@@ -1273,11 +1578,11 @@ const sceneCss = `
     100% { transform: rotate(52deg) translateX(0) }
   }
   @keyframes wingHand {
-    0%   { transform: rotate(-40deg) }
-    20%  { transform: rotate(-12deg) }
+    0%   { transform: rotate(-31deg) }
+    20%  { transform: rotate(-11deg) }
     48%  { transform: rotate(14deg) }
     64%  { transform: rotate(-26deg) }
-    100% { transform: rotate(-40deg) }
+    100% { transform: rotate(-31deg) }
   }
   @keyframes flashPulse { 0% { opacity: 0 } 12% { opacity: .5 } 100% { opacity: 0 } }
   @keyframes leafFall {
@@ -1322,6 +1627,15 @@ const sceneCss = `
   }
   .stage .feldtToggle:focus-visible { outline: 2px solid #9fd2ea; outline-offset: 2px; }
 
+  /* Creatures */
+  @keyframes swimHeave        { 0%,100% { transform: translateY(-2.5px) } 50% { transform: translateY(2.5px) } }
+  /* Cetacean: the fluke sweeps UP and DOWN. */
+  @keyframes swimFlukeUpDown  { 0%,100% { transform: rotate(-13deg) } 50% { transform: rotate(13deg) } }
+  /* Shark, seen from above: the same rotation, but it is a LATERAL sweep. Identical maths,
+     opposite plane — which is exactly why the view has to be chosen by the mechanism. */
+  @keyframes swimTailSideways { 0%,100% { transform: rotate(-15deg) } 50% { transform: rotate(15deg) } }
+  @keyframes whalePectoral    { 0%,100% { transform: rotate(-7deg) } 50% { transform: rotate(9deg) } }
+
   /* Ferdinand */
   @keyframes swayPalm  { from { transform: rotate(-3.5deg) } to { transform: rotate(3.5deg) } }
   @keyframes sked      { 0% { transform: scale(.35); opacity: .85 } 100% { transform: scale(4.2); opacity: 0 } }
@@ -1353,5 +1667,5 @@ const reducedMotionCss = `
   :root[data-motion="reduced"] { ${reducedMotionRules('.stage')} }
 `
 
-return { scenes, primitives, sceneCss, reducedMotionCss, seeded }
+return { scenes, primitives, creatures, sceneCss, reducedMotionCss, seeded }
 })()
