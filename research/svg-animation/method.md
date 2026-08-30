@@ -268,15 +268,48 @@ open.
 
 ## Phase 5 — Verify
 
+**Looking at stills is not enough, and this phase was wrong until that was proved.** Frozen-pose
+strips show the *theoretical* state at each percentage — they are rendered by pausing the animation
+with a negative delay. They caught inverted signs, opening joints and mixed viewpoints. They cannot
+catch anything about the motion, because in a frozen strip there is no motion.
+
+Two instruments close that gap, and both live in this directory:
+
+**`verify-motion.mjs`** samples the REAL animation frame by frame, reads the on-screen position of
+points the page marks with `data-track`, and reports trajectories plus checks a picture cannot make:
+
+- does the cycle **close** — does the last frame return to the first (over whole cycles only)
+- are two limbs that should be **half a cycle apart** actually so — tested by shifting one series
+  and matching, which works for any waveform; a plain correlation only works for sinusoids
+- does a point that should be **planted stay planted** — measured *relative to the surface*, since
+  a foot correctly locked to a treadmill still travels across the frame
+- does anything **never move**, which usually means a selector or an animation that failed silently
+
+**A live strip**: build several independent copies staggered in time and capture them at one
+instant. Every copy is running at real speed, so the strip shows the actual animation rather than a
+paused idea of it.
+
+**And where the motion is solved rather than authored, verify the solver exactly.** The walking
+figure's inverse kinematics had the knee's sign inverted. Five rounds of looking at renders and
+adjusting did not find it. Checking the solver against FORWARD kinematics — solve for a target, walk
+the chain forward from the result, compare — found it in one run: the foot was landing 28 to 47
+units from where it was asked to go, and with the sign corrected the error is **0.00**. Anything
+with a closed-form inverse can be checked this way, in a few lines, without looking at anything.
+
+The checks in order:
+
 Four checks, in this order. Each one caught defects the others could not.
 
-1. **Frozen poses, side by side.** Render six to ten frames of the cycle, paused, and look at the
+1. **The solver, against forward kinematics**, if the motion is solved rather than authored.
+2. **Frozen poses, side by side.** Render six to ten frames of the cycle, paused, and look at the
    strip. Joints opening, patches surfacing, mixed viewpoints and hidden phases are all visible here
    and invisible in motion.
-2. **Large, against a grid.** As in 2.5, again — the animation may have moved a part into a place
+3. **Large, against a grid.** As in 2.5, again — the animation may have moved a part into a place
    the static check did not cover.
-3. **Reduced-motion variant.** Look at it. It is a state of the artifact, not a fallback.
-4. **Measure the cost.** Layout per second and main-thread milliseconds per second of animation. A
+4. **The live strip and `verify-motion.mjs`.** The animation running, and its trajectories
+   measured. This is the check that separates "is it shaped right" from "is it moving right".
+5. **Reduced-motion variant.** Look at it. It is a state of the artifact, not a fallback.
+6. **Measure the cost.** Layout per second and main-thread milliseconds per second of animation. A
    number, not an impression.
 
 ---
@@ -300,7 +333,9 @@ Four checks, in this order. Each one caught defects the others could not.
              asymmetry · what must not repeat · what absence means
 4  ASSEMBLE  hierarchy = part list · lag makes the wave · own <svg> per moving unit ·
              decorrelate · reduce rather than remove
-5  VERIFY    frozen poses · large on a grid · reduced-motion · measured cost
+5  VERIFY    solver vs forward kinematics · frozen poses · large on a grid ·
+             LIVE STRIP + verify-motion.mjs (does it MOVE right, not just look right) ·
+             reduced-motion · measured cost
 ```
 
 ---

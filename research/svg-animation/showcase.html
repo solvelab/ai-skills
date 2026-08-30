@@ -401,6 +401,23 @@
     0%, 50%, 100% { transform: translateY(0.7px) }
     28%, 78%      { transform: translateY(-0.7px) }
   }
+  /* The rocker: the pivot travels along the sole through stance and returns to the ankle for swing.
+     Percentages match the gait sub-phases exactly — heel contact at 0, flat by 10, heel-off at 40,
+     toe-off at 60, ankle again through the swing. */
+  @keyframes gaitRocker {
+    0%   { transform-origin: -3px 96px }    /* heel strike: pivot at the heel */
+    10%  { transform-origin: -1px 96px }    /* foot flat */
+    40%  { transform-origin:  4px 96px }    /* heel off: rolling forward */
+    60%  { transform-origin:  9px 96px }    /* toe off: pivot at the toe */
+    62%  { transform-origin:  0px 92px }    /* swing: back to the ankle */
+    100% { transform-origin: -3px 96px }
+  }
+  /* The treadmill: exactly one stride of travel per gait cycle, so the ground marks and the planted
+     foot travel together. Any other rate makes the figure look as though it is skating. */
+  @keyframes gaitFloor {
+    from { transform: translateX(0) }
+    to   { transform: translateX(-45px) }
+  }
   @keyframes gaitTrunk {
     0%, 50%, 100% { transform: rotate(-1.6deg) }
     25%, 75%      { transform: rotate(-3deg) }
@@ -2561,54 +2578,185 @@ creature({
     const skin = '#c69a76', cloth = '#3f5a72', clothDark = '#33495c', shoe = '#26313c'
     const hipY = (1 - 0.53) * H, kneeLen = 0.25 * H, shankLen = 0.24 * H
 
-    // Ground line, drawn first. A gait cycle cannot be judged without a floor: the entire cycle is
+    // Ground, drawn first. A gait cycle cannot be judged without a floor: the entire cycle is
     // defined by when and where the foot meets it. Rendering the figure against nothing was a real
     // defect of the first pass, not a presentational choice.
+    //
+    // And the floor MOVES. A figure walking in place over a static floor has a planted foot that
+    // slides by definition — measured by verify-motion.mjs at 14.56 units, about 14% of standing
+    // height, which is not subtle and is not what "below the noise" means. Because the hierarchy is
+    // rooted at the hip rather than at the contact point, the honest fix at this level is a
+    // treadmill: the ground travels backwards at the stride rate, so the foot is nearly still
+    // RELATIVE TO IT. Residual slip remains, because the foot's speed through stance is not
+    // constant while the floor's is, and the verifier reports how much is left.
+    const STRIDE = 45          // units of travel per cycle, taken from the ankle's measured excursion
     el(svg, 'line', {
       x1: -50, y1: H - 0.5, x2: 50, y2: H - 0.5,
       stroke: '#9db3c4', 'stroke-width': 0.8,
     })
+    const floor = document.createElementNS(SVG_NAMESPACE, 'g')
+    floor.style.animation = 'gaitFloor 1.1s linear infinite'
+    svg.appendChild(floor)
+    for (let i = -3; i <= 4; i++) {
+      el(floor, 'line', {
+        x1: -50 + i * STRIDE, y1: H + 1.8, x2: -50 + i * STRIDE + STRIDE * 0.45, y2: H + 1.8,
+        stroke: '#b6c8d6', 'stroke-width': 1.5, 'stroke-linecap': 'round',
+      })
+    }
+    // A reference point ON the moving surface. Slip is meaningless without it: a foot correctly
+    // locked to a treadmill still travels across the frame.
+    el(floor, 'circle', { cx: 0, cy: H + 1.8, r: 0.01, fill: 'none', 'data-track': 'ground-surface' })
 
     const root = el(svg, 'g')
     root.style.transformBox = 'view-box'
-    root.style.transformOrigin = `0px ${hipY}px`
-    root.style.animation = 'gaitBob 1.1s ease-in-out infinite'
+    root.style.transformOrigin = '0 0'
 
-    // One leg. `phase` shifts it half a cycle for the far side; `depth` dims and de-saturates it,
-    // which is the cheapest possible aerial perspective and enough at this size.
-    function leg(parent, phase, fill, shoeFill, opacity) {
-      const thigh = el(parent, 'g', { opacity })
-      thigh.style.transformBox = 'view-box'
-      thigh.style.transformOrigin = `0px ${hipY}px`
-      thigh.style.animation = `gaitHip 1.1s linear ${phase}s infinite`
+    // ── The legs are driven by INVERSE KINEMATICS, and that is the point ──
+    //
+    // Every other figure in this directory is forward kinematics: rotate the joints and the
+    // extremity goes wherever it goes. For a limb in the air that is correct and cheap. For a limb
+    // in CONTACT it is wrong, and measurably so — verify-motion.mjs measured the planted foot
+    // sliding 11.17 units against the ground, and moving the treadmill faster or slower barely
+    // changed it (10.04 to 10.76 across a 26-38 sweep), which proved the slip belonged to the model
+    // rather than to the floor. Adding a foot rocker took it to 9.32 and no further, because the
+    // toe can only hold still if the whole chain above it compensates.
+    //
+    // So the chain is inverted: the FOOT'S PATH is authored, and the hip and knee angles are solved
+    // from it each frame. During stance the foot is pinned to the ground and simply translates with
+    // it; during swing it arcs forward. This is the rule the earlier trial produced, applied.
+    //
+    // The cost is real and worth naming: solving per frame means writing transforms per frame,
+    // which is the expensive channel measured in measurements.md. For a demonstration plate that is
+    // affordable. For a crowd it would not be — there, accept the slip, or move the whole figure
+    // and let the ground be still.
+    const THIGH = 0.25 * H, SHANK = 0.24 * H
+    const LEG = THIGH + SHANK
+    const STANCE = 0.60          // fraction of the cycle spent in contact
+    const STEP = 17              // half a stride. Bounded by geometry: see below.
+
+    // THE PELVIS HEIGHT IS NOT ANIMATED — IT IS DERIVED.
+    //
+    // The first attempt authored a bob keyframe and a foot path independently, and the two
+    // contradicted each other: with the hip held 48 units above the ground and the foot placed 22
+    // units forward, the foot is 52.8 units away and the leg is only 49 long. The target was out of
+    // reach every stride, so the solver straightened the leg and the foot flew — the figure kicked
+    // instead of walking, which the live capture showed at once.
+    //
+    // The relationship is not a coincidence to be tuned around, it is a constraint: with the foot
+    // on the ground at horizontal distance x, the hip can only be sqrt(LEG^2 - x^2) above it. Derive
+    // the height from the foot and the bob appears on its own — correct in amplitude, correct in
+    // shape, and twice per cycle without being asked. That is the general lesson: when two
+    // quantities are related by geometry, animate ONE and compute the other. Animating both is how
+    // they end up disagreeing.
+    const groundY = 96                                     // where the sole meets the floor
+
+    // The hip height comes from the EFFECTIVE leg length, not the straight one.
+    //
+    // Deriving it as sqrt(LEG^2 - x^2) puts the hip exactly as high as a STRAIGHT leg reaches, so
+    // the solver had no room to bend the knee and the leg stayed locked at full extension for the
+    // whole stance — instrumenting the solver showed reach/LEG pinned at 1.000, and on screen that
+    // is a figure kicking rather than walking. A real knee carries ~20 degrees of flexion through
+    // the loading response and never straightens completely.
+    //
+    // So the effective length varies through stance, from the published knee angles:
+    //   contact ~5 deg flexion · loading response ~20 · mid-stance ~8 · terminal stance ~5
+    // converted to hip-to-ankle distance by the law of cosines.
+    const effectiveLeg = (u) => {
+      const k = Math.min(1, Math.max(0, u / STANCE))
+      const flex = k < 0.18 ? 10 + (22 - 10) * (k / 0.18)         // contact -> loading response
+        : k < 0.55 ? 22 - (22 - 12) * ((k - 0.18) / 0.37)         // -> mid-stance
+        : 12 - 2 * ((k - 0.55) / 0.45)                           // -> terminal stance
+      const rad = Math.PI - (flex * Math.PI) / 180
+      return Math.sqrt(THIGH * THIGH + SHANK * SHANK - 2 * THIGH * SHANK * Math.cos(rad))
+    }
+    const hipHeight = (x, u) => {
+      const eff = effectiveLeg(u)
+      return Math.sqrt(Math.max(1, eff * eff - x * x))
+    }
+
+    /** Foot position relative to the GROUND at cycle position u in [0,1). */
+    function footTarget(u) {
+      if (u < STANCE) {
+        // Contact: the foot is pinned. Relative to the advancing body it travels straight back.
+        const k = u / STANCE
+        return [STEP - 2 * STEP * k, 0]
+      }
+      // Swing: forward, with lift. The peak is early, as it is in life — clear the ground, then
+      // reach.
+      const k = (u - STANCE) / (1 - STANCE)
+      return [-STEP + 2 * STEP * k, -Math.sin(k * Math.PI) * 12]
+    }
+
+    /** Two-link IK. Returns hip and knee rotations in degrees, in this figure's sign convention. */
+    function solve(tx, ty) {
+      // The clamp has to be LOOSER than any length the hip-height rule can ask for, or the solver
+      // saturates and the knee freezes. Measured at runtime: the knee sat at exactly -16.39 for
+      // every stance frame, which is the angle this clamp implies — a constant is always a clue
+      // that something is saturating rather than solving.
+      const reach = Math.min(Math.hypot(tx, ty), THIGH + SHANK - 0.05)
+      const toTarget = Math.atan2(tx, ty)                       // 0 = straight down, + = forward
+      const cosA = (reach * reach + THIGH * THIGH - SHANK * SHANK) / (2 * reach * THIGH)
+      const a = Math.acos(Math.max(-1, Math.min(1, cosA)))
+      const cosK = (THIGH * THIGH + SHANK * SHANK - reach * reach) / (2 * THIGH * SHANK)
+      const kneeInterior = Math.acos(Math.max(-1, Math.min(1, cosK)))
+      // Hip flexion is negative in this figure; the knee's sign is POSITIVE, which is the opposite
+      // of what it looks like it should be and was wrong for five rounds of visual debugging.
+      //
+      // It was settled by checking the solver against FORWARD kinematics: solve for a target, then
+      // walk the chain forward from the angles and compare. With the negative sign the foot landed
+      // 28 to 47 units from where it was asked to go; with the positive sign the error is 0.00 at
+      // every target. An IK solver is one of the few things that can be verified exactly, in a few
+      // lines, without looking at anything — and staring at renders instead cost far more.
+      return {
+        hip: -(toTarget + a) * 180 / Math.PI,
+        knee: (Math.PI - kneeInterior) * 180 / Math.PI,
+      }
+    }
+
+    const solved = []
+    function leg(parent, phaseOffset, fill, shoeFill, opacity, track) {
+      // Opt OUT of the global fill-box rule. That rule exists so scale/rotate on an SVG child
+      // behaves like it does on an HTML box — but it also re-resolves the coordinates inside a
+      // transform ATTRIBUTE, so rotate(a cx cy) stops meaning what it says. This is the exact trap
+      // recorded in report.md 7b, walked into a second time, and it dismembered the figure until
+      // it was found. Every joint here therefore pins the box and the origin explicitly.
+      const joint = (g) => { g.style.transformBox = 'view-box'; g.style.transformOrigin = '0 0'; return g }
+
+      const thigh = joint(el(parent, 'g', { opacity }))
       el(thigh, 'path', {
-        d: `M-4.5 ${hipY - 1} L4.5 ${hipY - 1} L3.4 ${hipY + kneeLen} L-3.4 ${hipY + kneeLen} Z`,
+        d: `M-4.5 ${hipY - 1} L4.5 ${hipY - 1} L3.4 ${hipY + THIGH} L-3.4 ${hipY + THIGH} Z`,
         fill, 'stroke-linejoin': 'round',
       })
 
-      const shank = el(thigh, 'g')
-      shank.style.transformBox = 'view-box'
-      shank.style.transformOrigin = `0px ${hipY + kneeLen}px`
-      shank.style.animation = `gaitKnee 1.1s linear ${phase}s infinite`
+      const shank = joint(el(thigh, 'g'))
       el(shank, 'path', {
-        d: `M-3.4 ${hipY + kneeLen} L3.4 ${hipY + kneeLen} L2.5 ${hipY + kneeLen + shankLen} L-2.5 ${hipY + kneeLen + shankLen} Z`,
+        d: `M-3.4 ${hipY + THIGH} L3.4 ${hipY + THIGH} L2.5 ${hipY + THIGH + SHANK} L-2.5 ${hipY + THIGH + SHANK} Z`,
         fill, 'stroke-linejoin': 'round',
       })
+      if (track) {
+        el(shank, 'circle', {
+          cx: 0, cy: hipY + THIGH + SHANK, r: 0.01, fill: 'none', 'data-track': `ankle-${track}`,
+        })
+      }
 
-      const foot = el(shank, 'g')
-      foot.style.transformBox = 'view-box'
-      foot.style.transformOrigin = `0px ${hipY + kneeLen + shankLen}px`
-      foot.style.animation = `gaitAnkle 1.1s linear ${phase}s infinite`
+      const foot = joint(el(shank, 'g'))
       el(foot, 'path', {
-        d: `M-3 ${hipY + kneeLen + shankLen - 2} L2.4 ${hipY + kneeLen + shankLen - 2} `
-         + `L11 ${hipY + kneeLen + shankLen + 2.6} L11 ${hipY + kneeLen + shankLen + 4} `
-         + `L-3.6 ${hipY + kneeLen + shankLen + 4} Z`,
+        d: `M-3 ${hipY + THIGH + SHANK - 2} L2.4 ${hipY + THIGH + SHANK - 2} `
+         + `L11 ${hipY + THIGH + SHANK + 2.6} L11 ${hipY + THIGH + SHANK + 4} `
+         + `L-3.6 ${hipY + THIGH + SHANK + 4} Z`,
         fill: shoeFill,
       })
+      if (track === 'near') {
+        el(foot, 'circle', {
+          cx: 9, cy: hipY + THIGH + SHANK + 3.4, r: 0.01, fill: 'none',
+          'data-track': 'toe-near-contact',
+        })
+      }
+      solved.push({ thigh, shank, foot, phaseOffset })
     }
 
     // One arm. Contralateral: it carries the opposite leg's phase.
-    function arm(parent, phase, fill, opacity) {
+    function arm(parent, phase, fill, opacity, track) {
       const shoulderY = (1 - 0.82) * H
       const upper = el(parent, 'g', { opacity })
       upper.style.transformBox = 'view-box'
@@ -2627,11 +2775,16 @@ creature({
         fill,
       })
       el(fore, 'circle', { cx: 0, cy: shoulderY + 0.375 * H, r: 2.6, fill: skin })
+      if (track) {
+        el(fore, 'circle', {
+          cx: 0, cy: shoulderY + 0.375 * H, r: 0.01, fill: 'none', 'data-track': `hand-${track}`,
+        })
+      }
     }
 
     // 1d depth order, drawn in sequence.
-    leg(root, -0.55, '#33495c', '#1c242c', 0.75)      // far leg, half a cycle behind
-    arm(root, 0, '#2c4055', 0.7)                       // far arm, contralateral to the far leg
+    leg(root, 0.5, '#33495c', '#1c242c', 0.75, 'far')     // far leg, half a cycle behind
+    arm(root, 0, '#2c4055', 0.7, 'far')                // far arm, contralateral to the far leg
 
     // Torso: shoulders back, pelvis forward, with a slight forward lean — a walker's trunk is not
     // vertical.
@@ -2654,11 +2807,60 @@ creature({
       fill: '#4a3a2e',
     })
 
-    leg(root, 0, cloth, shoe, 1)                       // near leg
+    leg(root, 0, cloth, shoe, 1, 'near')               // near leg
     // The near arm was the torso's exact colour and disappeared into it — only the hand read.
     // A sleeve one step lighter separates it, which is also what a real garment does under light
     // from above.
-    arm(root, -0.55, '#51708c', 1)                     // near arm, contralateral to the near leg
+    arm(root, -0.55, '#51708c', 1, 'near')             // near arm, contralateral to the near leg
+
+    // The IK driver. One rAF loop solves both legs from the authored foot path. It writes
+    // transforms every frame — the expensive channel — which is the price of contact being correct.
+    const CYCLE = 1100
+    const t0 = performance.now()
+    function drive(now) {
+      const base = ((now - t0) % CYCLE) / CYCLE
+
+      // The supporting leg sets the pelvis height — and where BOTH feet are down, it is the MOST
+      // STRETCHED leg that sets it, not the least. Taking the maximum let the hip rise above what
+      // the forward leg could reach; the solver then clamped that leg to its full length and held
+      // it straight through the whole stance, which is why the figure kicked. Instrumenting the
+      // solver showed it in one line: `reach` pinned at 48.5 while the leg is 49 long.
+      let hipAbove = Infinity
+      for (const l of solved) {
+        const u = (base + l.phaseOffset) % 1
+        if (u < STANCE) hipAbove = Math.min(hipAbove, hipHeight(footTarget(u)[0], u))
+      }
+      if (!isFinite(hipAbove)) hipAbove = hipHeight(0, 0.3)  // both feet airborne: should not happen
+      const hipNow = groundY - hipAbove
+      root.setAttribute('transform', `translate(0 ${(hipNow - hipY).toFixed(2)})`)
+
+      for (const l of solved) {
+        const u = (base + l.phaseOffset) % 1
+        const [fx, fy] = footTarget(u)
+        // Target expressed relative to the hip, which is where the solver works.
+        const { hip, knee } = solve(fx, groundY + fy - hipNow)
+        // The SVG transform ATTRIBUTE, whose centre is in LOCAL coordinates and therefore
+        // travels with the body's own translation. CSS transform-origin with
+        // transform-box: view-box resolves against the ROOT viewBox, which does not move — so
+        // translating the body left every joint pivoting about a point that was no longer it.
+        l.thigh.setAttribute('transform', `rotate(${hip.toFixed(2)} 0 ${hipY})`)
+        l.shank.setAttribute('transform', `rotate(${knee.toFixed(2)} 0 ${hipY + THIGH})`)
+        // The sole stays parallel to the ground through stance — heel down at contact, rolling to
+        // toe at push-off — and hangs slightly down through swing.
+        // Through STANCE the sole is levelled against the ground, so it compensates the whole
+        // chain. Through SWING it must NOT: a swinging foot hangs at a small angle relative to the
+        // shank, and levelling it there meant compensating a 76-degree knee with a 90-degree ankle,
+        // which points the foot straight forward. That was the kick that survived four other
+        // fixes, and only appeared as a number when the driver was sampled at runtime.
+        const level = -(hip + knee)
+        const ankle = u < STANCE
+          ? level + (u < 0.10 ? -14 * (1 - u / 0.10) : 0) + (u > 0.48 ? 24 * ((u - 0.48) / 0.12) : 0)
+          : 6                                              // relative to the shank, toes slightly up
+        l.foot.setAttribute('transform', `rotate(${ankle.toFixed(2)} 0 ${hipY + THIGH + SHANK})`)
+      }
+      requestAnimationFrame(drive)
+    }
+    requestAnimationFrame(drive)
   },
 })
 
@@ -2928,6 +3130,23 @@ const sceneCss = `
   @keyframes gaitBob {
     0%, 50%, 100% { transform: translateY(0.7px) }
     28%, 78%      { transform: translateY(-0.7px) }
+  }
+  /* The rocker: the pivot travels along the sole through stance and returns to the ankle for swing.
+     Percentages match the gait sub-phases exactly — heel contact at 0, flat by 10, heel-off at 40,
+     toe-off at 60, ankle again through the swing. */
+  @keyframes gaitRocker {
+    0%   { transform-origin: -3px 96px }    /* heel strike: pivot at the heel */
+    10%  { transform-origin: -1px 96px }    /* foot flat */
+    40%  { transform-origin:  4px 96px }    /* heel off: rolling forward */
+    60%  { transform-origin:  9px 96px }    /* toe off: pivot at the toe */
+    62%  { transform-origin:  0px 92px }    /* swing: back to the ankle */
+    100% { transform-origin: -3px 96px }
+  }
+  /* The treadmill: exactly one stride of travel per gait cycle, so the ground marks and the planted
+     foot travel together. Any other rate makes the figure look as though it is skating. */
+  @keyframes gaitFloor {
+    from { transform: translateX(0) }
+    to   { transform: translateX(-45px) }
   }
   @keyframes gaitTrunk {
     0%, 50%, 100% { transform: rotate(-1.6deg) }
