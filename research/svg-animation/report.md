@@ -110,6 +110,50 @@ no tuning of the two outlines closes it. A patch that rotates with the far shape
 from under the near one. What works is geometry: extend the parent shape **past the pivot**, so that
 because it does not rotate with the child, it covers the child's root at every angle.
 
+### Draw a body from a thickness table, not from guessed curve handles
+
+The bestiary's first draft was written the way most SVG illustration is written: by typing Bézier
+control points and adjusting them until the shape looked acceptable at thumbnail size. Rendered
+large against a grid it was indefensible — a hole between the melon and the rostrum, a rectangular
+step where one hand-written path met the next, a belly patch floating clear of the body, a rostrum
+that had become a bird's bill.
+
+None of those are drawing mistakes. They are the predictable output of the method. Independent
+paths tuned by eye do not meet, and cannot be checked against anything.
+
+**A fusiform body is not a set of curves. It is a thickness function.** At each station along the
+axis there is a distance up to the back and a distance down to the belly. Write the table, walk the
+stations, and emit one closed outline through them:
+
+```js
+const body = [
+  { x: 0.000, back: 0.012, belly: 0.012 },   // tip of the rostrum
+  { x: 0.058, back: 0.032, belly: 0.030 },   // rostrum, near-cylindrical
+  { x: 0.072, back: 0.058, belly: 0.034 },   // THE CREASE — the melon rises abruptly
+  { x: 0.140, back: 0.094, belly: 0.060 },   // crown of the melon
+  { x: 0.340, back: 0.108, belly: 0.100 },   // maximum girth, 34% back — not the middle
+  ...
+]
+```
+
+Three things follow, and each one removes a class of defect outright:
+
+- **The silhouette is continuous by construction.** There is one path, so there is nothing to
+  misalign. The hole and the step cannot occur.
+- **Every number is a proportion that can be checked against the animal.** "Maximum girth at 34%"
+  is verifiable; a curve handle at `C -3.4 -8.6` is not. Fractions of body length also make the
+  final scale a single multiplier.
+- **Derived shapes inherit the table.** The dolphin's countershaded belly is the same table with the
+  lower half scaled, so it cannot drift off the body — which is exactly what it did when it was a
+  separate hand-written path.
+
+The same table drives the plan view by reading the column as half-width instead of back and belly,
+which is how the shark is built.
+
+What still has to be tuned by hand is what attaches to the body — fins, flippers, the wing of a
+bird. For those the rule from §0 applies: root the attachment INSIDE the outline, and where a part
+rotates, extend its parent past the pivot.
+
 ### Proportions belong in units of the whole
 
 Also taken from the maintainer's `Gulls.tsx`, which had already learned this: express every measure
@@ -433,6 +477,8 @@ parts; those are real problems that are tedious to solve by hand.
   removing state-communicating animation makes the interface worse.
 - **Animating an impression of a subject instead of its mechanism.** §0 — the catalogue of
   primitives is a set of tools, not a substitute for looking at the thing.
+- **Drawing an organic body by typing Bézier handles and adjusting by eye.** §0 — it produces
+  outlines that do not meet and numbers nobody can check. Use a thickness table.
 - **Colour from a hue ramp with noise.** §0b — it is the visual signature of work where nobody
   observed the subject.
 - **Assuming SVG `transform-origin` behaves like HTML's.** §7b — it starts at `0 0`, and a `scale`
