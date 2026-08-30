@@ -1275,9 +1275,38 @@ creature({
       { x: 0.955, back: 0.024, belly: 0.019 },
     ]
 
-    // ONE continuous outline for the whole body. The previous version stitched the trunk to the
-    // tail stock with separate hand-written paths and the seam showed as a rectangular step along
-    // the back — the single most obvious defect when the animal was finally looked at large.
+    // THE TAIL IS BUILT FIRST, so the trunk is painted over its root.
+    //
+    // Drawn last it sat on top of the body, and its own outline cut a visible step across the back,
+    // the belly and the countershading. Order is not a detail here: a rotating part must go UNDER
+    // the part it hinges from, or its edge becomes a seam that no amount of curve-tuning removes.
+    const tail = spine(root, [
+      { pivotX: (0.5 - 0.86) * L, pivotY: 0 },
+      { pivotX: (0.5 - 0.955) * L, pivotY: 0 },
+    ], 'swimFlukeUpDown', 1.9, 0.16)
+
+    const stock = [
+      { x: 0.74, back: 0.058, belly: 0.045 },   // starts well inside the trunk: no visible seam
+      { x: 0.82, back: 0.047, belly: 0.037 },
+      { x: 0.90, back: 0.034, belly: 0.027 },
+      { x: 0.95, back: 0.026, belly: 0.021 },
+      { x: 0.99, back: 0.021, belly: 0.017 },
+    ]
+    el(tail[0], 'path', { d: fusiform(stock, L), fill: skin })
+
+    // Fluke: two broad lobes swept back from a central notch, horizontal. Span about 0.25 L.
+    el(tail[1], 'path', {
+      d: `M${(0.5 - 0.92) * L} ${-0.021 * L} `
+       + `C${(0.5 - 0.99) * L} ${-0.052 * L}, ${(0.5 - 1.08) * L} ${-0.098 * L}, ${(0.5 - 1.17) * L} ${-0.126 * L} `
+       + `C${(0.5 - 1.19) * L} ${-0.108 * L}, ${(0.5 - 1.15) * L} ${-0.075 * L}, ${(0.5 - 1.08) * L} ${-0.040 * L} `
+       + `C${(0.5 - 1.04) * L} ${-0.020 * L}, ${(0.5 - 1.015) * L} ${-0.008 * L}, ${(0.5 - 1.008) * L} ${0} `
+       + `C${(0.5 - 1.015) * L} ${0.008 * L}, ${(0.5 - 1.04) * L} ${0.020 * L}, ${(0.5 - 1.08) * L} ${0.040 * L} `
+       + `C${(0.5 - 1.15) * L} ${0.075 * L}, ${(0.5 - 1.19) * L} ${0.108 * L}, ${(0.5 - 1.17) * L} ${0.126 * L} `
+       + `C${(0.5 - 1.08) * L} ${0.098 * L}, ${(0.5 - 0.99) * L} ${0.052 * L}, ${(0.5 - 0.92) * L} ${0.021 * L} Z`,
+      fill: skin,
+    })
+
+    // Now the trunk, over the tail's root.
     el(root, 'path', { d: fusiform(body, L), fill: skin })
 
     // Belly countershading, built from the SAME table so it can never drift off the body: the
@@ -1305,43 +1334,20 @@ creature({
       fill: skin,
     })
 
-    // Pectoral flipper: set LOW and well FORWARD — its root is at ~26%, just behind the head, not
-    // at mid-body. Swept back and pointed.
+    // Pectoral flipper — a DOLPHIN's, which is a different object from a whale's:
+    //   · short: about 0.14 L, against the humpback's 0.30
+    //   · BROAD at the root and tapering, so it reads as a paddle, not a blade
+    //   · gently swept back with a slightly convex leading edge and a concave trailing edge
+    //   · rooted at ~24%, just behind the head, and angled down and back
+    // The root is buried inside the flank so the join has no edge.
     el(root, 'path', {
-      d: `M${(0.5 - 0.235) * L} ${0.082 * L} `
-       + `C${(0.5 - 0.27) * L} ${0.135 * L}, ${(0.5 - 0.33) * L} ${0.175 * L}, ${(0.5 - 0.385) * L} ${0.192 * L} `
-       + `C${(0.5 - 0.345) * L} ${0.140 * L}, ${(0.5 - 0.30) * L} ${0.100 * L}, ${(0.5 - 0.275) * L} ${0.080 * L} Z`,
+      d: `M${(0.5 - 0.205) * L} ${0.070 * L} `                                  // root, inside the body
+       + `C${(0.5 - 0.245) * L} ${0.125 * L}, ${(0.5 - 0.295) * L} ${0.175 * L}, ${(0.5 - 0.355) * L} ${0.205 * L} `  // leading edge, convex
+       + `C${(0.5 - 0.372) * L} ${0.208 * L}, ${(0.5 - 0.378) * L} ${0.196 * L}, ${(0.5 - 0.366) * L} ${0.184 * L} `  // rounded tip
+       + `C${(0.5 - 0.325) * L} ${0.150 * L}, ${(0.5 - 0.283) * L} ${0.108 * L}, ${(0.5 - 0.262) * L} ${0.062 * L} Z`, // trailing edge, concave
       fill: dark,
     })
 
-    // The tail. It hinges at the peduncle, and its own shape starts INSIDE the body outline so the
-    // joint has no edge to open. Two segments: stock, then fluke, the fluke lagging.
-    const tail = spine(root, [
-      { pivotX: (0.5 - 0.86) * L, pivotY: 0 },
-      { pivotX: (0.5 - 0.955) * L, pivotY: 0 },
-    ], 'swimFlukeUpDown', 1.9, 0.16)
-
-    const stock = [
-      { x: 0.74, back: 0.060, belly: 0.048 },   // starts well inside the trunk: no visible seam
-      { x: 0.82, back: 0.047, belly: 0.037 },
-      { x: 0.90, back: 0.034, belly: 0.027 },
-      { x: 0.95, back: 0.026, belly: 0.021 },
-      { x: 0.99, back: 0.021, belly: 0.017 },
-    ]
-    el(tail[0], 'path', { d: fusiform(stock, L), fill: skin })
-
-    // Fluke: two broad lobes swept back from a central notch, horizontal. Span about 0.24 L —
-    // wide, which is what makes a cetacean tail read as a cetacean tail and not a fish's.
-    el(tail[1], 'path', {
-      d: `M${(0.5 - 0.92) * L} ${-0.021 * L} `
-       + `C${(0.5 - 0.99) * L} ${-0.052 * L}, ${(0.5 - 1.08) * L} ${-0.098 * L}, ${(0.5 - 1.17) * L} ${-0.126 * L} `
-       + `C${(0.5 - 1.19) * L} ${-0.108 * L}, ${(0.5 - 1.15) * L} ${-0.075 * L}, ${(0.5 - 1.08) * L} ${-0.040 * L} `
-       + `C${(0.5 - 1.04) * L} ${-0.020 * L}, ${(0.5 - 1.015) * L} ${-0.008 * L}, ${(0.5 - 1.008) * L} ${0} `
-       + `C${(0.5 - 1.015) * L} ${0.008 * L}, ${(0.5 - 1.04) * L} ${0.020 * L}, ${(0.5 - 1.08) * L} ${0.040 * L} `
-       + `C${(0.5 - 1.15) * L} ${0.075 * L}, ${(0.5 - 1.19) * L} ${0.108 * L}, ${(0.5 - 1.17) * L} ${0.126 * L} `
-       + `C${(0.5 - 1.08) * L} ${0.098 * L}, ${(0.5 - 0.99) * L} ${0.052 * L}, ${(0.5 - 0.92) * L} ${0.021 * L} Z`,
-      fill: skin,
-    })
   },
 })
 
@@ -1389,6 +1395,33 @@ creature({
       { x: 0.930, back: 0.032, belly: 0.023 },   // peduncle
       { x: 0.970, back: 0.025, belly: 0.018 },
     ]
+    // Tail first, so the trunk covers its root — same rule as the dolphin. A rotating part goes
+    // UNDER the part it hinges from, or its outline cuts a step across the body.
+    const tail = spine(root, [
+      { pivotX: (0.5 - 0.88) * L, pivotY: 0 },
+      { pivotX: (0.5 - 0.975) * L, pivotY: 0 },
+    ], 'swimFlukeUpDown', 5.4, 0.16)
+
+    const stock = [
+      { x: 0.76, back: 0.078, belly: 0.055 },
+      { x: 0.86, back: 0.050, belly: 0.036 },
+      { x: 0.93, back: 0.034, belly: 0.024 },
+      { x: 0.99, back: 0.024, belly: 0.017 },
+    ]
+    el(tail[0], 'path', { d: fusiform(stock, L), fill: skin })
+
+    // Fluke: broad, deeply notched, with a ragged trailing edge. Span ~0.33 L.
+    el(tail[1], 'path', {
+      d: `M${(0.5 - 0.94) * L} ${-0.024 * L} `
+       + `C${(0.5 - 1.02) * L} ${-0.075 * L}, ${(0.5 - 1.12) * L} ${-0.145 * L}, ${(0.5 - 1.23) * L} ${-0.175 * L} `
+       + `C${(0.5 - 1.26) * L} ${-0.150 * L}, ${(0.5 - 1.20) * L} ${-0.100 * L}, ${(0.5 - 1.10) * L} ${-0.048 * L} `
+       + `C${(0.5 - 1.05) * L} ${-0.022 * L}, ${(0.5 - 1.015) * L} ${-0.008 * L}, ${(0.5 - 1.008) * L} ${0} `
+       + `C${(0.5 - 1.015) * L} ${0.008 * L}, ${(0.5 - 1.05) * L} ${0.022 * L}, ${(0.5 - 1.10) * L} ${0.048 * L} `
+       + `C${(0.5 - 1.20) * L} ${0.100 * L}, ${(0.5 - 1.26) * L} ${0.150 * L}, ${(0.5 - 1.23) * L} ${0.175 * L} `
+       + `C${(0.5 - 1.12) * L} ${0.145 * L}, ${(0.5 - 1.02) * L} ${0.075 * L}, ${(0.5 - 0.94) * L} ${0.024 * L} Z`,
+      fill: skin,
+    })
+
     el(root, 'path', { d: fusiform(body, L), fill: skin })
 
     const bellyBand = body.map((s) => ({ x: s.x, back: -s.belly * 0.42, belly: s.belly * 0.94 }))
@@ -1431,50 +1464,39 @@ creature({
     // edge, white below. It sculls slowly and out of phase with the tail.
     const pec = el(root, 'g')
     pec.style.transformBox = 'view-box'
-    pec.style.transformOrigin = `${(0.5 - 0.30) * L}px ${0.105 * L}px`
+    pec.style.transformOrigin = '26px 4px'
     pec.style.animation = 'whalePectoral 5.4s ease-in-out infinite'
+    // A humpback's pectoral, written as an explicit outline. Generating it from an axis and a
+    // chord function gave no control over the two things that carry the shape — the width and the
+    // rounded tip — and produced first a saw blade and then a ribbon.
+    //
+    // The shape, from the animal:
+    //   · about 0.30 L long: a third of the whale, the longest flipper of any cetacean
+    //   · WIDE — roughly 1/6 of its own length, widest a third of the way out
+    //   · the LEADING edge (upper, forward) carries rounded tubercles; the trailing edge is smooth
+    //   · the tip is ROUNDED, never pointed
+    //   · white below, which is why it is the pale shape on a dark animal
+    //
+    // Coordinates are absolute in the L-grid: the root sits inside the flank at ~22%, and the tip
+    // reaches back and down to ~52%.
     el(pec, 'path', {
-      d: `M${(0.5 - 0.23) * L} ${0.055 * L} `                                    // root buried in the flank
-       + `C${(0.5 - 0.28) * L} ${0.17 * L}, ${(0.5 - 0.38) * L} ${0.28 * L}, ${(0.5 - 0.52) * L} ${0.345 * L} `
-       + `C${(0.5 - 0.565) * L} ${0.365 * L}, ${(0.5 - 0.60) * L} ${0.345 * L}, ${(0.5 - 0.565) * L} ${0.305 * L} `
-       + `C${(0.5 - 0.45) * L} ${0.235 * L}, ${(0.5 - 0.34) * L} ${0.140 * L}, ${(0.5 - 0.29) * L} ${0.050 * L} Z`,
-      fill: '#a8bccc', stroke: '#7d94a8', 'stroke-width': 0.8,
+      d: 'M32 -1 C 30.5 1.5, 29.5 2.5, 28.5 3.5 '
+        // Leading edge, root to tip. Each pair of curves is one tubercle: out, then back in.
+       + 'C 26.5 7.5, 25.5 9.5, 23.5 11.5 '
+       + 'C 22.2 13.6, 21.8 14.6, 20 16.4 '
+       + 'C 18.4 18.4, 17.8 19.3, 15.8 21.1 '
+       + 'C 14 22.9, 13.3 23.7, 11.2 25.3 '
+       + 'C 9.2 26.9, 8.4 27.5, 6.2 28.8 '
+       + 'C 4.0 30.1, 3.1 30.6, 0.8 31.5 '
+        // Rounded tip.
+       + 'C -1.8 32.5, -4.4 32.2, -5.2 30.2 '
+       + 'C -5.9 28.4, -4.6 26.6, -2.6 25.4 '
+        // Trailing edge back to the root: smooth, no tubercles, gently concave.
+       + 'C 3.4 21.6, 10.6 15.8, 16.4 9.6 '
+       + 'C 20.6 5.6, 24.5 1.8, 28 -2.5 Z',
+      fill: '#cbdae5', stroke: '#93a8ba', 'stroke-width': 0.7, 'stroke-linejoin': 'round',
     })
-    // Scalloped leading edge: the row of bumps that makes a humpback flipper unmistakable. Placed
-    // along the leading edge itself, interpolated between root and tip.
-    for (let i = 1; i <= 6; i++) {
-      const k = i / 7
-      el(pec, 'circle', {
-        cx: (0.5 - (0.245 + k * 0.275)) * L,
-        cy: (0.075 + k * 0.265) * L,
-        r: 1.7, fill: '#a8bccc',
-      })
-    }
 
-    const tail = spine(root, [
-      { pivotX: (0.5 - 0.88) * L, pivotY: 0 },
-      { pivotX: (0.5 - 0.975) * L, pivotY: 0 },
-    ], 'swimFlukeUpDown', 5.4, 0.16)
-
-    const stock = [
-      { x: 0.78, back: 0.072, belly: 0.052 },
-      { x: 0.86, back: 0.050, belly: 0.036 },
-      { x: 0.93, back: 0.034, belly: 0.024 },
-      { x: 0.99, back: 0.024, belly: 0.017 },
-    ]
-    el(tail[0], 'path', { d: fusiform(stock, L), fill: skin })
-
-    // Fluke: broad, with a serrated trailing edge and a deep central notch. Span ~0.33 L.
-    el(tail[1], 'path', {
-      d: `M${(0.5 - 0.94) * L} ${-0.024 * L} `
-       + `C${(0.5 - 1.02) * L} ${-0.075 * L}, ${(0.5 - 1.12) * L} ${-0.145 * L}, ${(0.5 - 1.23) * L} ${-0.175 * L} `
-       + `C${(0.5 - 1.26) * L} ${-0.150 * L}, ${(0.5 - 1.20) * L} ${-0.100 * L}, ${(0.5 - 1.10) * L} ${-0.048 * L} `
-       + `C${(0.5 - 1.05) * L} ${-0.022 * L}, ${(0.5 - 1.015) * L} ${-0.008 * L}, ${(0.5 - 1.008) * L} ${0} `
-       + `C${(0.5 - 1.015) * L} ${0.008 * L}, ${(0.5 - 1.05) * L} ${0.022 * L}, ${(0.5 - 1.10) * L} ${0.048 * L} `
-       + `C${(0.5 - 1.20) * L} ${0.100 * L}, ${(0.5 - 1.26) * L} ${0.150 * L}, ${(0.5 - 1.23) * L} ${0.175 * L} `
-       + `C${(0.5 - 1.12) * L} ${0.145 * L}, ${(0.5 - 1.02) * L} ${0.075 * L}, ${(0.5 - 0.94) * L} ${0.024 * L} Z`,
-      fill: skin,
-    })
   },
 })
 

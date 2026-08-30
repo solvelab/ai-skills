@@ -154,6 +154,51 @@ What still has to be tuned by hand is what attaches to the body — fins, flippe
 bird. For those the rule from §0 applies: root the attachment INSIDE the outline, and where a part
 rotates, extend its parent past the pivot.
 
+### A rotating part goes UNDER the part it hinges from
+
+The dolphin and the whale both showed a step cut across the back, the belly and the countershading,
+right where the tail met the trunk. It was not a curve that needed adjusting: the tail segment was
+being drawn **after** the body, so its own outline sat on top and its edge became a seam.
+
+Reversing the order — build the tail first, paint the trunk over its root — removed the defect from
+both animals at once and needed no change to either shape.
+
+The general form, which also fixed the gull's wing:
+
+> **Draw the rotating child first, then the parent over its root. Where that is impossible, extend
+> the parent past the pivot.** A join between a moving part and a still one is only invisible while
+> one of them covers the other's edge; two outlines that merely meet will separate at some angle of
+> the rotation, and no tuning of either outline prevents it.
+
+### An appendage is species-specific. Do not reuse it.
+
+The sharpest correction in this whole exercise: the dolphin and the humpback were given the *same*
+pectoral geometry at different scales, and the maintainer's response was that the flipper made no
+sense because **the geometry of each animal is different**. It was right, and the error is worth
+naming because it is the natural one to make once a body-building method exists.
+
+They are not the same organ at two sizes:
+
+| | dolphin | humpback |
+|---|---|---|
+| length | ~0.14 L | **~0.30 L** — a third of the animal, hence *Megaptera*, "big wing" |
+| shape | short, broad-rooted paddle, slightly falcate | long, narrow, gently arced |
+| leading edge | smooth | **rounded tubercles** |
+| tip | tapered | **rounded** |
+| colour | body colour | pale below — it is the light shape on a dark animal |
+
+Getting this wrong is not a rendering flaw, it is a claim about the animal. And the fix is not
+finer tuning of one flipper: it is refusing to share the shape at all.
+
+Two attempts failed before the third worked, and the failures are instructive. Generating the
+flipper from an axis plus a chord function produced a **saw blade** (straight axis, uniform teeth),
+then a **ribbon** (curved axis, but no control over width or tip). Written as an explicit outline —
+where each pair of curves is one tubercle and the tip is an arc — it came out right first time.
+
+**Procedural generation is right for the body and wrong for the appendages.** The body has many
+stations and a smooth rule, so a table wins. A flipper has perhaps eight meaningful features, and
+writing them down directly beats deriving them from parameters that then have to be tuned blind.
+
 ### Proportions belong in units of the whole
 
 Also taken from the maintainer's `Gulls.tsx`, which had already learned this: express every measure
@@ -477,6 +522,8 @@ parts; those are real problems that are tedious to solve by hand.
   removing state-communicating animation makes the interface worse.
 - **Animating an impression of a subject instead of its mechanism.** §0 — the catalogue of
   primitives is a set of tools, not a substitute for looking at the thing.
+- **Reusing one appendage shape across species.** §0 — a dolphin's flipper and a humpback's are
+  different organs, not one shape at two scales.
 - **Drawing an organic body by typing Bézier handles and adjusting by eye.** §0 — it produces
   outlines that do not meet and numbers nobody can check. Use a thickness table.
 - **Colour from a hue ramp with noise.** §0b — it is the visual signature of work where nobody
