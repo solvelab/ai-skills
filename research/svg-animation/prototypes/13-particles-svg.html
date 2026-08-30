@@ -1,0 +1,53 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>13 — 2000 particles as SVG nodes</title>
+<style>
+  html, body { margin: 0; background: #05070f; color: #cfe1ff;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .caption { padding: 8px 12px; }
+  svg { display: block; width: 100vw; height: calc(100vh - 40px); }
+</style>
+<div class="caption">13 — <b>2000 particles as SVG circles</b>, positions written per frame. Snow drifting.</div>
+<svg id="stage" viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid slice"></svg>
+<script>
+  // Pair to 14, which draws the identical simulation into a canvas. Same particle count, same
+  // integration step, same seeded start state, so the two differ only in what the browser is asked
+  // to keep: 2000 retained-mode nodes with style and layout each, or one bitmap.
+  // This is the decision every atmospheric effect eventually forces — snow, rain, embers, dust.
+  const SVGNS = 'http://www.w3.org/2000/svg'
+  const COUNT = 2000
+  const stage = document.getElementById('stage')
+  const parts = []
+
+  // A tiny deterministic generator so both prototypes start from the same field, and so a re-run
+  // measures the same scene rather than a new random one.
+  let seed = 1337
+  const rand = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff
+
+  for (let i = 0; i < COUNT; i++) {
+    const c = document.createElementNS(SVGNS, 'circle')
+    const p = { x: rand() * 1200, y: rand() * 640, r: 0.7 + rand() * 1.8, drift: rand() * 2 - 1 }
+    p.speed = 12 + p.r * 22
+    c.setAttribute('r', p.r)
+    c.setAttribute('fill', '#eaf2ff')
+    c.setAttribute('opacity', 0.35 + p.r * 0.22)
+    stage.appendChild(c)
+    p.node = c
+    parts.push(p)
+  }
+
+  let last = performance.now()
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000, 0.05)
+    last = now
+    for (const p of parts) {
+      p.y += p.speed * dt
+      p.x += Math.sin(now / 1400 + p.y / 90) * p.drift * 14 * dt
+      if (p.y > 645) { p.y = -5; p.x = rand() * 1200 }
+      p.node.setAttribute('cx', p.x)
+      p.node.setAttribute('cy', p.y)
+    }
+    requestAnimationFrame(frame)
+  }
+  requestAnimationFrame(frame)
+</script>

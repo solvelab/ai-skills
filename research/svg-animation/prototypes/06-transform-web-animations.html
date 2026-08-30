@@ -1,0 +1,38 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>06 — animate transform with the Web Animations API</title>
+<style>
+  html, body { margin: 0; background: #0b1020; color: #cfe1ff;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .caption { padding: 8px 12px; }
+  svg { display: block; width: 100vw; height: calc(100vh - 40px); }
+</style>
+<div class="caption">06 — <b>Web Animations API</b>. 300 circles, timeline owned by the browser, script only sets it up.</div>
+<svg id="stage" viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid slice"></svg>
+<script>
+  // WAAPI is the interesting middle: the timeline belongs to the browser as with CSS, but it is
+  // built and controlled from script as with 02. If SVG's per-frame cost comes from JS writing
+  // style, this page is cheap. If it comes from SVG geometry, this page costs the same as 03.
+  const COUNT = 300
+  const stage = document.getElementById('stage')
+  for (let i = 0; i < COUNT; i++) {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    const row = i % 20, col = Math.floor(i / 20)
+    c.setAttribute('cx', 40 + col * 78)
+    c.setAttribute('cy', 20 + row * 32)
+    c.setAttribute('r', 7)
+    c.setAttribute('fill', `hsl(${(i * 7) % 360} 70% 62%)`)
+    stage.appendChild(c)
+
+    c.animate(
+      [{ transform: 'translateX(-30px)' }, { transform: 'translateX(30px)' }],
+      {
+        duration: 2000,
+        iterations: Infinity,
+        direction: 'alternate',
+        easing: 'ease-in-out',
+        delay: -(i / COUNT) * 2000,
+      },
+    )
+  }
+</script>

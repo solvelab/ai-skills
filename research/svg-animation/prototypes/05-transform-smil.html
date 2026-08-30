@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>05 — animate transform with SMIL (animateTransform)</title>
+<style>
+  html, body { margin: 0; background: #0b1020; color: #cfe1ff;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .caption { padding: 8px 12px; }
+  svg { display: block; width: 100vw; height: calc(100vh - 40px); }
+</style>
+<div class="caption">05 — <b>SMIL animateTransform</b>. 300 circles, declarative, no script during playback.</div>
+<svg id="stage" viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid slice"></svg>
+<script>
+  // SMIL is the option people reach for when the animation must live inside the SVG file itself
+  // (an <img> src, an icon in a CMS) where CSS and script never run. It is not in SVG 2, but every
+  // current engine still ships it. Measured here on the same scene as 01-04 so the cost of that
+  // portability is a number rather than an opinion.
+  const COUNT = 300
+  const SVGNS = 'http://www.w3.org/2000/svg'
+  const stage = document.getElementById('stage')
+  for (let i = 0; i < COUNT; i++) {
+    const g = document.createElementNS(SVGNS, 'g')
+    const c = document.createElementNS(SVGNS, 'circle')
+    const row = i % 20, col = Math.floor(i / 20)
+    c.setAttribute('cx', 40 + col * 78)
+    c.setAttribute('cy', 20 + row * 32)
+    c.setAttribute('r', 7)
+    c.setAttribute('fill', `hsl(${(i * 7) % 360} 70% 62%)`)
+    g.appendChild(c)
+
+    const a = document.createElementNS(SVGNS, 'animateTransform')
+    a.setAttribute('attributeName', 'transform')
+    a.setAttribute('type', 'translate')
+    a.setAttribute('values', '-30 0; 30 0; -30 0')
+    a.setAttribute('dur', '4s')
+    a.setAttribute('repeatCount', 'indefinite')
+    a.setAttribute('calcMode', 'spline')
+    a.setAttribute('keyTimes', '0; 0.5; 1')
+    a.setAttribute('keySplines', '0.42 0 0.58 1; 0.42 0 0.58 1')
+    a.setAttribute('begin', `${-(i / COUNT) * 4}s`)
+    g.appendChild(a)
+    stage.appendChild(g)
+  }
+</script>

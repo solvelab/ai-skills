@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>04 — control: the same CSS keyframes on HTML elements</title>
+<style>
+  html, body { margin: 0; background: #0b1020; color: #cfe1ff;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .caption { padding: 8px 12px; }
+  #stage { position: relative; width: 100vw; height: calc(100vh - 40px); overflow: hidden; }
+  .dot { position: absolute; width: 14px; height: 14px; border-radius: 50%;
+    animation: slide 2s ease-in-out infinite alternate; will-change: transform; }
+
+  /* Byte-identical timing to 03. Only the element type differs. */
+  @keyframes slide {
+    from { transform: translateX(-30px); }
+    to   { transform: translateX(30px); }
+  }
+</style>
+<div class="caption">04 — <b>control: CSS keyframes on HTML divs</b>. 300 dots, same timing as 03.</div>
+<div id="stage"></div>
+<script>
+  // The control for 03. HTML boxes animating transform are the textbook composited case, so this
+  // page establishes what "composited" looks like in this harness on this machine. Read 03 against
+  // it: a gap between the two is the SVG-specific cost, measured rather than cited.
+  const COUNT = 300
+  const stage = document.getElementById('stage')
+  // The SVG pair lays out in a 1200x640 viewBox scaled to the viewport; mirror that mapping so the
+  // two scenes cover the same screen area and the raster cost is comparable.
+  const scaleX = window.innerWidth / 1200
+  const scaleY = (window.innerHeight - 40) / 640
+  for (let i = 0; i < COUNT; i++) {
+    const d = document.createElement('div')
+    const row = i % 20, col = Math.floor(i / 20)
+    d.className = 'dot'
+    d.style.left = `${(40 + col * 78) * scaleX - 7}px`
+    d.style.top = `${(20 + row * 32) * scaleY - 7}px`
+    d.style.background = `hsl(${(i * 7) % 360} 70% 62%)`
+    d.style.animationDelay = `${-(i / COUNT) * 2}s`
+    stage.appendChild(d)
+  }
+</script>

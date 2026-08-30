@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>02 — animate transform (JS, per frame)</title>
+<style>
+  html, body { margin: 0; background: #0b1020; color: #cfe1ff;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .caption { padding: 8px 12px; }
+  svg { display: block; width: 100vw; height: calc(100vh - 40px); }
+</style>
+<div class="caption">02 — <b>transform</b>, written by JS every frame. 300 circles.</div>
+<svg id="stage" viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid slice"></svg>
+<script>
+  // Pair to 01. Identical scene and identical motion; the only difference is that the offset is
+  // written to the transform channel instead of the cx geometry attribute. JS drives both, so
+  // this pair isolates the channel and says nothing yet about CSS vs JS (that is 03 vs 04).
+  const COUNT = 300
+  const stage = document.getElementById('stage')
+  const circles = []
+
+  for (let i = 0; i < COUNT; i++) {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    const row = i % 20, col = Math.floor(i / 20)
+    c.setAttribute('cx', 40 + col * 78)   // set once, never touched again
+    c.setAttribute('cy', 20 + row * 32)
+    c.setAttribute('r', 7)
+    c.setAttribute('fill', `hsl(${(i * 7) % 360} 70% 62%)`)
+    c.dataset.phase = (i / COUNT) * Math.PI * 2
+    stage.appendChild(c)
+    circles.push(c)
+  }
+
+  function frame(now) {
+    const t = now / 1000
+    for (const c of circles) {
+      const x = Math.sin(t + +c.dataset.phase) * 30
+      c.style.transform = `translateX(${x}px)`   // <- the channel under test
+    }
+    requestAnimationFrame(frame)
+  }
+  requestAnimationFrame(frame)
+</script>

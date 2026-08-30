@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>10 — 1500 &lt;use&gt; references to one symbol</title>
+<style>
+  html, body { margin: 0; background: #05070f; color: #cfe1ff;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .caption { padding: 8px 12px; }
+  #stage { position: relative; width: 100vw; height: calc(100vh - 40px); overflow: hidden; }
+  svg { position: absolute; inset: 0; width: 100%; height: 100%;
+    animation: drift 20s linear infinite; will-change: transform; }
+  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(-200px); } }
+</style>
+<div class="caption">10 — <b>1500 &lt;use&gt; of one &lt;defs&gt; path</b>. Same stars, same drift as 09.</div>
+<div id="stage"></div>
+<script>
+  // Pair to 09. Byte-identical star positions, scales, opacities and drift. The only change is
+  // that the geometry is declared once and referenced. <use> is widely recommended as the way to
+  // keep an SVG scene light; this pair is what turns that recommendation into a number, including
+  // the possibility that it does not help, since each <use> still instantiates a shadow subtree.
+  const SVGNS = 'http://www.w3.org/2000/svg'
+  const XLINK = 'http://www.w3.org/1999/xlink'
+  const COUNT = 1500
+  const STAR = 'M0-6 1.8-1.8 6 0 1.8 1.8 0 6-1.8 1.8-6 0-1.8-1.8Z'
+
+  const svg = document.createElementNS(SVGNS, 'svg')
+  svg.setAttribute('viewBox', '0 0 1400 640')
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid slice')
+
+  const defs = document.createElementNS(SVGNS, 'defs')
+  const star = document.createElementNS(SVGNS, 'path')
+  star.setAttribute('id', 'star')
+  star.setAttribute('d', STAR)
+  defs.appendChild(star)
+  svg.appendChild(defs)
+
+  for (let i = 0; i < COUNT; i++) {
+    const u = document.createElementNS(SVGNS, 'use')
+    u.setAttribute('href', '#star')
+    u.setAttributeNS(XLINK, 'xlink:href', '#star')   // still needed by some older renderers
+    u.setAttribute('transform',
+      `translate(${(i * 137) % 1400} ${(i * 89) % 640}) scale(${0.3 + (i % 5) * 0.15})`)
+    u.setAttribute('fill', '#dce8ff')
+    u.setAttribute('opacity', 0.3 + (i % 5) * 0.12)
+    svg.appendChild(u)
+  }
+  document.getElementById('stage').appendChild(svg)
+</script>

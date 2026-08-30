@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>11 — animated feTurbulence (the usual cloud/smoke recipe)</title>
+<style>
+  html, body { margin: 0; background: #0b1020; color: #cfe1ff;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .caption { padding: 8px 12px; }
+  svg { display: block; width: 100vw; height: calc(100vh - 40px); }
+</style>
+<div class="caption">11 — <b>animated feTurbulence</b>: baseFrequency animated by SMIL. The recipe every cloud tutorial gives.</div>
+<svg id="stage" viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <filter id="clouds" x="0" y="0" width="100%" height="100%">
+      <!-- Animating baseFrequency forces the whole noise field to be regenerated every frame.
+           That regeneration is the thing under test; 12 pays it once instead. -->
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.014" numOctaves="4" seed="7"
+                    result="noise">
+        <animate attributeName="baseFrequency" dur="18s" repeatCount="indefinite"
+                 values="0.008 0.014; 0.011 0.017; 0.008 0.014"/>
+      </feTurbulence>
+      <feColorMatrix in="noise" type="matrix" result="tinted"
+        values="0 0 0 0 0.62
+                0 0 0 0 0.72
+                0 0 0 0 0.92
+                0 0 0 -1.1 1.05"/>
+      <feComposite in="tinted" in2="SourceGraphic" operator="in"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="640" fill="#0b1020"/>
+  <rect width="1200" height="640" filter="url(#clouds)" fill="#fff"/>
+</svg>

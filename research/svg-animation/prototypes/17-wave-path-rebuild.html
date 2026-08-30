@@ -1,0 +1,51 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>17 — waves by rebuilding the path every frame</title>
+<style>
+  html, body { margin: 0; background: #071427; color: #cfe1ff;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .caption { padding: 8px 12px; }
+  svg { display: block; width: 100vw; height: calc(100vh - 40px); }
+</style>
+<div class="caption">17 — <b>waves rebuilt per frame</b>. 4 layers, each a fresh <code>d</code> from summed sines.</div>
+<svg id="stage" viewBox="0 0 1200 640" preserveAspectRatio="none"></svg>
+<script>
+  // Pair to 18. The honest way to get a truly non-repeating water surface: evaluate the sum of a
+  // few sines at N sample points and emit a new path each frame. Every wave changes shape, so no
+  // loop is ever visible — and every frame writes geometry, which 01 showed is the expensive
+  // channel. 18 buys the cost back by trading true variation for a seamless translation.
+  const SVGNS = 'http://www.w3.org/2000/svg'
+  const LAYERS = 4
+  const SAMPLES = 90
+  const stage = document.getElementById('stage')
+  const layers = []
+
+  for (let d = 0; d < LAYERS; d++) {
+    const p = document.createElementNS(SVGNS, 'path')
+    p.setAttribute('fill', `hsl(205 70% ${16 + d * 7}%)`)
+    p.setAttribute('opacity', 0.55 + d * 0.14)
+    stage.appendChild(p)
+    layers.push({ node: p, base: 300 + d * 52, amp: 26 - d * 4, speed: 0.5 + d * 0.22, phase: d * 1.7 })
+  }
+
+  function frame(now) {
+    const t = now / 1000
+    for (const l of layers) {
+      let d = `M0 640 L0 ${l.base}`
+      for (let i = 0; i <= SAMPLES; i++) {
+        const x = (i / SAMPLES) * 1200
+        // Three incommensurable frequencies: the sum never repeats exactly, which is what keeps
+        // water from reading as a loop.
+        const y = l.base
+          + Math.sin(x / 190 + t * l.speed + l.phase) * l.amp
+          + Math.sin(x / 71 - t * l.speed * 1.7) * l.amp * 0.4
+          + Math.sin(x / 37 + t * l.speed * 2.3) * l.amp * 0.18
+        d += ` L${x.toFixed(1)} ${y.toFixed(2)}`
+      }
+      d += ' L1200 640 Z'
+      l.node.setAttribute('d', d)
+    }
+    requestAnimationFrame(frame)
+  }
+  requestAnimationFrame(frame)
+</script>

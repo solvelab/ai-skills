@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>03 — animate transform with CSS keyframes, on SVG elements</title>
+<style>
+  html, body { margin: 0; background: #0b1020; color: #cfe1ff;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .caption { padding: 8px 12px; }
+  svg { display: block; width: 100vw; height: calc(100vh - 40px); }
+
+  /* Declarative: the browser owns the timeline. No script runs during the animation. */
+  @keyframes slide {
+    from { transform: translateX(-30px); }
+    to   { transform: translateX(30px); }
+  }
+  circle {
+    animation: slide 2s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+</style>
+<div class="caption">03 — <b>CSS keyframes on SVG circles</b>. 300 circles, no script during playback.</div>
+<svg id="stage" viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid slice"></svg>
+<script>
+  // Pair to 04, which runs the identical CSS against HTML divs. If SVG elements can be composited
+  // the way HTML boxes are, these two pages report the same main-thread cost. If SVG carries the
+  // limitation the 2020 Blink README described, 03 pays per-frame style/layout and 04 does not.
+  // Script builds the scene and then stops; nothing below runs while the animation plays.
+  const COUNT = 300
+  const stage = document.getElementById('stage')
+  for (let i = 0; i < COUNT; i++) {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    const row = i % 20, col = Math.floor(i / 20)
+    c.setAttribute('cx', 40 + col * 78)
+    c.setAttribute('cy', 20 + row * 32)
+    c.setAttribute('r', 7)
+    c.setAttribute('fill', `hsl(${(i * 7) % 360} 70% 62%)`)
+    // Stagger by phase so the scene reads as motion rather than one rigid block.
+    c.style.animationDelay = `${-(i / COUNT) * 2}s`
+    stage.appendChild(c)
+  }
+</script>

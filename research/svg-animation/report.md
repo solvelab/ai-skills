@@ -1,0 +1,313 @@
+# SVG animation — research report
+
+Scope: what is true about animating SVG on the web in August 2026, what it costs, and which widely
+repeated advice does not survive measurement.
+
+Live showcase, with every scene running and the reduced-motion variant on a switch:
+<https://claude.ai/code/artifact/f92ae439-2e51-4977-8f6f-acb481a0c031>
+
+Companion files: [`measurements.md`](measurements.md) (every number, its method and its blind
+spots), [`primitives.md`](primitives.md) (the reusable behaviours), [`decision.md`](decision.md)
+(where this knowledge should live).
+
+Claims are labelled: **[measured]** here, **[source]** read in a primary document, **[unknown]**
+not established.
+
+---
+
+## 1. The five mechanisms, and why the choice matters less than people think
+
+SVG can be animated five ways. The SVG 2 specification lists them itself and declines to require
+any of them: *"SVG does not mandate support for any of these animation methods"* **[source:
+w3.org/TR/SVG2/animate.html]**.
+
+| Mechanism | Timeline owner | Runs without script | Portable |
+|---|---|---|---|
+| SMIL (`<animate>`, `<animateTransform>`, `<animateMotion>`) | browser | yes, even inside `<img>` | all current engines; **not in SVG 2** |
+| CSS animations / transitions | browser | yes | universal |
+| Web Animations API | browser | no (script builds it) | universal |
+| Script writing attributes | you | no | universal |
+| Script writing `style.transform` | you | no | universal |
+
+**SMIL's status is genuinely confusing and worth stating precisely.** Chrome announced an intent to
+deprecate it in 2015 and withdrew after developer pushback — path morphing and animation inside
+`<img>`-referenced SVG had no replacement **[source: blink-dev intent-to-deprecate thread]**. It
+still ships in every current engine. It is not part of SVG 2. So: safe to use today, with no
+standards track behind it. The one thing it does that nothing else does is animate an SVG that is
+loaded as an image, where CSS and script never run.
+
+**[measured]** The mechanism you pick barely changes the cost. Prototypes 01–06 animate the same
+300 circles the same distance through all five, and every one of them does layout every frame.
+The mechanism is not the variable.
+
+## 2. The finding that matters most: it is the element type, not the property
+
+The advice you will find everywhere is: *animate `transform` and `opacity`, because those are
+GPU-composited; never animate geometry attributes*. For HTML, that is correct and well sourced —
+Chrome documents `opacity`, `filter` and `transform` as the hardware-accelerated set **[source:
+developer.chrome.com/blog/hardware-accelerated-animations]**.
+
+Imported into SVG, it does not hold.
+
+**[measured]** Same scene, same motion, five mechanisms, plus one control:
+
+| what animates | layout/s |
+|---|---|
+| `cx` attribute, by JS | 60.2 |
+| `transform`, by JS | 60.2 |
+| `transform`, by CSS keyframes, on `<circle>` | 37.0 |
+| `transform`, by SMIL | 60.2 |
+| `transform`, by Web Animations API | 37.0 |
+| **`transform`, by the same CSS keyframes, on `<div>`** | **0** |
+
+Moving an SVG child by `transform` costs layout every frame. Moving an HTML box by the identical
+declaration costs none. The literature's rule survives; its scope does not.
+
+Stated carefully, because the distinction matters: this measures **layout**, not compositing. It
+does not prove SVG children are never composited. It proves the main thread does layout work every
+frame for them and none for an HTML box doing the same thing. Whether the paint that follows is
+composited was **[unknown]** at the end of this work — see §8.
+
+### The rule that follows
+
+**Decide your layer boundary by what moves.** Anything that moves as a unit should be its own
+`<svg>` element, positioned and animated by CSS as an HTML box. Anything that does not move can sit
+inside as ordinary SVG children.
+
+**[measured]** The same parallax starfield — 600 stars, 5 depths, identical drift — built both
+ways: `<g>` layers inside one SVG cost **37.4 layout/s**; sibling `<svg>` elements cost **0**.
+
+This one rule is worth more than every other performance tip in this report combined, because it
+turns the expensive channel into the free one without changing the picture.
+
+## 3. Node count: `<use>` is not a performance technique
+
+The standard advice is to declare a shape once in `<defs>` and stamp it with `<use>` to keep the
+DOM small.
+
+**[measured]** 1500 stars, drawn both ways:
+
+| | DOM nodes | layout objects | JS heap |
+|---|---|---|---|
+| 1500 full `<path>` | 1529 | 1513 | 1.1 MB |
+| 1500 `<use>` of one symbol | **4527** | **3012** | 0.7 MB |
+
+`<use>` roughly **tripled** node count and **doubled** layout objects. Each `<use>` instantiates a
+shadow subtree; the renderer does not share it the way the author imagines.
+
+`<use>` is still worth using — for file size, for authoring, for keeping one definition of a shape.
+It is not a runtime-cost technique, and recommending it as one is unsupported.
+
+## 4. When to leave SVG
+
+**[measured]** 2000 particles, identical simulation and identical visuals:
+
+| | main-thread ms per second | layout/s | style ms/s | DOM nodes | composited fps |
+|---|---|---|---|---|---|
+| SVG circles | **466.4** | 60.0 | 122.6 | 2024 | **56.7** |
+| Canvas 2D | **124.8** | 0 | 0 | 28 | 59.9 |
+
+3.7× on main-thread time. The SVG version is the only prototype in the whole set that failed to
+hold 60 composited fps, on a machine with headroom.
+
+### The decision rule
+
+- **SVG** — when the graphic has *identity*: things that need to be styled by CSS, hit-tested,
+  linked, read by assistive technology, or authored in a vector tool and handed over. Tens to low
+  hundreds of animated elements.
+- **Canvas 2D** — when the graphic is a *field*: many small things that are not individually
+  meaningful. Particles, rain, snow, embers, dust, sparks. The crossover in this measurement is in
+  the hundreds, not the thousands.
+- **WebGL** — when the per-particle work is itself the cost: tens of thousands of elements, or
+  per-pixel effects (real fluid, volumetric light, heavy blur fields). Also when the effect is
+  fundamentally a shader — plasma, refraction, displacement — where doing it on the CPU is the
+  wrong shape regardless of count.
+
+A scene may use all three in layers: SVG for the shapes with meaning, Canvas for the field, and the
+composition handled by ordinary CSS stacking.
+
+## 5. Filters
+
+**[measured]** Animating `feTurbulence`'s `baseFrequency` — regenerating a 4-octave fractal noise
+field over 1200×640 every frame — held **59.9 composited fps** and cost **8.12 ms/s** of main
+thread. Generating the field once and translating the result cost **7.44 ms/s**.
+
+At this scale, on this machine, animated turbulence was not the catastrophe it is usually called.
+
+**[unknown]** Where it breaks. The breaking point was not searched for: a larger surface, more
+octaves, or a device without headroom may well fall over, and nothing here says where. Treat
+animated turbulence as "measure it in your scene", not as "free" and not as "forbidden".
+
+What *is* safe to say: generating noise once and moving it is never more expensive, and it is the
+pattern that scales, because translation is the free channel (§2).
+
+## 6. Morphing
+
+**[measured]** Rewriting `d` from JS (26.12 ms/s) and declaring the interpolation in CSS with
+`d: path()` (26.08 ms/s) cost the same. CSS moves the work from script to style and gives up
+portability — `d` as an animatable CSS property is Chromium-only. Verified in this build rather
+than assumed: `CSS.supports('d', 'path("M0 0")')` returned `true`, and the computed value
+mid-animation was a genuine interpolated path.
+
+The real constraint on morphing is not cost, it is geometry. **Interpolation is pairwise over
+numbers, so both paths must have the same command sequence** — same count, same types, same order
+**[source: consistent across every morphing library's documentation]**. A star with 10 points cannot
+become a circle with 4 curves without something resampling one of them first.
+
+Three ways out, in order of preference:
+
+1. **Author both shapes with the same command count.** Free, exact, no library. This is what
+   prototype 15 does — both blobs are 8 cubic segments by construction. If you control the artwork,
+   this is the answer.
+2. **Resample at build time.** Convert both paths to a common sample count once, ship the result.
+   Cost moves out of the runtime entirely.
+3. **Resample at runtime** with a library — GSAP's MorphSVG or Flubber. Correct for arbitrary
+   shapes, and the only option when the shapes are not known in advance.
+
+## 7. Accessibility: `prefers-reduced-motion` is not an off switch
+
+The most common implementation error is treating `reduce` as "disable all animation". The
+specification is explicit that it means the user *"prefers an interface that removes, **reduces, or
+replaces** motion-based animations"* **[source: MDN]**.
+
+The distinction is not pedantry. Vestibular triggers are large-area movement, parallax, scaling and
+panning — not change as such. A fade, a colour shift, or a slowed-down version is usually the right
+answer, and killing an animation that communicated state leaves the interface *less* usable.
+
+```css
+/* Default: the full motion. */
+.cloud { animation: drift 40s linear infinite; }
+
+/* Reduced: replace the motion, keep the life. */
+@media (prefers-reduced-motion: reduce) {
+  .cloud { animation: breathe 12s ease-in-out infinite; }  /* opacity only, no travel */
+}
+@keyframes breathe { 0%, 100% { opacity: .75 } 50% { opacity: .95 } }
+```
+
+```js
+const calm = matchMedia('(prefers-reduced-motion: reduce)')
+if (calm.matches) { /* fewer particles, no parallax, shorter travel */ }
+calm.addEventListener('change', rebuild)   // the setting can change while the page is open
+```
+
+Two rules that follow:
+
+- **Never gate the whole scene behind a single `if`.** Reduce the motion budget: fewer particles,
+  no parallax, no scaling, shorter travel — the scene still lives.
+- **Listen for changes.** The preference can flip while the page is open; a page that only reads it
+  at startup is wrong for the rest of the session.
+
+## 7b. Two transform traps that cost real time
+
+Both were found by rendering the scenes and looking at the result, not by reading. Both are
+SVG-specific and neither appears in the performance advice that dominates search results.
+
+**`transform-origin` starts at `0 0` in SVG, not at the centre.** For an HTML box the initial value
+is `50% 50%`; for an SVG element it is the user-space origin. So `transform: scale(1.07)` on a
+`<circle>` does not swell it in place — it moves it as well. In the first render of the solar-system
+scene the sun's halo drifted visibly off the sun for exactly this reason.
+
+The fix is `transform-box: fill-box`, which makes percentage origins resolve against the element's
+own bounding box and restores the behaviour every author already expects:
+
+```css
+svg circle, svg ellipse, svg path, svg rect, svg g {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+```
+
+**But `transform-box: fill-box` re-resolves the coordinates inside a `transform` attribute.** A
+`transform="rotate(30 400 250)"` written in user space is re-interpreted against the element's own
+box once fill-box is in effect — in the tree scene, every leaf was flung out of the canopy the
+moment the rule above was added.
+
+So the two rules interact, and the resolution is a choice per element:
+
+- Rotating or scaling an element **about itself** → `fill-box`, and write `rotate(deg)` with no
+  centre.
+- Rotating about a **point in user space** — a branch about its joint, a planet about its star →
+  `transform-box: view-box` and an explicit `transform-origin`, opting out of the blanket rule.
+
+The tree and the solar system in the model scenes each carry one of these, with the reason inline.
+
+## 8. What this work did not settle
+
+Stated plainly, per `verify-before-claiming`, instead of filled with a plausible answer.
+
+**Whether SVG children are composited in current Chromium.** Three readings disagree: the Chrome
+blog says hardware acceleration was enabled by default for SVG animations as of Chromium 89
+**[source]**; the Blink `core/animation/README.md` at tag 85 said Chromium does not support
+compositor-thread animation of elements with SVG transforms **[source]**; and the same file on
+`main` today does not mention SVG at all — which is not evidence that the limitation was removed.
+
+What was tried: reading all three; then measuring. The measurement settles the *layout* question
+decisively (§2) and cannot settle the compositing question, because the `Performance` domain
+exposes no paint or raster counter — checked against this build, the metric list has `LayoutCount`
+and `RecalcStyleCount` and nothing for paint. Resolving it properly needs trace-level capture,
+which was out of scope here.
+
+The practical consequence is nil: the layout finding already dictates the design rule in §2. But
+the compositing question is open, and this report does not pretend otherwise.
+
+**Also not established:** where animated filters break (§5); anything at all about Firefox or
+Safari; anything about phones. Every number here is one engine on one machine.
+
+## 9. Libraries
+
+The landscape changed materially in 2025 and any older advice about it is stale.
+
+- **GSAP** became free in its entirety on 2025-04-30 under Webflow, including the plugins that were
+  paid — MorphSVG, DrawSVG, SplitText, ScrollTrigger, Inertia **[source: Webflow blog, GSAP standard
+  licence]**. Core is roughly 25 kB. The licence carries one restriction: it may not be used to
+  build a no-code visual animation tool that competes with Webflow. For SVG specifically, MorphSVG
+  is the mature answer to arbitrary-shape morphing.
+- **Anime.js v4** — roughly 17 kB minified and gzipped, ES modules, explicit SVG support
+  **[source: project README / npm]**. The lighter choice when the motion is a handful of tweens.
+- **Web Animations API** — no bundle at all, universal, and the right default for anything a
+  keyframe can express. **[measured]** it costs the same as the alternatives on SVG (§2), so the
+  reason to reach past it is expressiveness, not speed.
+
+**The default should be no library.** Everything in the prototypes here — parallax, waves, morphing,
+particles, seamless loops — is plain CSS and a few lines of script. Reach for a library when you
+need arbitrary-shape morphing, scroll orchestration, or timeline sequencing with many interacting
+parts; those are real problems that are tedious to solve by hand.
+
+## 10. Techniques not recommended, with the reason
+
+- **Animating `transform` on SVG children and believing it is free.** **[measured]** It costs layout
+  every frame (§2). Use it — but for correctness of the picture, not as a performance measure.
+- **`<use>` to make a scene faster.** **[measured]** It makes the node graph bigger (§3).
+- **`will-change: transform` on many elements.** Each promotion is a compositor layer with memory
+  behind it; applying it broadly trades one cost for a worse one **[source: Chrome documentation]**.
+  Put it on the handful of layers that actually move — which, if §2 is followed, is a handful.
+- **One SVG containing the whole animated scene.** It forces every moving thing into the expensive
+  channel. Split by what moves.
+- **Thousands of SVG nodes for a particle field.** **[measured]** §4.
+- **`prefers-reduced-motion` as an off switch.** §7 — the specification says reduce or replace, and
+  removing state-communicating animation makes the interface worse.
+- **Assuming SVG `transform-origin` behaves like HTML's.** §7b — it starts at `0 0`, and a `scale`
+  or `rotate` silently translates the element.
+- **Rebuilding geometry every frame when a seamless tile would do.** **[measured]** 17.85 ms/s and
+  60.2 layout/s versus 7.12 ms/s and 0 (§ prototypes 17/18). Pay it only when you genuinely need
+  non-repeating motion, and know that you are buying the absence of a period.
+
+---
+
+## Sources
+
+Primary documents read for this report:
+
+- [SVG 2 — Animation](https://www.w3.org/TR/SVG2/animate.html) — W3C
+- [Updates in hardware-accelerated animation capabilities](https://developer.chrome.com/blog/hardware-accelerated-animations) — Chrome for Developers
+- [`blink/renderer/core/animation/README.md`](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/blink/renderer/core/animation/README.md) — Chromium source, `main`
+- [Intent to deprecate: SMIL](https://groups.google.com/a/chromium.org/g/blink-dev/c/5o0yiO440LM/m/YGEJBsjUAwAJ) — blink-dev
+- [`prefers-reduced-motion`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion) — MDN
+- [The Web Animation Performance Tier List](https://motion.dev/magazine/web-animation-performance-tier-list) — Motion
+- [GSAP is now completely free](https://webflow.com/blog/gsap-becomes-free) — Webflow · [Standard licence](https://gsap.com/community/standard-license/)
+- [anime.js](https://github.com/juliangarnier/anime) — project repository
+
+Not used as backing for any claim: several high-ranking results (`svgai.org`, `zigpoll`, `boundev`)
+carry the marks of generated content at scale — confident performance numbers with no method, no
+browser and no reproduction. Their absence here is deliberate.
