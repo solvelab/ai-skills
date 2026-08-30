@@ -428,6 +428,50 @@ It also produced a new rule that no amount of reasoning about the method would h
 is the argument for the practice itself: **every change to the method gets simulated, and the
 simulation is where the next rule comes from.**
 
+---
+
+## Third trial: verifying every subject, not just the newest
+
+The walking figure was verified in motion; the five animals built before the tool existed never
+were. Running all six through it found real defects in two, and **six false positives in the tool
+itself** — every one discovered by using it rather than by reasoning about it.
+
+**Defects found in the work:**
+
+| Subject | Found | Why it mattered |
+|---|---|---|
+| turtle | fore flippers scored 0.60 on a phase match that should be ~1.0 | a sea turtle beats them TOGETHER; a 10% lag was visually subtle and measurably wrong |
+| shark | snout travelled **0%** of the busiest part | a body whose head is nailed in place while the tail works is a toy with a hinge. A real fish yaws its head in counterphase — angular momentum has to go somewhere |
+
+**False positives found in the tool**, each of which would have sent someone "fixing" correct work:
+
+1. Sampling an arbitrary window and calling a periodic animation drifted — needs whole cycles.
+2. Measuring foot slip in absolute coordinates — slip is relative to the SURFACE, and a foot locked
+   to a treadmill still crosses the frame.
+3. Lumping two separate stance phases into one span and counting the reposition between them.
+4. Testing antiphase with a plain correlation — that assumes a sinusoid, and a gait has a 60%
+   plateau. The shape-independent test is to shift one series by half a cycle and match.
+5. Reporting locomotion as drift — a bird flying a path moves a long way per cycle on purpose. The
+   distinction is whether the per-cycle displacement is CONSTANT, which needs three cycles to judge,
+   not two.
+6. Indexing cycles by frame count instead of by timestamp — the rounding error accumulated and made
+   a perfectly periodic object look like it drifted a unit or two per cycle.
+
+That ratio — two defects in the work, six in the instrument — is not an argument against the
+instrument. It is what an instrument costs, and every one of the six was found in minutes because a
+wrong reading is loud. The alternative, judging motion by eye, produced five rounds of failed
+guessing on a single inverted sign.
+
+**The rule this adds:** when a check fires, ask whether the SUBJECT or the CHECK is wrong, and
+answer it before changing anything. A verification step is code, and code has bugs.
+
+Final state, all six passing:
+
+```
+dolphin   PASS      whale     PASS      shark     PASS
+turtle    PASS      walker    PASS      gull      PASS
+```
+
 ## What this method costs, and when to skip it
 
 Phases 1 and 3 are perhaps twenty minutes for an object nobody has drawn before, and they are the

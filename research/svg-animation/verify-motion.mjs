@@ -201,13 +201,46 @@ async function main() {
     const findings = []
 
     // 1. Does the cycle close? Only checkable over whole cycles.
-    for (const name of (cycle ? names : [])) {
-      const first = samples[0].p[name]
-      const last = samples[samples.length - 1].p[name]
-      const drift = Math.hypot(last[0] - first[0], last[1] - first[1])
-      const extent = Math.max(range(samples.map((s) => s.p[name][0])), range(samples.map((s) => s.p[name][1])), 1)
-      if (drift > extent * 0.25) {
-        findings.push(`${name}: does not return to its start — drift ${drift.toFixed(2)} over a ${extent.toFixed(2)} range`)
+    //
+    //    And TRAVELLING is not DRIFTING. A bird flying along a path moves a long way per cycle on
+    //    purpose; a joint that creeps a little further every cycle is broken. The two look identical
+    //    at the endpoints, so they are told apart by whether the per-cycle displacement is CONSTANT:
+    //    steady displacement is locomotion, changing displacement is drift. Reported as a defect
+    //    without this, a correctly flying gull failed — a fourth false positive from this tool.
+    // The closing check assumes the object stays put or travels steadily. It does not apply to
+    // something following a CURVED path, whose speed varies with curvature by design, nor to a
+    // scene with several instances sharing mark names — there the last one silently wins. In both
+    // cases isolate one object, or pass --no-close and rely on the phase and contact checks.
+    // THREE cycles minimum, not two. Telling locomotion from drift means comparing successive
+    // per-cycle displacements, and two cycles give only ONE displacement — nothing to compare it
+    // to, so the spread test always failed and reported steady motion as uneven drift. A fifth
+    // false positive from this tool, and the last one found: sample longer.
+    const cycles = (cycle && !args.includes('--no-close')) ? Math.round(ms / cycle) : 0
+    if (cycle && cycles === 2 && !args.includes('--no-close')) {
+      console.log('  (closing check skipped: needs 3+ whole cycles to tell travel from drift)')
+    }
+    for (const name of (cycles >= 3 ? names : [])) {
+      // Index by TIMESTAMP, not by frame count. Dividing the frame count by the cycle count
+      // accumulates a rounding error each cycle, so successive samples were taken at drifting
+      // points of the phase and the difference showed up as "uneven drift" of one or two units on
+      // an object that was perfectly periodic. The samples carry their own real times; use them.
+      const nearestTo = (targetMs) => samples.reduce(
+        (best, s) => (Math.abs(s.t - targetMs) < Math.abs(best.t - targetMs) ? s : best), samples[0])
+      const stepAt = (i) => {
+        const a = nearestTo(i * cycle).p[name], b = nearestTo((i + 1) * cycle).p[name]
+        return Math.hypot(b[0] - a[0], b[1] - a[1])
+      }
+      const steps = []
+      for (let i = 0; i + 1 < cycles; i++) steps.push(stepAt(i))
+      const extent = Math.max(range(samples.map((s) => s.p[name][0])),
+                              range(samples.map((s) => s.p[name][1])), 1)
+      const mean = steps.reduce((x, y) => x + y, 0) / steps.length
+      if (mean <= extent * 0.25) continue                     // closes: nothing to say
+      const spread = steps.length > 1 ? range(steps) / (mean || 1) : 1
+      if (spread < 0.2) {
+        console.log(`  ${name}: travelling ${mean.toFixed(1)} units per cycle, steadily — locomotion, not drift`)
+      } else {
+        findings.push(`${name}: drifts unevenly — ${steps.map((s) => s.toFixed(1)).join(', ')} units per cycle`)
       }
     }
 
@@ -230,19 +263,26 @@ async function main() {
       }
       return num / (Math.sqrt(da * db) || 1)
     }
+    // Two expectations, distinguished by the name. A walker's legs are half a cycle apart; a
+    // gull's wings and a turtle's flippers beat TOGETHER — mirrored, not alternating. Asserting
+    // antiphase everywhere would flag correct animals as broken.
+    //   X-near / X-far            expected half a cycle apart
+    //   X-sync-near / X-sync-far  expected in phase
     for (const name of names.filter((n) => n.endsWith('-near'))) {
       const twin = name.replace(/-near$/, '-far')
       if (!names.includes(twin)) continue
+      const wantSync = name.includes('-sync-')
       const a = samples.map((s) => s.p[name][1])
       const b = samples.map((s) => s.p[twin][1])
       if (!cycle) { console.log(`  ${name} vs ${twin}: skipped — needs --cycle`); continue }
       const perCycle = Math.round(samples.length / (ms / cycle))
-      const half = Math.round(perCycle / 2)
-      const shifted = correlate(a.slice(0, a.length - half), b.slice(half))
-      const verdict = shifted > 0.8 ? 'half a cycle apart, as expected'
-        : shifted > 0.4 ? 'roughly, but loosely' : 'NOT half a cycle apart'
-      console.log(`  ${name} vs ${twin}: shift-by-half-cycle match ${shifted.toFixed(2)} — ${verdict}`)
-      if (shifted < 0.8) findings.push(`${name}/${twin} are not half a cycle apart (match=${shifted.toFixed(2)})`)
+      const shift = wantSync ? 0 : Math.round(perCycle / 2)
+      const match = correlate(a.slice(0, a.length - shift), b.slice(shift))
+      const want = wantSync ? 'in phase' : 'half a cycle apart'
+      const verdict = match > 0.8 ? `${want}, as expected`
+        : match > 0.4 ? `roughly ${want}, but loosely` : `NOT ${want}`
+      console.log(`  ${name} vs ${twin}: match ${match.toFixed(2)} (expected ${want}) — ${verdict}`)
+      if (match < 0.8) findings.push(`${name}/${twin} are not ${want} (match=${match.toFixed(2)})`)
     }
 
     // 3. A point marked "*-contact" must hold still while it is at its lowest — that is what being
@@ -280,7 +320,23 @@ async function main() {
       }
     }
 
-    // 4. Nothing should be frozen: a tracked point that never moves is usually a broken selector or
+    // 4. Points named "*-anchor" are parts that should stay comparatively STILL — a snout, a hip, a
+    //    hub. If one travels nearly as far as the moving parts, the whole object is being swung
+    //    about instead of the limb, which reads as the thing lurching rather than working.
+    const anchors = names.filter((n) => n.endsWith('-anchor'))
+    if (anchors.length) {
+      const travel = (n) => Math.max(
+        range(samples.map((s) => s.p[n][0])), range(samples.map((s) => s.p[n][1])))
+      const busiest = Math.max(...names.filter((n) => !n.endsWith('-anchor') && !n.endsWith('-surface'))
+        .map(travel), 0.001)
+      for (const a of anchors) {
+        const ratio = travel(a) / busiest
+        console.log(`  ${a}: travels ${(ratio * 100).toFixed(0)}% as far as the busiest part`)
+        if (ratio > 0.45) findings.push(`${a} moves almost as much as the moving parts (${(ratio * 100).toFixed(0)}%) — the body is being swung, not the limb`)
+      }
+    }
+
+    // 5. Nothing should be frozen: a tracked point that never moves is usually a broken selector or
     //    an animation that failed to apply.
     for (const name of names) {
       const moved = Math.max(range(samples.map((s) => s.p[name][0])), range(samples.map((s) => s.p[name][1])))

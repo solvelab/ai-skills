@@ -472,6 +472,13 @@ scene({
            + 'C -3.2 -3, -2.8 -4.9, -2.4 -6.6 Z',
           fill,
         })
+        // Tracking mark at the wingtip, for verify-motion.mjs. Named -sync- because a bird's two
+        // wings beat TOGETHER; asserting antiphase here would flag a correct gull as broken.
+        el(elbow, 'circle', {
+          cx: -22.4, cy: -9.6, r: 0.01, fill: 'none',
+          'data-track': `wingtip-sync-${opacity === 1 ? 'near' : 'far'}`,
+        })
+
         // Black wingtip with white mirrors. This is what makes the eye read "gull" at twenty
         // pixels, and it costs a fill, not geometry.
         el(elbow, 'path', {
@@ -1327,6 +1334,7 @@ creature({
        + `C${(0.5 - 1.08) * L} ${0.098 * L}, ${(0.5 - 0.99) * L} ${0.052 * L}, ${(0.5 - 0.92) * L} ${0.021 * L} Z`,
       fill: skin,
     })
+    el(tail[1], 'circle', { cx: (0.5 - 1.17) * L, cy: 0, r: 0.01, fill: 'none', 'data-track': 'fluke-tip' })
 
     // The dorsal fin, ALSO before the trunk. Same rule as the tail, and the one I failed to apply
     // to the fins: an appendage drawn after the body meets it along an edge, and that edge is a
@@ -1371,6 +1379,7 @@ creature({
       fill: 'none', stroke: dark, 'stroke-width': 0.9, 'stroke-linecap': 'round',
     })
     el(root, 'circle', { cx: (0.5 - 0.118) * L, cy: -0.006 * L, r: 1.0, fill: '#101820' })
+    el(root, 'circle', { cx: (0.5 - 0.02) * L, cy: 0, r: 0.01, fill: 'none', 'data-track': 'snout-anchor' })
     el(root, 'ellipse', { cx: (0.5 - 0.195) * L, cy: -0.096 * L, rx: 1.6, ry: 0.75, fill: dark })
 
     // Pectoral flipper — a DOLPHIN's, which is a different object from a whale's:
@@ -1460,6 +1469,7 @@ creature({
        + `C${(0.5 - 1.12) * L} ${0.145 * L}, ${(0.5 - 1.02) * L} ${0.075 * L}, ${(0.5 - 0.94) * L} ${0.024 * L} Z`,
       fill: skin,
     })
+    el(tail[1], 'circle', { cx: (0.5 - 1.23) * L, cy: 0, r: 0.01, fill: 'none', 'data-track': 'fluke-tip' })
 
     // Dorsal before the trunk, for the same reason as the dolphin's. Small, low and far back,
     // sitting on the hump the animal is named for.
@@ -1505,6 +1515,7 @@ creature({
       })
     }
     el(root, 'circle', { cx: (0.5 - 0.185) * L, cy: -0.058 * L, r: 1.25, fill: '#0d141c' })
+    el(root, 'circle', { cx: (0.5 - 0.02) * L, cy: 0, r: 0.01, fill: 'none', 'data-track': 'snout-anchor' })
 
     // Pectoral: Megaptera — "big wing". About a THIRD of body length, scalloped along the leading
     // edge, white below. It sculls slowly and out of phase with the tail.
@@ -1568,6 +1579,14 @@ creature({
     const back = '#55646f', flank = '#67757f', dark = '#404d57'
     const L = 100
     const root = el(svg, 'g')
+    // The head YAWS, slightly and in COUNTERPHASE to the tail. When a tail sweeps one way the
+    // front of the fish is pushed the other — angular momentum has to go somewhere, and a body
+    // whose head is nailed in place while only the tail works reads as a toy with a hinge.
+    // Caught by verify-motion.mjs: the snout anchor travelled 0% of the busiest part, which is not
+    // "stable", it is "not connected".
+    root.style.transformBox = 'view-box'
+    root.style.transformOrigin = `${(0.5 - 0.45) * L}px 0px`
+    root.style.animation = 'sharkYaw 1.35s ease-in-out infinite'
 
     // Plan view, so the table is half-widths mirrored about the axis rather than back and belly.
     // The shape facts: a conical snout; widest at the pectoral girdle around 26%; a long taper to
@@ -1590,6 +1609,7 @@ creature({
       { x: 0.940, w: 0.013 },
     ]
     el(root, 'path', { d: fusiform(half.map((s) => ({ x: s.x, back: s.w, belly: s.w })), L), fill: back })
+    el(root, 'circle', { cx: (0.5 - 0.02) * L, cy: 0, r: 0.01, fill: 'none', 'data-track': 'snout-anchor' })
 
     // Pectorals: long, narrow and swept. They are wings — a shark has no swim bladder, so lift
     // comes from these and from the body. Rooted inside the outline.
@@ -1656,6 +1676,7 @@ creature({
        + `C${(0.5 - 1.02) * L} ${0.024 * L}, ${(0.5 - 0.92) * L} ${0.026 * L}, ${(0.5 - 0.80) * L} ${0.024 * L} Z`,
       fill: back,
     })
+    el(tail[1], 'circle', { cx: (0.5 - 1.10) * L, cy: 0, r: 0.01, fill: 'none', 'data-track': 'caudal-tip' })
   },
 })
 
@@ -1705,7 +1726,10 @@ creature({
     root.style.animation = 'turtleHeave 2.6s ease-in-out infinite'
 
     // FAR flipper first, behind the body, lagging slightly.
-    flipper(root, -0.10, '#42553c', 0.85)
+    // Lag kept tiny: a turtle's fore flippers beat in unison, and the offset is only here to keep
+    // the far one from disappearing behind the near one. At -0.10 the verifier scored their phase
+    // match at 0.60 — visually subtle, measurably wrong.
+    flipper(root, -0.02, '#42553c', 0.85)
 
     // Rear flipper: small, held out as a rudder, with only a slight trim adjustment. Drawn before
     // the shell so its root is covered — the midline case of the join rule.
@@ -1812,6 +1836,10 @@ creature({
       el(wrist, 'path', {
         d: `M${(0.5 - 0.60) * L} ${0.243 * L} L${(0.5 - 0.645) * L} ${0.232 * L} L${(0.5 - 0.615) * L} ${0.222 * L} Z`,
         fill: '#c9c48d',
+      })
+      el(wrist, 'circle', {
+        cx: (0.5 - 0.635) * L, cy: 0.235 * L, r: 0.01, fill: 'none',
+        'data-track': `flipper-sync-${opacity === 1 ? 'near' : 'far'}`,
       })
 
       // Upper arm, drawn over the paddle's root: the flipper is one colour, so the buried case of
@@ -2369,6 +2397,9 @@ const sceneCss = `
      Driving every segment at the same large angle bent the peduncle into a fork — visible the
      moment the animal was rendered large. */
   @keyframes swimTailSideways { 0%,100% { transform: rotate(-8deg) } 50% { transform: rotate(8deg) } }
+  /* Counterphase to the tail, and much smaller — the head yaws a little because the tail sweeps a
+     lot, not the other way round. */
+  @keyframes sharkYaw { 0%,100% { transform: rotate(2.2deg) } 50% { transform: rotate(-2.2deg) } }
   @keyframes whalePectoral    { 0%,100% { transform: rotate(-7deg) } 50% { transform: rotate(9deg) } }
 
   /* Gait cycle. Every stop below is a published number, placed at its published percentage — this
