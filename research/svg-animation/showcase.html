@@ -216,7 +216,11 @@
     transform-origin: center;
   }
   .stage .layer { position: absolute; inset: 0; height: 100%; will-change: transform; }
-  .stage .canvasLayer { width: 100%; }
+  /* object-fit: cover makes a <canvas> map its bitmap the way preserveAspectRatio="xMidYMid slice"
+     maps an SVG viewBox. Without it the canvas stretches while an SVG overlay crops, the two use
+     different mappings, and every marker drifts off the thing it marks — measured by looking at the
+     first render of the feldt plate. */
+  .stage .canvasLayer { width: 100%; height: 100%; object-fit: cover; }
   .stage .bird { position: absolute; offset-rotate: auto; offset-distance: 0%;
     transform: scale(var(--scale, 1)); transform-origin: center; will-change: offset-distance; }
   .stage .flash { position: absolute; inset: 0; background: #dce8ff; opacity: 0;
@@ -254,6 +258,25 @@
   @keyframes rippleK  { from { transform: scale(.3); opacity: .9 } to { transform: scale(2.6); opacity: 0 } }
   @keyframes drawK    { 0% { stroke-dashoffset: var(--length) } 55%,100% { stroke-dashoffset: 0 } }
   @keyframes barK     { from { transform: scaleY(.35) } to { transform: scaleY(1) } }
+
+  /* Feldt */
+  .stage .feldtMotion { position: absolute; inset: 0; }
+  /* width: 100% is not optional here. An <svg> with inset:0 but no width falls back to the
+     intrinsic width of its viewBox ratio — measured at 984px against a 1200px stage — and every
+     overlay mark lands beside the thing it marks instead of on it. */
+  .stage .feldtMotion .layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* Each moving mark is promoted to its own element: the transform then lands on an HTML-level box
+     instead of on a child of a shared <svg>, which is the difference between 37 layout/s and 0
+     (prototypes 20 vs 21). overflow: visible so a ripple can expand past its own box. */
+  .stage .feldtMotion .mark { position: absolute; overflow: visible; will-change: transform; }
+  .stage.motionOff .feldtMotion { display: none; }
+  .stage .feldtToggle {
+    position: absolute; right: 10px; bottom: 10px; z-index: 5;
+    font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #cfe1ff; background: rgba(9, 18, 32, 0.82); border: 1px solid rgba(159, 210, 234, 0.35);
+    border-radius: 3px; padding: 7px 10px; cursor: pointer;
+  }
+  .stage .feldtToggle:focus-visible { outline: 2px solid #9fd2ea; outline-offset: 2px; }
 
   /* Ferdinand */
   @keyframes swayPalm  { from { transform: rotate(-3.5deg) } to { transform: rotate(3.5deg) } }
@@ -322,11 +345,17 @@
       <p>No scene below uses a technique the others do not. They differ in how a handful of
         behaviours — drift, sway, orbit, flicker, draw, wave — are combined and layered. Each plate
         names its recipe and what it measured.</p>
-      <p>The last plate is the one that matters most: <strong>Ferdinand</strong> is not an invented
-        subject but a real project — an out-of-band Kubernetes node watchdog named after the South
-        Pacific Coastwatchers. It is here because a vocabulary that only produces pretty weather has
-        not proved anything. That scene animates a <em>dead man's switch</em>: the alert is the post
-        that stops transmitting, so the dramatic beat is an absence.</p>
+      <p>The last two plates are the ones that matter most. <strong>Ferdinand</strong> is not an
+        invented subject but a real project — an out-of-band Kubernetes node watchdog named after the
+        South Pacific Coastwatchers. It is here because a vocabulary that only produces pretty
+        weather has not proved anything. That scene animates a <em>dead man's switch</em>: the alert
+        is the post that stops transmitting, so the dramatic beat is an absence.</p>
+      <p><strong>Feldt</strong> goes further, and is the more useful of the two, because it starts
+        from code that is <em>already right</em>. That project's world screen draws its archipelago
+        on a canvas with a camera — and this research says keep it, because a world with pan and zoom
+        is exactly where SVG loses. What the doctrine adds sits in layers above the canvas, never
+        touching it. Use the switch on that plate to see what is added, and the fifth comparison
+        below for what it cost.</p>
       <button class="switch" id="motionSwitch" type="button" aria-pressed="false">
         <span class="dot"></span>
         <span>Simulate <code>prefers-reduced-motion</code> · <span class="state"></span></span>
@@ -1143,6 +1172,295 @@ scene({
   },
 })
 
+// ── 10. Feldt: what the doctrine adds to a canvas that already works ────────
+// The companion to scene 9, and the more useful of the two, because it starts from code that is
+// already right rather than from a blank page.
+//
+// `feldt` is the central dead man's switch the ferdinand posts report to. Its /world screen draws an
+// archipelago — one island per network, shape derived deterministically from the network id — and it
+// draws it on a CANVAS, with a camera, level-of-detail and a baked stage. Measured in the source:
+// src/http/scene.ts contains 49 canvas references, zero SVG, and — the number that decides this
+// scene — ZERO requestAnimationFrame. The island is static; the only rAF is the camera flight.
+//
+// The honest reading of that, against the measurements in ../measurements.md: THE CANVAS IS RIGHT.
+// A world with pan, zoom and many islands is exactly the case where retained-mode SVG loses, and
+// nothing in this research suggests porting it. What the doctrine adds is elsewhere — the ambient
+// motion the screen does not have, placed on the channel that costs nothing, so it never competes
+// with the camera's bake.
+//
+// The toggle in the corner is the whole argument: same islands, same canvas, motion added only in
+// layers above it.
+scene({
+  id: 'feldt',
+  title: 'Feldt — motion added to a canvas that was already right',
+  recipe: 'canvas (kept) + wave + parallax + ripple/absence + flicker, all in layers above it',
+  cost: 'the canvas is baked once; every added layer is on the 0-layout/s channel',
+  note:
+    'Starts from real code that is already correct. The /world screen draws its archipelago on a ' +
+    'canvas with a camera and level-of-detail, and its island is static — 49 canvas references and ' +
+    'zero requestAnimationFrame in src/http/scene.ts. The doctrine does NOT say port it to SVG: a ' +
+    'world with pan and zoom is where SVG loses. It says put the missing ambient motion in layers ' +
+    'above the canvas, where it costs no layout and never invalidates the bake. Toggle the switch ' +
+    'to see exactly what is added. States are the project\'s own four.',
+  build(stage, options = {}) {
+    // options.naiveMarks puts every sked ring inside ONE <svg>, which is the obvious way to write
+    // it — and costs layout every frame, because §2 of the report applies to these rings exactly as
+    // it applies to anything else inside an SVG. The default promotes each mark to its own <svg>
+    // element, which is the same picture on the free channel. Prototypes 20 and 21 measure both.
+    const naiveMarks = options.naiveMarks === true
+    stage.style.background = 'linear-gradient(#0c1a2b 0%, #143454 45%, #1d4668 100%)'
+
+    // The project's own four states, and its own rule about colour: scenery stays in sea tones,
+    // outside the state vocabulary, so terrain can never be misread as information.
+    const stateColour = {
+      transmitting: '#1f9d61',
+      late: '#d99a2b',
+      lost: '#c8452a',
+      muted: '#6b7280',
+    }
+
+    // Nine networks. Shape comes from the id, exactly as scene.js derives it from a seeded hash —
+    // so a network's island is the same island every time, and never moves because its severity
+    // changed. That is the project's own rule and it is a good one: motion without cause, on an
+    // on-call screen, reads as something happening.
+    const networks = [
+      { id: 'k0s-prd',        posts: 9, state: 'transmitting' },
+      { id: 'vps-kinghost',   posts: 3, state: 'transmitting' },
+      { id: 'housek8s',       posts: 6, state: 'late' },
+      { id: 'edge-sp',        posts: 4, state: 'transmitting' },
+      { id: 'lab-vm',         posts: 2, state: 'lost' },
+      { id: 'observability',  posts: 5, state: 'transmitting' },
+      { id: 'gearound',       posts: 3, state: 'muted' },
+      { id: 'fabcost3d',      posts: 2, state: 'transmitting' },
+      { id: 'speakmemo',      posts: 4, state: 'transmitting' },
+    ]
+
+    // FNV-1a, the same family scene.js uses for its stable seed.
+    const seedFrom = (text) => {
+      let h = 0x811c9dc5
+      for (let i = 0; i < text.length; i++) {
+        h ^= text.charCodeAt(i)
+        h = Math.imul(h, 0x01000193) >>> 0
+      }
+      return h
+    }
+    const rngFrom = (seed) => {
+      let s = seed || 1
+      return () => ((s = Math.imul(s ^ (s >>> 15), 1 | s) >>> 0), ((s ^ (s >>> 7)) >>> 0) / 4294967296)
+    }
+
+    // Island outline as a closed radial shape, radius modulated by the seed — the shape of the
+    // coast is a function of the network id and nothing else.
+    function islandRadii(seed) {
+      const rand = rngFrom(seed)
+      const points = 30
+      const a1 = 0.16 + rand() * 0.2, a2 = 0.1 + rand() * 0.14, a3 = 0.05 + rand() * 0.09
+      const p1 = rand() * 6.28, p2 = rand() * 6.28, p3 = rand() * 6.28
+      const radii = []
+      for (let i = 0; i < points; i++) {
+        const a = (i / points) * Math.PI * 2
+        radii.push(1 + Math.sin(a * 2 + p1) * a1 + Math.sin(a * 3 + p2) * a2 + Math.sin(a * 5 + p3) * a3)
+      }
+      return radii
+    }
+
+    // Layout: islands placed on a loose grid, size from post count — the project's own rule that a
+    // bigger network is a bigger island, from the same population band table.
+    const W = 1200, H = 640
+    const placed = networks.map((net, i) => {
+      const rand = rngFrom(seedFrom(net.id + ':place'))
+      const col = i % 3, row = Math.floor(i / 3)
+      return {
+        ...net,
+        x: 150 + col * 400 + (rand() - 0.5) * 90,
+        y: 165 + row * 165 + (rand() - 0.5) * 50,
+        radius: 34 + Math.sqrt(net.posts) * 15,
+        radii: islandRadii(seedFrom(net.id)),
+      }
+    })
+
+    // ── The canvas: exactly the part that stays as it is ──────────────────
+    // Drawn ONCE, like the project's baked stage. Nothing below re-enters this context per frame,
+    // which is the whole point: the added motion must not invalidate the bake.
+    const canvas = document.createElement('canvas')
+    canvas.className = 'layer canvasLayer'
+    canvas.width = W
+    canvas.height = H
+    stage.appendChild(canvas)
+    const ctx = canvas.getContext('2d')
+
+    function islandPath(island, grow) {
+      ctx.beginPath()
+      island.radii.forEach((r, i) => {
+        const a = (i / island.radii.length) * Math.PI * 2
+        const rr = (island.radius + grow) * r
+        const px = island.x + Math.cos(a) * rr
+        const py = island.y + Math.sin(a) * rr * 0.62      // flattened: seen from above, at an angle
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)
+      })
+      ctx.closePath()
+    }
+
+    for (const island of placed) {
+      // Shelf, beach, land, uplands — scenery in sea and earth tones only.
+      ctx.fillStyle = 'rgba(120, 190, 220, 0.16)'
+      islandPath(island, 16)
+      ctx.fill()
+      ctx.fillStyle = '#d9cba4'
+      islandPath(island, 4)
+      ctx.fill()
+      ctx.fillStyle = '#4a6b4a'
+      islandPath(island, 0)
+      ctx.fill()
+      ctx.fillStyle = '#3d5c40'
+      islandPath(island, -island.radius * 0.28)
+      ctx.fill()
+      ctx.fillStyle = '#5b7a52'
+      islandPath(island, -island.radius * 0.55)
+      ctx.fill()
+
+      // Vegetation stippling, seeded so the island is identical on every render.
+      const rand = rngFrom(seedFrom(island.id + ':veg'))
+      for (let i = 0; i < island.posts * 14; i++) {
+        const a = rand() * Math.PI * 2
+        const rr = island.radius * (0.15 + rand() * 0.6)
+        ctx.globalAlpha = 0.35 + rand() * 0.4
+        ctx.fillStyle = rand() > 0.5 ? '#37542f' : '#6a8a55'
+        ctx.beginPath()
+        ctx.arc(island.x + Math.cos(a) * rr, island.y + Math.sin(a) * rr * 0.62, 1.4 + rand() * 2, 0, 6.3)
+        ctx.fill()
+      }
+      ctx.globalAlpha = 1
+    }
+
+    // ── The layers the doctrine adds, above the canvas ────────────────────
+    // Each is its own <svg> element or a CSS-animated box: 0 layout per frame, and the canvas is
+    // never touched again.
+    const motion = document.createElement('div')
+    motion.className = 'feldtMotion'
+    stage.appendChild(motion)
+
+    // Sea: two seamless tiles behind nothing — they read as swell moving past the archipelago.
+    for (let d = 0; d < 2; d++) {
+      const svg = document.createElementNS(SVG_NAMESPACE, 'svg')
+      svg.setAttribute('viewBox', '0 0 2400 640')
+      svg.setAttribute('preserveAspectRatio', 'none')
+      svg.setAttribute('class', 'layer')
+      svg.style.width = '200%'
+      svg.style.animation = `roll ${34 + d * 22}s linear infinite`
+      svg.style.opacity = 0.5 - d * 0.2
+      let path = ''
+      for (let band = 0; band < 6; band++) {
+        const base = 70 + band * 105 + d * 40
+        let seg = `M0 ${base}`
+        for (let i = 0; i <= 120; i++) {
+          const x = (i / 120) * 2400
+          const u = (x / 2400) * Math.PI * 2
+          seg += ` L${x.toFixed(1)} ${(base + Math.sin(u * 4 + band) * 5 + Math.sin(u * 9 + d) * 2).toFixed(2)}`
+        }
+        path += seg + ' '
+      }
+      el(svg, 'path', { d: path, fill: 'none', stroke: '#9fd2ea', 'stroke-width': 1.1 })
+      motion.appendChild(svg)
+    }
+
+    // Sked rings and state lamps, one <svg> for the whole set — they do not move as units, so they
+    // do not each need to be their own element.
+    const marks = document.createElementNS(SVG_NAMESPACE, 'svg')
+    marks.setAttribute('viewBox', `0 0 ${W} ${H}`)
+    marks.setAttribute('preserveAspectRatio', 'xMidYMid slice')
+    marks.setAttribute('class', 'layer')
+    motion.appendChild(marks)
+
+    // One <svg> per moving mark, sized and positioned to the island it belongs to. Everything that
+    // animates lives at the top of its own element, so the transform is on an HTML-level box.
+    // Static text and non-animated lamps stay in the shared `marks` layer: they do not move, so
+    // promoting them would buy nothing and cost elements.
+    // One <svg> per ANIMATION, and the animation is applied to that <svg> itself — not to a shape
+    // inside it. That distinction is the whole lesson: promoting the container while still
+    // animating a child leaves the work exactly where it was (measured: prototype 20 and a first
+    // version of 21 both reported 37 layout/s). The transform has to land on the HTML-level box.
+    function movingMark(island, extent, animation) {
+      if (naiveMarks) return { host: marks, cx: island.x, cy: island.markY, animated: null }
+      const svg = document.createElementNS(SVG_NAMESPACE, 'svg')
+      const size = extent * 2
+      svg.setAttribute('viewBox', `${-extent} ${-extent} ${size} ${size}`)
+      svg.setAttribute('class', 'mark')
+      // Positioned in percentages of the stage so it tracks the canvas's cover mapping.
+      svg.style.left = `${((island.x - extent) / W) * 100}%`
+      svg.style.top = `${((island.markY - extent) / H) * 100}%`
+      svg.style.width = `${(size / W) * 100}%`
+      svg.style.height = `${(size / H) * 100}%`
+      if (animation) svg.style.animation = animation
+      motion.appendChild(svg)
+      return { host: svg, cx: 0, cy: 0, animated: svg }
+    }
+
+    for (const island of placed) {
+      const colour = stateColour[island.state]
+      const y = island.y - island.radius * 0.5
+      island.markY = y
+      const period = 3.2 + (seedFrom(island.id) % 1000) / 650
+      const extent = island.radius + 26
+
+      const applyAnimation = (mark, shape, animation) => {
+        // Promoted: the box animates and the shape is inert. Naive: the shape animates, inside the
+        // shared <svg>, which is what costs layout every frame.
+        const target = mark.animated || shape
+        if (!mark.animated) {
+          shape.style.transformBox = 'fill-box'
+          shape.style.transformOrigin = 'center'
+        }
+        target.style.animation = animation
+      }
+
+      if (island.state === 'lost') {
+        // The dead man's switch, again: no ring leaves this island. What marks it is a ring
+        // closing on it, and the mark only means anything because the others are pulsing.
+        const mark = movingMark(island, extent, null)
+        const ring = el(mark.host, 'circle', {
+          cx: mark.cx, cy: mark.cy, r: island.radius + 20,
+          fill: 'none', stroke: colour, 'stroke-width': 1.6, 'stroke-dasharray': '4 7',
+        })
+        applyAnimation(mark, ring, 'silentRing 3.6s ease-in-out infinite')
+      } else if (island.state !== 'muted') {
+        for (let i = 0; i < 2; i++) {
+          const mark = movingMark(island, extent, null)
+          const ripple = el(mark.host, 'circle', {
+            cx: mark.cx, cy: mark.cy, r: island.radius * 0.5,
+            fill: 'none', stroke: colour, 'stroke-width': 1.3, opacity: 0.8,
+          })
+          applyAnimation(mark, ripple, `sked ${period}s ease-out ${-(i / 2) * period}s infinite`)
+        }
+      }
+
+      const lampMark = movingMark(island, 10, null)
+      const lamp = el(lampMark.host, 'circle', { cx: lampMark.cx, cy: lampMark.cy, r: 4, fill: colour })
+      if (island.state === 'late') applyAnimation(lampMark, lamp, 'flickerK 1.9s steps(1) infinite')
+      else if (island.state === 'transmitting') applyAnimation(lampMark, lamp, `pulseLamp ${period}s ease-out infinite`)
+      else if (island.state === 'muted') lamp.setAttribute('opacity', '0.4')
+      else lamp.setAttribute('opacity', '0.3')
+
+      const label = el(marks, 'text', {
+        x: island.x, y: island.y + island.radius * 0.72 + 16, 'text-anchor': 'middle',
+        fill: '#c8dcef', 'font-size': 10, 'font-family': 'ui-monospace, monospace', opacity: 0.72,
+      })
+      label.textContent = island.id
+    }
+
+    // The switch. The comparison is the point of the plate, so it has to be operable, not described.
+    const toggle = document.createElement('button')
+    toggle.type = 'button'
+    toggle.className = 'feldtToggle'
+    toggle.textContent = 'ambient motion: on'
+    toggle.addEventListener('click', () => {
+      const off = stage.classList.toggle('motionOff')
+      toggle.textContent = `ambient motion: ${off ? 'off — this is the screen today' : 'on'}`
+    })
+    stage.appendChild(toggle)
+  },
+})
+
 // ── The primitives themselves, each as a self-contained loop ────────────────
 // The scenes are compositions; these are the parts. Rendered live so the vocabulary can be seen
 // rather than read — a reader who has watched `sway` next to `oscillate` never confuses them again.
@@ -1249,7 +1567,11 @@ const sceneCss = `
     transform-origin: center;
   }
   .stage .layer { position: absolute; inset: 0; height: 100%; will-change: transform; }
-  .stage .canvasLayer { width: 100%; }
+  /* object-fit: cover makes a <canvas> map its bitmap the way preserveAspectRatio="xMidYMid slice"
+     maps an SVG viewBox. Without it the canvas stretches while an SVG overlay crops, the two use
+     different mappings, and every marker drifts off the thing it marks — measured by looking at the
+     first render of the feldt plate. */
+  .stage .canvasLayer { width: 100%; height: 100%; object-fit: cover; }
   .stage .bird { position: absolute; offset-rotate: auto; offset-distance: 0%;
     transform: scale(var(--scale, 1)); transform-origin: center; will-change: offset-distance; }
   .stage .flash { position: absolute; inset: 0; background: #dce8ff; opacity: 0;
@@ -1287,6 +1609,25 @@ const sceneCss = `
   @keyframes rippleK  { from { transform: scale(.3); opacity: .9 } to { transform: scale(2.6); opacity: 0 } }
   @keyframes drawK    { 0% { stroke-dashoffset: var(--length) } 55%,100% { stroke-dashoffset: 0 } }
   @keyframes barK     { from { transform: scaleY(.35) } to { transform: scaleY(1) } }
+
+  /* Feldt */
+  .stage .feldtMotion { position: absolute; inset: 0; }
+  /* width: 100% is not optional here. An <svg> with inset:0 but no width falls back to the
+     intrinsic width of its viewBox ratio — measured at 984px against a 1200px stage — and every
+     overlay mark lands beside the thing it marks instead of on it. */
+  .stage .feldtMotion .layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* Each moving mark is promoted to its own element: the transform then lands on an HTML-level box
+     instead of on a child of a shared <svg>, which is the difference between 37 layout/s and 0
+     (prototypes 20 vs 21). overflow: visible so a ripple can expand past its own box. */
+  .stage .feldtMotion .mark { position: absolute; overflow: visible; will-change: transform; }
+  .stage.motionOff .feldtMotion { display: none; }
+  .stage .feldtToggle {
+    position: absolute; right: 10px; bottom: 10px; z-index: 5;
+    font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #cfe1ff; background: rgba(9, 18, 32, 0.82); border: 1px solid rgba(159, 210, 234, 0.35);
+    border-radius: 3px; padding: 7px 10px; cursor: pointer;
+  }
+  .stage .feldtToggle:focus-visible { outline: 2px solid #9fd2ea; outline-offset: 2px; }
 
   /* Ferdinand */
   @keyframes swayPalm  { from { transform: rotate(-3.5deg) } to { transform: rotate(3.5deg) } }
@@ -1367,7 +1708,7 @@ return { scenes, primitives, sceneCss, reducedMotionCss, seeded }
   }
 
   const compare = document.getElementById('compare')
-  compare.innerHTML = [{"question":"Where does a moving layer belong?","a":{"label":"<code>&lt;g&gt;</code> layers inside one SVG","value":"37.4","unit":"layout/s"},"b":{"label":"sibling <code>&lt;svg&gt;</code> elements","value":"0","unit":"layout/s","win":true},"verdict":"Promote anything that moves as a unit to its own <code>&lt;svg&gt;</code>. Same picture, free channel."},{"question":"Does <code>&lt;use&gt;</code> make a scene lighter?","a":{"label":"1500 full <code>&lt;path&gt;</code> nodes","value":"1513","unit":"layout objects","win":true},"b":{"label":"1500 <code>&lt;use&gt;</code> of one symbol","value":"3012","unit":"layout objects"},"verdict":"No — each <code>&lt;use&gt;</code> instantiates a shadow subtree. Use it for file size and authoring, not speed."},{"question":"When do particles have to leave SVG?","a":{"label":"2000 particles as SVG circles","value":"466","unit":"ms/s main thread"},"b":{"label":"the same 2000 on a canvas","value":"125","unit":"ms/s main thread","win":true},"verdict":"3.7×, and the SVG version was the only prototype that dropped below 60 composited fps."},{"question":"Rebuild the wave, or translate a tile?","a":{"label":"rebuild <code>d</code> every frame","value":"17.9","unit":"ms/s"},"b":{"label":"seamless tile, translated","value":"7.1","unit":"ms/s","win":true},"verdict":"The tile is 2.5× cheaper and off the layout path. It buys that with a period; the rebuild never repeats."}].map((c) => {
+  compare.innerHTML = [{"question":"Where does a moving layer belong?","a":{"label":"<code>&lt;g&gt;</code> layers inside one SVG","value":"37.4","unit":"layout/s"},"b":{"label":"sibling <code>&lt;svg&gt;</code> elements","value":"0","unit":"layout/s","win":true},"verdict":"Promote anything that moves as a unit to its own <code>&lt;svg&gt;</code>. Same picture, free channel."},{"question":"Does <code>&lt;use&gt;</code> make a scene lighter?","a":{"label":"1500 full <code>&lt;path&gt;</code> nodes","value":"1513","unit":"layout objects","win":true},"b":{"label":"1500 <code>&lt;use&gt;</code> of one symbol","value":"3012","unit":"layout objects"},"verdict":"No — each <code>&lt;use&gt;</code> instantiates a shadow subtree. Use it for file size and authoring, not speed."},{"question":"When do particles have to leave SVG?","a":{"label":"2000 particles as SVG circles","value":"466","unit":"ms/s main thread"},"b":{"label":"the same 2000 on a canvas","value":"125","unit":"ms/s main thread","win":true},"verdict":"3.7×, and the SVG version was the only prototype that dropped below 60 composited fps."},{"question":"What does it cost to add motion to a screen that already works?","a":{"label":"the added layers, written the obvious way","value":"37","unit":"layout/s"},"b":{"label":"the same layers, each mark promoted to its own element","value":"0","unit":"layout/s","win":true},"verdict":"Same picture, same motion. Promoting the container is not enough — the animation has to land on the box, not on a shape inside it. Adding motion at all took the screen from 3.1 to 13.0 ms/s of main thread, with no layout."},{"question":"Rebuild the wave, or translate a tile?","a":{"label":"rebuild <code>d</code> every frame","value":"17.9","unit":"ms/s"},"b":{"label":"seamless tile, translated","value":"7.1","unit":"ms/s","win":true},"verdict":"The tile is 2.5× cheaper and off the layout path. It buys that with a period; the rebuild never repeats."}].map((c) => {
     const bar = (side) => `
       <div class="bar ${side.win ? 'win' : ''}">
         <span class="label">${side.label}</span>

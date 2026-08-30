@@ -65,6 +65,9 @@ Read this before quoting any row.
 | 16 | morph-css-path | 60.0 | 60.2 | 11.72 | 26.08 |
 | 17 | wave-path-rebuild | 59.9 | 60.2 | 1.04 | 17.85 |
 | 18 | wave-transform-tiles | 59.9 | **0** | 1.55 | 7.12 |
+| 19 | feldt-canvas-only *(the screen today)* | 0.2 | 0 | 0 | 3.09 |
+| 20 | feldt-canvas-plus-layers *(naive)* | 59.8 | **37** | 4.01 | 13.51 |
+| 21 | feldt-marks-promoted *(correct)* | 59.8 | **0** | 4.44 | 13.02 |
 
 Structural gauges, read once (`GAUGES=1 node measure.mjs ...`):
 
@@ -146,7 +149,26 @@ Neither mechanism escapes the real constraint, which is not cost but geometry: i
 pairwise over numbers, so both paths need the same command sequence. That is a modelling
 requirement, not a performance one.
 
-**7. A seamless tile beats rebuilding geometry, at the price of a period.**
+**7. Promoting the container is not enough — the animation has to land on the box.**
+
+Rows 19–21 start from a real screen instead of a fixture: `feldt`'s world map, an archipelago drawn
+on a canvas with a camera. Row 19 is that screen as it stands — one baked canvas, no ambient motion,
+and a `presentedFps` of **0.2**, the signature of a static picture.
+
+Rows 20 and 21 add identical motion — swell, sked rings, state lamps, the silent-post mark — and
+differ only in shape. Row 20 puts the rings inside one shared `<svg>`, which is how anyone writes it
+first: **37 layout/s**. Row 21 gives each moving mark its own `<svg>` element and animates *that
+element*: **0**.
+
+The intermediate step is worth recording because it was measured and it failed. A first version of
+21 promoted each mark to its own `<svg>` but kept animating the `<circle>` inside it, and reported
+37 layout/s — identical to the naive form. Promoting the container while still animating a child
+buys nothing; the transform has to be on the HTML-level box.
+
+The cost of adding motion at all, on the correct shape: **3.09 → 13.02 ms/s** of main thread, with
+layout still at zero.
+
+**8. A seamless tile beats rebuilding geometry, at the price of a period.**
 
 Rebuilding four wave paths from summed sines every frame (17): 17.85 ms/s, layout 60.2/s. The same
 four layers as a double-width seamless tile translated by 50% (18): **7.12 ms/s, layout 0** —

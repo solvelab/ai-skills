@@ -131,6 +131,37 @@ That produced a composition rule the natural scenes did not surface, now recorde
 `primitives.md`. The follow-up skill should carry at least one domain scene for the same reason:
 a vocabulary that only produces pretty weather has not been shown to carry meaning.
 
+## The doctrine was tested against code that was already right
+
+The `ferdinand` scene above shows the vocabulary carrying a domain. The `feldt` scene tests something
+harder: what the doctrine says to a screen that is **already correct**.
+
+`feldt` is the central dead man's switch those posts report to. Its `/world` screen draws an
+archipelago — one island per network, shape derived from a seeded hash of the network id — on a
+**canvas**, with a camera, level-of-detail and a baked stage. Read in the source at
+`src/http/scene.ts`: 49 canvas references, zero SVG, and **zero `requestAnimationFrame`** — the
+island is static, and the only rAF in that screen is the camera flight.
+
+Three things follow, and the first is the one that matters:
+
+1. **The doctrine says keep the canvas.** A world with pan, zoom and many islands is precisely the
+   case where retained-mode SVG loses — measured at 2000 elements, 466 ms/s against 125. A skill
+   whose answer to every screen is "use SVG" would be wrong here, and would be wrong loudly.
+2. **What is missing is ambient motion, and it belongs above the canvas.** Adding it inside the
+   canvas would mean redrawing per frame and invalidating the bake the camera depends on. In layers
+   above it, the canvas is never touched.
+3. **The obvious way to write those layers costs 37 layout/s; the correct way costs 0.** Measured as
+   prototypes 19, 20 and 21. The intermediate attempt is the instructive one: promoting each mark to
+   its own `<svg>` while still animating the `<circle>` inside it changed nothing. The transform has
+   to land on the HTML-level box.
+
+That third point is the strongest argument for the skill existing at all. The rule is short enough
+to state in a sentence, it is not in the literature, and getting it half-right produces exactly the
+same cost as not knowing it.
+
+The follow-up skill should carry this pair — a screen before and after — because "add motion here"
+is advice anyone can give, and "on this channel, in this shape, at this measured cost" is not.
+
 ## Consequences
 
 - `skills/` gains one directory; `README.md` and `.claude-plugin/marketplace.json` counts move from

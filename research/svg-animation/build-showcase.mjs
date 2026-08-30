@@ -48,6 +48,12 @@ const comparisons = [
     verdict: '3.7×, and the SVG version was the only prototype that dropped below 60 composited fps.',
   },
   {
+    question: 'What does it cost to add motion to a screen that already works?',
+    a: { label: 'the added layers, written the obvious way', value: '37', unit: 'layout/s' },
+    b: { label: 'the same layers, each mark promoted to its own element', value: '0', unit: 'layout/s', win: true },
+    verdict: 'Same picture, same motion. Promoting the container is not enough — the animation has to land on the box, not on a shape inside it. Adding motion at all took the screen from 3.1 to 13.0 ms/s of main thread, with no layout.',
+  },
+  {
     question: 'Rebuild the wave, or translate a tile?',
     a: { label: 'rebuild <code>d</code> every frame', value: '17.9', unit: 'ms/s' },
     b: { label: 'seamless tile, translated', value: '7.1', unit: 'ms/s', win: true },
@@ -315,11 +321,17 @@ const page = `<title>SVG Motion Field Guide</title>
       <p>No scene below uses a technique the others do not. They differ in how a handful of
         behaviours — drift, sway, orbit, flicker, draw, wave — are combined and layered. Each plate
         names its recipe and what it measured.</p>
-      <p>The last plate is the one that matters most: <strong>Ferdinand</strong> is not an invented
-        subject but a real project — an out-of-band Kubernetes node watchdog named after the South
-        Pacific Coastwatchers. It is here because a vocabulary that only produces pretty weather has
-        not proved anything. That scene animates a <em>dead man's switch</em>: the alert is the post
-        that stops transmitting, so the dramatic beat is an absence.</p>
+      <p>The last two plates are the ones that matter most. <strong>Ferdinand</strong> is not an
+        invented subject but a real project — an out-of-band Kubernetes node watchdog named after the
+        South Pacific Coastwatchers. It is here because a vocabulary that only produces pretty
+        weather has not proved anything. That scene animates a <em>dead man's switch</em>: the alert
+        is the post that stops transmitting, so the dramatic beat is an absence.</p>
+      <p><strong>Feldt</strong> goes further, and is the more useful of the two, because it starts
+        from code that is <em>already right</em>. That project's world screen draws its archipelago
+        on a canvas with a camera — and this research says keep it, because a world with pan and zoom
+        is exactly where SVG loses. What the doctrine adds sits in layers above the canvas, never
+        touching it. Use the switch on that plate to see what is added, and the fifth comparison
+        below for what it cost.</p>
       <button class="switch" id="motionSwitch" type="button" aria-pressed="false">
         <span class="dot"></span>
         <span>Simulate <code>prefers-reduced-motion</code> · <span class="state"></span></span>
