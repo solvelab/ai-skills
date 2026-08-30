@@ -20,8 +20,12 @@ plugin.
 
 <https://claude.ai/code/artifact/f92ae439-2e51-4977-8f6f-acb481a0c031>
 
-Eight scenes running, each naming the technique and the measured cost behind it, plus a switch that
-demonstrates the reduced-motion variant without changing your OS setting.
+Nine scenes and twelve primitives running, each naming the technique and the measured cost behind
+it, plus a switch that demonstrates the reduced-motion variant without changing your OS setting.
+
+The ninth scene is taken from `ferdinand`, a real out-of-band Kubernetes node watchdog, and animates
+its dead man's switch: the alert is the post that stops transmitting. It is there because a
+vocabulary that only produces weather has not been shown to carry meaning.
 
 The page is **generated** from `scenes/scenes.js` by `build-showcase.mjs` — it is a view of this
 directory, never a second implementation. If the two disagree, this directory is right and the page

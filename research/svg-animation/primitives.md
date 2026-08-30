@@ -130,7 +130,22 @@ vocabulary above.
 | **traffic** | `drift` at per-vehicle rates + `parallax` between lanes + `scatter` on start offsets |
 | **aurora** | `wave` (tiled, very slow) + `breathe` on opacity + additive-looking gradient stacking |
 | **lightning** | `draw` on a branching path, very short duration + `flicker` on a full-scene overlay |
+| **watch network** | `wave` (tiled sea) + `parallax` by depth + `ripple` per node, staggered, as its report + `flicker` for a degraded node + **the absence of ripple** for a dead one |
 | **waterfall** | `drift` on a tiled vertical texture + `ripple` at the base + `turbulence` for spray |
+
+The last row is the one worth studying, and it comes from a real project rather than from weather.
+`Ferdinand` is an out-of-band Kubernetes node watchdog named after the South Pacific Coastwatchers —
+posts scattered across islands, each seeing only its own patch of sea. Its most important mechanism
+is a dead man's switch: `src/deadman/heartbeat.ts` states it as *"the operator is warned by its
+silence"*.
+
+So the scene's alert is not a node lighting up. It is a node that **stops** pulsing, with a ring
+closing on the gap. That inverts a habit worth naming:
+
+> **An absence can be the animation.** Every primitive here describes something moving; a state that
+> matters is sometimes the one where a motion the viewer had learned to expect is missing. That only
+> reads if the expected motion was established first — which is why the other four posts must be
+> pulsing, staggered, before the silent one means anything.
 
 Two composition rules that generalise:
 

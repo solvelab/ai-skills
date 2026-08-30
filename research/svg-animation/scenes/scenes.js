@@ -539,6 +539,215 @@ scene({
   },
 })
 
+// ── 9. Ferdinand: the coastwatch ────────────────────────────────────────────
+// A scene taken from a real project rather than invented for a demo, to show what these primitives
+// are for. Ferdinand is an out-of-band Kubernetes node watchdog, named after the South Pacific
+// Coastwatchers: posts scattered across occupied islands, each operator seeing only their own patch
+// of sea, reporting by radio. Its own doctrine, from the README: observe and report, never
+// intervene.
+//
+// The thing the scene has to say is in src/deadman/heartbeat.ts: "the operator is warned by its
+// SILENCE". A dead man's switch inverts the alarm — the post that stops transmitting is the alert,
+// because the messenger is inside the fire. So the scene's dramatic beat is not a post lighting up.
+// It is a post going quiet, and the ring of watch around it closing.
+scene({
+  id: 'ferdinand',
+  title: 'Ferdinand — the coastwatch',
+  recipe: 'wave + parallax + ripple (staggered sked) + flicker + draw + the absence of ripple',
+  cost: 'free + layout — 5 posts, sea on the tile channel',
+  note:
+    'A real project, not an invented subject: an out-of-band Kubernetes node watchdog named after ' +
+    'the South Pacific Coastwatchers. Each island is a post; each expanding ring is that post ' +
+    'reporting on its schedule, staggered so the network never pulses in unison. The alert is the ' +
+    'one that STOPS — a dead man\'s switch is warned by silence, so the scene animates an absence. ' +
+    'Severity colours are the project\'s own three: info, warning, critical.',
+  build(stage) {
+    stage.style.background = 'linear-gradient(#0a1428 0%, #12203c 42%, #1b3352 68%, #24405f 100%)'
+    const rand = seeded(1942)   // the year the network went up
+
+    // Sky: stars and a low moon. Anchored, so the drifting sea reads as the thing that moves.
+    const sky = layer(stage)
+    for (let i = 0; i < 90; i++) {
+      const s = el(sky, 'circle', {
+        cx: rand() * 1200, cy: rand() * 260, r: 0.4 + rand() * 1.0,
+        fill: '#dce8ff', opacity: 0.2 + rand() * 0.45,
+      })
+      s.style.animation = `twinkle ${3 + rand() * 5}s ease-in-out ${-rand() * 7}s infinite`
+    }
+    const moonDefs = el(sky, 'defs')
+    const moonGradient = el(moonDefs, 'radialGradient', { id: 'ferdinandMoon' })
+    el(moonGradient, 'stop', { offset: '0%', 'stop-color': '#ffeec4', 'stop-opacity': '0.4' })
+    el(moonGradient, 'stop', { offset: '100%', 'stop-color': '#ffeec4', 'stop-opacity': '0' })
+    const glow = el(sky, 'circle', { cx: 200, cy: 120, r: 86, fill: 'url(#ferdinandMoon)' })
+    glow.style.animation = 'breathe 13s ease-in-out infinite'
+    el(sky, 'circle', { cx: 200, cy: 120, r: 26, fill: '#f6efd8' })
+
+    // Five posts. Depth decides island size, haze and how far back the parallax puts them.
+    // Two are quiet on purpose — that is the scene's subject, not decoration.
+    const posts = [
+      { x: 165, depth: 0, severity: 'info',     silent: false },
+      { x: 430, depth: 1, severity: 'info',     silent: false },
+      { x: 660, depth: 2, severity: 'warning',  silent: false },
+      { x: 905, depth: 1, severity: 'critical', silent: true  },
+      { x: 1105, depth: 0, severity: 'info',    silent: false },
+    ]
+    const severityColour = { info: '#7fd6a8', warning: '#e8c057', critical: '#e0654f' }
+
+    // Sea behind the islands: two seamless tiles on the free channel (prototype 18).
+    const seaBack = []
+    for (let d = 0; d < 2; d++) {
+      const svg = layer(stage, { viewBox: '0 0 2400 640', width: '200%' })
+      svg.setAttribute('preserveAspectRatio', 'none')
+      svg.style.animation = `roll ${26 + d * 14}s linear infinite`
+      seaBack.push({ svg, base: 352 + d * 22, amp: 7 - d * 2, tone: 26 + d * 5 })
+    }
+
+    const islandLayer = layer(stage)
+    const skedLayer = layer(stage)
+
+    for (const post of posts) {
+      // Depth reads through scale and haze, not through height: pushing the far islands down the
+      // canvas sank them under the front sea bands, which start at y=430.
+      const groundY = 372 + post.depth * 8
+      const scale = 1 - post.depth * 0.17
+      const haze = 0.95 - post.depth * 0.2
+
+      const g = el(islandLayer, 'g', { opacity: haze })
+      const w = 118 * scale
+      // Island silhouette.
+      el(g, 'path', {
+        d: `M${post.x - w} ${groundY}
+            Q ${post.x - w * 0.55} ${groundY - 30 * scale} ${post.x - w * 0.18} ${groundY - 20 * scale}
+            Q ${post.x} ${groundY - 44 * scale} ${post.x + w * 0.3} ${groundY - 22 * scale}
+            Q ${post.x + w * 0.7} ${groundY - 12 * scale} ${post.x + w} ${groundY} Z`,
+        fill: `hsl(208 32% ${13 + post.depth * 5}%)`,
+      })
+      // Two palms, swaying about their base — the sway primitive, same rule as the tree scene.
+      for (const side of [-1, 1]) {
+        const px = post.x + side * 34 * scale
+        const palm = el(g, 'g')
+        palm.style.transformBox = 'view-box'
+        palm.style.transformOrigin = `${px}px ${groundY - 16 * scale}px`
+        palm.style.animation = `swayPalm ${4.2 + rand() * 1.8}s ease-in-out ${-rand() * 4}s infinite alternate`
+        el(palm, 'line', {
+          x1: px, y1: groundY - 16 * scale, x2: px + side * 4 * scale, y2: groundY - 44 * scale,
+          stroke: `hsl(206 24% ${9 + post.depth * 4}%)`, 'stroke-width': 2 * scale,
+          'stroke-linecap': 'round',
+        })
+        for (let f = 0; f < 4; f++) {
+          const a = -Math.PI / 2 + (f - 1.5) * 0.55
+          el(palm, 'line', {
+            x1: px + side * 4 * scale, y1: groundY - 44 * scale,
+            x2: px + side * 4 * scale + Math.cos(a) * 15 * scale,
+            y2: groundY - 44 * scale + Math.sin(a) * 9 * scale,
+            stroke: `hsl(206 24% ${9 + post.depth * 4}%)`, 'stroke-width': 1.6 * scale,
+            'stroke-linecap': 'round',
+          })
+        }
+      }
+      // The transmitter mast.
+      const mastTop = groundY - 62 * scale
+      el(g, 'line', {
+        x1: post.x, y1: groundY - 14 * scale, x2: post.x, y2: mastTop,
+        stroke: '#7d8ea6', 'stroke-width': 1.8 * scale,
+      })
+      el(g, 'line', {
+        x1: post.x - 9 * scale, y1: mastTop + 13 * scale,
+        x2: post.x + 9 * scale, y2: mastTop + 13 * scale,
+        stroke: '#7d8ea6', 'stroke-width': 1.3 * scale,
+      })
+
+      const lamp = el(g, 'circle', {
+        cx: post.x, cy: mastTop - 3 * scale, r: 3 * scale,
+        fill: severityColour[post.severity],
+      })
+
+      if (post.silent) {
+        // The scene's whole point. This post transmits nothing: no ring leaves its mast. Its lamp
+        // does not blink an alarm either — a dead post cannot raise one. What marks it is the ring
+        // of watch closing around it, drawn by the posts that are still listening.
+        lamp.setAttribute('opacity', '0.28')
+        const ring = el(skedLayer, 'circle', {
+          cx: post.x, cy: mastTop - 3 * scale, r: 46 * scale,
+          fill: 'none', stroke: severityColour.critical, 'stroke-width': 1.5,
+          'stroke-dasharray': '4 7', opacity: 0.9,
+        })
+        ring.style.transformBox = 'fill-box'
+        ring.style.transformOrigin = 'center'
+        ring.style.animation = 'silentRing 3.6s ease-in-out infinite'
+        const mark = el(skedLayer, 'text', {
+          x: post.x, y: mastTop - 58 * scale, 'text-anchor': 'middle',
+          fill: severityColour.critical, 'font-size': 11 * scale,
+          'font-family': 'ui-monospace, monospace', 'letter-spacing': 1.4,
+        })
+        mark.textContent = 'NO SKED'
+        mark.style.animation = 'silentMark 3.6s ease-in-out infinite'
+      } else {
+        // The sked: this post reporting on its schedule. Three rings, staggered by a negative
+        // delay, so the network never pulses in unison — which is what makes it read as five
+        // independent operators rather than one animation.
+        const period = 3.4 + post.depth * 0.7 + rand() * 0.9
+        for (let i = 0; i < 3; i++) {
+          const ripple = el(skedLayer, 'circle', {
+            cx: post.x, cy: mastTop - 3 * scale, r: 8 * scale,
+            fill: 'none', stroke: severityColour[post.severity], 'stroke-width': 1.4,
+          })
+          ripple.style.transformBox = 'fill-box'
+          ripple.style.transformOrigin = 'center'
+          ripple.style.animation = `sked ${period}s ease-out ${-(i / 3) * period}s infinite`
+        }
+        // A warning post still reports — it just reports badly. Flicker, not silence.
+        if (post.severity === 'warning') {
+          lamp.style.animation = 'flickerK 1.9s steps(1) infinite'
+        } else {
+          lamp.style.animation = `pulseLamp ${period}s ease-out infinite`
+        }
+      }
+    }
+
+    // Sea in front, drawn after the islands so they sit in the water rather than on it.
+    for (const band of seaBack) {
+      let d = `M0 640 L0 ${band.base}`
+      for (let i = 0; i <= 160; i++) {
+        const x = (i / 160) * 2400
+        const u = (x / 2400) * Math.PI * 2
+        const y = band.base + Math.sin(u * 4) * band.amp + Math.sin(u * 9) * band.amp * 0.45
+        d += ` L${x.toFixed(1)} ${y.toFixed(2)}`
+      }
+      el(band.svg, 'path', { d: `${d} L2400 640 Z`, fill: `hsl(208 40% ${band.tone}%)` })
+    }
+    for (let d = 0; d < 3; d++) {
+      const svg = layer(stage, { viewBox: '0 0 2400 640', width: '200%' })
+      svg.setAttribute('preserveAspectRatio', 'none')
+      svg.style.animation = `roll ${9 + d * 5}s linear infinite`
+      const base = 430 + d * 62
+      const amp = 15 - d * 2
+      let d2 = `M0 640 L0 ${base}`
+      for (let i = 0; i <= 200; i++) {
+        const x = (i / 200) * 2400
+        const u = (x / 2400) * Math.PI * 2
+        const y = base + Math.sin(u * 3 + d) * amp
+          + Math.sin(u * 7 - d * 0.6) * amp * 0.4 + Math.sin(u * 13) * amp * 0.16
+        d2 += ` L${x.toFixed(1)} ${y.toFixed(2)}`
+      }
+      el(svg, 'path', {
+        d: `${d2} L2400 640 Z`, fill: `hsl(${207 + d * 2} ${44 - d * 6}% ${17 + d * 6}%)`,
+        opacity: 0.9,
+      })
+    }
+
+    // Moonlight on the water: glints on the free channel, decorrelated.
+    const glints = layer(stage)
+    for (let i = 0; i < 20; i++) {
+      const gl = el(glints, 'ellipse', {
+        cx: 90 + rand() * 300, cy: 430 + rand() * 180,
+        rx: 8 + rand() * 22, ry: 1.4, fill: '#ffeec4', opacity: 0.4,
+      })
+      gl.style.animation = `glint ${2.2 + rand() * 3}s ease-in-out ${-rand() * 5}s infinite`
+    }
+  },
+})
+
 // ── The primitives themselves, each as a self-contained loop ────────────────
 // The scenes are compositions; these are the parts. Rendered live so the vocabulary can be seen
 // rather than read — a reader who has watched `sway` next to `oscillate` never confuses them again.
@@ -683,6 +892,14 @@ const sceneCss = `
   @keyframes rippleK  { from { transform: scale(.3); opacity: .9 } to { transform: scale(2.6); opacity: 0 } }
   @keyframes drawK    { 0% { stroke-dashoffset: var(--length) } 55%,100% { stroke-dashoffset: 0 } }
   @keyframes barK     { from { transform: scaleY(.35) } to { transform: scaleY(1) } }
+
+  /* Ferdinand */
+  @keyframes swayPalm  { from { transform: rotate(-3.5deg) } to { transform: rotate(3.5deg) } }
+  @keyframes sked      { 0% { transform: scale(.35); opacity: .85 } 100% { transform: scale(4.2); opacity: 0 } }
+  @keyframes pulseLamp { 0% { opacity: 1 } 22% { opacity: .35 } 100% { opacity: 1 } }
+  /* The silent post is marked by a ring that CLOSES on it, not by a signal leaving it. */
+  @keyframes silentRing { 0%,100% { transform: scale(1.25); opacity: .16 } 55% { transform: scale(.82); opacity: .95 } }
+  @keyframes silentMark { 0%,100% { opacity: .25 } 55% { opacity: 1 } }
 
 `
 

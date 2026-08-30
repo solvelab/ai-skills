@@ -315,6 +315,11 @@ const page = `<title>SVG Motion Field Guide</title>
       <p>No scene below uses a technique the others do not. They differ in how a handful of
         behaviours — drift, sway, orbit, flicker, draw, wave — are combined and layered. Each plate
         names its recipe and what it measured.</p>
+      <p>The last plate is the one that matters most: <strong>Ferdinand</strong> is not an invented
+        subject but a real project — an out-of-band Kubernetes node watchdog named after the South
+        Pacific Coastwatchers. It is here because a vocabulary that only produces pretty weather has
+        not proved anything. That scene animates a <em>dead man's switch</em>: the alert is the post
+        that stops transmitting, so the dramatic beat is an absence.</p>
       <button class="switch" id="motionSwitch" type="button" aria-pressed="false">
         <span class="dot"></span>
         <span>Simulate <code>prefers-reduced-motion</code> · <span class="state"></span></span>

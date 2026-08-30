@@ -114,6 +114,23 @@ The eight model scenes run at
 that render rather than by reading anything — both `transform-box` traps in `report.md` §7b — which
 is the argument for the follow-up skill carrying a "look at it" step and not only a checklist.
 
+## The vocabulary was tested against a real domain, not only against weather
+
+Eight of the model scenes are natural phenomena, which is a fair test of the primitives and a weak
+test of whether they say anything. The ninth is taken from `ferdinand`, a production out-of-band
+Kubernetes node watchdog in this maintainer's own workspace, named after the South Pacific
+Coastwatchers.
+
+It matters because it forced a composition the weather scenes never would have: the project's
+central mechanism is a dead man's switch — `src/deadman/heartbeat.ts` says *"the operator is warned
+by its silence"* — so the scene's alert had to be a post that **stops** transmitting. Animating an
+absence is not in any primitive's definition, and it only reads because the other four posts are
+pulsing, staggered, first.
+
+That produced a composition rule the natural scenes did not surface, now recorded in
+`primitives.md`. The follow-up skill should carry at least one domain scene for the same reason:
+a vocabulary that only produces pretty weather has not been shown to carry meaning.
+
 ## Consequences
 
 - `skills/` gains one directory; `README.md` and `.claude-plugin/marketplace.json` counts move from
