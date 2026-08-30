@@ -170,6 +170,27 @@ The general form, which also fixed the gull's wing:
 > one of them covers the other's edge; two outlines that merely meet will separate at some angle of
 > the rotation, and no tuning of either outline prevents it.
 
+### How an appendage joins the body depends on its COLOUR
+
+Three separate attempts at the same defect — a notch where a fin meets the body — before the rule
+became clear. It has three cases, and picking the wrong one is what produced each failed attempt:
+
+| The appendage is… | How it joins | Why |
+|---|---|---|
+| **on the midline** (dorsal fin) | draw it **before** the body | the body's own outline becomes the join; there is nothing left to blend |
+| **the body's colour** (dolphin flipper) | draw it after, root buried **inside** | the buried part is invisible, so no edge exists |
+| **a different colour** (humpback flipper, white) | draw it after, root lying **on** the surface | anything of it inside the body shows as a pale wedge with a straight edge |
+
+The third case is the one that keeps being got wrong, because burying the root is the instinct from
+the second case — and burying a white flipper in a dark whale is precisely what draws the corner.
+Its base has to follow the belly line, read off the same profile table as the body, so the shape has
+no interior at all.
+
+A fourth, related: **countershading tapers, it does not stop.** Carried to the end of the profile
+table the dolphin's pale belly ran out over the tail stock and surfaced as a tongue lying across the
+tail; cut off square instead, it read as a sticker with a rounded end. Fading its height to nothing
+along the peduncle is both correct for the animal and free.
+
 ### An appendage is species-specific. Do not reuse it.
 
 The sharpest correction in this whole exercise: the dolphin and the humpback were given the *same*

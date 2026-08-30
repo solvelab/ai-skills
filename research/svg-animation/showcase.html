@@ -1836,12 +1836,39 @@ creature({
       fill: skin,
     })
 
-    // Now the trunk, over the tail's root.
+    // The dorsal fin, ALSO before the trunk. Same rule as the tail, and the one I failed to apply
+    // to the fins: an appendage drawn after the body meets it along an edge, and that edge is a
+    // notch. Drawn before, its root is simply buried — the body's own outline becomes the join,
+    // and no blending is needed because there is nothing to blend.
+    //
+    // Falcate: swept back with a concave trailing edge, tip falling behind the base. Its root runs
+    // deep enough inside the back that no part of the base can ever surface.
+    el(root, 'path', {
+      d: `M${(0.5 - 0.345) * L} ${-0.060 * L} `                                     // root, inside the body
+       + `C${(0.5 - 0.395) * L} ${-0.150 * L}, ${(0.5 - 0.445) * L} ${-0.196 * L}, ${(0.5 - 0.500) * L} ${-0.206 * L} `
+       + `C${(0.5 - 0.472) * L} ${-0.166 * L}, ${(0.5 - 0.458) * L} ${-0.120 * L}, ${(0.5 - 0.456) * L} ${-0.055 * L} Z`,
+      fill: skin,
+    })
+
+    // Now the trunk, over the roots of both.
     el(root, 'path', { d: fusiform(body, L), fill: skin })
 
     // Belly countershading, built from the SAME table so it can never drift off the body: the
     // lower half of the outline, pulled up by a fraction of the local thickness.
-    const bellyBand = body.map((s) => ({ x: s.x, back: -s.belly * 0.30, belly: s.belly * 0.92 }))
+    //
+    // It STOPS at the peduncle. Carried to the end of the table it ran out over the tail stock —
+    // which is drawn earlier and therefore underneath — and surfaced as a pale tongue lying across
+    // the tail. Countershading belongs to the trunk; the peduncle and flukes are dark all round.
+    // It also TAPERS rather than stopping: cut off square it read as a sticker with a rounded end.
+    // On the animal the pale field narrows to nothing along the peduncle, so the band's height is
+    // faded out over the last stretch.
+    const taper = (x) => Math.min(1, Math.max(0, (0.88 - x) / 0.22))
+    const bellyBand = body.filter((s) => s.x <= 0.86)
+      .map((s) => ({
+        x: s.x,
+        back: -s.belly * 0.30 * taper(s.x),
+        belly: s.belly * 0.92 * taper(s.x),
+      }))
     el(root, 'path', { d: fusiform(bellyBand, L), fill: belly, opacity: 0.85 })
 
     // Mouthline: from the tip of the rostrum, straight back and lifting slightly at the gape. It
@@ -1854,16 +1881,6 @@ creature({
     el(root, 'circle', { cx: (0.5 - 0.118) * L, cy: -0.006 * L, r: 1.0, fill: '#101820' })
     el(root, 'ellipse', { cx: (0.5 - 0.195) * L, cy: -0.096 * L, rx: 1.6, ry: 0.75, fill: dark })
 
-    // Dorsal fin: falcate — swept back with a CONCAVE trailing edge. Its leading edge leaves the
-    // back at ~42% and the tip falls behind the base, which is what distinguishes it from the
-    // upright triangle of a shark.
-    el(root, 'path', {
-      d: `M${(0.5 - 0.36) * L} ${-0.106 * L} `
-       + `C${(0.5 - 0.40) * L} ${-0.17 * L}, ${(0.5 - 0.45) * L} ${-0.20 * L}, ${(0.5 - 0.50) * L} ${-0.205 * L} `
-       + `C${(0.5 - 0.465) * L} ${-0.165 * L}, ${(0.5 - 0.455) * L} ${-0.125 * L}, ${(0.5 - 0.455) * L} ${-0.098 * L} Z`,
-      fill: skin,
-    })
-
     // Pectoral flipper — a DOLPHIN's, which is a different object from a whale's:
     //   · short: about 0.14 L, against the humpback's 0.30
     //   · BROAD at the root and tapering, so it reads as a paddle, not a blade
@@ -1875,7 +1892,7 @@ creature({
        + `C${(0.5 - 0.245) * L} ${0.125 * L}, ${(0.5 - 0.295) * L} ${0.175 * L}, ${(0.5 - 0.355) * L} ${0.205 * L} `  // leading edge, convex
        + `C${(0.5 - 0.372) * L} ${0.208 * L}, ${(0.5 - 0.378) * L} ${0.196 * L}, ${(0.5 - 0.366) * L} ${0.184 * L} `  // rounded tip
        + `C${(0.5 - 0.325) * L} ${0.150 * L}, ${(0.5 - 0.283) * L} ${0.108 * L}, ${(0.5 - 0.262) * L} ${0.062 * L} Z`, // trailing edge, concave
-      fill: dark,
+      fill: skin,
     })
 
   },
@@ -1952,9 +1969,24 @@ creature({
       fill: skin,
     })
 
+    // Dorsal before the trunk, for the same reason as the dolphin's. Small, low and far back,
+    // sitting on the hump the animal is named for.
+    el(root, 'path', {
+      d: `M${(0.5 - 0.620) * L} ${-0.070 * L} `                                      // root, inside the body
+       + `C${(0.5 - 0.648) * L} ${-0.130 * L}, ${(0.5 - 0.680) * L} ${-0.158 * L}, ${(0.5 - 0.714) * L} ${-0.156 * L} `
+       + `C${(0.5 - 0.700) * L} ${-0.132 * L}, ${(0.5 - 0.692) * L} ${-0.106 * L}, ${(0.5 - 0.694) * L} ${-0.066 * L} Z`,
+      fill: skin,
+    })
+
     el(root, 'path', { d: fusiform(body, L), fill: skin })
 
-    const bellyBand = body.map((s) => ({ x: s.x, back: -s.belly * 0.42, belly: s.belly * 0.94 }))
+    const taper = (x) => Math.min(1, Math.max(0, (0.86 - x) / 0.20))
+    const bellyBand = body.filter((s) => s.x <= 0.84)
+      .map((s) => ({
+        x: s.x,
+        back: -s.belly * 0.42 * taper(s.x),
+        belly: s.belly * 0.94 * taper(s.x),
+      }))
     el(root, 'path', { d: fusiform(bellyBand, L), fill: belly, opacity: 0.8 })
 
     // Ventral pleats: the grooved throat that expands when it lunges. They run from the chin back
@@ -1982,19 +2014,11 @@ creature({
     }
     el(root, 'circle', { cx: (0.5 - 0.185) * L, cy: -0.058 * L, r: 1.25, fill: '#0d141c' })
 
-    // Dorsal: small, far back, sitting on the hump.
-    el(root, 'path', {
-      d: `M${(0.5 - 0.63) * L} ${-0.104 * L} `
-       + `C${(0.5 - 0.655) * L} ${-0.145 * L}, ${(0.5 - 0.685) * L} ${-0.162 * L}, ${(0.5 - 0.715) * L} ${-0.160 * L} `
-       + `C${(0.5 - 0.70) * L} ${-0.138 * L}, ${(0.5 - 0.695) * L} ${-0.115 * L}, ${(0.5 - 0.70) * L} ${-0.095 * L} Z`,
-      fill: skin,
-    })
-
     // Pectoral: Megaptera — "big wing". About a THIRD of body length, scalloped along the leading
     // edge, white below. It sculls slowly and out of phase with the tail.
     const pec = el(root, 'g')
     pec.style.transformBox = 'view-box'
-    pec.style.transformOrigin = '26px 4px'
+    pec.style.transformOrigin = '24px 15px'
     pec.style.animation = 'whalePectoral 5.4s ease-in-out infinite'
     // A humpback's pectoral, written as an explicit outline. Generating it from an axis and a
     // chord function gave no control over the two things that carry the shape — the width and the
@@ -2010,20 +2034,27 @@ creature({
     // Coordinates are absolute in the L-grid: the root sits inside the flank at ~22%, and the tip
     // reaches back and down to ~52%.
     el(pec, 'path', {
-      d: 'M32 -1 C 30.5 1.5, 29.5 2.5, 28.5 3.5 '
+      // The root LIES ON the ventral surface rather than inside it.
+      //
+      // The dolphin's flipper could be buried because it is the same colour as the body — the
+      // buried part simply disappears. A humpback's is white, so anything of it inside the body
+      // shows as a pale wedge with a straight edge, which is the corner the maintainer's arrow
+      // found. The fix is not a deeper root: it is a root that follows the belly line, so there is
+      // no interior part at all. The two numbers below are belly(0.22) and belly(0.30) read off the
+      // profile table above.
+      d: 'M28 13.9 C 26.8 15.4, 25.6 16.6, 24 17.8 '
         // Leading edge, root to tip. Each pair of curves is one tubercle: out, then back in.
-       + 'C 26.5 7.5, 25.5 9.5, 23.5 11.5 '
-       + 'C 22.2 13.6, 21.8 14.6, 20 16.4 '
-       + 'C 18.4 18.4, 17.8 19.3, 15.8 21.1 '
-       + 'C 14 22.9, 13.3 23.7, 11.2 25.3 '
-       + 'C 9.2 26.9, 8.4 27.5, 6.2 28.8 '
-       + 'C 4.0 30.1, 3.1 30.6, 0.8 31.5 '
+       + 'C 22.4 19.6, 21.9 20.5, 20.1 22.2 '
+       + 'C 18.4 24, 17.8 24.9, 15.8 26.5 '
+       + 'C 13.9 28.1, 13.2 28.9, 11 30.3 '
+       + 'C 8.9 31.7, 8.1 32.2, 5.8 33.3 '
+       + 'C 3.5 34.4, 2.6 34.8, 0.2 35.5 '
         // Rounded tip.
-       + 'C -1.8 32.5, -4.4 32.2, -5.2 30.2 '
-       + 'C -5.9 28.4, -4.6 26.6, -2.6 25.4 '
+       + 'C -2.5 36.3, -5.1 35.7, -5.7 33.6 '
+       + 'C -6.2 31.7, -4.7 30.1, -2.6 29.1 '
         // Trailing edge back to the root: smooth, no tubercles, gently concave.
-       + 'C 3.4 21.6, 10.6 15.8, 16.4 9.6 '
-       + 'C 20.6 5.6, 24.5 1.8, 28 -2.5 Z',
+       + 'C 3.6 25.9, 11.2 21.2, 17.4 16.4 '
+       + 'C 19.4 15.8, 20 15.2, 20 14.8 Z',
       fill: '#cbdae5', stroke: '#93a8ba', 'stroke-width': 0.7, 'stroke-linejoin': 'round',
     })
 
