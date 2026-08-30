@@ -8,7 +8,12 @@ This file is the point of the whole research. Everything else here is either evi
 bestiary). If you read one file, read this one.
 
 It is a **procedure**, not a gallery. It has five phases, each with an output you can check before
-moving on. Skipping a phase does not save time — every defect recorded in this directory came from
+moving on.
+
+**And the procedure has a rule about itself: every change to it is simulated before it is believed.**
+Run the changed method from a blank page on an object it has never seen, count the iterations, and
+record what the new phase actually removed. A change to a procedure that has not been simulated is
+an opinion. Both trials below produced a rule that reasoning alone had not surfaced. Skipping a phase does not save time — every defect recorded in this directory came from
 skipping one, and each was found only after the phase it belonged to had been skipped.
 
 ---
@@ -327,6 +332,66 @@ and found by a check that takes one command.
 
 What it removed entirely was the expensive class: the wrong mechanism, the wrong proportions, the
 wrong view, and the model-level mistakes that no amount of curve-tuning can fix.
+
+---
+
+## Second trial: simulating a change to the METHOD itself
+
+The turtle validated the method as it stood. Phases 1b, 1c and 1d — the anchor map, the kinematics
+sheet and the depth order — were added *after* it, which meant the newest and largest change to the
+method had never been tested. A change to a procedure has to be simulated exactly as a change to
+code does, or it is an opinion.
+
+So it was run again, on a **walking human**: the hardest available subject, because everyone knows
+what walking looks like, and one with an unusually rich published literature.
+
+**Result: two iterations. And, for the first time, no inverted sign.**
+
+| | dolphin (no method) | turtle (method, no 1b/1c/1d) | walker (full method) |
+|---|---|---|---|
+| iterations to acceptable | 6 | 2 | 2 |
+| inverted stroke sign | — | **yes** | **no** |
+| proportions wrong on first pass | yes | no | no |
+| keyframe values | guessed | guessed | **transcribed from published data** |
+| defects remaining | many | 0 declared | **1, declared** |
+
+What 1c bought, specifically: every keyframe stop is a published number placed at its published
+percentage — stance 60% / swing 40%, hip 20° extension at terminal stance, knee 40° at pre-swing
+and ~60° at mid-swing peak, ankle 20° plantarflexion at toe off. **Nothing was guessed**, and the
+sign convention was written down before the first keyframe, which is what stopped the inversion
+that caught both the bird and the turtle.
+
+What the two iterations were spent on, and neither was a modelling error:
+
+1. The arms were drawn in the torso's exact colour and disappeared into it — only the hands read.
+2. There was no ground line, so the figure floated and the cycle could not be judged at all.
+
+### The defect the second iteration exposed, which is worth more than the figure
+
+Adding the ground revealed something invisible without it: **the planted foot slides**. The chain is
+rooted at the hip, so when the pelvis rises the stance foot rises with it.
+
+That is not a bug in this walker. It is a general rule the method was missing:
+
+> **A supported chain should be rooted at its CONTACT POINT, not at its centre of mass.** Drive a
+> walker from the hip and the stance foot slips; drive a crane from its cab and the hook drifts;
+> drive a leaning ladder from its middle and its feet skate. Wherever a part is in contact and must
+> not move, the hierarchy has to be inverted for as long as that contact lasts — which is inverse
+> kinematics, not a transform chain.
+
+It is left in place here, with the amplitude held to ~1% of height so the slip is below the noise,
+and **declared rather than hidden**, because the point of the trial is what it found.
+
+### What this says about simulating method changes
+
+The turtle trial said the method works. This one says something more specific and more useful: the
+part that removed the largest class of error was **1c, the kinematics sheet** — because guessed
+angles were the single most frequent defect across every figure in this directory, and transcribed
+angles cannot be guessed wrong.
+
+It also produced a new rule that no amount of reasoning about the method would have surfaced. That
+is the argument for the practice itself: **every change to the method gets simulated, and the
+simulation is where the next rule comes from.**
 
 ## What this method costs, and when to skip it
 

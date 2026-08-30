@@ -345,6 +345,67 @@
   @keyframes swimTailSideways { 0%,100% { transform: rotate(-8deg) } 50% { transform: rotate(8deg) } }
   @keyframes whalePectoral    { 0%,100% { transform: rotate(-7deg) } 50% { transform: rotate(9deg) } }
 
+  /* Gait cycle. Every stop below is a published number, placed at its published percentage — this
+     is the first figure in this directory whose keyframes were transcribed rather than guessed.
+     Sign convention, fixed before writing any of them: hip flexion (thigh forward) is NEGATIVE. */
+  @keyframes gaitHip {
+    0%   { transform: rotate(-25deg) }   /* initial contact: hip flexed */
+    10%  { transform: rotate(-20deg) }   /* loading response */
+    30%  { transform: rotate(-6deg) }    /* mid-stance: passing under the body */
+    50%  { transform: rotate(20deg) }    /* terminal stance: 20 deg EXTENSION */
+    60%  { transform: rotate(12deg) }    /* pre-swing / toe off */
+    73%  { transform: rotate(-14deg) }   /* initial swing */
+    87%  { transform: rotate(-25deg) }   /* mid to terminal swing: 20-25 deg flexion */
+    100% { transform: rotate(-25deg) }
+  }
+  @keyframes gaitKnee {
+    0%   { transform: rotate(-4deg) }    /* near full extension at contact */
+    10%  { transform: rotate(-18deg) }   /* loading response absorbs — the "knee dip" */
+    30%  { transform: rotate(-6deg) }
+    50%  { transform: rotate(-4deg) }    /* terminal stance: neutral */
+    60%  { transform: rotate(-40deg) }   /* pre-swing: 40 deg flexion */
+    73%  { transform: rotate(-60deg) }   /* mid-swing peak */
+    87%  { transform: rotate(-30deg) }   /* terminal swing: extending again */
+    100% { transform: rotate(-4deg) }
+  }
+  @keyframes gaitAnkle {
+    0%   { transform: rotate(0deg) }     /* neutral at heel strike */
+    10%  { transform: rotate(6deg) }     /* plantarflexion as the foot flattens */
+    30%  { transform: rotate(-4deg) }    /* dorsiflexion through mid-stance */
+    50%  { transform: rotate(-9deg) }    /* terminal stance: 5-10 deg dorsiflexion */
+    60%  { transform: rotate(20deg) }    /* toe off: 20 deg PLANTARflexion */
+    73%  { transform: rotate(8deg) }
+    87%  { transform: rotate(0deg) }     /* neutral, ready for the next contact */
+    100% { transform: rotate(0deg) }
+  }
+  /* Arms swing contralaterally, with about a third of the leg's amplitude. */
+  @keyframes gaitShoulder {
+    0%   { transform: rotate(14deg) }
+    50%  { transform: rotate(-12deg) }
+    100% { transform: rotate(14deg) }
+  }
+  @keyframes gaitElbow {
+    0%   { transform: rotate(-10deg) }
+    50%  { transform: rotate(-26deg) }
+    100% { transform: rotate(-10deg) }
+  }
+  /* The pelvis rises and falls TWICE per cycle, peaking at each mid-stance. Animating it once per
+     cycle is the classic tell of a figure that was not researched.
+     KNOWN DEFECT, kept small rather than hidden: this chain is rooted at the HIP, so when the
+     pelvis rises the planted foot rises with it and slides against the ground. In a real gait the
+     stance foot is FIXED and the hip moves relative to IT — the hierarchy should be rooted at the
+     contact point, which is inverse kinematics rather than a transform chain. The amplitude is
+     therefore held to ~1% of height, where the slip is below the noise; a correct version reverses
+     the chain for whichever leg is in stance. */
+  @keyframes gaitBob {
+    0%, 50%, 100% { transform: translateY(0.7px) }
+    28%, 78%      { transform: translateY(-0.7px) }
+  }
+  @keyframes gaitTrunk {
+    0%, 50%, 100% { transform: rotate(-1.6deg) }
+    25%, 75%      { transform: rotate(-3deg) }
+  }
+
   /* Turtle. FIVE stages, from the kinematics: thrust is almost entirely on the downstroke, so the
      downstroke is short and fast and the recovery is long and slow — a stronger asymmetry than the
      bird's. The shell does not flex at all; only the limbs work. */
@@ -439,6 +500,10 @@
         everything that repeats. Reduce motion rather than removing it.</span></div>
       <div class="phase"><b>5 · Verify</b><span>Frozen poses side by side. Large, against a grid.
         The reduced-motion variant. And the cost, measured — a number, not an impression.</span></div>
+      <div class="phase"><b>↻ · Simulate the method</b><span>Every change to the procedure is run
+        from a blank page on an object it has never seen, and the iterations are counted. A change
+        to a method that has not been simulated is an <em>opinion</em>. Both trials so far produced
+        a rule that reasoning alone had not surfaced.</span></div>
     </div>
     <div class="prose stack" style="margin-top:26px">
       <p style="color:var(--muted)">Phases 1 and 3 are the ones that get skipped, and skipping them
@@ -2449,6 +2514,154 @@ creature({
   },
 })
 
+creature({
+  id: 'walker',
+  title: 'Walking figure',
+  latin: 'gait cycle · Homo sapiens',
+  view: 'profile — the sagittal plane is where a gait cycle is defined and measured',
+  mechanism: 'stance 60% / swing 40% · hip, knee and ankle driven from published joint angles',
+  build(host) {
+    const svg = document.createElementNS(SVG_NAMESPACE, 'svg')
+    svg.setAttribute('viewBox', '-50 -8 100 108')
+    svg.setAttribute('class', 'mini')
+    host.appendChild(svg)
+
+    // Built to SIMULATE the method's newest additions — the anchor map (1b), the kinematics sheet
+    // (1c) and the depth order (1d) — on an object no part of this research had touched. A walking
+    // human is the hardest available test: everyone knows what walking looks like, so an error is
+    // not subtle.
+    //
+    // ── 1b ANCHOR MAP, in fractions of standing height H, measured from the ground ──
+    //   shoulder 0.82  ·  hip 0.53  ·  knee 0.28  ·  ankle 0.04
+    //   thigh = 0.25 H   shank = 0.24 H   foot ≈ 0.15 H long
+    //   shoulder width 0.25 H   arm 0.44 H   head 0.13 H
+    //
+    // ── 1c KINEMATICS, from published gait analysis ──
+    //   stance 60% / swing 40% — the asymmetry is a measured number, not a feel
+    //   sub-phases: loading response 1-10 · mid-stance 11-30 · terminal stance 31-50 ·
+    //               pre-swing 51-60 · initial swing 61-73 · mid-swing 74-87 · terminal swing 88-100
+    //   initial contact  hip flexed, knee near full extension, ankle neutral
+    //   terminal stance  hip 20 deg EXTENSION, knee neutral, ankle 5-10 deg dorsiflexion
+    //   pre-swing        hip 20 deg ext -> neutral, knee neutral -> 40 deg flexion,
+    //                    ankle 10 deg dorsi -> 20 deg plantarflexion
+    //   terminal swing   hip 20 deg flexion, knee 30 deg flexion -> neutral, ankle neutral
+    //   knee peaks near 60 deg in mid-swing — the one value taken from general knowledge rather
+    //   than from the sources read here, and flagged as such
+    //   the two legs are exactly half a cycle apart; arms swing CONTRALATERALLY
+    //   the pelvis rises and falls TWICE per cycle, peaking at each mid-stance
+    //
+    // ── 1d DEPTH ORDER ──
+    //   far leg · far arm · torso · head · near leg · near arm
+    //
+    // Signs: SVG rotation is clockwise-positive. The figure faces +x and limbs hang toward +y, so
+    // hip FLEXION (thigh forward) is NEGATIVE and extension positive. Getting this wrong is the
+    // error that inverted the bird and the turtle; here it was written down before any keyframe.
+
+    const H = 100
+    const skin = '#c69a76', cloth = '#3f5a72', clothDark = '#33495c', shoe = '#26313c'
+    const hipY = (1 - 0.53) * H, kneeLen = 0.25 * H, shankLen = 0.24 * H
+
+    // Ground line, drawn first. A gait cycle cannot be judged without a floor: the entire cycle is
+    // defined by when and where the foot meets it. Rendering the figure against nothing was a real
+    // defect of the first pass, not a presentational choice.
+    el(svg, 'line', {
+      x1: -50, y1: H - 0.5, x2: 50, y2: H - 0.5,
+      stroke: '#9db3c4', 'stroke-width': 0.8,
+    })
+
+    const root = el(svg, 'g')
+    root.style.transformBox = 'view-box'
+    root.style.transformOrigin = `0px ${hipY}px`
+    root.style.animation = 'gaitBob 1.1s ease-in-out infinite'
+
+    // One leg. `phase` shifts it half a cycle for the far side; `depth` dims and de-saturates it,
+    // which is the cheapest possible aerial perspective and enough at this size.
+    function leg(parent, phase, fill, shoeFill, opacity) {
+      const thigh = el(parent, 'g', { opacity })
+      thigh.style.transformBox = 'view-box'
+      thigh.style.transformOrigin = `0px ${hipY}px`
+      thigh.style.animation = `gaitHip 1.1s linear ${phase}s infinite`
+      el(thigh, 'path', {
+        d: `M-4.5 ${hipY - 1} L4.5 ${hipY - 1} L3.4 ${hipY + kneeLen} L-3.4 ${hipY + kneeLen} Z`,
+        fill, 'stroke-linejoin': 'round',
+      })
+
+      const shank = el(thigh, 'g')
+      shank.style.transformBox = 'view-box'
+      shank.style.transformOrigin = `0px ${hipY + kneeLen}px`
+      shank.style.animation = `gaitKnee 1.1s linear ${phase}s infinite`
+      el(shank, 'path', {
+        d: `M-3.4 ${hipY + kneeLen} L3.4 ${hipY + kneeLen} L2.5 ${hipY + kneeLen + shankLen} L-2.5 ${hipY + kneeLen + shankLen} Z`,
+        fill, 'stroke-linejoin': 'round',
+      })
+
+      const foot = el(shank, 'g')
+      foot.style.transformBox = 'view-box'
+      foot.style.transformOrigin = `0px ${hipY + kneeLen + shankLen}px`
+      foot.style.animation = `gaitAnkle 1.1s linear ${phase}s infinite`
+      el(foot, 'path', {
+        d: `M-3 ${hipY + kneeLen + shankLen - 2} L2.4 ${hipY + kneeLen + shankLen - 2} `
+         + `L11 ${hipY + kneeLen + shankLen + 2.6} L11 ${hipY + kneeLen + shankLen + 4} `
+         + `L-3.6 ${hipY + kneeLen + shankLen + 4} Z`,
+        fill: shoeFill,
+      })
+    }
+
+    // One arm. Contralateral: it carries the opposite leg's phase.
+    function arm(parent, phase, fill, opacity) {
+      const shoulderY = (1 - 0.82) * H
+      const upper = el(parent, 'g', { opacity })
+      upper.style.transformBox = 'view-box'
+      upper.style.transformOrigin = `0px ${shoulderY}px`
+      upper.style.animation = `gaitShoulder 1.1s linear ${phase}s infinite`
+      el(upper, 'path', {
+        d: `M-3 ${shoulderY} L3 ${shoulderY} L2.3 ${shoulderY + 0.19 * H} L-2.3 ${shoulderY + 0.19 * H} Z`,
+        fill,
+      })
+      const fore = el(upper, 'g')
+      fore.style.transformBox = 'view-box'
+      fore.style.transformOrigin = `0px ${shoulderY + 0.19 * H}px`
+      fore.style.animation = `gaitElbow 1.1s linear ${phase}s infinite`
+      el(fore, 'path', {
+        d: `M-2.3 ${shoulderY + 0.19 * H} L2.3 ${shoulderY + 0.19 * H} L1.9 ${shoulderY + 0.36 * H} L-1.9 ${shoulderY + 0.36 * H} Z`,
+        fill,
+      })
+      el(fore, 'circle', { cx: 0, cy: shoulderY + 0.375 * H, r: 2.6, fill: skin })
+    }
+
+    // 1d depth order, drawn in sequence.
+    leg(root, -0.55, '#33495c', '#1c242c', 0.75)      // far leg, half a cycle behind
+    arm(root, 0, '#2c4055', 0.7)                       // far arm, contralateral to the far leg
+
+    // Torso: shoulders back, pelvis forward, with a slight forward lean — a walker's trunk is not
+    // vertical.
+    const torso = el(root, 'g')
+    torso.style.transformBox = 'view-box'
+    torso.style.transformOrigin = `0px ${hipY}px`
+    torso.style.animation = 'gaitTrunk 1.1s ease-in-out infinite'
+    el(torso, 'path', {
+      d: `M-7 ${hipY + 2} L7 ${hipY + 2} L8.5 ${(1 - 0.75) * H} L7.5 ${(1 - 0.83) * H} `
+       + `L-7.5 ${(1 - 0.83) * H} L-8 ${(1 - 0.75) * H} Z`,
+      fill: cloth,
+    })
+    // Neck and head. Head is 0.13 H; a head drawn larger is the single most common proportion error
+    // in a walking figure.
+    el(torso, 'rect', { x: -2.2, y: (1 - 0.855) * H, width: 4.4, height: 0.035 * H, fill: skin })
+    el(torso, 'ellipse', { cx: 1.2, cy: (1 - 0.925) * H, rx: 0.048 * H, ry: 0.062 * H, fill: skin })
+    el(torso, 'path', {
+      d: `M${-0.048 * H + 1.2} ${(1 - 0.955) * H} A ${0.048 * H} ${0.062 * H} 0 0 1 ${0.048 * H + 1.2} ${(1 - 0.95) * H} `
+       + `L${0.04 * H + 1.2} ${(1 - 0.925) * H} L${-0.048 * H + 1.2} ${(1 - 0.925) * H} Z`,
+      fill: '#4a3a2e',
+    })
+
+    leg(root, 0, cloth, shoe, 1)                       // near leg
+    // The near arm was the torso's exact colour and disappeared into it — only the hand read.
+    // A sleeve one step lighter separates it, which is also what a real garment does under light
+    // from above.
+    arm(root, -0.55, '#51708c', 1)                     // near arm, contralateral to the near leg
+  },
+})
+
 // ── The primitives themselves, each as a self-contained loop ────────────────
 // The scenes are compositions; these are the parts. Rendered live so the vocabulary can be seen
 // rather than read — a reader who has watched `sway` next to `oscillate` never confuses them again.
@@ -2659,6 +2872,67 @@ const sceneCss = `
      moment the animal was rendered large. */
   @keyframes swimTailSideways { 0%,100% { transform: rotate(-8deg) } 50% { transform: rotate(8deg) } }
   @keyframes whalePectoral    { 0%,100% { transform: rotate(-7deg) } 50% { transform: rotate(9deg) } }
+
+  /* Gait cycle. Every stop below is a published number, placed at its published percentage — this
+     is the first figure in this directory whose keyframes were transcribed rather than guessed.
+     Sign convention, fixed before writing any of them: hip flexion (thigh forward) is NEGATIVE. */
+  @keyframes gaitHip {
+    0%   { transform: rotate(-25deg) }   /* initial contact: hip flexed */
+    10%  { transform: rotate(-20deg) }   /* loading response */
+    30%  { transform: rotate(-6deg) }    /* mid-stance: passing under the body */
+    50%  { transform: rotate(20deg) }    /* terminal stance: 20 deg EXTENSION */
+    60%  { transform: rotate(12deg) }    /* pre-swing / toe off */
+    73%  { transform: rotate(-14deg) }   /* initial swing */
+    87%  { transform: rotate(-25deg) }   /* mid to terminal swing: 20-25 deg flexion */
+    100% { transform: rotate(-25deg) }
+  }
+  @keyframes gaitKnee {
+    0%   { transform: rotate(-4deg) }    /* near full extension at contact */
+    10%  { transform: rotate(-18deg) }   /* loading response absorbs — the "knee dip" */
+    30%  { transform: rotate(-6deg) }
+    50%  { transform: rotate(-4deg) }    /* terminal stance: neutral */
+    60%  { transform: rotate(-40deg) }   /* pre-swing: 40 deg flexion */
+    73%  { transform: rotate(-60deg) }   /* mid-swing peak */
+    87%  { transform: rotate(-30deg) }   /* terminal swing: extending again */
+    100% { transform: rotate(-4deg) }
+  }
+  @keyframes gaitAnkle {
+    0%   { transform: rotate(0deg) }     /* neutral at heel strike */
+    10%  { transform: rotate(6deg) }     /* plantarflexion as the foot flattens */
+    30%  { transform: rotate(-4deg) }    /* dorsiflexion through mid-stance */
+    50%  { transform: rotate(-9deg) }    /* terminal stance: 5-10 deg dorsiflexion */
+    60%  { transform: rotate(20deg) }    /* toe off: 20 deg PLANTARflexion */
+    73%  { transform: rotate(8deg) }
+    87%  { transform: rotate(0deg) }     /* neutral, ready for the next contact */
+    100% { transform: rotate(0deg) }
+  }
+  /* Arms swing contralaterally, with about a third of the leg's amplitude. */
+  @keyframes gaitShoulder {
+    0%   { transform: rotate(14deg) }
+    50%  { transform: rotate(-12deg) }
+    100% { transform: rotate(14deg) }
+  }
+  @keyframes gaitElbow {
+    0%   { transform: rotate(-10deg) }
+    50%  { transform: rotate(-26deg) }
+    100% { transform: rotate(-10deg) }
+  }
+  /* The pelvis rises and falls TWICE per cycle, peaking at each mid-stance. Animating it once per
+     cycle is the classic tell of a figure that was not researched.
+     KNOWN DEFECT, kept small rather than hidden: this chain is rooted at the HIP, so when the
+     pelvis rises the planted foot rises with it and slides against the ground. In a real gait the
+     stance foot is FIXED and the hip moves relative to IT — the hierarchy should be rooted at the
+     contact point, which is inverse kinematics rather than a transform chain. The amplitude is
+     therefore held to ~1% of height, where the slip is below the noise; a correct version reverses
+     the chain for whichever leg is in stance. */
+  @keyframes gaitBob {
+    0%, 50%, 100% { transform: translateY(0.7px) }
+    28%, 78%      { transform: translateY(-0.7px) }
+  }
+  @keyframes gaitTrunk {
+    0%, 50%, 100% { transform: rotate(-1.6deg) }
+    25%, 75%      { transform: rotate(-3deg) }
+  }
 
   /* Turtle. FIVE stages, from the kinematics: thrust is almost entirely on the downstroke, so the
      downstroke is short and fast and the recovery is long and slow — a stronger asymmetry than the

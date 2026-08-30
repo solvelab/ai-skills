@@ -352,6 +352,10 @@ const page = `<title>SVG Motion Field Guide</title>
         everything that repeats. Reduce motion rather than removing it.</span></div>
       <div class="phase"><b>5 · Verify</b><span>Frozen poses side by side. Large, against a grid.
         The reduced-motion variant. And the cost, measured — a number, not an impression.</span></div>
+      <div class="phase"><b>↻ · Simulate the method</b><span>Every change to the procedure is run
+        from a blank page on an object it has never seen, and the iterations are counted. A change
+        to a method that has not been simulated is an <em>opinion</em>. Both trials so far produced
+        a rule that reasoning alone had not surfaced.</span></div>
     </div>
     <div class="prose stack" style="margin-top:26px">
       <p style="color:var(--muted)">Phases 1 and 3 are the ones that get skipped, and skipping them
