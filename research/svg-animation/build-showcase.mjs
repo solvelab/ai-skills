@@ -238,6 +238,18 @@ const page = `<title>SVG Motion Field Guide</title>
   :root[data-motion="reduced"] .switch .state::after { content: "on"; color: var(--good); }
   :root:not([data-motion="reduced"]) .switch .state::after { content: "off"; }
 
+  /* ── the method ─────────────────────────────────────────── */
+  .phases { display: grid; gap: 1px; background: var(--line); margin-top: 30px;
+    border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  @media (min-width: 760px) { .phases { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1000px) { .phases { grid-template-columns: repeat(3, 1fr); } }
+  .phase { background: var(--surface); padding: 16px 18px 18px; display: flex;
+    flex-direction: column; gap: 7px; }
+  .phase b { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--accent); font-weight: 500; }
+  .phase span { font-size: 0.93rem; color: var(--muted); line-height: 1.55; }
+  .phase em { font-style: normal; color: var(--ink); }
+
   /* ── bestiary ───────────────────────────────────────────── */
   .creatures { display: flex; flex-direction: column; gap: 1px; background: var(--line);
     border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
@@ -296,6 +308,48 @@ const page = `<title>SVG Motion Field Guide</title>
     </div>
   </div>
 </header>
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">The deliverable</span>
+    <div class="prose stack">
+      <h2>A procedure, not a gallery</h2>
+      <p>The animals below are not the product. They are demonstrations of a <strong>generic
+        five-phase method</strong> for taking any object — a gull, a windmill, a car, a heartbeat —
+        to an SVG that reads as that object and moves the way it moves.</p>
+      <p>That distinction was learned the hard way: a long stretch of this work went into refining
+        one dolphin fin by fin, and the verdict was that the skill was getting <em>worse</em>. Craft
+        spent on one object does not travel. A procedure does.</p>
+    </div>
+    <div class="phases">
+      <div class="phase"><b>0 · Frame</b><span>The object in one sentence. The view chosen by the
+        <em>mechanism</em>, not by taste. The size it will be read at. What it must not be mistaken
+        for.</span></div>
+      <div class="phase"><b>1 · Research</b><span>Nine fields, filled before anything is drawn:
+        mechanism, phases, asymmetries, what changes shape, proportions in units of the whole,
+        materials by name, recognition marks, scale relations, and the unknowns — written down
+        rather than guessed.</span></div>
+      <div class="phase"><b>2 · Geometry</b><span>Decompose by what moves together. A mass comes
+        from a <em>profile table</em>; a feature from an <em>explicit outline</em>. Join parts by the
+        three-case colour rule. Then render it large against a grid and look at it.</span></div>
+      <div class="phase"><b>3 · Script</b><span>Write the life cycle in prose before a single
+        keyframe. States, named phases with real durations, what changes besides position, where the
+        asymmetry is, and what an <em>absence</em> would mean.</span></div>
+      <div class="phase"><b>4 · Assemble</b><span>The hierarchy is the part list. Lag between parts
+        is what makes a wave. Anything that moves as a unit becomes its own element. Decorrelate
+        everything that repeats. Reduce motion rather than removing it.</span></div>
+      <div class="phase"><b>5 · Verify</b><span>Frozen poses side by side. Large, against a grid.
+        The reduced-motion variant. And the cost, measured — a number, not an impression.</span></div>
+    </div>
+    <div class="prose stack" style="margin-top:26px">
+      <p style="color:var(--muted)">Phases 1 and 3 are the ones that get skipped, and skipping them
+        is what produces the "almost right but ugly" result that then absorbs hours of tuning —
+        tuning that cannot succeed, because the defect is in the model rather than in the curve.
+        Everything below is either evidence for a rule in the method, or the method run end to
+        end.</p>
+    </div>
+  </div>
+</section>
 
 <section>
   <div class="wrap">
@@ -362,7 +416,8 @@ const page = `<title>SVG Motion Field Guide</title>
     <div class="prose stack" style="margin-bottom:28px">
       <h2>The view is chosen by the mechanism</h2>
       <p>Each animal alone and large, because a mechanism cannot be judged at forty pixels inside a
-        landscape. And they are here to make one comparison possible.</p>
+        landscape. <strong>These are phase 1 and phase 2 run end to end</strong> — not a set of
+        shapes to reuse, but three worked examples of the procedure above.</p>
       <p>A dolphin and a shark both "swim with the tail", and their mechanics are <strong>opposites</strong>.
         Cetaceans descend from land mammals whose spines flex up and down, so their flukes are
         <strong>horizontal</strong> and they oscillate dorsoventrally. Sharks descend from fish whose

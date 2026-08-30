@@ -59,6 +59,12 @@ generic doctrine goes in the generic skill; this is the same shape as `backend-r
 the request is phrased in practice: *animate this SVG*, *SVG animation performance*, *animated
 background*, *parallax scene*, *particles*, *path morphing*, *animated icon*, *make this loop*.
 
+**Scope, corrected.** The skill is not only about animation. The method's phases 0-2 build the
+object **still** — framing, research and geometry — and an object that is wrong at rest does not
+become right by moving. The name stays `svg-animation` because it is what a user types, but the
+description must say that it covers building the object as well as moving it, or the skill will not
+be reached for when someone needs a correct static figure.
+
 **Category.** `frontend` — from the controlled set the CI enforces
 (`.github/workflows/ci.yml`). Ships in `plugins/frontend/`, bringing that plugin from 1 skill to 2.
 
@@ -70,7 +76,29 @@ and charting, which is a different discipline.
 Following the repository's `SKILL.md` + `references/` shape, which the r3f split established as the
 catalog's pattern (issue #28).
 
-**`SKILL.md`** — the operational core, everything a decision depends on:
+**`SKILL.md` is the METHOD** — the five-phase procedure in [`method.md`](method.md), which is what
+makes this skill generic. An agent asked for a windmill, a Corolla, a heartbeat or a gull runs the
+same five phases; only the research sheet's contents differ.
+
+This is the correction that matters most in this whole item. The research spent a long stretch
+refining one dolphin, one whale and one shark, fin by fin — and the maintainer's verdict was that
+the skill was getting *worse*, because per-object craft is not what a skill carries. It was right.
+A skill that ships a catalogue of shapes someone else drew helps with those shapes. A skill that
+ships a procedure helps with every object nobody has drawn yet.
+
+So the worked animals move to `references/` as demonstrations, and the operational core is:
+
+0. **Frame the request** — object in one sentence, the view chosen by the mechanism, the read size,
+   and what it must not be mistaken for.
+1. **Research the object** — a sheet with nine fields, filled before anything is drawn.
+2. **Geometry** — decompose by what moves together; mass from a profile table, features as explicit
+   outlines; join by the colour rule; check it large against a grid.
+3. **Script the life cycle** — states and named phases in prose, before a keyframe exists.
+4. **Assemble and animate** — hierarchy from the part list, lag makes the wave, channel by measured
+   cost, decorrelate, reduce rather than remove.
+5. **Verify** — frozen poses, large on a grid, the reduced-motion variant, measured cost.
+
+The old outline, which put the cost model first, is kept below only to record what it got wrong:
 
 0. **The observation step, first.** Research the subject before animating it: mechanism, phases,
    geometry, materials, scale relations. This was missing from the first draft of the research and
@@ -90,7 +118,10 @@ catalog's pattern (issue #28).
 
 | File | Contents |
 |---|---|
-| `object-research.md` | the observation step: what to research per subject, the two-bone lesson, palette by material, the frozen-pose check |
+| `object-research.md` | the phase-1 sheet in full, with worked examples of each field |
+| `geometry.md` | profile tables, explicit outlines, the three-case join rule, light direction, distribution |
+| `life-cycle-script.md` | how to write a cycle in prose: states, named phases, asymmetry, what absence means |
+| `worked-examples.md` | the gull, the dolphin, the humpback and the shark — each one the method run end to end, including the failed attempts and why they failed |
 | `primitives.md` | the 22 behaviours: channel, cost, composition notes |
 | `scene-recipes.md` | the composition table, with 6–8 scenes developed in full |
 | `performance-measurement.md` | how to measure — the harness, what it cannot see, how to read it |

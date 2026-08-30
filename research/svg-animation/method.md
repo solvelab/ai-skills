@@ -1,0 +1,238 @@
+# The method
+
+How to take **any** object someone asks for and produce it in SVG — still and moving — so that it
+reads as that object and moves the way that object moves.
+
+This file is the point of the whole research. Everything else here is either evidence for it
+([`measurements.md`](measurements.md)) or a worked demonstration of it (the scenes and the
+bestiary). If you read one file, read this one.
+
+It is a **procedure**, not a gallery. It has five phases, each with an output you can check before
+moving on. Skipping a phase does not save time — every defect recorded in this directory came from
+skipping one, and each was found only after the phase it belonged to had been skipped.
+
+---
+
+## Phase 0 — Frame the request
+
+Before any research, settle four things. They change everything downstream, and guessing them is
+the cheapest way to waste the other four phases.
+
+| Question | Why it decides things |
+|---|---|
+| **What is the object, in one sentence?** | "A bird" and "a herring gull in cruising flight" produce different work. Pin the species, model, era or type. |
+| **Which VIEW shows the mechanism?** | A shark's whole stroke is lateral: drawn in profile it is invisible. A bird's wing fold is invisible from below. Choose the view where the motion lives, not the view that is prettiest. |
+| **At what size will it be read?** | At 40 px only the silhouette and one or two marks survive. At 400 px the joins are visible and must be correct. Decide the target before drawing, because it sets how much geometry is worth building. |
+| **What must it NOT be mistaken for?** | Naming the neighbour it has to be distinguished from is what surfaces the diagnostic features. A gull's neighbour is a pigeon; a dolphin's is a shark; a van's is a truck. |
+
+**Output:** four written answers. If the view is wrong, nothing after this matters.
+
+---
+
+## Phase 1 — Research the object
+
+**Do not draw before this exists.** A technique catalogue applied without an observation step
+produces animation that is fast, cheap and wrong — measured repeatedly in this research.
+
+Fill this sheet. Each row is a question with a findable answer, and "I do not know" is a legitimate
+entry that must be written down rather than guessed.
+
+| Field | What to find | Example, from this directory |
+|---|---|---|
+| **Mechanism** | What physically produces the motion — joints, pivots, hinges, the driver | A wing is two bones: arm at the shoulder, hand at the elbow |
+| **Phases** | The named parts of the cycle, and their **relative durations** | Wingbeat: upstroke, US→DS transition, downstroke, DS→US. The downstroke is shorter and faster |
+| **Asymmetries** | What is not a sine — where the cycle is uneven | The power stroke occupies less of the cycle than the recovery |
+| **What CHANGES shape** | The part that is not rigid. This is usually the detail whose absence kills it | The wing's span shortens on the upstroke because the elbow folds |
+| **Proportions** | Real measures, as **fractions of the whole** | Gull: wingspan 2.30 L, bill 0.090 L, skull 0.10 L, fold at 39% of half-span |
+| **Materials and colours** | Named by what the thing IS, not by hue | `sea, reef, sand, grass, trunk, canopy-dark/mid/light, ground-shadow` — never `hsl(88 + rand())` |
+| **Recognition marks** | The one to three details the eye uses. Often cheap | A gull's black wingtip with white mirrors: one fill, and it reads at twenty pixels |
+| **Scale relations** | Ratios that are observable and free to honour | A smaller bird beats faster; a bigger network is a bigger island |
+| **Unknowns** | What could not be established | Written down, not filled with a plausible substitute |
+
+**Output:** the filled sheet. Every later decision cites a row of it.
+
+**Where to look, cheapest first:** what the project already contains (a codebase that draws this
+object has usually already learned the lesson — the maintainer's own `Gulls.tsx` carried thirteen
+documented defects and the species measurements that fixed them); then reference and specification
+material; then the open web. Prefer a source that gives **numbers or a mechanism** over one that
+gives adjectives.
+
+---
+
+## Phase 2 — Geometry: build it still
+
+An object that is wrong when still does not become right by moving. Build and check the static
+form first.
+
+### 2.1 Decompose by what moves together
+
+List the parts. A part is anything that moves as a unit, or that is a different material. This
+list becomes the drawing hierarchy and, later, the animation hierarchy — they are the same tree.
+
+### 2.2 Choose the construction per part
+
+This is the split that took three failed attempts to learn:
+
+| The part is… | Build it as | Because |
+|---|---|---|
+| a **mass** with a smooth rule — a body, a hull, a fuselage, a bottle | a **profile table**: stations along an axis, with a thickness at each | many samples, one law; the outline is continuous by construction and every number is a checkable proportion |
+| a **feature** with a handful of characteristics — a fin, a wing, a handle, a mirror, a bracket | an **explicit outline**, written directly | six or eight meaningful points; deriving them from parameters means tuning blind |
+
+A profile table looks like this, and its virtue is that each line can be argued about:
+
+```js
+{ x: 0.000, back: 0.012, belly: 0.012 },   // snout
+{ x: 0.072, back: 0.058, belly: 0.034 },   // THE CREASE — the melon rises abruptly
+{ x: 0.340, back: 0.108, belly: 0.100 },   // maximum girth, 34% back — not the middle
+```
+
+The same table serves the plan view by reading the column as half-width. Derived shapes — a
+countershaded belly, a painted stripe, a shadow — are generated **from the same table**, so they
+cannot drift off the form.
+
+### 2.3 Join the parts by the colour rule
+
+Three cases. Picking the wrong one produces a notch, and this defect was found and misdiagnosed
+three times before the rule was stated:
+
+| The part is… | How it joins | Why |
+|---|---|---|
+| **on the midline** (a dorsal fin, a mast, a spine) | draw it **before** the body | the body's own outline becomes the join; nothing is left to blend |
+| **the body's colour** (a dolphin's flipper, a same-tone bracket) | draw it after, root buried **inside** | the buried part is invisible, so no edge exists |
+| **a different colour** (a humpback's white flipper, a chrome trim) | draw it after, root lying **on** the surface | anything of it inside the body shows as a wedge with a straight edge |
+
+The third case is the one that keeps being got wrong, because burying the root is the instinct from
+the second — and burying a white shape in a dark body is exactly what draws the corner.
+
+### 2.4 Two more that generalise past organisms
+
+- **Gradients of value carry volume more cheaply than detail.** Three stacked shapes, each narrower
+  and lighter than the one below, give a tree its mass without drawing a leaf. The same trick builds
+  a cloud, a rock, a hedge, a crowd.
+- **Declare the light direction, once, and obey it everywhere.** Shadows that agree read as solid;
+  shadows that disagree read as collage. Write it down so later parts inherit it.
+- **Distribute by Poisson-disk, not by `Math.random()`.** Uniform random produces clumps and voids,
+  and clumps are precisely what the eye reads as "generated".
+- **Fade a field out; do not cut it.** A painted band that stops square reads as a sticker. Taper
+  its height to nothing.
+
+### 2.5 Check it before animating
+
+**Render it large, against a grid, and look at it.** Not at thumbnail size, and not in motion.
+
+Every geometric defect in this research was invisible in motion and obvious in a still: a hole
+between two outlines, a rectangular step where one path met another, a belly patch floating clear
+of the body, wings emerging from a neck, a mixed viewpoint.
+
+---
+
+## Phase 3 — Script the life cycle
+
+**Write the cycle in prose before writing a single keyframe.** This is the phase most often skipped
+entirely, and skipping it is what produces motion that is technically smooth and reads as a
+metronome.
+
+The script answers:
+
+1. **What are the states?** Not every object only loops. Consider: at rest, entering, cycling,
+   acting, degrading, leaving, absent. A watchdog post has *transmitting*, *late*, *lost*, *muted* —
+   and the fourth is not a variation of the first three.
+2. **What are the phases within the cycle**, named, with relative durations? "Down and up" is not a
+   script. "Power stroke, 28% of the cycle, wing extending and moving forward; recovery, 38%, wing
+   folding and moving back" is.
+3. **What changes besides position?** Shape, span, opacity, colour, count. The detail that kills a
+   naive animation is almost always one of these, not the trajectory.
+4. **Where is the asymmetry?** Almost nothing in nature or in machines is a sine.
+5. **What must NOT repeat?** And, separately: what may repeat, but must not be *seen* to repeat.
+6. **What does absence mean?** Sometimes the important state is the one where an expected motion
+   stops. That only reads if the expected motion was established first.
+
+**Output:** a written script. It is the specification the keyframes implement, and it is reviewable
+by someone who cannot read CSS.
+
+---
+
+## Phase 4 — Assemble and animate
+
+Now, and only now, the animation.
+
+### 4.1 The hierarchy is the part list from 2.1
+
+Each part hangs from the part it is attached to. A wing's hand hangs from its arm; a moon's group
+hangs from its planet's. Built this way, derived motion falls out for free: fold the elbow and the
+span shortens, because it must.
+
+### 4.2 Lag between parts is what makes a wave
+
+Give each part in a chain a slightly later start than the one before it. That lag is the travelling
+wave. Without it a chain flexes as one rigid hinge — a windscreen wiper, not a swimmer.
+
+### 4.3 Choose the channel by cost
+
+Measured, in Chromium (`measurements.md`): **inside an SVG, every animation mechanism pays layout
+every frame** — script, CSS, SMIL and the Web Animations API alike. The same declaration on an
+HTML-level box pays none.
+
+So: **anything that moves as a unit becomes its own `<svg>` element**, animated as a box. Parts that
+move *within* a unit stay inside it and pay layout, which is affordable in the tens and must be
+budgeted in the hundreds. Past a few hundred moving things, leave SVG for Canvas.
+
+### 4.4 Decorrelate everything that repeats
+
+- **Stagger instances** with a negative delay proportional to index — a flock that beats in unison
+  is the signature of a screensaver.
+- **Sum frequencies that share no small common multiple** so a loop never quite lines up.
+- **Vary rate with size** where the object's own physics says so.
+
+### 4.5 Reduce motion, do not remove it
+
+`prefers-reduced-motion: reduce` means *remove, reduce, **or replace***. Travel, parallax, rotation
+and scaling go; the object keeps breathing. Deleting motion that carried meaning makes the interface
+worse, not kinder. And read the preference again when it changes — it can change while the page is
+open.
+
+---
+
+## Phase 5 — Verify
+
+Four checks, in this order. Each one caught defects the others could not.
+
+1. **Frozen poses, side by side.** Render six to ten frames of the cycle, paused, and look at the
+   strip. Joints opening, patches surfacing, mixed viewpoints and hidden phases are all visible here
+   and invisible in motion.
+2. **Large, against a grid.** As in 2.5, again — the animation may have moved a part into a place
+   the static check did not cover.
+3. **Reduced-motion variant.** Look at it. It is a state of the artifact, not a fallback.
+4. **Measure the cost.** Layout per second and main-thread milliseconds per second of animation. A
+   number, not an impression.
+
+---
+
+## The procedure in one page
+
+```
+0  FRAME     object in one sentence · view chosen by mechanism · read size · what it is not
+1  RESEARCH  mechanism · phases · asymmetries · what changes shape · proportions in units of the
+             whole · materials by name · recognition marks · unknowns written down
+2  GEOMETRY  decompose by what moves together
+             mass → profile table · feature → explicit outline
+             join by the colour rule · declare the light · fade fields out
+             CHECK: large, against a grid
+3  SCRIPT    states · named phases with durations · what changes besides position ·
+             asymmetry · what must not repeat · what absence means
+4  ASSEMBLE  hierarchy = part list · lag makes the wave · own <svg> per moving unit ·
+             decorrelate · reduce rather than remove
+5  VERIFY    frozen poses · large on a grid · reduced-motion · measured cost
+```
+
+## What this method costs, and when to skip it
+
+Phases 1 and 3 are perhaps twenty minutes for an object nobody has drawn before, and they are the
+two that get skipped. Everything in this directory says that skipping them is what produces the
+"almost right but ugly" result that then absorbs hours of tuning — tuning that cannot succeed,
+because the defect is in the model rather than in the curve.
+
+Skip the method for a decorative shape with no referent: an abstract loader, a gradient blob, a
+pattern. There is no object to be faithful to, so there is nothing to research. **The moment the
+thing has a name — a gull, a Corolla, a windmill, a heartbeat — the method applies**, because the
+viewer already knows what it should look like and will see it if it is wrong.

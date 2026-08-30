@@ -11,7 +11,8 @@ plugin.
 
 | File | What it is |
 |---|---|
-| [`report.md`](report.md) | The research. Every claim labelled measured / source / unknown. |
+| [`method.md`](method.md) | **The point of all of this.** A five-phase procedure for taking any object to a faithful SVG animation. Generic: the animals here are demonstrations of it, not the product. |
+| [`report.md`](report.md) | The research and the evidence behind each rule in the method. Every claim labelled measured / source / unknown. |
 | [`measurements.md`](measurements.md) | Every number, its method, and what it does not cover. |
 | [`primitives.md`](primitives.md) | The reusable behaviours and how scenes compose from them. |
 | [`decision.md`](decision.md) | Where this should live: a new `svg-animation` skill, and why. |
