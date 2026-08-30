@@ -319,61 +319,147 @@ scene({
 })
 
 // ── 6. Birds ────────────────────────────────────────────────────────────────
+// Rewritten after the first version was rightly called a symbol of a bird rather than a bird.
+// What was wrong with it is worth naming, because it is the default failure: two mirrored arcs
+// rotating by the same angle, at constant span, on a single sine. Nothing in that is what a wing
+// does.
+//
+// What a wing actually does, researched before redrawing:
+//   - The cycle has FOUR phases, not two: upstroke, upstroke-to-downstroke transition, downstroke,
+//     and downstroke-to-upstroke transition.
+//   - The DOWNSTROKE is the power stroke. The wing goes down AND FORWARD, fully extended, elbow
+//     straight, primaries pointing away from the body.
+//   - The UPSTROKE is recovery. The wing goes up AND BACK, and it PARTIALLY FOLDS — elbow bent,
+//     primaries drawn in toward the body — which cuts drag.
+//   - So the SPAN CHANGES through the cycle. That is the single detail whose absence makes an
+//     animated bird read as a paper cutout, and no amount of easing substitutes for it.
+//   - The two halves are not symmetric in time: the downstroke is the faster, harder one.
+//   - In level cruising flight the beat is SHALLOW. The wing does not swing to vertical.
+//
+// The implementation follows the anatomy rather than approximating it: each wing is two hinged
+// segments — an arm from the shoulder and a hand from the elbow — so folding is a rotation at the
+// elbow and the span shortens as a CONSEQUENCE, not as a separate tween pretending to be one.
 scene({
   id: 'birds',
   title: 'Birds',
-  recipe: 'follow-path + offset-rotate + wing oscillate + stagger',
-  cost: 'layout — 11 birds, 22 animated wings',
+  recipe: 'follow-path + offset-rotate + two-bone wing (arm + hand) + phase-offset stagger',
+  cost: 'layout — 7 birds, 4 hinged segments each',
   note:
-    'offset-path carries each bird along a curve and offset-rotate: auto turns it to face where it ' +
-    'is going — that facing is what stops it reading as a sliding sticker. Wing period and path ' +
-    'offset are per-bird, so the flock never beats in unison.',
+    'The first version of this plate was two mirrored arcs rotating on one sine, and it read as a ' +
+    'symbol rather than a bird. Redrawn from how a wing works: the downstroke is the power stroke ' +
+    'and goes down and forward fully extended; the upstroke recovers, going up and back while the ' +
+    'elbow FOLDS. Because the wing is built as two hinged bones, the span shortens on the upstroke ' +
+    'as a consequence of the fold rather than as a separate tween. The elbow leads the shoulder by ' +
+    'a fraction of the cycle, which is what produces the whip through the wingtip.',
   build(stage) {
-    stage.style.background = 'linear-gradient(#cfe3f2 0%, #eaf2f7 55%, #f6e9d8 100%)'
+    stage.style.background = 'linear-gradient(#b9d6ea 0%, #dbe9f2 48%, #f2e6d4 78%, #f7ddb8 100%)'
     const rand = seeded(31337)
     const svg = layer(stage)
 
-    // Hills behind, for the birds to be in front of.
-    el(svg, 'path', {
-      d: 'M0 640 L0 470 Q 200 400 380 455 Q 560 512 760 442 Q 960 372 1200 452 L1200 640 Z',
-      fill: '#9fb8a6', opacity: 0.55,
-    })
-    el(svg, 'path', {
-      d: 'M0 640 L0 540 Q 260 486 460 528 Q 700 578 900 520 Q 1060 476 1200 526 L1200 640 Z',
-      fill: '#7e9c8a', opacity: 0.75,
-    })
+    // Hills, in receding tone and contrast — the far ridge is hazier because air between the
+    // viewer and it scatters light. Three layers so the birds have depth to travel through.
+    const ridges = [
+      { d: 'M0 640 L0 452 Q 190 392 372 444 Q 556 500 754 434 Q 952 366 1200 442 L1200 640 Z', fill: '#a9c2b6', opacity: 0.55 },
+      { d: 'M0 640 L0 512 Q 250 462 452 504 Q 690 552 892 496 Q 1058 452 1200 500 L1200 640 Z', fill: '#87a894', opacity: 0.78 },
+      { d: 'M0 640 L0 566 Q 300 534 540 570 Q 800 610 1010 566 Q 1120 542 1200 558 L1200 640 Z', fill: '#6a8d78', opacity: 0.95 },
+    ]
+    for (const r of ridges) el(svg, 'path', r)
 
     const paths = [
-      'M-80 180 C 200 90, 520 250, 800 140 S 1180 60, 1320 150',
-      'M-80 300 C 260 220, 480 360, 820 250 S 1160 190, 1320 270',
-      'M-80 110 C 300 190, 600 60, 900 170 S 1200 240, 1320 120',
+      'M-90 168 C 210 96, 520 236, 800 132 S 1180 62, 1330 140',
+      'M-90 268 C 260 198, 470 330, 810 226 S 1150 172, 1330 244',
+      'M-90 104 C 300 176, 590 58, 890 156 S 1190 222, 1330 116',
     ]
-    for (let i = 0; i < 11; i++) {
-      const bird = document.createElement('div')
-      bird.className = 'bird'
-      bird.style.offsetPath = `path("${paths[i % paths.length]}")`
-      bird.style.animation = `fly ${17 + rand() * 12}s linear ${-rand() * 22}s infinite`
-      bird.style.setProperty('--scale', (1.1 + rand() * 1.1).toFixed(2))
+
+    // One bird, drawn in PROFILE. The first attempt mixed two viewpoints — mirrored wings, which
+    // is the view from below, on a body drawn from the side — and the result read as an aircraft.
+    // Profile is also the view that shows the anatomy this scene is about: from below, the fold is
+    // foreshortened into nothing.
+    //
+    // Facing +x. The wing is drawn in its neutral, extended position — swept back from the
+    // shoulder, which is where a wing actually sits on a bird: over the back, not at the neck.
+    function bird(host, phase, beat) {
+      const g = el(host, 'g')
+
+      // Far wing first, so the body occludes its root. Dimmer, because it is on the other side of
+      // the body and further from the light — and lagging slightly, because a bird's two wings are
+      // never exactly in phase from this angle.
+      wing(g, -0.045, '#2b3540', 0.9)
+
+      // Body: deep chest forward, tapering to the tail. A gull in cruise carries its mass ahead of
+      // the wing root, which is what makes the silhouette read as flying rather than floating.
+      el(g, 'path', {
+        d: 'M-13 1.2 C -10 -1.6, -3 -4.4, 4 -4.2 C 9 -4, 12.5 -2.4, 13.5 -0.6 '
+         + 'C 12.5 1.6, 8 3.4, 1 3.4 C -5 3.4, -10 2.8, -13 1.2 Z',
+        fill: '#39434f',
+      })
+
+      // Tail: a short fan, angled down a little. Not a spike — a spike reads as a second beak.
+      el(g, 'path', { d: 'M-11.5 0.4 C -15 -0.8, -19.5 -1.6, -22 -0.4 C -19 1.2, -15 2.4, -11.5 2.6 Z', fill: '#39434f' })
+
+      // Head: set forward and slightly high, on a short neck that the chest curve implies.
+      el(g, 'circle', { cx: 13.2, cy: -2.6, r: 3.3, fill: '#39434f' })
+      el(g, 'path', { d: 'M15.8 -3 L21.5 -2.1 L15.8 -1.2 Z', fill: '#e0a33f' })
+      el(g, 'circle', { cx: 14.4, cy: -3.4, r: 0.7, fill: '#101820' })
+
+      // Near wing last, over the body.
+      wing(g, 0, '#39434f', 1)
+
+      function wing(parent, lag, fill, opacity) {
+        // Shoulder sits over the BACK — x just behind the chest, y at the top of the body.
+        const shoulder = el(parent, 'g', { opacity })
+        shoulder.style.transformBox = 'view-box'
+        shoulder.style.transformOrigin = '3px -3px'
+        shoulder.style.animation =
+          `wingArm ${beat}s cubic-bezier(.34,0,.3,1) ${(phase + lag).toFixed(3)}s infinite`
+
+        // Arm: shoulder to elbow, carrying the secondaries. Broad and blunt — this is the part
+        // that gives a wing its area, and drawing it as a line is what made the first version
+        // read as a stick.
+        el(shoulder, 'path', {
+          // The elbow end is blunt and overlaps where the hand starts: a wing has no hinge gap,
+          // and two shapes meeting at a single point open one the moment they rotate apart.
+          d: 'M3.4 -2.4 C 1 -5.6, -3 -7.4, -7.6 -7.2 C -8 -5, -6.4 -2.6, -2.2 -1.4 '
+           + 'C -0.2 -1.8, 2 -2, 3.4 -2.4 Z',
+          fill,
+        })
+
+        const elbow = el(shoulder, 'g')
+        elbow.style.transformBox = 'view-box'
+        elbow.style.transformOrigin = '-6.4px -6.4px'
+        // The elbow leads the shoulder by a fraction of the cycle. That lag is what makes the tip
+        // trail and then whip through, instead of the wing moving as one rigid plank.
+        elbow.style.animation =
+          `wingHand ${beat}s cubic-bezier(.34,0,.3,1) ${(phase + lag - beat * 0.13).toFixed(3)}s infinite`
+
+        // Hand: elbow to tip, carrying the primaries. Long, swept back, tapering to a point, with
+        // a hint of separated tips at the trailing edge.
+        el(elbow, 'path', {
+          d: 'M-5.4 -7.6 C -10.6 -9.4, -16.6 -10.2, -22 -9.4 C -19.6 -7 , -13.6 -4.2, -6.6 -2.6 '
+           + 'C -6.4 -4.2, -5.8 -6, -5.4 -7.6 Z',
+          fill,
+        })
+      }
+
+      return g
+    }
+
+    for (let i = 0; i < 7; i++) {
+      const holder = document.createElement('div')
+      holder.className = 'bird'
+      holder.style.offsetPath = `path("${paths[i % paths.length]}")`
+      holder.style.animation = `fly ${19 + rand() * 11}s linear ${-rand() * 24}s infinite`
 
       const b = document.createElementNS(SVG_NAMESPACE, 'svg')
-      b.setAttribute('viewBox', '-14 -10 28 20')
-      b.setAttribute('width', '30')
-      b.setAttribute('height', '22')
-      const wingL = el(b, 'path', {
-        d: 'M0 0 C -5 -7, -10 -8, -13 -3', fill: 'none',
-        stroke: '#2f3b46', 'stroke-width': 1.9, 'stroke-linecap': 'round',
-      })
-      const wingR = el(b, 'path', {
-        d: 'M0 0 C 5 -7, 10 -8, 13 -3', fill: 'none',
-        stroke: '#2f3b46', 'stroke-width': 1.9, 'stroke-linecap': 'round',
-      })
-      const period = (0.34 + rand() * 0.3).toFixed(2)
-      wingL.style.transformOrigin = '0 0'
-      wingR.style.transformOrigin = '0 0'
-      wingL.style.animation = `flapL ${period}s ease-in-out infinite alternate`
-      wingR.style.animation = `flapR ${period}s ease-in-out infinite alternate`
-      bird.appendChild(b)
-      stage.appendChild(bird)
+      b.setAttribute('viewBox', '-26 -18 56 36')
+      b.setAttribute('width', 78)
+      b.setAttribute('height', 50)
+      const scale = 0.85 + rand() * 0.7
+      // Beat rate scales inversely with size, as it does in life: the smaller bird beats faster.
+      bird(b, -rand() * 1.2, (0.85 / scale) * (0.54 + rand() * 0.14))
+      b.style.transform = `scale(${scale})`
+      holder.appendChild(b)
+      stage.appendChild(holder)
     }
   },
 })
@@ -1160,8 +1246,39 @@ const sceneCss = `
   @keyframes breathe{ 0%,100% { transform: scale(1) } 50% { transform: scale(1.07) } }
   @keyframes glint  { 0%,100% { opacity: .12; transform: scaleX(.7) } 50% { opacity: .7; transform: scaleX(1.15) } }
   @keyframes fly    { from { offset-distance: 0% } to { offset-distance: 100% } }
-  @keyframes flapL  { from { transform: rotate(16deg) } to { transform: rotate(-34deg) } }
-  @keyframes flapR  { from { transform: rotate(-16deg) } to { transform: rotate(34deg) } }
+  /* The wingbeat, in four phases rather than two, and deliberately asymmetric in time.
+     0%   top of the upstroke, wing high and folded
+     18%  the fast, powerful downstroke begins — down AND forward, arm extending
+     46%  bottom of the downstroke, fully extended: this is where the span is longest
+     62%  recovery starts: up and back, and the elbow begins to fold
+     100% back to the top, folded
+     The downstroke occupies less of the cycle than the recovery, which is the asymmetry the
+     research describes. The elbow curves are not a copy of the shoulder's: the hand folds hardest
+     mid-upstroke, which is what shortens the span exactly when drag would otherwise be paid. */
+  /* The wingbeat, in four phases and deliberately asymmetric in time. In profile, both wings
+     swing the same way, so there is one pair of curves rather than a mirrored set.
+       0%   top of the upstroke: wing high, and folded
+       20%  the downstroke begins — fast, powerful, arm extending as it goes down and forward
+       48%  bottom of the downstroke, fully extended: the span is longest here
+       64%  recovery begins: up and back, and the elbow starts to fold
+       100% back to the top, folded
+     The downstroke occupies less of the cycle than the recovery, which is the asymmetry the
+     research describes. The hand's curve is not a copy of the arm's: it folds hardest through the
+     upstroke, which is what shortens the span exactly when drag would otherwise be paid. */
+  @keyframes wingArm {
+    0%   { transform: rotate(52deg) translateX(0) }
+    20%  { transform: rotate(44deg) translateX(0.4px) }
+    48%  { transform: rotate(-62deg) translateX(1.6px) }
+    64%  { transform: rotate(-30deg) translateX(0.6px) }
+    100% { transform: rotate(52deg) translateX(0) }
+  }
+  @keyframes wingHand {
+    0%   { transform: rotate(-40deg) }
+    20%  { transform: rotate(-12deg) }
+    48%  { transform: rotate(14deg) }
+    64%  { transform: rotate(-26deg) }
+    100% { transform: rotate(-40deg) }
+  }
   @keyframes flashPulse { 0% { opacity: 0 } 12% { opacity: .5 } 100% { opacity: 0 } }
   @keyframes leafFall {
     from { transform: translate(var(--x0, 400px), 240px) rotate(0deg); opacity: 0 }

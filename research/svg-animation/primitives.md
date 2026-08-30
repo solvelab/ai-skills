@@ -15,6 +15,27 @@ Cost column uses the channels measured in [`measurements.md`](measurements.md):
 
 ---
 
+## Before the vocabulary: the observation step
+
+This file is a set of tools. Reaching for it before looking at the subject is how the first version
+of the birds scene got built — every primitive applied correctly, and the result was a symbol of a
+bird rather than a bird.
+
+**Research the subject first: mechanism, phases, geometry, materials, scale relations, and the one
+or two details a viewer recognises it by.** Then choose primitives to express what you found. The
+full rule, the case that produced it, and the palette lesson taken from `feldt` are in `report.md`
+§0 and §0b.
+
+Two consequences that change how the tables below are used:
+
+- **Build the object out of the parts it really has.** A wing made of arm-plus-hand folds correctly
+  for free; a wing made of one rotating shape needs a second fake tween to imitate folding, and the
+  fake is what reads as wrong. Composite primitives onto real parts, not onto a silhouette.
+- **Check the key poses frozen, side by side, before judging the motion.** Every defect in that
+  bird was invisible while it moved and obvious in a strip of six still frames.
+
+---
+
 ## The primitives
 
 ### Motion in place
@@ -125,7 +146,7 @@ vocabulary above.
 | **fire / smoke** | `flicker` on the core + `float` + `morph` on the outline + `turbulence` displacement for smoke |
 | **solar system** | nested `orbit` (moon inside planet's group) + `rotate` on each body + scale for depth |
 | **meteor / comet** | `follow-path` + `draw` for the tail + `pulse` on the head |
-| **birds** | `follow-path` with `offset-rotate: auto` + a fast `oscillate` on the wing group + per-bird `stagger` so the flock is not synchronised |
+| **birds** | `follow-path` with `offset-rotate: auto` + a **two-bone wing** (arm hinged at the shoulder, hand hinged at the elbow, the hand lagging by ~⅛ cycle) + per-bird `stagger` — see `report.md` §0 for why the naive version fails |
 | **walking figure** | `oscillate` on each limb about its joint, phase-offset by π between left and right + a small vertical `float` on the hips at twice the step frequency |
 | **traffic** | `drift` at per-vehicle rates + `parallax` between lanes + `scatter` on start offsets |
 | **aurora** | `wave` (tiled, very slow) + `breathe` on opacity + additive-looking gradient stacking |

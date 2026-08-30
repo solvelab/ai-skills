@@ -366,6 +366,36 @@ const page = `<title>SVG Motion Field Guide</title>
 
 <section>
   <div class="wrap prose stack">
+    <span class="eyebrow">The correction that mattered most</span>
+    <h2>A technique catalogue is not enough</h2>
+    <p>The first version of the birds plate obeyed every performance rule on this page — path
+      following, facing rotation, a wing oscillation, per-bird stagger — and it was two mirrored arcs
+      turning on one sine at constant span. A <em>symbol</em> of a bird. Told so plainly, and it was
+      the right call.</p>
+    <p>What fixed it was not a better easing curve. It was reading how a wing works before drawing
+      one again:</p>
+    <ul class="plain">
+      <li>The cycle has <strong>four phases</strong>, not two.</li>
+      <li>The <strong>downstroke</strong> is the power stroke — down <em>and forward</em>, fully
+        extended.</li>
+      <li>The <strong>upstroke</strong> recovers: up, back, and the wing <strong>folds</strong>, so
+        the <strong>span changes through the cycle</strong>. That one fact is what separates a bird
+        from a paper cutout, and no easing substitutes for it.</li>
+      <li>The two halves are <strong>asymmetric in time</strong>, and cruising flight beats
+        <strong>shallow</strong>.</li>
+    </ul>
+    <p>So the wing is now built the way the animal is built: an arm hinged at the shoulder and a
+      hand hinged at the elbow, the hand lagging by about an eighth of a cycle. Folding shortens the
+      span as a <em>consequence</em> of the anatomy rather than as a second tween pretending to be
+      one — and the whip through the wingtip comes free with the lag.</p>
+    <p><strong>Research the subject before animating it.</strong> Mechanism, phases, geometry,
+      materials, scale relations, and the detail a viewer actually recognises it by. A catalogue of
+      primitives applied without that step produces animation that is fast, cheap and wrong.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose stack">
     <span class="eyebrow">Two traps</span>
     <h2>Found by looking, not by reading</h2>
     <ul class="plain">

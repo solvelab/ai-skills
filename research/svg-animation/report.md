@@ -15,6 +15,110 @@ not established.
 
 ---
 
+## 0. Before any of this: research the object, or the cost model is worthless
+
+This section exists because the rest of this report was written without it, and the omission
+produced exactly the failure it describes.
+
+Everything below §1 is about **cost and channel** — what is cheap to animate, where the layer
+boundary goes, when to leave SVG. All of it is true and none of it makes an animation good. The
+first version of the birds plate in the showcase obeyed every rule here — `follow-path`,
+`offset-rotate`, a wing oscillation, per-bird stagger — and was two mirrored arcs rotating on one
+sine at constant span. It was a *symbol* of a bird. The maintainer's verdict on it was that it had
+nothing to do with anything, and that was correct.
+
+**A technique catalogue without an observation step produces cheap, fast, wrong animation.**
+
+### The rule
+
+Before drawing or animating a subject, research the subject: how it actually moves, what it is
+built out of, what its geometry is, what colours it really carries, and which details a viewer uses
+to recognise it. Then animate the mechanism you found, not the impression you remember.
+
+### What that produced for one bird
+
+Reading about wing mechanics before redrawing changed every part of the result:
+
+| What the research said | What the first version did | What it forced |
+|---|---|---|
+| The cycle has **four phases** — upstroke, US→DS transition, downstroke, DS→US transition | one sine, two phases | four keyframe stops |
+| The **downstroke** is the power stroke: down **and forward**, fully extended, elbow straight | a symmetric swing | a forward translation that peaks with the stroke |
+| The **upstroke** recovers: up and back, and the wing **partially folds** | constant span | the wing rebuilt as two hinged bones, so folding shortens the span as a *consequence* |
+| The halves are **asymmetric in time** — the downstroke is faster | 50/50 | 20/48/64 stops, downstroke shorter |
+| Cruising flight has a **shallow** beat | full swing | reduced amplitude at the top |
+
+The span change is the detail that carries the whole thing. Without it an animated bird reads as a
+paper cutout no matter how good the easing is — and no easing curve substitutes for it, because it
+is a fact about anatomy, not about timing.
+
+The structural lesson generalises past birds: **build the object out of the parts it actually has,
+and let the derived motion fall out.** A wing modelled as arm-plus-hand folds correctly for free. A
+wing modelled as one rotating shape needs a second fake tween to imitate folding, and the fake is
+what reads as wrong.
+
+### What to research, per subject
+
+- **Mechanism** — what physically produces the motion. Joints, hinges, pivots, the thing that
+  drives it. Animate that, not the silhouette's path through space.
+- **Phases** — almost nothing in nature is a sine. Cycles have named parts with different
+  durations, and the asymmetry is usually visible.
+- **Geometry** — the real proportions and the shape of each part. Where a wing joins a body is a
+  fact; the first version put it at the neck.
+- **Colour** — the actual materials, not a hue ramp. See §0b.
+- **Scale relations** — a smaller bird beats faster; a bigger island holds more. These ratios are
+  observable and free to honour.
+- **What the viewer recognises it by** — often one or two details doing all the work. A gull is
+  read from its swept hand and its deep chest long before any colour is resolved.
+
+### How to check it
+
+Render the key poses side by side, frozen, and look at them — the way an animator checks a cycle
+before it moves. Every defect in the bird above was invisible in motion and obvious in a strip of
+six frozen frames: the wings emerging from the neck, the mixed viewpoint, the joint gap opening as
+the elbow rotated, the whole downstroke hidden behind the body.
+
+That check is now the first thing to do, not the last.
+
+## 0b. Colour comes from materials, not from a hue ramp
+
+Taken from `feldt`, a project in the same workspace whose archipelago is markedly better drawn than
+the first draft of this research, and worth studying for why.
+
+Its palette does not have "green" and "blue". It has **twenty-one named materials**, in two complete
+themes:
+
+```
+mar, recife, areia, grama, mata, mataCerrada, lago, pantano, rocha, cume,
+tronco, copaEscura, copaMedia, copaClara, sombraChao, onda,
+raso, abissal, vulto, dorsal, esteira
+```
+
+Sea, reef, sand, grass, woodland, dense woodland, lake, marsh, rock, summit, trunk, three canopy
+depths, ground shadow, wave — and then, for the sea's life, shallows, abyss, shape, dorsal, wake.
+Each name is a thing that exists, and each colour was chosen for that thing.
+
+The scenes in this research used `hsl(88 + rand() * 34, 42%, ...)` — a hue ramp with noise, which is
+what "make it look natural" produces when nobody looked at anything. The difference is visible
+immediately and it is not subtle.
+
+Three more techniques worth stealing outright from that code, each cheap and each worth more than a
+performance trick:
+
+- **Volume from stacked layers, not from detail.** Its tree is three ellipses, each narrower and
+  lighter than the one below, over a trunk — with the comment *"it is what gives volume without
+  drawing a single leaf"*. No gradient, no texture, no per-leaf geometry.
+- **A declared light direction.** Ground shadows are short *because the light comes from above*, and
+  that is written down. A scene where every shadow agrees reads as solid; one where they disagree
+  reads as collage.
+- **Distribution by Poisson disk, not by `Math.random()`.** Bridson sampling with a minimum spacing
+  gives scatter that looks natural because it has no clumps and no voids. Uniform random has both,
+  and clumps are exactly what the eye reads as "generated".
+
+And one rule about restraint that belongs in any skill for on-call screens, quoted from that code:
+fish are drawn on the map but never on the board, because on the board they would be *"movement
+where the screen asks for reading"*. Motion is not free of meaning. Adding it where nothing changed
+is a lie about the state of the system.
+
 ## 1. The five mechanisms, and why the choice matters less than people think
 
 SVG can be animated five ways. The SVG 2 specification lists them itself and declines to require
@@ -287,6 +391,10 @@ parts; those are real problems that are tedious to solve by hand.
 - **Thousands of SVG nodes for a particle field.** **[measured]** §4.
 - **`prefers-reduced-motion` as an off switch.** §7 — the specification says reduce or replace, and
   removing state-communicating animation makes the interface worse.
+- **Animating an impression of a subject instead of its mechanism.** §0 — the catalogue of
+  primitives is a set of tools, not a substitute for looking at the thing.
+- **Colour from a hue ramp with noise.** §0b — it is the visual signature of work where nobody
+  observed the subject.
 - **Assuming SVG `transform-origin` behaves like HTML's.** §7b — it starts at `0 0`, and a `scale`
   or `rotate` silently translates the element.
 - **Rebuilding geometry every frame when a seamless tile would do.** **[measured]** 17.85 ms/s and

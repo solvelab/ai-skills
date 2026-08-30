@@ -72,6 +72,11 @@ catalog's pattern (issue #28).
 
 **`SKILL.md`** — the operational core, everything a decision depends on:
 
+0. **The observation step, first.** Research the subject before animating it: mechanism, phases,
+   geometry, materials, scale relations. This was missing from the first draft of the research and
+   its absence produced a bird made of two rotating arcs — every performance rule obeyed, and the
+   result worthless. A skill that opens with the cost model teaches an agent to make fast, cheap,
+   wrong animation. `report.md` §0 and §0b.
 1. The cost model. The measured table, and the one rule that follows: *decide the layer boundary by
    what moves; anything that moves as a unit is its own `<svg>` element.*
 2. Choosing the mechanism — SMIL / CSS / WAAPI / script — and why the choice barely affects cost.
@@ -85,6 +90,7 @@ catalog's pattern (issue #28).
 
 | File | Contents |
 |---|---|
+| `object-research.md` | the observation step: what to research per subject, the two-bone lesson, palette by material, the frozen-pose check |
 | `primitives.md` | the 22 behaviours: channel, cost, composition notes |
 | `scene-recipes.md` | the composition table, with 6–8 scenes developed in full |
 | `performance-measurement.md` | how to measure — the harness, what it cannot see, how to read it |
