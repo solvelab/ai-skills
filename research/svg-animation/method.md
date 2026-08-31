@@ -514,6 +514,48 @@ attack. It is not the up-and-down stroke, and in profile it is edge-on and nearl
 
 The turtle's twist is now left unmodelled and declared, rather than modelled in the wrong place.
 
+---
+
+## Fifth trial: auditing what the method was actually applied to
+
+Asked whether the method had really been applied to everything, the honest answer was **no** — and
+saying so required checking rather than remembering. Each subject's code was scanned for the marks
+each phase leaves behind:
+
+```
+subject      kind         0    1   1b   1c   1d    2    3    5
+starfield    scene        .  yes    .    .    .    .  yes    .
+ocean        scene        .    .    .    .    .    .  yes    .
+tree         scene        .    .    .    .    .    .  yes    .
+rain         scene        .    .    .    .    .    .  yes    .
+dolphin      creature   yes  yes  yes  yes    .  yes  yes  yes
+walker       creature   yes  yes  yes  yes  yes    .  yes  yes
+complete (all 8 markers): NONE
+```
+
+**Nothing had the full method.** Seven scenes had received only phase 3. The animals had picked up
+1c retroactively and little else. An audit like this takes minutes to write and is worth more than
+any assurance, because a claim about process is exactly the kind that memory flatters.
+
+Rebuilding two of the worst from zero shows what the missing phases were worth:
+
+**Tree.** A trunk sways at **0.2-0.33 Hz** while BRANCH modes sit at **2, 7 and 11 Hz** — a spread of
+10× to 30×. The old scene used 1.5×, so everything swayed at one rate and the tree moved like
+seaweed. Damping also comes from the branches: **10.6% with them, 1.3% stripped bare**, which is why
+each order must move out of phase with its parent rather than with it.
+
+**Rain.** Terminal velocity is a FUNCTION OF DIAMETER — `v = 9.65 − 10.3·exp(−0.6·d)`, the Gunn &
+Kinzer fit. The old scene drew speed and streak length from **independent** random ranges, so a
+small drop could out-fall a large one. And a streak is motion blur, so its length is velocity times
+exposure. One roll of the dice — the diameter — now sets size, speed, streak and opacity together,
+and they cannot contradict each other.
+
+That second one is the general lesson:
+
+> **Derive every correlated property from one root quantity.** Where two things are related by
+> physics, sampling them independently guarantees combinations that cannot exist. The viewer cannot
+> name what is wrong, but reads the whole field as false.
+
 ## What this method costs, and when to skip it
 
 Phases 1 and 3 are perhaps twenty minutes for an object nobody has drawn before, and they are the

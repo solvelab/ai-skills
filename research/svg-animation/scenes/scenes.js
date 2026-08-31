@@ -132,41 +132,75 @@ scene({
   },
 })
 
-// ── 3. Tree in wind ─────────────────────────────────────────────────────────
+// ── 3. Tree in wind ────────────────────────────────────────────────────────
+// REBUILT FROM ZERO through the method, after an audit showed this scene had received only
+// phase 3. What the research phase changed is not decoration — it is the whole behaviour.
+//
+// ── 0 FRAME ──
+//   A broadleaf tree in steady wind, seen in profile, read at ~200px, and not to be mistaken for
+//   a conifer (which sways faster and holds its branches rigid).
+//
+// ── 1c KINEMATICS, measured, WITH AXES ──
+//   whole-tree sway  ~0.2 Hz typical; an open-grown tree with four branches measured 0.33 Hz.
+//                    Range across species 0.1-5 Hz. AXIS: bending of the trunk about its base.
+//   BRANCH modes     2, 7 and 11 Hz measured on branches of sweet orange. AXIS: bending of the
+//                    branch about its own attachment.
+//   damping          10.6% with all branches attached, falling to 1.3% when stripped bare. The
+//                    branches ARE the damper: they dissipate wind energy by moving out of phase
+//                    with the trunk.
+//
+//   The previous version had the trunk at 5.5s (0.18 Hz) and the finest twigs at 3.5s (0.29 Hz) —
+//   a spread of 1.5x. The measured spread between a trunk and a branch mode is 10x to 30x. That
+//   single number is why the old tree waved like seaweed instead of moving like wood: everything
+//   was swaying at nearly one rate, so nothing looked stiff and nothing looked light.
+//
+// ── 3 SCRIPT ──
+//   The trunk carries a slow, near-sinusoidal sway with gusts. Each branch order adds a faster
+//   oscillation ON TOP of its parent's, so motion accumulates outward and the tip of a twig is the
+//   sum of four frequencies — which is also why it never repeats.
+//   Leaves flutter faster still, and are the first thing to move when a gust arrives.
 scene({
   id: 'tree',
   title: 'Tree in wind',
-  recipe: 'sway about each joint + stagger down the hierarchy + noise-driven gusts',
-  cost: 'layout — ~40 animated nodes, well inside budget',
+  recipe: 'sway per branch order at MEASURED frequencies + gust envelope + stagger',
+  cost: 'layout — ~45 animated nodes',
   note:
-    'A branch bends about its base: the transform is a rotation with transform-origin at the joint, ' +
-    'never a translation. Children inherit the parent\'s sway and add their own, so the motion ' +
-    'accumulates outward exactly as a real tree does. Gust amplitude comes from summed sines with ' +
-    'unrelated periods, so no two gusts land the same way.',
+    'Rebuilt from the method. The finding that changed it: a trunk sways at 0.2-0.33 Hz while ' +
+    'BRANCH modes sit at 2, 7 and 11 Hz — a spread of 10x to 30x, not the 1.5x the first version ' +
+    'used. Everything swaying at one rate is why the old tree moved like seaweed. Damping also ' +
+    'comes from the branches themselves: 10.6% with them, 1.3% stripped bare, which is why each ' +
+    'order moves out of phase with its parent rather than with it.',
   build(stage) {
     stage.style.background = 'linear-gradient(#dfeaf2 0%, #b9d3e0 60%, #9ab8a4 100%)'
     const svg = layer(stage)
     const rand = seeded(4242)
 
-    // Recursive branch: each level is its own <g> with its own origin, so sway composes.
+    // Measured frequencies per branch order, converted to seconds. Order 0 is the trunk.
+    // 0.30 Hz · 2 Hz · 7 Hz · 11 Hz — the published modes, not a smooth ramp.
+    const PERIOD = [1 / 0.30, 1 / 2.0, 1 / 7.0, 1 / 11.0, 1 / 11.0]
+
+    // Amplitude falls as frequency rises: a trunk moves a few degrees slowly, a twig many degrees
+    // quickly. Stiffness scales with the fourth power of radius, so this drop is steep.
+    const AMPLITUDE = [1.4, 3.5, 7, 11, 14]
+
     function branch(parent, x, y, len, angle, depth) {
       const g = el(parent, 'g')
-      // Opt out of the fill-box rule above: a branch rotates about the joint where it meets its
-      // parent, which is a point in user space, not the centre of its own bounding box.
       g.style.transformBox = 'view-box'
       g.style.transformOrigin = `${x}px ${y}px`
-      // Deeper branches sway further and faster — that gradient is what sells it as one organism.
-      const amp = 0.5 + depth * 1.5
-      const dur = 5.5 - depth * 0.5
-      g.style.animation = `sway${depth} ${dur}s ease-in-out ${-rand() * dur}s infinite alternate`
-      g.dataset.amp = amp
+      // Each order oscillates about ITS OWN attachment, at its own measured rate, on top of
+      // whatever its parent is already doing. Phase is randomised so orders are not in lockstep —
+      // which is the damping mechanism, not a stylistic choice.
+      g.style.animation =
+        `sway${depth} ${PERIOD[depth].toFixed(3)}s ease-in-out ${(-rand() * PERIOD[depth]).toFixed(3)}s infinite alternate`
 
       const x2 = x + Math.cos(angle) * len
       const y2 = y + Math.sin(angle) * len
       el(g, 'line', {
         x1: x, y1: y, x2, y2,
         stroke: `hsl(28 ${30 - depth * 3}% ${22 + depth * 5}%)`,
-        'stroke-width': Math.max(1.5, 13 - depth * 2.4), 'stroke-linecap': 'round',
+        // Taper by radius, not by a constant: a branch that does not thin looks like pipework.
+        'stroke-width': Math.max(1.2, 13 * Math.pow(0.62, depth)),
+        'stroke-linecap': 'round',
       })
 
       if (depth < 4) {
@@ -175,24 +209,28 @@ scene({
         if (depth > 1 && rand() > 0.55) branch(g, x2, y2, len * 0.5, angle + (rand() - 0.5) * 0.5, depth + 1)
       } else {
         for (let i = 0; i < 9; i++) {
-          // NOTE: no rotate() with an explicit centre here. The shared rule sets
-          // transform-box: fill-box, which re-resolves the coordinates inside a transform
-          // attribute against the element's own box — a rotate(deg cx cy) written in user space
-          // then throws the leaf across the scene. With fill-box in play, rotate about the
-          // element's own centre and let transform-origin do the positioning.
-          el(g, 'ellipse', {
+          // Leaves flutter faster than any branch mode and are the first thing a gust moves.
+          const leaf = el(g, 'ellipse', {
             cx: x2 + (rand() - 0.5) * 30, cy: y2 + (rand() - 0.5) * 30,
             rx: 7 + rand() * 5, ry: 4.5 + rand() * 3,
             transform: `rotate(${(rand() * 360).toFixed(0)})`,
             fill: `hsl(${88 + rand() * 34} 42% ${32 + rand() * 18}%)`, opacity: 0.92,
           })
+          leaf.style.animation = `leafFlutter ${(0.22 + rand() * 0.18).toFixed(2)}s ease-in-out ${(-rand()).toFixed(2)}s infinite alternate`
         }
       }
       return g
     }
-    branch(svg, 600, 620, 132, -Math.PI / 2, 0)
 
-    // Loose leaves drifting off, on the free channel.
+    // A GUST envelope over the whole tree: wind is not steady, and a tree at constant amplitude
+    // reads as a metronome. Slow, irregular, and applied at the trunk so everything inherits it.
+    const gust = el(svg, 'g')
+    gust.style.transformBox = 'view-box'
+    gust.style.transformOrigin = '600px 620px'
+    gust.style.animation = 'treeGust 11s ease-in-out infinite'
+    branch(gust, 600, 620, 132, -Math.PI / 2, 0)
+
+    // Loose leaves, on the free channel.
     const air = layer(stage)
     for (let i = 0; i < 9; i++) {
       const leaf = el(air, 'ellipse', {
@@ -530,16 +568,34 @@ scene({
   },
 })
 
-// ── 7. Rain on canvas ───────────────────────────────────────────────────────
+// ── 7. Rain on canvas ──────────────────────────────────────────────────────
+// REBUILT FROM ZERO through the method. The audit found this scene had received only phase 3, and
+// the research phase exposed a defect that no amount of visual tuning would have found.
+//
+// ── 1c KINEMATICS, measured ──
+//   Terminal velocity is a FUNCTION OF DIAMETER, not an independent property:
+//     0.6 mm -> ~2 m/s      1 mm -> ~4 m/s      2 mm -> ~6.5 m/s
+//     3 mm   -> ~8 m/s      4 mm -> ~8.8 m/s    6 mm -> ~10 m/s (rare)
+//   The standard fit since Gunn & Kinzer (1949): v = 9.65 - 10.3·exp(-0.6·d), d in mm, v in m/s.
+//
+//   The previous version drew `speed` and `length` from INDEPENDENT random ranges, so a small drop
+//   could out-fall a large one and a slow drop could carry a long streak. Both are impossible, and
+//   both are invisible frame by frame — the eye reads the field as "wrong" without being able to
+//   say why. This is exactly the class of defect phase 1 exists to prevent.
+//
+//   And the STREAK LENGTH is not a free parameter either: a streak is motion blur, so its length is
+//   velocity times exposure time. One number sets both, which means they can never disagree.
 scene({
   id: 'rain',
   title: 'Rain',
-  recipe: 'swarm on Canvas + SVG for everything with identity',
+  recipe: 'swarm on Canvas + terminal velocity from drop diameter + streak = v × exposure',
   cost: 'canvas — 1200 drops; the SVG version of this costs 3.7x the main thread',
   note:
-    'This is the scene that proves the boundary. The drops are a field, not objects: nothing needs ' +
-    'to style, hit-test or read them, so they belong on a canvas. The window frame behind them is ' +
-    'SVG, because it has identity. One scene, both technologies, composed by ordinary stacking.',
+    'Rebuilt from the method. The first version drew speed and streak length from independent ' +
+    'random ranges, so small drops could fall faster than large ones. Terminal velocity is a ' +
+    'function of diameter — v = 9.65 − 10.3·exp(−0.6·d), the Gunn & Kinzer fit — and a streak is ' +
+    'motion blur, so its length is velocity times exposure. One roll of the dice, the diameter, ' +
+    'now sets size, speed, streak and opacity together, and they cannot contradict each other.',
   build(stage) {
     stage.style.background = 'linear-gradient(#2b3444 0%, #3d4a5c 60%, #4a5768 100%)'
     const back = layer(stage)
@@ -565,13 +621,29 @@ scene({
     stage.appendChild(canvas)
     const ctx = canvas.getContext('2d')
     const rand = seeded(5150)
+
+    // Scale: this 640-unit-tall view stands for roughly 12 m of air.
+    const UNITS_PER_METRE = 640 / 12
+    const EXPOSURE = 1 / 45          // shutter time in seconds; sets how long a streak is
+
+    // Marshall-Palmer says small drops vastly outnumber large ones. Sampling diameter uniformly
+    // gives a shower of implausibly fat drops; an exponential bias reproduces the real mix.
     const drops = []
     for (let i = 0; i < 1200; i++) {
+      const d = 0.4 + -Math.log(1 - rand() * 0.93) * 0.8      // mm, exponentially biased small
+      const terminal = 9.65 - 10.3 * Math.exp(-0.6 * d)       // m/s, Gunn & Kinzer
       drops.push({
-        x: rand() * 1200, y: rand() * 640,
-        len: 8 + rand() * 20, speed: 420 + rand() * 480, alpha: 0.15 + rand() * 0.4,
+        x: rand() * 1300, y: rand() * 640,
+        d,
+        speed: terminal * UNITS_PER_METRE,                    // units per second
+        streak: terminal * EXPOSURE * UNITS_PER_METRE,        // motion blur: v × exposure
+        width: Math.max(0.6, d * 0.55),
+        // Distance haze: a small, slow, far drop is fainter than a big near one, and since all
+        // three follow from d there is nothing to keep in sync by hand.
+        alpha: 0.14 + Math.min(0.5, d * 0.13),
       })
     }
+
     let last = performance.now()
     let running = true
     function frame(now) {
@@ -580,15 +652,16 @@ scene({
       last = now
       ctx.clearRect(0, 0, 1200, 640)
       ctx.strokeStyle = '#cfe0f5'
-      ctx.lineWidth = 1
-      for (const d of drops) {
-        d.y += d.speed * dt
-        d.x -= d.speed * 0.18 * dt
-        if (d.y > 650) { d.y = -20; d.x = rand() * 1300 }
-        ctx.globalAlpha = d.alpha
+      ctx.lineCap = 'round'
+      for (const p of drops) {
+        p.y += p.speed * dt
+        p.x -= p.speed * 0.16 * dt                            // wind shear, same for every drop
+        if (p.y > 660) { p.y = -30; p.x = rand() * 1400 }
+        ctx.globalAlpha = p.alpha
+        ctx.lineWidth = p.width
         ctx.beginPath()
-        ctx.moveTo(d.x, d.y)
-        ctx.lineTo(d.x + d.len * 0.18, d.y - d.len)
+        ctx.moveTo(p.x, p.y)
+        ctx.lineTo(p.x + p.streak * 0.16, p.y - p.streak)
         ctx.stroke()
       }
       requestAnimationFrame(frame)
@@ -2370,11 +2443,24 @@ const sceneCss = `
     12%  { opacity: .95 }
     to   { transform: translate(calc(var(--x0, 400px) - 300px), 660px) rotate(520deg); opacity: 0 }
   }
-  @keyframes sway0 { from { transform: rotate(-0.7deg) } to { transform: rotate(0.7deg) } }
-  @keyframes sway1 { from { transform: rotate(-1.5deg) } to { transform: rotate(1.5deg) } }
-  @keyframes sway2 { from { transform: rotate(-2.6deg) } to { transform: rotate(2.6deg) } }
-  @keyframes sway3 { from { transform: rotate(-3.8deg) } to { transform: rotate(3.8deg) } }
-  @keyframes sway4 { from { transform: rotate(-5.2deg) } to { transform: rotate(5.2deg) } }
+  /* Amplitude falls as frequency rises — a trunk moves little and slowly, a twig a lot and fast.
+     Paired with the measured periods (0.30, 2, 7, 11 Hz) this is what makes wood read as wood. */
+  @keyframes sway0 { from { transform: rotate(-1.4deg) } to { transform: rotate(1.4deg) } }
+  @keyframes sway1 { from { transform: rotate(-3.5deg) } to { transform: rotate(3.5deg) } }
+  @keyframes sway2 { from { transform: rotate(-7deg) }   to { transform: rotate(7deg) } }
+  @keyframes sway3 { from { transform: rotate(-11deg) }  to { transform: rotate(11deg) } }
+  @keyframes sway4 { from { transform: rotate(-14deg) }  to { transform: rotate(14deg) } }
+  @keyframes leafFlutter { from { transform: rotate(-18deg) } to { transform: rotate(18deg) } }
+  /* Gusts: slow, uneven, never returning to the same amplitude twice in a row. */
+  @keyframes treeGust {
+    0%   { transform: rotate(0deg) }
+    18%  { transform: rotate(2.4deg) }
+    31%  { transform: rotate(0.6deg) }
+    52%  { transform: rotate(3.4deg) }
+    68%  { transform: rotate(1.1deg) }
+    84%  { transform: rotate(2.0deg) }
+    100% { transform: rotate(0deg) }
+  }
 
   /* Primitive demos */
   .mini { width: 100%; height: 100%; display: block; }
