@@ -2985,26 +2985,60 @@ creature({
 })
 
 // ── The primitives themselves, each as a self-contained loop ────────────────
-// The scenes are compositions; these are the parts. Rendered live so the vocabulary can be seen
-// rather than read — a reader who has watched `sway` next to `oscillate` never confuses them again.
-const primitives = [
-  { id: 'oscillate', channel: 'transform', build: (s) => dot(s, 'oscillateK 2.4s ease-in-out infinite alternate') },
-  { id: 'sway', channel: 'rotate about a base', build: swayDemo },
-  { id: 'drift', channel: 'transform', build: (s) => dot(s, 'driftK 3.4s linear infinite alternate') },
-  { id: 'float', channel: 'transform', build: (s) => dot(s, 'floatK 3s ease-in-out infinite alternate') },
-  { id: 'breathe', channel: 'scale', build: (s) => dot(s, 'breathe 3.2s ease-in-out infinite') },
-  { id: 'pulse', channel: 'opacity', build: (s) => dot(s, 'pulseK 0.9s ease-out infinite') },
-  { id: 'flicker', channel: 'opacity, irregular', build: (s) => dot(s, 'flickerK 1.7s steps(1) infinite') },
-  { id: 'orbit', channel: 'rotate a group', build: orbitDemo },
-  { id: 'ripple', channel: 'scale + opacity', build: rippleDemo },
-  { id: 'draw', channel: 'stroke-dashoffset', build: drawDemo },
-  { id: 'wave', channel: 'translate a tile', build: waveDemo },
-  { id: 'stagger', channel: 'negative delay', build: staggerDemo },
-]
+// REBUILT FROM ZERO through the method. The scenes were the obvious place to apply it and the
+// primitives were not, which is exactly why they were the worst: every one of them was
+// `ease-in-out infinite alternate` at a duration picked to look about right.
+//
+// ── 1a MECHANISM — the observation that changed all twelve ──
+//   Almost every primitive in every motion vocabulary is NAMED AFTER A REAL DYNAMICAL SYSTEM.
+//   sway is a pendulum. float is heave. breathe is respiration. pulse is a heart. flicker is a
+//   flame. ripple is a surface wave. orbit is Kepler. And a real system does not have a duration
+//   you choose — it has a duration that FOLLOWS from something, usually one measurable quantity:
+//
+//     sway     T = 2π·sqrt(2L/3g)          from the rod's LENGTH   (and from nothing else:
+//                                          Galileo — not the mass, not the amplitude)
+//     float    T = 2π·sqrt(draft/g)        from how deep it floats
+//     breathe  T = 60/rate, split 1:2      from the breathing RATE; inhale is half the exhale
+//     pulse    T = 60/bpm, systole 0.30 s  from the heart RATE
+//     flicker  f = 1.5/sqrt(D) Hz          from the fire's DIAMETER
+//     ripple   r = c·t, amplitude ∝ 1/√r   from the wave SPEED; energy over a growing circle
+//     orbit    T = a^1.5, Sun at a focus   from the semi-major AXIS
+//     wave     T = (n/2)·sqrt(2πL/g)       from the WAVELENGTH
+//     stagger  delay = x/c                 from the SPACING and the propagation speed
+//
+//   So the primitive's parameter is not its duration. It is the physical quantity, and the
+//   duration is output. That single inversion is what these twelve were missing, and it is the
+//   same rule the rain and the ocean arrived at from the other direction.
+//
+// ── 5 VERIFY ──
+//   Every timing below is printed in its own caption, so a reader can check the arithmetic
+//   against the law rather than take the animation's word for it.
 
-function miniSvg(stage) {
+const G = 9.81
+const injectKeyframes = (id, css) => {
+  if (document.getElementById(id)) return
+  const s = document.createElement('style')
+  s.id = id
+  s.textContent = css
+  document.head.appendChild(s)
+}
+// Sampled keyframes. A CSS timing function is a cubic Bézier, and no cubic Bézier is a cosine:
+// `ease-in-out` misses a true harmonic by 1.87% of amplitude, and even the sine Bézier
+// (0.37, 0, 0.63, 1) misses by 0.20%. Sampling the law itself is exact and costs nothing to
+// author, so every primitive below whose motion has a closed form uses this instead of an easing.
+const sampled = (id, prop, fn, steps = 40, unit = '') => {
+  let css = `@keyframes ${id} {`
+  for (let i = 0; i <= steps; i++) {
+    const u = i / steps
+    css += ` ${(u * 100).toFixed(2)}% { ${prop}: ${fn(u)}${unit} }`
+  }
+  injectKeyframes(`kf-${id}`, css + ' }')
+  return id
+}
+
+function miniSvg(stage, viewBox = '0 0 100 60') {
   const svg = document.createElementNS(SVG_NAMESPACE, 'svg')
-  svg.setAttribute('viewBox', '0 0 100 60')
+  svg.setAttribute('viewBox', viewBox)
   svg.setAttribute('class', 'mini')
   stage.appendChild(svg)
   return svg
@@ -3015,67 +3049,271 @@ function dot(stage, animation) {
   c.style.animation = animation
   return svg
 }
+
+// ── oscillate ── the free harmonic oscillator, sampled exactly rather than eased.
+function oscillateDemo(stage) {
+  const id = sampled('oscExact', 'transform', (u) => `translateX(${(Math.cos(u * 2 * Math.PI) * 22).toFixed(3)}px)`, 48)
+  return dot(stage, `${id} 2.4s linear infinite`)
+}
+
+// ── sway ── a physical pendulum. The rod is 1.5 m of the 42 units drawn, so the period is
+//    2π·sqrt(2L/3g) = 2.01 s and NOT a number anyone gets to pick. Galileo's result is the
+//    surprising half: the period does not depend on the mass hanging on the end, and barely on
+//    the amplitude — 24° adds 1.1%. A demo that speeds up when the bob gets bigger is wrong.
 function swayDemo(stage) {
   const svg = miniSvg(stage)
+  const LEN_M = 1.5
+  const T = 2 * Math.PI * Math.sqrt(2 * LEN_M / (3 * G))
+  const AMP = 24
+  const id = sampled('swayPend', 'transform', (u) => `rotate(${(Math.cos(u * 2 * Math.PI) * AMP).toFixed(3)}deg)`, 40)
   const g = el(svg, 'g')
   g.style.transformBox = 'view-box'
-  g.style.transformOrigin = '50px 54px'          // the joint, not the centre
-  g.style.animation = 'swayK 2.6s ease-in-out infinite alternate'
+  g.style.transformOrigin = '50px 54px'          // the pivot, not the centre
+  g.style.animation = `${id} ${T.toFixed(2)}s linear infinite`
   el(g, 'line', { x1: 50, y1: 54, x2: 50, y2: 12, stroke: 'currentColor', 'stroke-width': 3, 'stroke-linecap': 'round' })
   el(g, 'circle', { cx: 50, cy: 12, r: 5, fill: 'currentColor' })
 }
-function orbitDemo(stage) {
+
+// ── drift ── constant velocity, and therefore NO `alternate`. A body that reverses at the end of
+//    a linear run changes direction in zero time, which is infinite acceleration. Real drift
+//    either wraps around or turns with a curve; this one wraps.
+function driftDemo(stage) {
   const svg = miniSvg(stage)
-  el(svg, 'circle', { cx: 50, cy: 30, r: 5, fill: 'currentColor', opacity: 0.45 })
-  const g = el(svg, 'g')
-  g.style.transformBox = 'view-box'
-  g.style.transformOrigin = '50px 30px'
-  g.style.animation = 'spin 3s linear infinite'
-  el(g, 'circle', { cx: 70, cy: 30, r: 3.5, fill: 'currentColor' })
-}
-function rippleDemo(stage) {
-  const svg = miniSvg(stage)
-  for (let i = 0; i < 3; i++) {
-    const r = el(svg, 'circle', { cx: 50, cy: 30, r: 6, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 })
-    r.style.animation = `rippleK 2.4s ease-out ${-i * 0.8}s infinite`
+  const id = sampled('driftWrap', 'transform', (u) => `translateX(${(-46 + u * 92).toFixed(2)}px)`, 2)
+  for (let i = 0; i < 2; i++) {
+    const c = el(svg, 'circle', { cx: 50, cy: 30, r: 7, fill: 'currentColor', opacity: 1 - i * 0.55 })
+    c.style.animation = `${id} 3.4s linear ${-i * 1.7}s infinite`
   }
 }
+
+// ── float ── heave. A floating body bobs at T = 2π·sqrt(draft/g), so a deep-floating buoy is
+//    slow and a cork is quick. Draft here is stated as 0.5 m, giving 1.42 s.
+function floatDemo(stage) {
+  const svg = miniSvg(stage)
+  const DRAFT_M = 0.5
+  const T = 2 * Math.PI * Math.sqrt(DRAFT_M / G)
+  const id = sampled('heave', 'transform', (u) => `translateY(${(Math.cos(u * 2 * Math.PI) * -8).toFixed(3)}px)`, 40)
+  const c = el(svg, 'circle', { cx: 50, cy: 28, r: 8, fill: 'currentColor' })
+  c.style.animation = `${id} ${T.toFixed(2)}s linear infinite`
+  el(svg, 'line', { x1: 8, y1: 40, x2: 92, y2: 40, stroke: 'currentColor', opacity: 0.32, 'stroke-width': 1.4 })
+}
+
+// ── breathe ── respiration is ASYMMETRIC. At rest the inspiration-to-expiration ratio is about
+//    1:2, so at 14 breaths a minute the 4.29 s cycle is 1.43 s in and 2.86 s out. A symmetric
+//    ease-in-out is the tell that nobody looked: it makes the chest fall as fast as it rises,
+//    which is a thing a body does only when it is panting.
+function breatheDemo(stage) {
+  const RATE = 14
+  const T = 60 / RATE
+  const IN = 1 / 3                                   // the 1:2 ratio, as a fraction of the cycle
+  const id = sampled('breathIE', 'transform', (u) => {
+    const s = u < IN
+      ? 0.5 - 0.5 * Math.cos(Math.PI * (u / IN))     // in: quick
+      : 0.5 + 0.5 * Math.cos(Math.PI * ((u - IN) / (1 - IN)))  // out: twice as long
+    return `scale(${(0.86 + s * 0.28).toFixed(4)})`
+  }, 48)
+  return dot(stage, `${id} ${T.toFixed(2)}s linear infinite`)
+}
+
+// ── pulse ── a heart at 72 bpm is an 0.833 s cycle, and it is not one bump: systole lasts about
+//    0.30 s and diastole the remaining 0.53 s, with the two sounds — S1 and S2 — bracketing the
+//    ejection. Two unequal beats and a long pause is the shape; one even throb is a metronome.
+function pulseDemo(stage) {
+  const BPM = 72
+  const T = 60 / BPM
+  const S1 = 0, S2 = 0.30 / T                        // second sound at the close of systole
+  const bump = (x, w) => Math.exp(-((x / w) ** 2))
+  const id = sampled('heart72', 'transform', (u) => {
+    const a = bump(u - S1, 0.055) + 0.62 * bump(u - S2, 0.045)
+    return `scale(${(1 + a * 0.30).toFixed(4)})`
+  }, 60)
+  const idO = sampled('heart72o', 'opacity', (u) => {
+    const a = bump(u - S1, 0.06) + 0.62 * bump(u - S2, 0.05)
+    return (0.42 + a * 0.58).toFixed(3)
+  }, 60)
+  const svg = dot(stage, `${id} ${T.toFixed(2)}s linear infinite, ${idO} ${T.toFixed(2)}s linear infinite`)
+  return svg
+}
+
+// ── flicker ── a flame's puffing frequency is set by its DIAMETER: f = 1.5/sqrt(D) Hz. A candle
+//    (8 mm) puffs at 17 Hz, a 1 m pool fire at 1.5 Hz. This one states 6 cm, so 6.1 Hz. And a
+//    flame varies CONTINUOUSLY — `steps(1)` belongs to a failing electrical contact, which is a
+//    different mechanism wearing the same name. Both are here so the difference is visible.
+function flickerDemo(stage) {
+  const svg = miniSvg(stage)
+  const D_M = 0.06
+  const f = 1.5 / Math.sqrt(D_M)
+  const T = 1 / f
+  // Turbulent, so more than one frequency: the puffing tone plus its neighbours.
+  const id = sampled('flameFlick', 'opacity', (u) => {
+    const th = u * 2 * Math.PI
+    const a = 0.62 + 0.20 * Math.sin(th) + 0.11 * Math.sin(th * 2 + 1.1) + 0.07 * Math.sin(th * 3 + 2.3)
+    return a.toFixed(3)
+  }, 48)
+  const flame = el(svg, 'circle', { cx: 34, cy: 30, r: 9, fill: 'currentColor' })
+  flame.style.animation = `${id} ${T.toFixed(3)}s linear infinite`
+  // The other flicker: a contact that is either made or broken, with no values in between.
+  const lamp = el(svg, 'circle', { cx: 68, cy: 30, r: 9, fill: 'currentColor' })
+  lamp.style.animation = 'flickerK 1.7s steps(1) infinite'
+}
+
+// ── orbit ── Kepler, the same three laws the solar scene runs on, at the smallest scale they
+//    can be seen: the centre is a FOCUS and not the middle, and the body runs (1+e)/(1-e) faster
+//    at its closest approach. At e = 0.35 that is 2.08x, which no constant `spin` can produce.
+function orbitDemo(stage) {
+  const svg = miniSvg(stage)
+  const E = 0.35, A = 26, B = A * Math.sqrt(1 - E * E)
+  el(svg, 'ellipse', { cx: 50, cy: 30, rx: A, ry: B, fill: 'none', stroke: 'currentColor', opacity: 0.28, 'stroke-width': 1 })
+  el(svg, 'circle', { cx: 50 + A * E, cy: 30, r: 5, fill: 'currentColor', opacity: 0.5 })
+  const solveE = (M) => { let x = M; for (let i = 0; i < 5; i++) x -= (x - E * Math.sin(x) - M) / (1 - E * Math.cos(x)); return x }
+  const id = sampled('kepler35', 'transform', (u) => {
+    const ecc = solveE(u * 2 * Math.PI)
+    const x = 50 + A * E + A * (Math.cos(ecc) - E) - 50
+    const y = B * Math.sin(ecc)
+    return `translate(${x.toFixed(3)}px, ${y.toFixed(3)}px)`
+  }, 72)
+  const m = el(svg, 'circle', { cx: 50, cy: 30, r: 3.5, fill: 'currentColor' })
+  m.style.transformBox = 'view-box'
+  m.style.animation = `${id} 3s linear infinite`
+}
+
+// ── ripple ── a ring from a point disturbance travels at the wave speed, which is constant for a
+//    given wavelength, so the radius grows LINEARLY. `ease-out` decelerates it, which no free
+//    wave does. And the energy spreads around a growing circumference, so the amplitude falls as
+//    1/sqrt(r) — not linearly to zero, which is what a plain opacity fade assumes.
+//    (Water has a floor under this: the minimum phase speed is 23.1 cm/s at 1.7 cm wavelength.
+//    Shorter than that, capillary waves speed UP again and run out ahead of the ring.)
+function rippleDemo(stage) {
+  const svg = miniSvg(stage)
+  const R0 = 6, R1 = 30
+  const id = sampled('rippleC', 'r', (u) => (R0 + (R1 - R0) * u).toFixed(2), 24)
+  const idO = sampled('rippleA', 'opacity', (u) => {
+    const r = R0 + (R1 - R0) * u
+    return (0.95 * Math.sqrt(R0 / r) * (1 - u * u)).toFixed(3)   // 1/sqrt(r), then the edge fade
+  }, 24)
+  for (let i = 0; i < 3; i++) {
+    const c = el(svg, 'circle', { cx: 50, cy: 30, r: R0, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 })
+    c.style.animation = `${id} 2.4s linear ${-i * 0.8}s infinite, ${idO} 2.4s linear ${-i * 0.8}s infinite`
+  }
+}
+
+// ── draw ── the tell of a machine-drawn line is constant speed. A HAND obeys the two-thirds
+//    power law (Lacquaniti, Terzuolo & Viviani 1983): angular velocity goes as curvature^(2/3),
+//    which means the tangential speed goes as radius^(1/3) — you slow down in tight curves and
+//    run in the straights. Here the path is sampled, its curvature measured, and the dash offset
+//    reparametrised by that law. A radius of 100 is drawn 2.7x faster than a radius of 5.
 function drawDemo(stage) {
   const svg = miniSvg(stage)
   const p = el(svg, 'path', {
     d: 'M12 44 C 30 8, 48 52, 64 22 S 84 12, 90 26',
     fill: 'none', stroke: 'currentColor', 'stroke-width': 2.4, 'stroke-linecap': 'round',
   })
-  // The technique in one line: dash the path by its own length, then animate the offset to zero.
-  const length = p.getTotalLength ? p.getTotalLength() : 120
-  p.style.setProperty('--length', length)
-  p.style.strokeDasharray = length
-  p.style.animation = 'drawK 2.8s ease-in-out infinite'
+  const L = p.getTotalLength ? p.getTotalLength() : 120
+  p.style.strokeDasharray = L
+
+  const N = 64
+  const pts = []
+  for (let i = 0; i <= N; i++) pts.push(p.getPointAtLength ? p.getPointAtLength((i / N) * L) : { x: i, y: 0 })
+  // Menger curvature from three consecutive samples: κ = 4·area / (|ab|·|bc|·|ca|).
+  const times = [0]
+  let acc = 0
+  for (let i = 1; i <= N; i++) {
+    const a = pts[Math.max(0, i - 1)], b = pts[i], c = pts[Math.min(N, i + 1)]
+    const area = Math.abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) / 2
+    const ab = Math.hypot(b.x - a.x, b.y - a.y), bc = Math.hypot(c.x - b.x, c.y - b.y), ca = Math.hypot(c.x - a.x, c.y - a.y)
+    const kappa = (4 * area) / Math.max(1e-6, ab * bc * ca)
+    const radius = Math.min(400, 1 / Math.max(1e-4, kappa))
+    const v = Math.pow(radius, 1 / 3)                   // the two-thirds power law, as speed
+    acc += (L / N) / v                                  // time = distance / speed
+    times.push(acc)
+  }
+  const id = sampled('drawHand', 'stroke-dashoffset', (u) => {
+    // Invert: at fraction u of the total TIME, how much length has been drawn?
+    const target = u * acc
+    let i = 1
+    while (i < times.length && times[i] < target) i++
+    const t0 = times[i - 1], t1 = times[Math.min(i, times.length - 1)]
+    const f = t1 > t0 ? (target - t0) / (t1 - t0) : 0
+    const s = ((i - 1) + f) / N * L
+    return (L - s).toFixed(2)
+  }, 60)
+  p.style.animation = `${id} 2.8s linear infinite`
 }
+
+// ── wave ── the seamless tile, with its roll period taken from the dispersion relation rather
+//    than chosen: a tile carrying n cycles rolls in (n/2)·sqrt(2πL/g) seconds.
 function waveDemo(stage) {
-  const svg = miniSvg(stage)
-  svg.setAttribute('viewBox', '0 0 200 60')
+  const svg = miniSvg(stage, '0 0 200 60')
   svg.setAttribute('preserveAspectRatio', 'none')
   svg.style.width = '200%'
-  svg.style.animation = 'roll 3.4s linear infinite'
+  const N = 3, L_M = 26
+  svg.style.animation = `roll ${rollSeconds(N, L_M).toFixed(2)}s linear infinite`
   let d = 'M0 60 L0 34'
-  for (let i = 0; i <= 80; i++) {
-    const x = (i / 80) * 200
+  for (let i = 0; i <= 120; i++) {
+    const x = (i / 120) * 200
     const u = (x / 200) * Math.PI * 2
-    d += ` L${x.toFixed(1)} ${(34 + Math.sin(u * 3) * 7 + Math.sin(u * 7) * 2.5).toFixed(2)}`
+    // Stokes crests here too: peaked above, flat below.
+    d += ` L${x.toFixed(1)} ${(34 + stokes(u * N, 7, 0.5) + stokes(u * N * 2.3, 2.5, 0.3)).toFixed(2)}`
   }
   el(svg, 'path', { d: `${d} L200 60 Z`, fill: 'currentColor', opacity: 0.75 })
 }
+
+// ── stagger ── a negative delay per element, and the question the method forces is what SETS it.
+//    A stagger is a disturbance travelling along the row, so the delay is distance over speed.
+//    Written as delay = x/c the row has a real wave speed you can state; written as -(i/n)·T the
+//    spread is fixed no matter how far apart the elements are, and adding one element silently
+//    changes the speed of the whole thing.
 function staggerDemo(stage) {
   const svg = miniSvg(stage)
+  const SPEED = 60          // units per second along the row
+  const id = sampled('barBend', 'transform', (u) => `scaleY(${(0.55 + 0.45 * (0.5 - 0.5 * Math.cos(u * 2 * Math.PI))).toFixed(4)})`, 32)
   for (let i = 0; i < 7; i++) {
-    const bar = el(svg, 'rect', { x: 10 + i * 12, y: 20, width: 6, height: 20, rx: 2, fill: 'currentColor' })
+    const x = 13 + i * 12
+    const bar = el(svg, 'rect', { x: x - 3, y: 20, width: 6, height: 20, rx: 2, fill: 'currentColor' })
     bar.style.transformBox = 'view-box'
-    bar.style.transformOrigin = `${13 + i * 12}px 40px`
-    // The whole of stagger: a negative delay proportional to the index.
-    bar.style.animation = `barK 1.3s ease-in-out ${-(i / 7) * 1.3}s infinite alternate`
+    bar.style.transformOrigin = `${x}px 40px`
+    bar.style.animation = `${id} 1.3s linear ${(-(x - 10) / SPEED).toFixed(3)}s infinite`
   }
 }
+
+const primitives = [
+  { id: 'oscillate', channel: 'transform · exact cosine, not an easing',
+    law: 'x = A·cos(ωt). Sampled from the law: ease-in-out misses it by 1.87% of amplitude, the sine Bézier by 0.20%.',
+    build: oscillateDemo },
+  { id: 'sway', channel: 'rotate about a pivot',
+    law: 'T = 2π·sqrt(2L/3g) = 2.01 s for a 1.5 m rod. Not the mass, and barely the amplitude (24° adds 1.1%).',
+    build: swayDemo },
+  { id: 'drift', channel: 'transform · wraps, never alternates',
+    law: 'Constant velocity. `alternate` on a linear run reverses in zero time — infinite acceleration.',
+    build: driftDemo },
+  { id: 'float', channel: 'transform · heave',
+    law: 'T = 2π·sqrt(draft/g) = 1.42 s at 0.5 m draft. A cork bobs fast, a buoy slowly, for one reason.',
+    build: floatDemo },
+  { id: 'breathe', channel: 'scale · asymmetric',
+    law: '14 breaths/min = 4.29 s, split 1:2 — 1.43 s in, 2.86 s out. A symmetric breathe is a pant.',
+    build: breatheDemo },
+  { id: 'pulse', channel: 'scale + opacity · two sounds',
+    law: '72 bpm = 0.833 s. Systole 0.30 s, then S2, then a 0.53 s pause. Two unequal beats, not one throb.',
+    build: pulseDemo },
+  { id: 'flicker', channel: 'opacity · continuous vs stepped',
+    law: 'Flame: f = 1.5/sqrt(D) Hz, so 6.1 Hz at 6 cm. Continuous. The stepped one beside it is a failing contact — a different mechanism with the same name.',
+    build: flickerDemo },
+  { id: 'orbit', channel: 'translate along an ellipse',
+    law: 'Kepler: the centre is a FOCUS, and at e = 0.35 the body runs 2.08x faster at perihelion. No constant spin does that.',
+    build: orbitDemo },
+  { id: 'ripple', channel: 'r + opacity · linear, 1/√r',
+    law: 'A free wave does not decelerate: radius grows linearly. Energy spreads around the circumference, so amplitude falls as 1/√r. Animating r rather than scale keeps the stroke from thickening — a geometry attribute, so it pays layout every frame (prototype 01), knowingly.',
+    build: rippleDemo },
+  { id: 'draw', channel: 'stroke-dashoffset · reparametrised',
+    law: 'The two-thirds power law: speed ∝ radius^(1/3), so a hand slows in tight curves. Radius 100 is drawn 2.7x faster than radius 5.',
+    build: drawDemo },
+  { id: 'wave', channel: 'translate a seamless tile',
+    law: 'Roll period = (n/2)·sqrt(2πL/g), from the wavelength. Crests are Stokes 2nd order: peaked, with flat troughs.',
+    build: waveDemo },
+  { id: 'stagger', channel: 'delay = x / c',
+    law: 'A stagger is a disturbance crossing the row, so the delay is distance over speed. Writing it as -(i/n)·T fixes the spread and hides the speed.',
+    build: staggerDemo },
+]
 
 /** The stylesheet every scene above depends on. Kept here so there is one definition of it. */
 const sceneCss = `

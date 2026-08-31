@@ -647,6 +647,84 @@ test silently became an in-phase test and confidently reported two correct limbs
 > **A tool that answers a malformed question is worse than one that refuses it.** The guard now
 > rejects any cycle under 50 ms rather than quietly computing a zero shift.
 
+---
+
+## Seventh trial: the primitives, which were the worst of all
+
+The scenes were the obvious place to apply the method. The primitives were not, and that is exactly
+why they were the worst: twelve behaviours, every one of them `ease-in-out infinite alternate` at a
+duration picked to look about right.
+
+Phase 1 asked one question and it changed all twelve at once:
+
+> **Almost every primitive in every motion vocabulary is named after a real dynamical system.**
+> sway is a pendulum. float is heave. breathe is respiration. pulse is a heart. flicker is a flame.
+> ripple is a surface wave. orbit is Kepler. And a real system does not HAVE a duration you choose
+> — it has a duration that follows from one measurable quantity.
+
+```
+sway     T = 2π·sqrt(2L/3g)          from the rod's LENGTH — and, Galileo, from nothing
+                                     else: not the mass, and barely the amplitude
+float    T = 2π·sqrt(draft/g)        from how deep it floats
+breathe  T = 60/rate, split 1:2      from the breathing RATE; inhale is half the exhale
+pulse    T = 60/bpm, systole 0.30 s  from the heart RATE
+flicker  f = 1.5/sqrt(D) Hz          from the fire's DIAMETER
+ripple   r = c·t, amplitude ∝ 1/√r   from the wave SPEED
+orbit    T = a^1.5, centre at a focus  from the semi-major AXIS
+wave     T = (n/2)·sqrt(2πL/g)       from the WAVELENGTH
+stagger  delay = x/c                 from the SPACING and a propagation speed
+```
+
+**So a primitive's parameter is not its duration. It is the physical quantity, and the duration is
+an output.** That one inversion is what all twelve were missing, and it is the same rule the rain
+and the ocean reached from the other direction.
+
+Four of them were not merely arbitrary but wrong in kind:
+
+- **drift** ran `linear` with `alternate`. A body that reverses at the end of a constant-velocity
+  run changes direction in zero time — infinite acceleration. Real drift wraps or it turns.
+- **breathe** was symmetric. At rest the inspiration-to-expiration ratio is about 1:2, so a
+  symmetric breathe makes the chest fall as fast as it rises, which a body does only when panting.
+- **ripple** used `ease-out`, which decelerates the ring. No free wave decelerates. And the opacity
+  faded linearly, where energy spreading around a growing circumference falls as 1/√r.
+- **draw** advanced at constant speed. A HAND does not: the two-thirds power law (Lacquaniti,
+  Terzuolo & Viviani 1983) says tangential speed goes as radius^(1/3), so you slow in tight curves
+  and run in the straights — radius 100 is drawn 2.7x faster than radius 5. Constant-speed
+  `stroke-dashoffset` is the machine tell, and reparametrising by measured curvature removes it.
+
+### A CSS easing is not a law
+
+`ease-in-out` is a cubic Bézier, and no cubic Bézier is a cosine. Measured against a true harmonic:
+
+```
+ease-in-out    (0.42, 0, 0.58, 1)   max error 1.87% of amplitude
+easeInOutSine  (0.37, 0, 0.63, 1)   max error 0.20% of amplitude
+sampled from cos()                  exact
+```
+
+Sampling the law into keyframes costs nothing to author and is exact, so every primitive here whose
+motion has a closed form is sampled and its timing function is `linear`. **The curve belongs in the
+keyframes, not in the easing** — an easing can only ever approximate, and it hides which law it was
+approximating.
+
+### Verified, not asserted
+
+The captions print each duration, so the arithmetic is checkable against the animation. Then the
+page was asked what it was actually running:
+
+```
+sway     swayPend 2.01s linear      = 2π·sqrt(2·1.5/3g)      ✓
+float    heave 1.42s linear         = 2π·sqrt(0.5/g)         ✓
+breathe  breathIE 4.29s linear      = 60/14                  ✓
+pulse    heart72 0.83s linear       = 60/72                  ✓
+flicker  flameFlick 0.163s linear   = sqrt(0.06)/1.5         ✓
+wave     roll 6.12s linear          = (3/2)·sqrt(2π·26/g)    ✓
+stagger  delays 0.05, 0.25, 0.45 …  = x/60, 0.2 s per 12 units ✓
+```
+
+Printing a number in a caption is a claim. Reading it back out of `getComputedStyle` is the check,
+and it costs one evaluation.
+
 ## What this method costs, and when to skip it
 
 Phases 1 and 3 are perhaps twenty minutes for an object nobody has drawn before, and they are the

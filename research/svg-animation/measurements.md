@@ -214,3 +214,18 @@ it got from 1023 down to 339 is recorded in method.md, sixth trial; the short ve
 cost was the number of `fill()` calls and the size of their bounding boxes, not the geometry, and
 the first two fixes were aimed at the wrong cause.
 
+### The primitive strip
+
+| page | presentedFps | layout/s | style ms/s | task ms/s |
+|---|---|---|---|---|
+| all twelve primitives on one page | 59.5 | 60 | 31.14 | 118.7 |
+
+60 layout/s for twelve boxes of a few nodes each, and it is expected rather than a defect: most of
+these animate SVG CHILDREN — a `<g>` rotating, a `<rect>` scaling, a `<circle>` growing — and rows
+01-06 of the table above show that every mechanism inside SVG pays layout per frame. The strip is
+tiny, so it is cheap in absolute terms.
+
+One line of it is a deliberate trade. `ripple` animates the `r` ATTRIBUTE rather than `scale`,
+which is the expensive channel by row 01. It is worth it: `scale` grows the stroke along with the
+circle, so the ring thickens as it expands, and a real ripple does not.
+

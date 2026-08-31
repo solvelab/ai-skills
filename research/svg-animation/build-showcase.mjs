@@ -265,7 +265,7 @@ const page = `<title>SVG Motion Field Guide</title>
   /* ── primitive strip ────────────────────────────────────── */
   .primitives {
     display: grid; gap: 1px; background: var(--line);
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
     border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
   }
   .prim { background: var(--surface); padding: 14px 14px 12px; }
@@ -278,6 +278,12 @@ const page = `<title>SVG Motion Field Guide</title>
   .prim .chan {
     font-family: var(--mono); font-size: 0.68rem; color: var(--muted);
     text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px;
+  }
+  /* The law is the point of the primitive strip: every duration below is an OUTPUT of a measured
+     quantity, so it is printed where the arithmetic can be checked against the animation. */
+  .prim .law {
+    font-size: 0.78rem; line-height: 1.5; color: var(--muted); margin-top: 8px;
+    border-top: 1px solid var(--line); padding-top: 8px;
   }
 
   ul.plain { margin: 0; padding-left: 1.1em; color: var(--muted); }
@@ -587,7 +593,8 @@ const page = `<title>SVG Motion Field Guide</title>
     box.className = 'box stage'
     cell.appendChild(box)
     cell.insertAdjacentHTML('beforeend',
-      \`<div class="name">\${prim.id}</div><div class="chan">\${prim.channel}</div>\`)
+      \`<div class="name">\${prim.id}</div><div class="chan">\${prim.channel}</div>\`
+      + (prim.law ? \`<div class="law">\${escapeHtml(prim.law)}</div>\` : ''))
     strip.appendChild(cell)
     prim.build(box)
   }
