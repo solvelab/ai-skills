@@ -325,9 +325,18 @@ Four checks, in this order. Each one caught defects the others could not.
                               stroke plane angle · range of motion ·
                               forward sweep · degrees of freedom · up:down ratio · span ratio
                               — these are published numbers; the terms are what make them findable
+                              EVERY RATE PAIRED WITH ITS AMPLITUDE, and the amplitude sourced too:
+                              a frequency alone is half a measurement, and it is the invisible
+                              half. Where the amplitude has no published value, DERIVE it from
+                              what drives the motion — the forcing spectrum, the compliance, the
+                              load — and write down which.
              d. DEPTH ORDER   what is in front of what, one line per part
 2  GEOMETRY  decompose by what moves together
              mass → profile table · feature → explicit outline
+             LOADED MEMBERS BOW: anything carrying weight or force is a cantilever, so it curves,
+             and the curve gathers toward the tip. Straight is what weightless looks like.
+             TURNABLE SURFACES HAVE TWO FACES: a leaf, a sail, a wing, a hand — if it can present
+             its other side it needs that side's colour, or the flip cannot read
              join by the colour rule · declare the light · fade fields out
              CHECK: large, against a grid
 3  SCRIPT    states · named phases with durations · what changes besides position ·
@@ -336,6 +345,9 @@ Four checks, in this order. Each one caught defects the others could not.
              decorrelate · reduce rather than remove
 5  VERIFY    solver vs forward kinematics · frozen poses · large on a grid ·
              LIVE STRIP + verify-motion.mjs (does it MOVE right, not just look right) ·
+             PEAK SPEED = 2πfA, held against something physical in the scene — the wind speed,
+             the walking speed, a body length per second. This is the check that catches an
+             invented amplitude, and it is one line of arithmetic.
              reduced-motion · measured cost
 ```
 
@@ -724,6 +736,91 @@ stagger  delays 0.05, 0.25, 0.45 …  = x/60, 0.2 s per 12 units ✓
 
 Printing a number in a caption is a claim. Reading it back out of `getComputedStyle` is the check,
 and it costs one evaluation.
+
+---
+
+## Eighth trial: a rate without its amplitude
+
+The tree had already been rebuilt once, and the rebuild was the proudest one — it found the
+measured branch modes, 2, 7 and 11 Hz against a trunk at 0.30 Hz, and fixed a scene that had been
+swaying like seaweed. Shown the result, the reader said the speeds looked wrong.
+
+They were, and the check that proves it is one line:
+
+```
+peak angular velocity = 2πfA
+  order 0   0.30 Hz x  1.4 deg =    3 deg/s
+  order 4  11.00 Hz x 14.0 deg =  968 deg/s     = 16 degrees PER FRAME at 60 fps
+```
+
+Measured on the running page rather than computed, tracking the tip of one twig:
+
+```
+                        BEFORE              AFTER
+twig tip, peak      1283 px/s           106 px/s        12x
+twig tip, mean       515 px/s            38 px/s        14x
+per frame at 60fps    21.4 px             1.8 px
+```
+
+At the scene's own scale — a 9 m tree drawn 392 px tall, so 43.6 px/m — the old twig tip was
+averaging **11.8 m/s, more than twice the wind speed that was supposed to be moving it**, forever,
+with nothing paying for it.
+
+### Where the method let this through
+
+Phase 1c asks for rates and insists each one carries its axis. It never asks for amplitudes. So the
+frequencies were researched and the amplitudes were invented — invented *plausibly*, growing
+outward, because obviously a twig moves more than a trunk. Every individual number looked
+defensible. Their product was absurd.
+
+> **A rate without its amplitude is half a measurement, and it is the half nobody sees.** What the
+> eye reads is displacement and velocity. `2πfA` turns any frequency-amplitude pair into a speed
+> you can hold against something physical already in the scene — the wind speed, the walking speed,
+> a body length per second. It is one line of arithmetic and it catches an invented amplitude
+> instantly.
+
+Both rules are now in the method: **phase 1c pairs every rate with an amplitude and sources it**,
+and **phase 5 computes peak speed and compares it to something physical**.
+
+Where the amplitude has no published value, it is derived from what drives the motion. Here that
+turned out to split the tree's movement in two, which is also what a tree actually does:
+
+- **SLOW** — the gust deflection. This is the static response, so it grows outward with compliance:
+  `[2.0, 2.8, 4.0, 5.6, 7.9, 10.4]` degrees over an 11 s gust. It carries all the large angles.
+- **FAST** — each mode's own oscillation, driven by turbulence whose energy falls as `f^(-5/3)`.
+  Relative to the trunk band the forcing is 0.206 at 2 Hz, 0.072 at 7 Hz, 0.050 at 11 Hz. Times
+  compliance, the amplitudes barely grow at all: `[2.2, 0.64, 0.32, 0.31, 0.43, 0.58]` degrees.
+
+### Weight and colour, which were also missing
+
+The same reader named two more things the method never asked for, and both were absent:
+
+**Loaded members bow.** A branch is a cantilever under its own weight and its leaves', so it curves,
+and the curvature gathers toward the tip rather than spreading evenly — a symmetric arc is a rope.
+Every branch here was a straight line, and **straight is what weightless looks like**.
+
+**Turnable surfaces have two faces.** A leaf's underside has no palisade layer and often carries wax
+or hairs, so it is markedly paler and matte. That is why a crown flashes pale when a gust turns it
+over — a real, nameable event. With one colour per leaf it cannot happen at all. The flip also
+belongs to the TWIG, not the leaf: the eddies that move leaves are around 10 cm across, so every
+leaf on one twig is inside the same one and they turn together, in patches.
+
+And the geometry had an arithmetic error the method should have caught in phase 2. **Leonardo's
+rule**: the daughters' cross-sections sum to the parent's, so `r_child = r_parent·n^(-1/2)` —
+×0.707 for two daughters, ×0.577 for three. The code used a flat 0.62 for both, so every three-way
+fork carried more wood out of the node than came into it.
+
+### And the fix had to be measured too
+
+Correcting the tree took it from 45 animated nodes to about 250, and the first correct version cost
+**534 ms/s of main thread at 39 fps**. Composing the two rotations onto one element instead of
+nesting a group for each changed nothing at all — 537 ms/s — because the cost was never the groups.
+It was 530 separate leaf animations.
+
+The fix came from the physics, not from the profiler: leaves on one twig share an eddy, so they
+flutter together. One animation per twig instead of per leaf is both correct and **285 ms/s at 60
+fps**. The cheap version and the true version were the same version, which is the second time in
+this directory that has happened.
 
 ## What this method costs, and when to skip it
 

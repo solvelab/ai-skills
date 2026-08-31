@@ -536,102 +536,194 @@ scene({
 })
 
 // ── 3. Tree in wind ────────────────────────────────────────────────────────
-// REBUILT FROM ZERO through the method, after an audit showed this scene had received only
-// phase 3. What the research phase changed is not decoration — it is the whole behaviour.
+// REBUILT TWICE. The first rebuild found the frequencies. This one found what the frequencies were
+// missing, and it is a hole in the METHOD, not just in this scene.
 //
-// ── 0 FRAME ──
-//   A broadleaf tree in steady wind, seen in profile, read at ~200px, and not to be mistaken for
-//   a conifer (which sways faster and holds its branches rigid).
+// ── WHAT THE SECOND PASS FOUND ──
+//   Phase 1c asked for rates, with their axes, and got them: trunk 0.30 Hz, branch modes 2, 7 and
+//   11 Hz. It never asked for AMPLITUDES, so the amplitudes were invented — and they were invented
+//   growing outward, [1.4, 3.5, 7, 11, 14] degrees, because a twig obviously moves more than a
+//   trunk. Put the two together and the check that was never run says:
 //
-// ── 1c KINEMATICS, measured, WITH AXES ──
-//   whole-tree sway  ~0.2 Hz typical; an open-grown tree with four branches measured 0.33 Hz.
-//                    Range across species 0.1-5 Hz. AXIS: bending of the trunk about its base.
-//   BRANCH modes     2, 7 and 11 Hz measured on branches of sweet orange. AXIS: bending of the
-//                    branch about its own attachment.
-//   damping          10.6% with all branches attached, falling to 1.3% when stripped bare. The
-//                    branches ARE the damper: they dissipate wind energy by moving out of phase
-//                    with the trunk.
+//     peak angular velocity = 2πfA
+//       order 0   0.30 Hz x  1.4 deg =    3 deg/s
+//       order 4  11.00 Hz x 14.0 deg =  968 deg/s   = 16 degrees PER FRAME at 60fps
 //
-//   The previous version had the trunk at 5.5s (0.18 Hz) and the finest twigs at 3.5s (0.29 Hz) —
-//   a spread of 1.5x. The measured spread between a trunk and a branch mode is 10x to 30x. That
-//   single number is why the old tree waved like seaweed instead of moving like wood: everything
-//   was swaying at nearly one rate, so nothing looked stiff and nothing looked light.
+//     An 8 cm twig swinging at 968 deg/s has a tip speed of 1.35 m/s. In a 5 m/s wind that is
+//     27% of the wind speed, sustained, forever, with nothing paying for it.
 //
-// ── 3 SCRIPT ──
-//   The trunk carries a slow, near-sinusoidal sway with gusts. Each branch order adds a faster
-//   oscillation ON TOP of its parent's, so motion accumulates outward and the tip of a twig is the
-//   sum of four frequencies — which is also why it never repeats.
-//   Leaves flutter faster still, and are the first thing to move when a gust arrives.
+//   And nothing does pay for it. Wind energy falls off as f^(-5/3) through the inertial subrange,
+//   so relative to the trunk's band the forcing amplitude at each mode is:
+//       2 Hz -> 0.206      7 Hz -> 0.072      11 Hz -> 0.050
+//   Twenty times less at 11 Hz, not ten times more. The tree was buzzing.
+//
+//   > A RATE WITHOUT ITS AMPLITUDE IS HALF A MEASUREMENT, and it is the half nobody sees. What the
+//   > eye reads is displacement and velocity, and 2πfA turns any pair of them into a number you can
+//   > hold against something physical in the scene. This scene now states that number.
+//
+// ── 1c KINEMATICS, measured, WITH AXES AND NOW WITH AMPLITUDES ──
+//   frequencies  trunk 0.2-0.33 Hz; branch modes 2, 7, 11 Hz (sweet orange, free vibration).
+//                AXIS: bending about each segment's own attachment.
+//   damping      10.6% with branches attached, 1.3% stripped bare. The branches ARE the damper.
+//   forcing      turbulence spectrum falls as f^(-5/3); integral scale gives most of the energy
+//                at 0.05-0.5 Hz, which is exactly where the trunk's own mode sits. That is why a
+//                tree sways visibly at all, and why nothing above 2 Hz moves far.
+//   compliance   a branch is a cantilever: tip deflection ∝ qL⁴/EI, and with L x0.74 and radius
+//                by Leonardo's rule per order, the ANGLE grows about 1.41x per order.
+//   SO THE MOTION SPLITS IN TWO, and only one half is fast:
+//     SLOW  the gust deflection — the static response, so it grows outward:
+//           [2.0, 2.8, 4.0, 5.6, 7.9] deg over an 11 s gust. Peak 4.5 deg/s at the tip.
+//     FAST  each mode's own oscillation — forcing x compliance, so it barely grows:
+//           [2.2, 0.64, 0.32, 0.31, 0.43] deg. Peak 30 deg/s at the tip, 0.5 deg per frame.
+//           Twig tip speed 0.04 m/s: 0.8% of the wind, against 27% before.
+//
+// ── 2 GEOMETRY — what "weight" and "colour" mean here ──
+//   Leonardo's rule  the daughters' cross-sections sum to the parent's, so r_child = r_parent·n^-½
+//                    — x0.707 for two daughters, x0.577 for three. The old code used a flat 0.62
+//                    for both, so a three-way fork carried more wood out than came in.
+//   self-weight      a branch is a cantilever under its own load and its leaves', so it BOWS, and
+//                    the bow grows outward with the same compliance. Straight segments read as
+//                    wire, which is what weight looks like when it has been left out.
+//   two-sided leaf   the underside has no palisade layer and often carries wax or hairs, so it is
+//                    markedly paler and matte. That is why a tree flashes pale when a gust turns
+//                    its leaves over — a real, nameable event that a one-colour leaf cannot show.
 scene({
   id: 'tree',
   title: 'Tree in wind',
-  recipe: 'sway per branch order at MEASURED frequencies + gust envelope + stagger',
-  cost: 'layout — ~45 animated nodes',
+  recipe: 'gust deflection (slow, grows outward) + modal oscillation (fast, barely grows) + Leonardo taper + two-sided leaves',
+  cost: 'layout — ~90 animated nodes',
   note:
-    'Rebuilt from the method. The finding that changed it: a trunk sways at 0.2-0.33 Hz while ' +
-    'BRANCH modes sit at 2, 7 and 11 Hz — a spread of 10x to 30x, not the 1.5x the first version ' +
-    'used. Everything swaying at one rate is why the old tree moved like seaweed. Damping also ' +
-    'comes from the branches themselves: 10.6% with them, 1.3% stripped bare, which is why each ' +
-    'order moves out of phase with its parent rather than with it.',
+    'Rebuilt a second time, because the first rebuild measured the frequencies and then invented ' +
+    'the amplitudes. 11 Hz at 14 degrees is 968 deg/s — a twig tip at 27% of the wind speed, ' +
+    'sustained. Wind energy falls as f^(-5/3), so the forcing at 11 Hz is a twentieth of the ' +
+    'trunk band, not ten times more. The motion is really two: a SLOW gust deflection that grows ' +
+    'outward because it is the static response, and a FAST modal oscillation that barely grows ' +
+    'because the wind has almost nothing to give it up there. Radii now follow Leonardo\'s rule ' +
+    'from the actual number of daughters, branches bow under their own weight, and the leaves are ' +
+    'two-sided, so a gust turning them over makes the crown flash pale.',
   build(stage) {
     stage.style.background = 'linear-gradient(#dfeaf2 0%, #b9d3e0 60%, #9ab8a4 100%)'
     const svg = layer(stage)
     const rand = seeded(4242)
 
-    // Measured frequencies per branch order, converted to seconds. Order 0 is the trunk.
-    // 0.30 Hz · 2 Hz · 7 Hz · 11 Hz — the published modes, not a smooth ramp.
-    const PERIOD = [1 / 0.30, 1 / 2.0, 1 / 7.0, 1 / 11.0, 1 / 11.0]
+    const FREQ = [0.30, 2.0, 7.0, 11.0, 11.0, 11.0]     // Hz, measured
+    const FAST = [2.2, 0.64, 0.32, 0.31, 0.43, 0.58]    // deg — forcing rolloff x compliance
+    const SLOW = [2.0, 2.82, 3.97, 5.60, 7.89, 10.4]    // deg — the static gust response
+    const BOW  = [0.02, 0.045, 0.075, 0.11, 0.15, 0.19] // sag as a fraction of length, same compliance
+    const GUST = 11                                // seconds
 
-    // Amplitude falls as frequency rises: a trunk moves a few degrees slowly, a twig many degrees
-    // quickly. Stiffness scales with the fourth power of radius, so this drop is steep.
-    const AMPLITUDE = [1.4, 3.5, 7, 11, 14]
+    // One shared keyframe per order rather than one per branch: the gust is coherent across the
+    // whole tree — it is ONE parcel of air — while the fast modes are not.
+    for (let d = 0; d < 6; d++) {
+      // The gust animates the INDIVIDUAL `rotate` property while the mode animates `transform`.
+      // CSS composes translate/rotate/scale before transform, and both turn about the same
+      // origin, so the two rotations add on ONE element. Nesting a group for each was the
+      // obvious way and cost 534 ms/s of main thread at 39 fps — two hundred extra animated
+      // groups. Same picture, half the nodes.
+      injectKeyframes(`kf-treeSlow${d}`,
+        `@keyframes treeSlow${d} { 0%,100% { rotate: ${(-SLOW[d] * 0.28).toFixed(2)}deg }` +
+        ` 34% { rotate: ${SLOW[d].toFixed(2)}deg }` +
+        ` 62% { rotate: ${(SLOW[d] * 0.35).toFixed(2)}deg } }`)
+      injectKeyframes(`kf-treeFast${d}`,
+        `@keyframes treeFast${d} { from { transform: rotate(${(-FAST[d]).toFixed(2)}deg) }` +
+        ` to { transform: rotate(${FAST[d].toFixed(2)}deg) } }`)
+    }
 
-    function branch(parent, x, y, len, angle, depth) {
+    let markedTwig = false
+    function branch(parent, x, y, len, angle, depth, radius) {
+      // Two nested rotations about the same joint, because the motion is two things.
+      // Outer: the gust. Coherent, slow, large, and it grows outward because it is the static
+      // deflection. Outer orders LEAD slightly — a stiffer, faster member reaches its new
+      // equilibrium sooner than the trunk it hangs on.
       const g = el(parent, 'g')
       g.style.transformBox = 'view-box'
       g.style.transformOrigin = `${x}px ${y}px`
-      // Each order oscillates about ITS OWN attachment, at its own measured rate, on top of
-      // whatever its parent is already doing. Phase is randomised so orders are not in lockstep —
-      // which is the damping mechanism, not a stylistic choice.
+      const T = 1 / FREQ[depth]
+      // Two motions on one element. The gust is coherent, slow, large, and grows outward because
+      // it is the static deflection; outer orders LEAD slightly, since a stiffer, faster member
+      // reaches its new equilibrium before the trunk it hangs on. The mode is fast, small, and
+      // phase-randomised, because the turbulence driving it is uncorrelated at those scales —
+      // which is also the damping mechanism.
       g.style.animation =
-        `sway${depth} ${PERIOD[depth].toFixed(3)}s ease-in-out ${(-rand() * PERIOD[depth]).toFixed(3)}s infinite alternate`
+        `treeSlow${depth} ${GUST}s ease-in-out ${(-depth * 0.22).toFixed(2)}s infinite, ` +
+        `treeFast${depth} ${T.toFixed(3)}s ease-in-out ${(-rand() * T).toFixed(3)}s infinite alternate`
 
+      // How many daughters this node will have — decided BEFORE the radius, because Leonardo's
+      // rule needs the count. A three-way fork thins more than a two-way one.
+      const kids = depth < 5 ? (depth > 0 && rand() > 0.42 ? 3 : 2) : 0
+      const childRadius = kids ? radius / Math.sqrt(kids) : radius
+
+      // Self-weight bow. A cantilever is nearly straight at its base and gathers curvature toward
+      // the tip, so the control points drop unevenly — a symmetric arc is a rope, not a branch.
+      const sag = len * BOW[depth]
       const x2 = x + Math.cos(angle) * len
-      const y2 = y + Math.sin(angle) * len
-      el(g, 'line', {
-        x1: x, y1: y, x2, y2,
+      const y2 = y + Math.sin(angle) * len + sag
+      const cx1 = x + Math.cos(angle) * len * 0.33
+      const cy1 = y + Math.sin(angle) * len * 0.33 + sag * 0.12
+      const cx2 = x + Math.cos(angle) * len * 0.67
+      const cy2 = y + Math.sin(angle) * len * 0.67 + sag * 0.55
+      el(g, 'path', {
+        d: `M${x.toFixed(1)} ${y.toFixed(1)} C${cx1.toFixed(1)} ${cy1.toFixed(1)}, ${cx2.toFixed(1)} ${cy2.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`,
+        fill: 'none',
         stroke: `hsl(28 ${30 - depth * 3}% ${22 + depth * 5}%)`,
-        // Taper by radius, not by a constant: a branch that does not thin looks like pipework.
-        'stroke-width': Math.max(1.2, 13 * Math.pow(0.62, depth)),
+        'stroke-width': Math.max(1.1, radius),
         'stroke-linecap': 'round',
       })
 
-      if (depth < 4) {
-        branch(g, x2, y2, len * 0.74, angle - 0.44 - rand() * 0.2, depth + 1)
-        branch(g, x2, y2, len * 0.72, angle + 0.42 + rand() * 0.2, depth + 1)
-        if (depth > 1 && rand() > 0.55) branch(g, x2, y2, len * 0.5, angle + (rand() - 0.5) * 0.5, depth + 1)
+      // Phase 5 marks. A rate and an amplitude only become checkable once something on the
+      // drawing carries them, so the trunk top and one twig tip are tracked.
+      if (depth === 0) el(g, 'circle', { cx: x2, cy: y2, r: 0.01, fill: 'none', 'data-track': 'trunk-top' })
+      if (depth === 5 && !markedTwig) { markedTwig = true
+        el(g, 'circle', { cx: x2, cy: y2, r: 0.01, fill: 'none', 'data-track': 'twig-tip' }) }
+
+      if (kids) {
+        // Length and angle both vary: equal daughters at equal angles build a flat, fan-shaped
+        // crown, and a broadleaf crown is domed because no two limbs get the same share.
+        branch(g, x2, y2, len * (0.62 + rand() * 0.20), angle - 0.36 - rand() * 0.34, depth + 1, childRadius)
+        branch(g, x2, y2, len * (0.62 + rand() * 0.20), angle + 0.34 + rand() * 0.34, depth + 1, childRadius)
+        if (kids === 3) branch(g, x2, y2, len * (0.44 + rand() * 0.22), angle + (rand() - 0.5) * 0.7, depth + 1, childRadius)
       } else {
-        for (let i = 0; i < 9; i++) {
-          // Leaves flutter faster than any branch mode and are the first thing a gust moves.
-          const leaf = el(g, 'ellipse', {
-            cx: x2 + (rand() - 0.5) * 30, cy: y2 + (rand() - 0.5) * 30,
-            rx: 7 + rand() * 5, ry: 4.5 + rand() * 3,
-            transform: `rotate(${(rand() * 360).toFixed(0)})`,
-            fill: `hsl(${88 + rand() * 34} 42% ${32 + rand() * 18}%)`, opacity: 0.92,
-          })
-          leaf.style.animation = `leafFlutter ${(0.22 + rand() * 0.18).toFixed(2)}s ease-in-out ${(-rand()).toFixed(2)}s infinite alternate`
+        // Leaves belong to their TWIG, not to themselves. The eddies that move a leaf are around
+        // 10 cm across, so every leaf on one twig sits inside the same one and they flutter
+        // together. Animating each leaf on its own is not merely expensive — 530 separate
+        // animations cost 534 ms/s of main thread here — it is wrong: it makes each leaf its own
+        // weather. One flutter per twig, and one turn per twig.
+        const tuft = el(g, 'g')
+        tuft.style.transformBox = 'fill-box'
+        tuft.style.transformOrigin = 'center'
+        tuft.style.animation = `leafFlutter ${(0.22 + rand() * 0.18).toFixed(2)}s ease-in-out ${(-rand()).toFixed(2)}s infinite alternate`
+
+        // A gust turns a twig's leaves over together, and that is what makes a crown flash pale.
+        const turns = rand() < 0.42
+        let host = tuft, faces = null
+        if (turns) {
+          host = el(tuft, 'g')
+          host.style.transformBox = 'fill-box'
+          host.style.transformOrigin = 'center'
+          const delay = (-rand() * GUST).toFixed(2)
+          host.style.animation = `leafTurn ${GUST}s ease-in-out ${delay}s infinite`
+          faces = el(host, 'g')
+          faces.style.animation = `leafFace ${GUST}s steps(1) ${delay}s infinite`
+        }
+        for (let i = 0; i < 6; i++) {
+          const lx = x2 + (rand() - 0.5) * 26, ly = y2 + (rand() - 0.5) * 26
+          const hue = 92 + rand() * 26
+          const rx = 6 + rand() * 4.5, ry = 4 + rand() * 2.6
+          const spin = (rand() * 360).toFixed(0)
+          const shape = { cx: lx, cy: ly, rx, ry, transform: `rotate(${spin})` }
+          if (turns) {
+            // The underside: no palisade layer, often wax or hairs — paler, greyer, matte.
+            el(host, 'ellipse', { ...shape, fill: `hsl(${(hue + 8).toFixed(0)} 20% ${(58 + rand() * 10).toFixed(0)}%)`, opacity: 0.95 })
+            el(faces, 'ellipse', { ...shape, fill: `hsl(${hue.toFixed(0)} 42% ${(30 + rand() * 12).toFixed(0)}%)`, opacity: 0.95 })
+          } else {
+            el(tuft, 'ellipse', { ...shape, fill: `hsl(${hue.toFixed(0)} 42% ${(30 + rand() * 12).toFixed(0)}%)`, opacity: 0.92 })
+          }
         }
       }
       return g
     }
 
-    // A GUST envelope over the whole tree: wind is not steady, and a tree at constant amplitude
-    // reads as a metronome. Slow, irregular, and applied at the trunk so everything inherits it.
-    const gust = el(svg, 'g')
-    gust.style.transformBox = 'view-box'
-    gust.style.transformOrigin = '600px 620px'
-    gust.style.animation = 'treeGust 11s ease-in-out infinite'
-    branch(gust, 600, 620, 132, -Math.PI / 2, 0)
+    branch(svg, 600, 632, 118, -Math.PI / 2, 0, 15)
 
     // Loose leaves, on the free channel.
     const air = layer(stage)
@@ -3409,6 +3501,12 @@ const sceneCss = `
   @keyframes driftK   { from { transform: translateX(-40px) } to { transform: translateX(40px) } }
   @keyframes floatK   { from { transform: translateY(9px) } to { transform: translateY(-9px) } }
   @keyframes pulseK   { 0% { opacity: 1; transform: scale(1) } 70%,100% { opacity: .15; transform: scale(1.5) } }
+  /* A gust turning a leaf over: it goes edge-on and comes back showing the other face. The
+     squash is the flip; the face swap is a step, because a leaf has two sides and no in-between. */
+  @keyframes leafTurn { 0%,26% { transform: scaleY(1) } 38% { transform: scaleY(0.08) }
+                        50%,72% { transform: scaleY(1) } 84% { transform: scaleY(0.08) }
+                        100% { transform: scaleY(1) } }
+  @keyframes leafFace { 0%,37% { opacity: 1 } 38%,83% { opacity: 0 } 84%,100% { opacity: 1 } }
   @keyframes flickerK { 0%,100% { opacity: 1 } 12% { opacity: .25 } 19% { opacity: .9 } 47% { opacity: .35 } 52% { opacity: 1 } 71% { opacity: .5 } }
   @keyframes swayK    { from { transform: rotate(-13deg) } to { transform: rotate(13deg) } }
   @keyframes rippleK  { from { transform: scale(.3); opacity: .9 } to { transform: scale(2.6); opacity: 0 } }

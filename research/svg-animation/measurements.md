@@ -229,3 +229,30 @@ One line of it is a deliberate trade. `ripple` animates the `r` ATTRIBUTE rather
 which is the expensive channel by row 01. It is worth it: `scale` grows the stroke along with the
 circle, so the ring thickens as it expands, and a real ripple does not.
 
+### Tree, before and after the amplitude fix
+
+Tracked with `getScreenCTM` on the tip of one twig and on the trunk's first fork, 6 s, 60 fps.
+Scale: a 9 m tree drawn 392 px tall, so 43.6 px/m.
+
+| point | before | after | |
+|---|---|---|---|
+| twig tip, peak | 1283 px/s (29.4 m/s) | 106 px/s (2.4 m/s) | 12x |
+| twig tip, mean | 515 px/s (11.8 m/s) | 38 px/s (0.87 m/s) | 14x |
+| twig tip, per frame | 21.4 px | 1.8 px | |
+| trunk fork, peak | 8.0 px/s | 3.3 px/s | |
+
+The before column is the tell: a twig tip averaging 11.8 m/s in a scene whose wind is 5 m/s. The
+frequencies in that version were all measured and correct; the amplitudes were invented.
+
+Cost of getting it right, and of getting it right cheaply:
+
+| version | presentedFps | layout/s | style ms/s | task ms/s |
+|---|---|---|---|---|
+| correct physics, one animation per leaf | 39.3 | 29.9 | 211.2 | 534.4 |
+| same, two rotations composed on one element | 41.8 | 30.4 | 213.9 | 537.3 |
+| one flutter per TWIG (leaves share an eddy) | 59.8 | 60.3 | 87.9 | 284.9 |
+
+Composing the transforms saved nothing, because the groups were never the cost. What halved it was
+a physical correction: the eddies that move leaves are about 10 cm across, so leaves on one twig
+are inside the same one and move together. Animating each leaf separately was expensive AND wrong.
+
