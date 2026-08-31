@@ -348,6 +348,9 @@ Four checks, in this order. Each one caught defects the others could not.
 4  ASSEMBLE  hierarchy = part list · lag makes the wave · own <svg> per moving unit ·
              decorrelate · reduce rather than remove
 5  VERIFY    solver vs forward kinematics · frozen poses · large on a grid ·
+             AGAINST THE VERSION IT REPLACES, side by side, whenever you are changing something
+             that already worked. Verifying only against the physics tells you the new thing is
+             true; it cannot tell you the old thing was better.
              LIVE STRIP + verify-motion.mjs (does it MOVE right, not just look right) ·
              PEAK SPEED = 2πfA, held against something physical in the scene — the wind speed,
              the walking speed, a body length per second. This is the check that catches an
@@ -911,6 +914,77 @@ the tree by attribute made it come apart at every joint. It is recorded in repor
 dismembered the walker, and it has now dismembered the tree. **Anything driven by the transform
 attribute must pin `transform-box: view-box` and `transform-origin: 0 0` itself** — a global
 stylesheet rule that changes what an attribute means is a landmine, and the fix is at the joint.
+
+---
+
+## Tenth trial: three "corrections" that each made it worse
+
+Told the tree was now bad and the very FIRST version had been natural and fluid, I stopped arguing
+and rendered them side by side. The reader was right, and it was not close.
+
+v1 was 0.7-5.2 degrees per order, every order between **0.09 and 0.14 Hz** — seven- to
+eleven-second cycles, `ease-in-out`, random phase, amplitude growing outward. Slow, smooth,
+coupled. What I replaced it with, over three passes, was motion at 2, 7 and 11 Hz, then
+per-branch independent forcing at 0.8-3.4 Hz. The eye reads independent fast motion as insect
+twitch, not as wood.
+
+**And my own arithmetic had already said so.** The measured branch modes are real, and the wind
+does carry energy up there — about 5% of the trunk band, by the spectrum I had computed myself two
+passes earlier. Modes carrying 5% of the energy contributed most of the visible motion, because I
+rendered them at full amplitude. v1 was, by luck, closer to what a tree actually looks like than
+any of my corrections.
+
+> **More physics is not monotonically better.** A detail that carries 5% of the energy and 50% of
+> the visual noise is a bad trade, and the number that tells you so may already be sitting in your
+> own notes. Fidelity is not the goal; what the object looks like is the goal, and they are not
+> the same target.
+
+The geometry went the same way, and worse, because each step was individually defensible: one more
+level of recursion, three-way forks more often, self-weight bow, pale undersides on a third of the
+leaves. Every one of them is true of a real tree. Together they turned an open, legible crown into
+a dense mat with the branch structure buried and the limbs looking wilted. **Density is a
+legibility decision, not a fidelity one.**
+
+### The failure was in the verification, not the physics
+
+Phase 5 had grown a lot by this point — forward-kinematics checks, motion tracking, peak-speed
+arithmetic, cost measurement. All of it verified the new thing against the LAW. Not one of them
+compared the new thing against the old thing. So three regressions passed every gate I owned,
+and the only instrument that caught them was a person looking at the screen.
+
+> **When you change something that already worked, put the two side by side before you keep the
+> change.** Verifying against the physics tells you the new version is true. It cannot tell you the
+> old version was better. This is now in phase 5.
+
+What survived the comparison, and what did not:
+
+```
+KEPT   simulation instead of a keyframe loop   the envelope wanders; nothing repeats
+KEPT   Davenport coherence as a travelling lag a gust crosses the crown and it ripples
+KEPT   two-sided leaves                        but on 20% of twigs, as a rare flash
+KEPT   self-weight bow                         at half the sag: weight, not wilt
+KEPT   Leonardo's rule                         it was always an arithmetic fix
+DROPPED  visible 2/7/11 Hz motion              5% of the energy, most of the noise
+DROPPED  per-branch independent fast forcing   reads as twitch, not as wind
+DROPPED  a sixth branch order and dense forks  buried the structure
+```
+
+The forcing band now stops at 0.55 Hz, and members stiffer than 4 Hz are solved quasi-statically
+rather than integrated — which is also the correct approximation, since an 11 Hz oscillator driven
+at 0.3 Hz does not ring, it follows. Integrating it at dt = 1/60 gave ω·dt = 1.15, where
+semi-implicit Euler is stable but accurate nowhere near, so part of what was being rendered as
+motion was the integrator's own noise.
+
+### And the result is a fifth of the cost
+
+| tree version | presentedFps | style ms/s | task ms/s |
+|---|---|---|---|
+| CSS keyframes, dense crown | 59.8 | 87.9 | 284.9 |
+| simulated, dense crown, full band | 59.9 | 42.0 | 221.1 |
+| simulated, v1's density, band to 0.55 Hz | 60.0 | **10.5** | **58.8** |
+
+Fourth time in this directory that the truer version has also been the cheaper one. This time it
+was the more legible one as well, and legibility was what the reader had been asking for all along.
 
 ## What this method costs, and when to skip it
 

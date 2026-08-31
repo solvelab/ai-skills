@@ -275,3 +275,27 @@ The numbers alone do not separate pass 3 from pass 4 — pass 4 moves LESS by ev
 separates them is that pass 3's motion was periodic and pass 4's is not, and no scalar in this
 table can see that. Six frames 200 ms apart, looked at side by side, showed it immediately.
 
+### Tree, fourth pass: measured against the version it replaced
+
+| version | presentedFps | layout/s | style ms/s | task ms/s |
+|---|---|---|---|---|
+| CSS keyframes, dense crown | 59.8 | 60.3 | 87.9 | 284.9 |
+| simulated, dense crown, forcing to 4.5 Hz | 59.9 | 60.3 | 42.0 | 221.1 |
+| simulated, v1 density, forcing to 0.55 Hz | 60.0 | 60.3 | **10.5** | **58.8** |
+
+Twig tip, over 10 s:
+
+| | v2 buzzing | v3 dead | v4 full band | v5 band to 0.55 Hz |
+|---|---|---|---|---|
+| peak | 1283 px/s | 106 px/s | 215 px/s | 48 px/s |
+| mean | 515 px/s | 38 px/s | 21 px/s | 13 px/s |
+| travel | 105 px | 54 px | 38 px | 42 px |
+
+v4's 215 px/s peak against a 21 px/s mean is the signature of the defect: rare violent spikes on
+top of gentle motion, which is what an 11 Hz oscillator integrated at ω·dt = 1.15 produces. v5
+travels further than v4 while peaking at a quarter of the speed — smoother AND larger.
+
+No column here distinguishes a good-looking tree from a bad one. Three successive versions passed
+every measurement in this directory and were each worse than the one before. The check that caught
+it was rendering the old and the new side by side and looking.
+
