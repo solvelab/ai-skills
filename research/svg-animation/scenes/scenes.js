@@ -518,7 +518,11 @@ scene({
       b.setAttribute('height', 50)
       const scale = 0.85 + rand() * 0.7
       // Beat rate scales inversely with size, as it does in life: the smaller bird beats faster.
-      bird(b, -rand() * 1.2, (0.85 / scale) * (0.54 + rand() * 0.14))
+      // 2.3 +/- 0.3 beats per second in normal flight for Larus argentatus (measured); 2.6-3.4 Hz
+      // in steady flapping, 4.0 in the first strokes after take-off. This formula already centred
+      // near 2.2 Hz, so it is re-centred on 2.3 rather than rewritten — the check confirmed a guess
+      // instead of correcting one, which is a result worth recording too.
+      bird(b, -rand() * 1.2, (0.85 / scale) * (0.435 + rand() * 0.09))
       b.style.transform = `scale(${scale})`
       holder.appendChild(b)
       stage.appendChild(holder)
@@ -1275,7 +1279,13 @@ creature({
     const root = el(svg, 'g')
     root.style.transformBox = 'view-box'
     root.style.transformOrigin = '0px 0px'
-    root.style.animation = 'swimHeave 1.9s ease-in-out infinite'
+    // 3.1 Hz in steady forward swimming (measured). The previous 1.9s cycle was 0.53 Hz — six
+    // times too slow, which is why it read as a whale rather than a dolphin. Fluke stroke amplitude
+    // is 20% of body length and stays constant with speed; dolphins change speed by changing
+    // FREQUENCY, not amplitude. Checked against this geometry: the two tail segments together
+    // displace 0.095·sin(t1) + 0.215·sin(t1+t2), which at 13 degrees is 23% peak-to-peak — close
+    // enough to the measured 20% that the amplitude needed no change. Only the rate was wrong.
+    root.style.animation = 'swimHeave 0.32s ease-in-out infinite'
 
     // Profile table for Tursiops. x is distance from the snout as a fraction of body length; back
     // and belly are also fractions of body length, so the whole animal is scale-free.
@@ -1312,7 +1322,7 @@ creature({
     const tail = spine(root, [
       { pivotX: (0.5 - 0.86) * L, pivotY: 0 },
       { pivotX: (0.5 - 0.955) * L, pivotY: 0 },
-    ], 'swimFlukeUpDown', 1.9, 0.16)
+    ], 'swimFlukeUpDown', 0.32, 0.16)
 
     const stock = [
       { x: 0.74, back: 0.058, belly: 0.045 },   // starts well inside the trunk: no visible seam
@@ -1417,7 +1427,10 @@ creature({
     const root = el(svg, 'g')
     root.style.transformBox = 'view-box'
     root.style.transformOrigin = '0px 0px'
-    root.style.animation = 'swimHeave 5.4s ease-in-out infinite'
+    // 0.172 Hz when not feeding, 0.191 Hz when feeding, 0.23 Hz mean across behaviours
+    // (measured). The previous 5.4s was 0.185 Hz — already within the range, which is worth
+    // recording: not every guess is wrong, and the check is what tells you which.
+    root.style.animation = 'swimHeave 5.8s ease-in-out infinite'
 
     // Profile table for Megaptera. What separates it from the dolphin is not decoration:
     //   · far bulkier — depth ~0.30 L against the dolphin's 0.21
@@ -1448,7 +1461,7 @@ creature({
     const tail = spine(root, [
       { pivotX: (0.5 - 0.88) * L, pivotY: 0 },
       { pivotX: (0.5 - 0.975) * L, pivotY: 0 },
-    ], 'swimFlukeUpDown', 5.4, 0.16)
+    ], 'swimFlukeUpDown', 5.8, 0.16)
 
     const stock = [
       { x: 0.76, back: 0.078, belly: 0.055 },
@@ -1522,7 +1535,7 @@ creature({
     const pec = el(root, 'g')
     pec.style.transformBox = 'view-box'
     pec.style.transformOrigin = '24px 15px'
-    pec.style.animation = 'whalePectoral 5.4s ease-in-out infinite'
+    pec.style.animation = 'whalePectoral 5.8s ease-in-out infinite'
     // A humpback's pectoral, written as an explicit outline. Generating it from an axis and a
     // chord function gave no control over the two things that carry the shape — the width and the
     // rounded tip — and produced first a saw blade and then a ribbon.
@@ -1586,7 +1599,10 @@ creature({
     // "stable", it is "not connected".
     root.style.transformBox = 'view-box'
     root.style.transformOrigin = `${(0.5 - 0.45) * L}px 0px`
-    root.style.animation = 'sharkYaw 1.35s ease-in-out infinite'
+    // 0.51 Hz +/- 0.16 cruising, measured on shortfin mako; they favour ~0.6 Hz at speeds
+    // comparable to ectothermic sharks. The previous 1.35s cycle was 0.74 Hz, faster than a
+    // cruising mako and reading as agitated rather than patrolling.
+    root.style.animation = 'sharkYaw 1.96s ease-in-out infinite'
 
     // Plan view, so the table is half-widths mirrored about the axis rather than back and belly.
     // The shape facts: a conical snout; widest at the pectoral girdle around 26%; a long taper to
@@ -1655,7 +1671,7 @@ creature({
     const tail = spine(root, [
       { pivotX: (0.5 - 0.66) * L, pivotY: 0 },
       { pivotX: (0.5 - 0.84) * L, pivotY: 0 },
-    ], 'swimTailSideways', 1.35, 0.10)
+    ], 'swimTailSideways', 1.96, 0.10)
 
     const stock = [
       { x: 0.60, w: 0.050 },
@@ -1688,7 +1704,9 @@ creature({
   mechanism: 'UNDERWATER FLIGHT · flippers flap like wings · rigid shell: the body does not undulate',
   build(host) {
     const svg = document.createElementNS(SVG_NAMESPACE, 'svg')
-    svg.setAttribute('viewBox', '-64 -40 128 80')
+    // The box has to hold the DOWNSTROKE, not the resting pose. A flipper that reaches 0.25 L below
+    // the shell needs the room, and cropping it was hiding the very phase the plate is about.
+    svg.setAttribute('viewBox', '-66 -40 132 96')
     svg.setAttribute('class', 'mini')
     host.appendChild(svg)
 
@@ -1723,7 +1741,9 @@ creature({
     root.style.transformBox = 'view-box'
     root.style.transformOrigin = '0px 0px'
     // A shallow heave only — the thrust moves the animal, but nothing in it flexes.
-    root.style.animation = 'turtleHeave 2.6s ease-in-out infinite'
+    // 0.23 Hz in general swimming, 0.18-0.21 Hz between nestings (measured). The previous 2.6s
+    // was 0.38 Hz — a descending turtle's rate, not a cruising one.
+    root.style.animation = 'turtleHeave 4.35s ease-in-out infinite'
 
     // FAR flipper first, behind the body, lagging slightly.
     // Lag kept tiny: a turtle's fore flippers beat in unison, and the offset is only here to keep
@@ -1736,7 +1756,7 @@ creature({
     const rear = el(root, 'g')
     rear.style.transformBox = 'view-box'
     rear.style.transformOrigin = `${(0.5 - 0.80) * L}px ${0.07 * L}px`
-    rear.style.animation = 'turtleRudder 2.6s ease-in-out infinite'
+    rear.style.animation = 'turtleRudder 4.35s ease-in-out infinite'
     el(rear, 'path', {
       d: `M${(0.5 - 0.74) * L} ${0.055 * L} `
        + `C${(0.5 - 0.83) * L} ${0.105 * L}, ${(0.5 - 0.93) * L} ${0.135 * L}, ${(0.5 - 1.00) * L} ${0.130 * L} `
@@ -1815,14 +1835,14 @@ creature({
       const shoulder = el(parent, 'g', { opacity })
       shoulder.style.transformBox = 'view-box'
       shoulder.style.transformOrigin = `${(0.5 - 0.19) * L}px ${0.045 * L}px`
-      shoulder.style.animation = `turtleStroke 2.6s cubic-bezier(.3,0,.35,1) ${(lag * 2.6).toFixed(2)}s infinite`
+      shoulder.style.animation = `turtleStroke 4.35s cubic-bezier(.3,0,.35,1) ${(lag * 2.6).toFixed(2)}s infinite`
 
       const wrist = el(shoulder, 'g')
       wrist.style.transformBox = 'view-box'
       wrist.style.transformOrigin = `${(0.5 - 0.32) * L}px ${0.115 * L}px`
       // The sweep: the tip travels IN toward the shell as well as up. Lagging the shoulder gives
       // the closed loop the research describes, instead of a flat arc.
-      wrist.style.animation = `turtleSweep 2.6s cubic-bezier(.3,0,.35,1) ${((lag - 0.14) * 2.6).toFixed(2)}s infinite`
+      wrist.style.animation = `turtleSweep 4.35s cubic-bezier(.3,0,.35,1) ${((lag - 0.14) * 2.6).toFixed(2)}s infinite`
 
       // The paddle: long, broad, bluntly rounded, with a single claw on the leading edge — the
       // recognition mark from the sheet, and one path.
@@ -2487,6 +2507,12 @@ const sceneCss = `
      the flipper was at the BOTTOM. The frozen-pose strip found it in one look. In this geometry a
      POSITIVE rotation lifts the paddle. The upper bound is also capped: swung further the paddle
      lay across the shell, which a flipper hinged at the shoulder cannot do. */
+  /* A MEASURED NUMBER APPLIED TO THE WRONG AXIS IS AS BAD AS A GUESS.
+     The source gives "flipper twisting motion for one complete cycle of -73 to 35 degrees". That is
+     TWIST — rotation about the flipper's own long axis, which sets its angle of attack. It is not
+     the up-and-down stroke, and in profile it is edge-on and barely visible. Driving the stroke
+     with it left the flippers hanging far below the shell like two poles, which the bestiary render
+     showed at once. Reverted to the stroke range, and the twist is left unmodelled and declared. */
   @keyframes turtleStroke {
     0%   { transform: rotate(24deg) }    /* top of the recovery, flippers high */
     30%  { transform: rotate(-30deg) }   /* DOWNSTROKE — fast, and where the thrust is */
@@ -2495,12 +2521,15 @@ const sceneCss = `
     95%  { transform: rotate(24deg) }    /* extension back to the top */
     100% { transform: rotate(24deg) }    /* brief glide before the next beat */
   }
+  /* The sweep FOLDS the paddle toward the body, so through the downstroke it works against the
+     shoulder rather than with it — otherwise the two rotations add and the tip travels further than
+     either joint allows, which is what put the flipper outside the frame. */
   @keyframes turtleSweep {
-    0%   { transform: rotate(-20deg) }
-    30%  { transform: rotate(8deg) }
-    45%  { transform: rotate(22deg) }    /* the clap: paddle swept inward under the shell */
-    80%  { transform: rotate(-14deg) }
-    100% { transform: rotate(-20deg) }
+    0%   { transform: rotate(-16deg) }
+    30%  { transform: rotate(14deg) }    /* opposing the shoulder at the bottom of the stroke */
+    45%  { transform: rotate(24deg) }    /* the clap: paddle swept inward under the shell */
+    80%  { transform: rotate(-10deg) }
+    100% { transform: rotate(-16deg) }
   }
   @keyframes turtleHeave { 0%,100% { transform: translateY(1.6px) } 35% { transform: translateY(-1.8px) } }
   @keyframes turtleRudder { 0%,100% { transform: rotate(-3deg) } 50% { transform: rotate(3deg) } }

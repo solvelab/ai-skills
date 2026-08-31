@@ -90,7 +90,7 @@ names are what make them findable:
 
 | Quantity | What it is | Example found |
 |---|---|---|
-| **angular amplitude** | angle between the highest and lowest wingtip position, in the stroke plane | the number that sets your keyframe range |
+| **angular amplitude** | angle between the highest and lowest wingtip position, in the stroke plane — **record the axis**, since twist is not stroke | the number that sets your keyframe range |
 | **stroke plane angle** | angle of that plane relative to the horizontal | why a downstroke goes down *and forward* |
 | **joint range of motion** | per joint, in degrees | gull elbow ≈ **130°** |
 | **forward sweep** | travel in the second axis | gull ≈ **15°**; pigeon reaches ≈ 50° |
@@ -321,7 +321,8 @@ Four checks, in this order. Each one caught defects the others could not.
 1  RESEARCH  a. mechanism · phases · asymmetries · what changes shape · proportions in units of
                 the whole · materials by name · recognition marks · unknowns written down
              b. ANCHOR MAP    where each part sits, as a fraction in BOTH axes, plus its extent
-             c. KINEMATICS    per joint: angular amplitude · stroke plane angle · range of motion ·
+             c. KINEMATICS    per joint, EACH NUMBER TAGGED WITH ITS AXIS: angular amplitude ·
+                              stroke plane angle · range of motion ·
                               forward sweep · degrees of freedom · up:down ratio · span ratio
                               — these are published numbers; the terms are what make them findable
              d. DEPTH ORDER   what is in front of what, one line per part
@@ -471,6 +472,47 @@ Final state, all six passing:
 dolphin   PASS      whale     PASS      shark     PASS
 turtle    PASS      walker    PASS      gull      PASS
 ```
+
+---
+
+## Fourth trial: applying the method to work that already existed
+
+The five animals were built before phase 1c existed, so every rate and amplitude in them was
+**guessed**. The walking figure was the only one whose keyframes were transcribed. Running 1c over
+the other five, and comparing what was there against what is published:
+
+| Subject | Was | Measured | Verdict |
+|---|---|---|---|
+| dolphin | 1.9 s cycle (0.53 Hz) | **3.1 Hz** in steady swimming | **6× too slow** — it read as a whale |
+| humpback | 5.4 s (0.185 Hz) | 0.172 Hz not feeding, 0.23 Hz mean | already in range — **a guess that was right** |
+| shark | 1.35 s (0.74 Hz) | **0.51 Hz** cruising, mako | too fast: agitated rather than patrolling |
+| turtle | 2.6 s (0.38 Hz) | **0.23 Hz** general swimming | too fast — that is a *descending* turtle's rate |
+| gull | ~0.45 s (2.2 Hz) | **2.3 ± 0.3 Hz** normal flight | already correct |
+
+Two of five were right, three were wrong, and one was wrong by a factor of six. **The check is what
+tells you which** — the humpback and the gull would have been "corrected" by anyone tuning by feel,
+and the dolphin would have stayed wrong forever, because 0.53 Hz looks perfectly plausible on its
+own.
+
+Amplitude was checked the same way and gave a different lesson. The dolphin's measured fluke
+amplitude is 20% of body length; rather than assume the existing value wrong, the built geometry was
+solved — the two tail segments displace `0.095·sin(t1) + 0.215·sin(t1+t2)`, which at 13° gives 23%
+peak-to-peak. Close enough that nothing needed changing. **Verify before correcting**, or the fix
+becomes the defect.
+
+### The trap this trial found: a measured number on the WRONG AXIS
+
+The source for green turtles gives a flipper excursion of **−73° to +35°, 108° total**. Applied to
+the stroke it left the flippers hanging below the shell like two poles. Reading the sentence again:
+it describes flipper **TWISTING** — rotation about the flipper's own long axis, which sets angle of
+attack. It is not the up-and-down stroke, and in profile it is edge-on and nearly invisible.
+
+> **A measured number applied to the wrong axis is as bad as a guess, and more dangerous, because it
+> arrives with a citation.** Record which axis, plane and reference frame each number belongs to at
+> the moment it enters the sheet — twist is not stroke, stroke *plane* is not stroke *amplitude*,
+> and a body-frame angle is not a world-frame one.
+
+The turtle's twist is now left unmodelled and declared, rather than modelled in the wrong place.
 
 ## What this method costs, and when to skip it
 
