@@ -256,3 +256,22 @@ Composing the transforms saved nothing, because the groups were never the cost. 
 a physical correction: the eddies that move leaves are about 10 cm across, so leaves on one twig
 are inside the same one and move together. Animating each leaf separately was expensive AND wrong.
 
+### Tree, third pass: simulated instead of animated
+
+| version | presentedFps | layout/s | style ms/s | task ms/s |
+|---|---|---|---|---|
+| CSS keyframes, one flutter per twig | 59.8 | 60.3 | 87.9 | 284.9 |
+| one rAF loop integrating 250 damped oscillators | 59.9 | 60.3 | **42.0** | **221.1** |
+
+Motion, tracked on the tip of one twig over 12 s:
+
+| | pass 2 (buzzing) | pass 3 (dead) | pass 4 (simulated) |
+|---|---|---|---|
+| peak | 1283 px/s | 106 px/s | 82 px/s |
+| mean | 515 px/s | 38 px/s | 19 px/s |
+| travel over 10-12 s | 105 px | 54 px | 36 px |
+
+The numbers alone do not separate pass 3 from pass 4 — pass 4 moves LESS by every scalar here. What
+separates them is that pass 3's motion was periodic and pass 4's is not, and no scalar in this
+table can see that. Six frames 200 ms apart, looked at side by side, showed it immediately.
+

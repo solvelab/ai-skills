@@ -1348,61 +1348,120 @@ scene({
     const rand = seeded(4242)
 
     const FREQ = [0.30, 2.0, 7.0, 11.0, 11.0, 11.0]     // Hz, measured
-    const FAST = [2.2, 0.64, 0.32, 0.31, 0.43, 0.58]    // deg — forcing rolloff x compliance
-    const SLOW = [2.0, 2.82, 3.97, 5.60, 7.89, 10.4]    // deg — the static gust response
-    const BOW  = [0.02, 0.045, 0.075, 0.11, 0.15, 0.19] // sag as a fraction of length, same compliance
-    const GUST = 11                                // seconds
+    const ZETA = 0.106                                  // measured, branches attached
+    // HOW MUCH does a tree bend? Published deflection angles for open-grown trees scatter badly,
+    // so the anchor here is the Beaufort scale, whose whole point is that it defines wind by what
+    // TREES DO — the observable is the thing being drawn:
+    //     force 5,  8-10.7 m/s  "small trees in leaf begin to sway"
+    //     force 6, 10.8-13.8    "large branches in motion"
+    //     force 7, 13.9-17.1    "whole trees in motion"
+    // This scene is force 6. Naming the anchor matters more than the number: at 6 m/s the model
+    // was self-consistent and correct and the tree looked dead, because 6 m/s does not move a
+    // tree much. The physics was never wrong there — the WIND was, and no amount of tuning the
+    // response would have found that.
+    // The lean is shared out by compliance: a trunk is thick and barely bends, and almost all of
+    // a tree's give is the outer orders folding back, which is what streamlining is.
+    const LEAN = [1.5, 2.2, 3.2, 4.6, 6.6, 9.4]         // deg per joint at the mean wind
+    const BOW  = [0.02, 0.045, 0.075, 0.11, 0.15, 0.19] // sag as a fraction of length
+    const TURB = 0.28                                   // turbulence intensity near the ground
+    const VOGEL = 1.5                                   // drag ∝ U^1.5, not U²: the crown reconfigures
 
-    // One shared keyframe per order rather than one per branch: the gust is coherent across the
-    // whole tree — it is ONE parcel of air — while the fast modes are not.
-    for (let d = 0; d < 6; d++) {
-      // The gust animates the INDIVIDUAL `rotate` property while the mode animates `transform`.
-      // CSS composes translate/rotate/scale before transform, and both turn about the same
-      // origin, so the two rotations add on ONE element. Nesting a group for each was the
-      // obvious way and cost 534 ms/s of main thread at 39 fps — two hundred extra animated
-      // groups. Same picture, half the nodes.
-      injectKeyframes(`kf-treeSlow${d}`,
-        `@keyframes treeSlow${d} { 0%,100% { rotate: ${(-SLOW[d] * 0.28).toFixed(2)}deg }` +
-        ` 34% { rotate: ${SLOW[d].toFixed(2)}deg }` +
-        ` 62% { rotate: ${(SLOW[d] * 0.35).toFixed(2)}deg } }`)
-      injectKeyframes(`kf-treeFast${d}`,
-        `@keyframes treeFast${d} { from { transform: rotate(${(-FAST[d]).toFixed(2)}deg) }` +
-        ` to { transform: rotate(${FAST[d].toFixed(2)}deg) } }`)
+    // ── THE WIND, as a signal rather than a keyframe ─────────────────────────────────────
+    // Spectral synthesis: a dozen components, log-spaced, with amplitudes from the f^(-5/3)
+    // energy spectrum (so amplitude ∝ f^(-5/6)) and random phases. Their frequencies are
+    // incommensurate, so the signal never repeats — which is the requirement phase 3 states and
+    // which no keyframe loop can meet.
+    // The amplitude of each component comes from the VON KARMAN spectrum, not from a plain power
+    // law. This matters and it is not a refinement: f^(-5/6) has no knee, so it keeps rising as
+    // frequency falls and one 50-second component ends up carrying 79x the energy of everything
+    // else. The tree then does nothing for a minute at a time — which is exactly what the first
+    // simulation did. The real spectrum is FLAT below f ~ U/L and only then rolls off, so across
+    // this band the spread is about 4x, and there is real energy at the 0.30 Hz sway mode where
+    // the oscillator amplifies it by Q = 4.7.
+    const L_SCALE = 26          // turbulence integral length scale, metres
+    const U_MEAN = 12           // m/s — Beaufort 6, 'large branches in motion'
+    const gusts = []
+    for (let i = 0; i < 13; i++) {
+      const f = 0.03 * Math.pow(1.52, i)                  // 0.03 Hz to about 4.5 Hz
+      const n = f * L_SCALE / U_MEAN
+      gusts.push({
+        w: 2 * Math.PI * f,
+        a: Math.sqrt(4 * n / Math.pow(1 + 70.8 * n * n, 5 / 6)),
+        ph: rand() * 6.283,
+      })
+    }
+    let norm = 0
+    for (const c of gusts) norm += c.a * c.a / 2
+    norm = Math.sqrt(norm)
+    for (const c of gusts) c.a *= TURB / norm             // scale to the real turbulence intensity
+
+    // Coherence: turbulence is correlated across the crown at low frequency and independent at
+    // high — a slow gust engulfs the whole tree, a small eddy touches one twig. So the shared
+    // components stop at 0.6 Hz and above that each branch carries its own.
+    const COHERENT_TO = 0.6
+    const windAt = (t, own) => {
+      let u = 0
+      for (const c of gusts) if (c.w < COHERENT_TO * 6.283) u += c.a * Math.sin(c.w * t + c.ph)
+      for (const c of own) u += c.a * Math.sin(c.w * t + c.ph)
+      return 1 + u
     }
 
     let markedTwig = false
+    const members = []
+    const tufts = []
     function branch(parent, x, y, len, angle, depth, radius) {
       // Two nested rotations about the same joint, because the motion is two things.
       // Outer: the gust. Coherent, slow, large, and it grows outward because it is the static
       // deflection. Outer orders LEAD slightly — a stiffer, faster member reaches its new
       // equilibrium sooner than the trunk it hangs on.
       const g = el(parent, 'g')
+      // The scene stylesheet gives every <g> `transform-box: fill-box`, which re-resolves the
+      // coordinates INSIDE a transform attribute, so `rotate(a cx cy)` stops meaning what it
+      // says and the tree comes apart at every joint. This is the third time that rule has
+      // bitten in this directory. Pin the box and the origin on anything driven by the attribute.
       g.style.transformBox = 'view-box'
-      g.style.transformOrigin = `${x}px ${y}px`
-      const T = 1 / FREQ[depth]
-      // Two motions on one element. The gust is coherent, slow, large, and grows outward because
-      // it is the static deflection; outer orders LEAD slightly, since a stiffer, faster member
-      // reaches its new equilibrium before the trunk it hangs on. The mode is fast, small, and
-      // phase-randomised, because the turbulence driving it is uncorrelated at those scales —
-      // which is also the damping mechanism.
-      g.style.animation =
-        `treeSlow${depth} ${GUST}s ease-in-out ${(-depth * 0.22).toFixed(2)}s infinite, ` +
-        `treeFast${depth} ${T.toFixed(3)}s ease-in-out ${(-rand() * T).toFixed(3)}s infinite alternate`
+      g.style.transformOrigin = '0 0'
+      // Every member is a damped oscillator with its own measured frequency, chasing the
+      // deflection the current wind would hold it at. Nothing here is a keyframe: the amplitude
+      // wanders because the forcing wanders, the tree leans downwind and recoils rather than
+      // swinging through vertical, and no two branches are in lockstep. That is the whole
+      // difference between animating a guess about the output and simulating the system.
+      const own = []
+      for (let i = 0; i < 3; i++) {
+        const f = 0.8 + rand() * 2.6                      // the small eddies only this branch sees
+        const n = f * L_SCALE / U_MEAN
+        own.push({ w: 2 * Math.PI * f,
+          a: TURB * 0.55 * Math.sqrt(4 * n / Math.pow(1 + 70.8 * n * n, 5 / 6)),
+          ph: rand() * 6.283 })
+      }
+      members.push({
+        g, own, x, y,
+        w: 2 * Math.PI * FREQ[depth],
+        lean: LEAN[depth],
+        th: LEAN[depth], v: 0,                            // start already leaning: no startup lurch
+      })
 
       // How many daughters this node will have — decided BEFORE the radius, because Leonardo's
       // rule needs the count. A three-way fork thins more than a two-way one.
       const kids = depth < 5 ? (depth > 0 && rand() > 0.42 ? 3 : 2) : 0
       const childRadius = kids ? radius / Math.sqrt(kids) : radius
 
+      // The drawn shape is the UNLOADED one, so it is pre-tilted upwind by the mean lean and the
+      // simulation's mean deflection brings it back to the silhouette intended. Drawing the
+      // intended shape and then leaning it produced a tree permanently swept sideways — a real
+      // thing on an exposed coast, but not what this scene is, and the giveaway that geometry
+      // and load had been authored as if they were independent.
+      const drawn = angle - LEAN[depth] * Math.PI / 180
+
       // Self-weight bow. A cantilever is nearly straight at its base and gathers curvature toward
       // the tip, so the control points drop unevenly — a symmetric arc is a rope, not a branch.
       const sag = len * BOW[depth]
-      const x2 = x + Math.cos(angle) * len
-      const y2 = y + Math.sin(angle) * len + sag
-      const cx1 = x + Math.cos(angle) * len * 0.33
-      const cy1 = y + Math.sin(angle) * len * 0.33 + sag * 0.12
-      const cx2 = x + Math.cos(angle) * len * 0.67
-      const cy2 = y + Math.sin(angle) * len * 0.67 + sag * 0.55
+      const x2 = x + Math.cos(drawn) * len
+      const y2 = y + Math.sin(drawn) * len + sag
+      const cx1 = x + Math.cos(drawn) * len * 0.33
+      const cy1 = y + Math.sin(drawn) * len * 0.33 + sag * 0.12
+      const cx2 = x + Math.cos(drawn) * len * 0.67
+      const cy2 = y + Math.sin(drawn) * len * 0.67 + sag * 0.55
       el(g, 'path', {
         d: `M${x.toFixed(1)} ${y.toFixed(1)} C${cx1.toFixed(1)} ${cy1.toFixed(1)}, ${cx2.toFixed(1)} ${cy2.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`,
         fill: 'none',
@@ -1420,9 +1479,9 @@ scene({
       if (kids) {
         // Length and angle both vary: equal daughters at equal angles build a flat, fan-shaped
         // crown, and a broadleaf crown is domed because no two limbs get the same share.
-        branch(g, x2, y2, len * (0.62 + rand() * 0.20), angle - 0.36 - rand() * 0.34, depth + 1, childRadius)
-        branch(g, x2, y2, len * (0.62 + rand() * 0.20), angle + 0.34 + rand() * 0.34, depth + 1, childRadius)
-        if (kids === 3) branch(g, x2, y2, len * (0.44 + rand() * 0.22), angle + (rand() - 0.5) * 0.7, depth + 1, childRadius)
+        branch(g, x2, y2, len * (0.62 + rand() * 0.20), drawn - 0.36 - rand() * 0.34, depth + 1, childRadius)
+        branch(g, x2, y2, len * (0.62 + rand() * 0.20), drawn + 0.34 + rand() * 0.34, depth + 1, childRadius)
+        if (kids === 3) branch(g, x2, y2, len * (0.44 + rand() * 0.22), drawn + (rand() - 0.5) * 0.7, depth + 1, childRadius)
       } else {
         // Leaves belong to their TWIG, not to themselves. The eddies that move a leaf are around
         // 10 cm across, so every leaf on one twig sits inside the same one and they flutter
@@ -1435,16 +1494,18 @@ scene({
         tuft.style.animation = `leafFlutter ${(0.22 + rand() * 0.18).toFixed(2)}s ease-in-out ${(-rand()).toFixed(2)}s infinite alternate`
 
         // A gust turns a twig's leaves over together, and that is what makes a crown flash pale.
+        // A twig's leaves turn over when the wind at that twig crosses a threshold — so the pale
+        // flash COINCIDES with the gust instead of running on its own clock. A crown that
+        // flashes on a timer while the branches move to something else is the giveaway that two
+        // parts of the same scene were authored separately.
         const turns = rand() < 0.42
         let host = tuft, faces = null
         if (turns) {
           host = el(tuft, 'g')
           host.style.transformBox = 'fill-box'
           host.style.transformOrigin = 'center'
-          const delay = (-rand() * GUST).toFixed(2)
-          host.style.animation = `leafTurn ${GUST}s ease-in-out ${delay}s infinite`
           faces = el(host, 'g')
-          faces.style.animation = `leafFace ${GUST}s steps(1) ${delay}s infinite`
+          tufts.push({ host, faces, thresh: 1.03 + rand() * 0.20, flipped: false })
         }
         for (let i = 0; i < 6; i++) {
           const lx = x2 + (rand() - 0.5) * 26, ly = y2 + (rand() - 0.5) * 26
@@ -1466,6 +1527,42 @@ scene({
 
     branch(svg, 600, 632, 118, -Math.PI / 2, 0, 15)
 
+    // ── The driver ───────────────────────────────────────────────────────────────────────
+    let running = true
+    const t0 = performance.now()
+    let last = t0
+    function step(now) {
+      if (!running) return
+      const t = (now - t0) / 1000
+      const dt = Math.min((now - last) / 1000, 0.05)
+      last = now
+      for (const m of members) {
+        // The wind this member sees: the coherent gust plus its own small eddies. Never negative,
+        // because air does not blow backwards, so the target lean never crosses zero.
+        const u = Math.max(0, windAt(t, m.own))
+        // Vogel reconfiguration: a crown folds back and streamlines, so force goes as U^1.5.
+        const target = m.lean * Math.pow(u, VOGEL)
+        // Damped oscillator chasing that target. Slow gusts it follows quasi-statically; sharp
+        // ones make it ring at its own frequency and settle — which is what damping looks like.
+        m.v += (m.w * m.w * (target - m.th) - 2 * ZETA * m.w * m.v) * dt
+        m.th += m.v * dt
+        m.g.setAttribute('transform', `rotate(${m.th.toFixed(3)} ${m.x} ${m.y})`)
+      }
+      // Leaves turn when their own gust arrives, and turn back when it passes. Hysteresis, or
+      // they chatter on the threshold.
+      const uc = windAt(t, [])
+      for (const tf of tufts) {
+        const want = tf.flipped ? uc > tf.thresh - 0.10 : uc > tf.thresh
+        if (want !== tf.flipped) {
+          tf.flipped = want
+          tf.host.style.transform = want ? 'scaleY(-1)' : ''
+          tf.faces.style.opacity = want ? '0' : '1'
+        }
+      }
+      requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+
     // Loose leaves, on the free channel.
     const air = layer(stage)
     for (let i = 0; i < 9; i++) {
@@ -1477,6 +1574,7 @@ scene({
       leaf.style.animation = `leafFall ${7 + rand() * 6}s linear ${-rand() * 12}s infinite`
       leaf.style.setProperty('--x0', `${300 + rand() * 600}px`)
     }
+    return () => { running = false }
   },
 })
 

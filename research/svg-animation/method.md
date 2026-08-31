@@ -341,6 +341,10 @@ Four checks, in this order. Each one caught defects the others could not.
              CHECK: large, against a grid
 3  SCRIPT    states · named phases with durations · what changes besides position ·
              asymmetry · what must not repeat · what absence means
+             IS THE DRIVER RANDOM? If what moves the object is turbulence, traffic, a crowd, a
+             queue — then a loop cannot represent it at any frequency or amplitude, because a
+             randomly driven system has a WANDERING envelope and a loop has a fixed one. Stop
+             animating the output and integrate the system: driver -> response.
 4  ASSEMBLE  hierarchy = part list · lag makes the wave · own <svg> per moving unit ·
              decorrelate · reduce rather than remove
 5  VERIFY    solver vs forward kinematics · frozen poses · large on a grid ·
@@ -821,6 +825,92 @@ The fix came from the physics, not from the profiler: leaves on one twig share a
 flutter together. One animation per twig instead of per leaf is both correct and **285 ms/s at 60
 fps**. The cheap version and the true version were the same version, which is the second time in
 this directory that has happened.
+
+---
+
+## Ninth trial: three passes on one tree, and the third was still wrong
+
+Told the tree's motion still was not natural, I stopped tuning and looked at frames instead of
+numbers. Six of them, 200 ms apart: **almost identical**. Having killed the buzz, I had produced a
+photograph with twitching leaves.
+
+Three passes, three different kinds of wrong:
+
+```
+pass 1   every order at nearly one rate      -> waved like seaweed
+pass 2   measured rates, invented amplitudes -> buzzed at 968 deg/s
+pass 3   measured rates AND amplitudes       -> dead
+```
+
+Pass 3 was built out of correct numbers. Both of its animations were right. It was still wrong,
+and no further tuning of a number could have fixed it, because the error was structural:
+
+> **A tree in wind is a randomly driven damped system, and a periodic loop cannot represent one.**
+> A randomly driven oscillator has a WANDERING amplitude; a keyframe loop has a fixed one. Every
+> branch of an order moving in exact lockstep, forever, at constant amplitude, is the mechanical
+> tell — and it survives any amount of correcting the frequency and the amplitude, because those
+> were never the thing that was wrong.
+
+So the tree stopped being animated and started being simulated. Each member is a damped oscillator
+with its measured frequency and the measured damping (ζ = 0.106), chasing the deflection the
+current wind would hold it at:
+
+```
+θ̈ = ω²(θ_target − θ) − 2ζω θ̇        θ_target = lean · u(t)^1.5
+```
+
+The wind `u(t)` is one shared turbulent signal, and everything follows from it: the amplitude
+wanders because the forcing wanders, the tree leans downwind and recoils rather than swinging
+through vertical (**air does not blow backwards**), no two branches are in lockstep, and nothing
+repeats. The exponent is 1.5, not 2, because **a tree reconfigures**: leaves fold, the crown
+streamlines, and drag grows as U^1.3-1.5 instead of U². That is why trees survive storms, and it
+changes the shape of every gust response.
+
+Then three more things went wrong, each worth more than the fix itself.
+
+**The spectrum needs a knee.** The first wind used amplitude ∝ f^(-5/6), which is right for the
+inertial subrange and has no low-frequency limit, so a single 50-second component carried 79x the
+energy of everything else and the tree did nothing for a minute at a time. The von Kármán
+spectrum is FLAT below f ≈ U/L and only then rolls off. Across the same band the spread becomes
+about 4x, and there is finally real energy at the 0.30 Hz sway mode, where the oscillator amplifies
+it by Q = 4.7.
+
+**The wind was wrong, not the response.** At 6 m/s the model was self-consistent, correctly
+parameterised, and the tree still looked dead — because 6 m/s does not move a tree much. No amount
+of tuning the response would ever have found that; the fault was in a quantity I had not thought
+to question. The anchor is the Beaufort scale, whose whole point is that it **defines wind by what
+trees do**: force 5 "small trees in leaf begin to sway", force 6 "large branches in motion", force
+7 "whole trees in motion". The scene is force 6 and says so.
+
+> When every part of a model is defensible and the result is still wrong, the error is in a
+> quantity you did not think to question. Look for the one you inherited without deciding.
+
+**Decide whether the drawn geometry is loaded or unloaded.** Drawing the intended silhouette and
+then applying a 27° mean lean gives a tree permanently swept sideways — a real thing on an exposed
+coast, but the giveaway that shape and load were authored as if they were independent. The drawn
+shape is now the UNLOADED one, pre-tilted upwind, so the mean wind brings it back to the intended
+silhouette.
+
+### And it was cheaper
+
+| tree version | presentedFps | style ms/s | task ms/s |
+|---|---|---|---|
+| CSS keyframes, one flutter per twig | 59.8 | 87.9 | 284.9 |
+| simulated: one rAF loop over 250 members | 59.9 | **42.0** | **221.1** |
+
+Integrating 250 damped oscillators and writing 250 transforms per frame costs **less** than running
+250 CSS animations, because the keyframe machinery is not free. Third time in this directory that
+the truer version has also been the cheaper one — which is beginning to look like a rule rather
+than a run of luck.
+
+### The trap that has now bitten three times
+
+The scene stylesheet gives every `<g>` `transform-box: fill-box`, and `fill-box` re-resolves the
+coordinates inside a `transform` ATTRIBUTE, so `rotate(a cx cy)` stops meaning what it says. Driving
+the tree by attribute made it come apart at every joint. It is recorded in report.md §7b, it
+dismembered the walker, and it has now dismembered the tree. **Anything driven by the transform
+attribute must pin `transform-box: view-box` and `transform-origin: 0 0` itself** — a global
+stylesheet rule that changes what an attribute means is a landmine, and the fix is at the joint.
 
 ## What this method costs, and when to skip it
 
