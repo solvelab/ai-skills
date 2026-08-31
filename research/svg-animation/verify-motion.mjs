@@ -146,6 +146,13 @@ async function main() {
   // only meaningful over a WHOLE number of cycles. Sampling an arbitrary window reported drift on
   // a perfectly periodic animation — a false positive from this tool, found by using it.
   const cycle = args.includes('--cycle') ? Number(args[args.indexOf('--cycle') + 1]) : null
+  // --cycle is MILLISECONDS. Passing 1.1 for a 1.1 s gait made the half-cycle shift round to
+  // zero, so the antiphase test silently became an in-phase test and reported two correct limbs
+  // as broken. A tool that answers a malformed question is worse than one that refuses it.
+  if (cycle !== null && !(cycle >= 50)) {
+    console.error(`--cycle is in milliseconds and must be at least 50; got ${cycle}.`)
+    process.exit(2)
+  }
   let ms = args.includes('--ms') ? Number(args[args.indexOf('--ms') + 1]) : 2400
   if (cycle) ms = cycle * Math.max(1, Math.round(ms / cycle))
 

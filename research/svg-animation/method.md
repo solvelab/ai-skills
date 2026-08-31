@@ -556,6 +556,97 @@ That second one is the general lesson:
 > physics, sampling them independently guarantees combinations that cannot exist. The viewer cannot
 > name what is wrong, but reads the whole field as false.
 
+---
+
+## Sixth trial: the remaining eight, rebuilt from zero
+
+The audit named seven scenes that had only ever received phase 3. Two were rebuilt in the fifth
+trial; this is the rest, plus the walker's missing phase 2. Every one of them had a defect that
+phase 1 would have caught before a line was written, and three of those defects were MECHANISMS
+RUNNING BACKWARDS — not values slightly off, but the physics pointing the wrong way.
+
+**Ocean.** Waves are DISPERSIVE: c = sqrt(gL/2π), so each wavelength travels at its own speed and
+trains drift through one another, building and dissolving the groups that are the sea's signature.
+The old scene translated a fixed tile, which can never do that. Two defects fell out of one
+missing question. **Parallax inverted** — the nearest band rolled in 35 s and the furthest in 11 s.
+**Speed picked independently of wavelength** — periods 11/17/23/29/35 s against fixed harmonics of
+3, 7, 13. Celerity FOLLOWS from wavelength.
+
+Then the sea state itself, as one root quantity per train. At U = 9 m/s: Hs = 0.21·U²/g = 1.73 m,
+peak wavelength 67.5 m. And the number that changed the design — the four trains carry a slope
+variance of 0.0054 against Cox & Munk's measured 0.0491, so **89% of the sea's slope lives in waves
+too short to draw.** The glitter therefore cannot be a test on the drawn surface; it is a
+probability, Gaussian in the residual slope with σ = 0.209. Modelling what you are NOT drawing is
+what made the glitter path appear.
+
+**Night sky.** The old recipe was `scatter + flicker + parallax`. **Parallax on a starfield is
+impossible** — stars are at infinity, so there is no depth for motion to reveal. The sky turns
+rigidly about the pole at 15°/hour. Everything else follows from the atmosphere: airmass 1.02 at
+80° altitude and 5.59 at 10°, extinction 0.28 mag per airmass, scintillation as airmass^1.75 — so
+the horizon empties and reddens without anyone drawing an emptiness. And PLANETS DO NOT TWINKLE:
+a disc averages the speckle out, so a steady light among trembling ones is what says "atmosphere".
+
+**Cumulus.** Every base is at the same height, because they all condense at the same level:
+125 m per °C of dewpoint spread. Bases across a whole sky lie on ONE PLANE. The old blobs sat at
+whatever height each landed. Tops are self-similar (measured perimeter dimension ≈ 1.35), and the
+flat base is a CUT through the bubbles, not a slab under them — drawn as a slab it protrudes as a
+shelf, a shape no cumulus has.
+
+**Solar system.** T = a^1.5, so a 25× span of distance is a 123× span of period. The Sun sits at a
+FOCUS, offset by e·a — 20.6% for Mercury — and equal areas make it run (1+e)/(1-e) = 1.52× faster
+at perihelion. Jupiter and Saturn are drawn oblate because they spin in under 11 hours. Io, Europa
+and Ganymede keep 1:2:4 because their measured days do.
+
+**Lightning.** The old recipe drew the bolt downward with `stroke-dashoffset`. **Wrong twice.** The
+visible flash is the RETURN STROKE and it runs UP from the ground at ~c/3 — 30 µs for the channel,
+far too fast to read as a draw. What the eye sees is 3-4 strokes down the same channel ~60 ms
+apart; THAT is the flicker, and it was never random opacity. Branches point DOWN because the
+stepped leader made them going down, and they fade first because no return stroke passes through
+them.
+
+**Ferdinand and Feldt.** Both carried the same inverted-parallax sea. Fixed at the root: a tile
+carrying n cycles rolls in (n/2)·sqrt(2πL/g) seconds, and a near band carries fewer cycles, so near
+is faster by construction rather than by choice.
+
+**Walker, phase 2.** Every limb was a trapezoid. Limb mass is a PROFILE TABLE and the table is
+ASYMMETRIC: the shin's front edge is subcutaneous bone and runs almost straight, while the calf
+mass sits entirely behind and peaks at 28% down, falling to an ankle less than half its width. A
+leg reads as a leg because of that one-sided bulge. Shoulders were 40% too narrow — biacromial
+breadth is 0.259 of stature — and a trunk is an hourglass, not a trapezoid.
+
+### What measuring changed, after it all looked right
+
+Every scene above was judged by eye first and passed. Then they were measured, and **the ocean was
+spending 1023 ms of main thread per second of animation** — the thread saturated, 23 fps composited.
+The fix was not the obvious one. Cutting the quad count by two thirds recovered only 20%, because
+the cost was never the geometry:
+
+```
+one Path2D per shade, 26 fills      1023 ms/s   every fill rasterises its whole bounding box,
+                                                and each bucket's box was the entire sea
+immediate per-quad path fill         673 ms/s   thousands of small boxes instead of 26 huge ones
+fillRect per quad                    304 ms/s   no path construction, no scan conversion
+```
+
+The same lesson in the sky: 7,000 stars drawn with `beginPath/arc/fill` cost 346 ms/s, and most of
+them are one or two pixels across, where a square and a circle are the same picture. `fillRect` for
+those and a real disc only for the few big ones: 280 ms/s.
+
+> **A picture that looks right can still be wrong, and looking will never tell you.** Phase 5 is
+> not finished at "it renders correctly" — an animation that saturates the main thread is broken
+> for anyone whose machine has less headroom than yours. And when the number is bad, measure the
+> FIX too: the first two attempts here were reasoned from the wrong cause and bought almost nothing.
+
+### What the instrument got wrong this time
+
+`verify-motion.mjs` reported the walker's ankles and hands as "NOT half a cycle apart" — after the
+rebuild, on a figure whose strip plainly showed the offset. The cause was mine: `--cycle` is in
+milliseconds and I passed `1.1` for a 1.1-second gait. The shift rounded to zero, so the antiphase
+test silently became an in-phase test and confidently reported two correct limbs as broken.
+
+> **A tool that answers a malformed question is worse than one that refuses it.** The guard now
+> rejects any cycle under 50 ms rather than quietly computing a zero shift.
+
 ## What this method costs, and when to skip it
 
 Phases 1 and 3 are perhaps twenty minutes for an object nobody has drawn before, and they are the

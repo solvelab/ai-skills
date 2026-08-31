@@ -177,3 +177,40 @@ four layers as a double-width seamless tile translated by 50% (18): **7.12 ms/s,
 The trade is real and should be stated whenever this pattern is recommended: 17 never repeats,
 because its three frequencies are incommensurable. 18 repeats every cycle, and only hides it
 because layers roll at rates that are not simple multiples of one another.
+
+## Second run: the rebuilt scenes (2026-08-31)
+
+Same harness, same browser, `--ms 4000`. These are SCENES, not the controlled prototypes above, so
+they answer a different question: what does each finished thing cost.
+
+| scene | presentedFps | layout/s | style ms/s | task ms/s |
+|---|---|---|---|---|
+| ocean *(dispersive sea on canvas)* | 59.9 | **0** | 0 | **339** |
+| starfield | 59.9 | **0** | 0 | 280 |
+| rain | 59.9 | **0** | 0 | 120 |
+| clouds *(one `<svg>` per cloud)* | 56.1 | **0** | 13.97 | 53 |
+| feldt | 59.9 | **0** | 10.38 | 29 |
+| lightning | 8.5 | 4.3 | 0.81 | 18 |
+| solar | 59.8 | 60.3 | 5.64 | 40 |
+| walker | 59.9 | 60.3 | 8.31 | 49 |
+| birds | 60.0 | 60.5 | 24.27 | 91 |
+| ferdinand | 59.8 | 41.0 | 38.11 | 94 |
+| tree | 59.9 | 41.1 | 59.25 | 148 |
+
+Three things worth keeping:
+
+**1. `presentedFps` of 8.5 is not a failure — it is lightning.** The scene is dark between flashes,
+so almost nothing composites. Read alongside row 00 of the table above, where a static page reports
+0.2, this column is doing exactly what it claims.
+
+**2. Every canvas scene reports layout 0 and style 0, and the SVG ones do not.** Clouds are the
+interesting case: 26 clouds, each its own `<svg>` element animated as a box, and layout stays at
+zero while the tree — the same amount of motion inside one SVG — pays 41 layout/s. This is
+prototype 08's finding surviving contact with a real scene.
+
+**3. Canvas moves the cost, it does not remove it.** The ocean is the most expensive thing in this
+directory at 339 ms/s, and it holds 60 fps only because none of that lands on layout or style. How
+it got from 1023 down to 339 is recorded in method.md, sixth trial; the short version is that the
+cost was the number of `fill()` calls and the size of their bounding boxes, not the geometry, and
+the first two fixes were aimed at the wrong cause.
+

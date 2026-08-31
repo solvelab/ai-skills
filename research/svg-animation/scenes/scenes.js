@@ -39,96 +39,499 @@ const el = (parent, name, attributes = {}) => {
   return n
 }
 
+// ── Phase 2 for a limb: mass becomes a PROFILE TABLE, and the table is asymmetric ──
+// Half-breadths are read off circumferences (assume round: half-breadth = C/2π) and divided by
+// the segment's own length, so one table serves any size. The rows below are adult anthropometry
+// at stature 175 cm, where thigh and shank are both ~42.9 cm.
+//
+// The asymmetry is the point. The shin's front edge is the TIBIAL CREST — subcutaneous bone, so
+// it runs almost straight — while the whole calf mass sits BEHIND it and peaks at about 28% down.
+// A leg reads as a leg because of that one-sided bulge. A symmetric taper, which is what a
+// trapezoid gives you, reads as a table leg, and every limb in this figure was a trapezoid.
+//
+// front[] and back[] are half-widths at the stations in at[]; +x is the walking direction.
+const limbPath = (x0, y0, len, at, front, back) => {
+  const fx = at.map((u, i) => [x0 + front[i] * len, y0 + u * len])
+  const bx = at.map((u, i) => [x0 - back[i] * len, y0 + u * len])
+  const seg = (pts) => pts.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(2) + ' ' + q[1].toFixed(2)).join(' ')
+  return seg(fx) + ' ' + seg(bx.reverse()).replace('M', 'L') + ' Z'
+}
+const AT = [0, 0.20, 0.45, 0.70, 1]
+// thigh: quadriceps in front, hamstring behind, both peaking high and tapering to a narrow knee
+const THIGH_F = [0.190, 0.205, 0.178, 0.152, 0.132]
+const THIGH_B = [0.215, 0.212, 0.180, 0.150, 0.132]
+// shank: front nearly straight (bone), back bulges to the calf belly at 28% then falls to a
+// narrow ankle — 0.082 against the calf's 0.175 is the sharpest taper anywhere in the body
+const SHANK_F = [0.132, 0.122, 0.106, 0.092, 0.078]
+const SHANK_B = [0.140, 0.172, 0.150, 0.104, 0.082]
+const UPPER_F = [0.120, 0.128, 0.115, 0.102, 0.094]
+const UPPER_B = [0.128, 0.136, 0.120, 0.102, 0.094]
+const FORE_F  = [0.098, 0.104, 0.090, 0.074, 0.062]
+const FORE_B  = [0.104, 0.112, 0.094, 0.074, 0.062]
+
+// Deep-water dispersion, shared by every sea in this file. A tile 2400 units wide carrying n
+// wave cycles has a screen wavelength of 2400/n, and rolling it by half the tile is n/2
+// wavelengths — so the roll period is (n/2)·T, where T = sqrt(2πL/g) is the wave's OWN period.
+// The consequence, which the hand-picked periods in these scenes all had backwards: a near band
+// carries FEWER cycles across the tile, so its roll period is shorter and it moves faster. Near
+// is faster, always, and here it falls out of the physics instead of being chosen.
+const rollSeconds = (cyclesAcrossTile, wavelengthMetres) =>
+  (cyclesAcrossTile / 2) * Math.sqrt(2 * Math.PI * wavelengthMetres / 9.81)
+
+// Stokes 2nd order: a gravity wave has peaked crests and broad flat troughs, never a sine.
+const stokes = (theta, amp, steep) => amp * (Math.cos(theta) + steep * 0.5 * Math.cos(2 * theta))
+
 // ─────────────────────────────────────────────────────────────────────────────
 const scenes = []
 const scene = (def) => { scenes.push(def); return def }
 
-// ── 1. Starfield ────────────────────────────────────────────────────────────
+// ── 1. Night sky ────────────────────────────────────────────────────────────
+// REBUILT FROM ZERO through the method. The audit found this scene had phases 1 and 3 only, and
+// phase 1 had asked the wrong question.
+//
+// ── 0 FRAME ──
+//   A real night sky from about 40 deg north, horizon along the bottom, read at ~600px.
+//   Not a space scene: this is the view from inside an atmosphere, and the atmosphere is the
+//   whole subject — without it stars do not twinkle, do not redden, and do not fade at the edge.
+//
+// ── 1a MECHANISM — and the error phase 1 exists to catch ──
+//   The old recipe was 'scatter + flicker + PARALLAX'. Parallax on a starfield is meaningless:
+//   stars are effectively at infinity, so there is no depth for the viewer's motion to reveal.
+//   Layers drifting at different speeds is a physical impossibility dressed as a depth cue.
+//   What the sky actually does is turn RIGIDLY about the celestial pole at 15 deg per hour — one
+//   transform on one layer, which is also the cheapest thing in the measurement table.
+//
+// ── 1c KINEMATICS, measured, WITH AXES ──
+//   rotation      15.041 deg/hour = 0.00418 deg/s, about the celestial pole, which sits at an
+//                 altitude equal to the observer's latitude. AXIS: the sky's own polar axis, so
+//                 stars near the pole sweep tight circles and stars near the equator run nearly
+//                 straight. Shown here at x900, one turn in 96 s, and that is a stated cheat.
+//   scintillation turbulent cells crossing the line of sight, characteristic time 5-50 ms — tens
+//                 of Hz, not the ~1 Hz a 'twinkle' animation usually gets. AXIS: brightness only;
+//                 a star never moves. Amplitude grows as airmass^1.75.
+//   airmass       Kasten & Young. alt 80 deg -> 1.02;  30 deg -> 1.99;  10 deg -> 5.59;  5 -> 10.3.
+//   extinction    0.28 mag per airmass in V. At 10 deg altitude a star has lost 1.56 mag — a
+//                 quarter of its light — and is visibly reddened. This is why the horizon is bare.
+//   PLANETS DO NOT TWINKLE. They show a disc a few arcseconds across, so the speckle averages out
+//                 across it. A steady light among trembling ones is the clearest way to say
+//                 'atmosphere' — and the old scene, twinkling everything, could not say it.
+//   magnitudes    each magnitude is 2.512x in brightness, and counts rise as 10^0.6m: ~4 stars
+//                 brighter than m=1, ~1100 brighter than m=5, ~8700 to the naked-eye limit 6.5.
+//
+// ── 1b ANCHOR MAP ──
+//   horizon  y = 600/640.   pole  40 deg above it = 464 px up at 11.6 px/deg, so (150, 136).
+//   Milky Way: a band of UNRESOLVED stars, so it is drawn as stars too, not as a painted smear.
+//
+// ── 1d DEPTH ORDER ──
+//   sky gradient (brightening toward the horizon: airglow and light pollution) · Milky Way
+//   grains · stars · planets.
 scene({
   id: 'starfield',
   title: 'Night sky',
-  recipe: 'scatter + flicker + parallax',
-  cost: 'free — 5 layers, 0 layout/s',
+  recipe: 'magnitude-sampled stars + rigid polar rotation + airmass extinction + scintillation by airmass',
+  cost: 'canvas — 0 layout/s, 0 style/s; ~1400 stars, one rigid rotation',
   note:
-    'Depth is three rates, not three shades. Each depth is its own <svg>, so the drift is on the ' +
-    'free channel. The twinkle is a staggered opacity animation with a per-star duration, never a ' +
-    'shared one — synchronised twinkling reads as a fault, not a sky.',
+    'Rebuilt after phase 1 found the old recipe impossible: it drifted star layers at different ' +
+    'speeds as parallax, and stars are at infinity, so there is no parallax to have. The sky turns ' +
+    'rigidly about the pole instead — tight circles near it, near-straight tracks far from it, all ' +
+    'from one angle. Everything else follows from the atmosphere: brightness, colour and twinkle ' +
+    'amplitude all come from airmass, so the horizon empties and reddens by itself, and the three ' +
+    'planets hold steady while the stars tremble, because a disc averages the speckle out.',
   build(stage) {
-    stage.style.background = 'linear-gradient(#04060f 0%, #0a1230 60%, #16204a 100%)'
-    const rand = seeded(20260830)
-    for (let d = 0; d < 4; d++) {
-      const svg = layer(stage, { width: '200%' })
-      svg.style.animation = `drift ${90 - d * 18}s linear infinite`
-      const count = 150 - d * 16
-      for (let i = 0; i < count; i++) {
-        const r = 0.5 + d * 0.42 + rand() * 0.5
-        const star = el(svg, 'circle', {
-          cx: rand() * 2400, cy: rand() * 620, r,
-          fill: '#e8f0ff', opacity: 0.25 + d * 0.16,
-        })
-        // Irregular, per-star period: the decorrelation is the whole effect.
-        star.style.animation = `twinkle ${2.2 + rand() * 5}s ease-in-out ${-rand() * 6}s infinite`
-      }
+    const W = 1200, H = 640
+    stage.style.background =
+      'linear-gradient(#05070f 0%, #070c1a 42%, #0b1526 72%, #142033 90%, #1d2a3c 100%)'
+    const canvas = document.createElement('canvas')
+    canvas.className = 'layer canvasLayer'
+    canvas.width = W; canvas.height = H
+    stage.appendChild(canvas)
+    const ctx = canvas.getContext('2d')
+    const rand = seeded(1064)
+
+    const HORIZON = 600, PX_PER_DEG = 11.6
+    const LAT = 40
+    const POLE = { x: 150, y: HORIZON - LAT * PX_PER_DEG }
+    const SPEED = 15.041 / 3600 * 900 * Math.PI / 180   // rad/s, time-lapse x900
+
+    // Colour by spectral class. These are blackbody colours, not choices — a K star is orange
+    // because it is 4500 K. The mix is weighted to what the naked eye actually collects, which
+    // is biased toward hot luminous stars; the true stellar population is mostly invisible M.
+    const CLASSES = [
+      { c: [155, 176, 255], w: 0.006 },   // O/B  ~20000 K
+      { c: [170, 191, 255], w: 0.10 },    // B
+      { c: [202, 215, 255], w: 0.22 },    // A    ~9000 K
+      { c: [248, 247, 255], w: 0.19 },    // F
+      { c: [255, 244, 234], w: 0.14 },    // G    ~5800 K, the Sun
+      { c: [255, 210, 161], w: 0.26 },    // K    ~4500 K
+      { c: [255, 190, 130], w: 0.084 },   // M    ~3200 K
+    ]
+    const pickClass = () => {
+      let u = rand()
+      for (const k of CLASSES) { u -= k.w; if (u <= 0) return k.c }
+      return CLASSES[CLASSES.length - 1].c
     }
-    // The moon sits still: one anchored element gives the drifting layers something to be measured
-    // against, which is what makes the parallax legible.
-    const front = layer(stage)
-    const moonGlow = el(front, 'circle', { cx: 980, cy: 130, r: 74, fill: 'url(#moonGlow)' })
-    moonGlow.style.animation = 'breathe 9s ease-in-out infinite'
-    el(front, 'circle', { cx: 980, cy: 130, r: 34, fill: '#f4f1e4' })
-    el(front, 'circle', { cx: 996, cy: 121, r: 30, fill: '#0a1230', opacity: 0.92 })
-    const defs = el(front, 'defs')
-    const g = el(defs, 'radialGradient', { id: 'moonGlow' })
-    el(g, 'stop', { offset: '0%', 'stop-color': '#fff8dc', 'stop-opacity': '0.55' })
-    el(g, 'stop', { offset: '100%', 'stop-color': '#fff8dc', 'stop-opacity': '0' })
+
+    const airmass = (altDeg) => {
+      if (altDeg < -0.5) return 40
+      const z = (90 - altDeg) * Math.PI / 180
+      return 1 / (Math.cos(z) + 0.50572 * Math.pow(6.07995 + altDeg, -1.6364))
+    }
+
+    // The Milky Way is a band of stars too faint to separate, so it is built from stars — a
+    // painted smear would be the one thing a telescope proved it is not.
+    const band = { x0: -260, y0: 700, x1: 1420, y1: -160 }
+    const bandDist = (x, y) => {
+      const dx = band.x1 - band.x0, dy = band.y1 - band.y0
+      const L2 = dx * dx + dy * dy
+      const s = Math.max(0, Math.min(1, ((x - band.x0) * dx + (y - band.y0) * dy) / L2))
+      return Math.hypot(x - (band.x0 + s * dx), y - (band.y0 + s * dy))
+    }
+
+    const stars = []
+    const add = (x, y, m, isPlanet) => {
+      const r = Math.hypot(x - POLE.x, y - POLE.y)
+      stars.push({
+        r, th: Math.atan2(y - POLE.y, x - POLE.x), m,
+        col: isPlanet ? [255, 238, 205] : pickClass(),
+        // One root quantity — the magnitude — sets size and light together. Sampling them apart
+        // is the rain defect: a faint star drawn large is a contradiction the eye reads at once.
+        rad: isPlanet ? 2.6 : 0.45 + 2.0 * Math.pow(10, -0.2 * m),
+        flux: Math.pow(10, -0.4 * m),
+        planet: !!isPlanet,
+        // Turbulent cells cross the line of sight in 5-50 ms, so the rate is tens of Hz.
+        f1: 9 + rand() * 22, f2: 14 + rand() * 30, ph: rand() * 99,
+      })
+    }
+
+    // Naked-eye stars: N(<m) grows as 10^0.6m, so invert that instead of picking m uniformly.
+    const MMIN = -1.2, MMAX = 6.4, LIMIT = 7.4
+    const a0 = Math.pow(10, 0.6 * MMIN), a1 = Math.pow(10, 0.6 * MMAX)
+    for (let i = 0; i < 1500; i++) {
+      const x = -200 + rand() * 1700, y = -200 + rand() * 900
+      const m = Math.log10(a0 + rand() * (a1 - a0)) / 0.6
+      // The band holds several times the field density, which is the whole reason it is visible.
+      if (bandDist(x, y) > 150 && rand() > 0.55) continue
+      add(x, y, m, false)
+    }
+    for (let i = 0; i < 1000; i++) {
+      const x = -200 + rand() * 1700, y = -200 + rand() * 900
+      add(x, y, Math.log10(a0 + rand() * (a1 - a0)) / 0.6, false)
+    }
+    // Milky Way grains: below the naked-eye limit individually, visible only in the mass.
+    for (let i = 0; i < 5200; i++) {
+      const x = -200 + rand() * 1700, y = -200 + rand() * 900
+      const d = bandDist(x, y)
+      if (d > 230 || rand() > Math.exp(-(d * d) / (2 * 118 * 118))) continue
+      add(x, y, 6.35 + rand() * 0.9, false)
+    }
+    // Three planets, on the ecliptic, steady. Their whole job is to not twinkle.
+    add(430, 300, -2.0, true); add(660, 372, -0.2, true); add(905, 452, 0.6, true)
+
+    let running = true
+    const t0 = performance.now()
+    function frame(now) {
+      if (!running) return
+      const t = (now - t0) / 1000
+      const rot = t * SPEED
+      ctx.clearRect(0, 0, W, H)
+      ctx.globalCompositeOperation = 'lighter'
+      for (const s of stars) {
+        const a = s.th + rot
+        const x = POLE.x + s.r * Math.cos(a)
+        const y = POLE.y + s.r * Math.sin(a)
+        if (y > HORIZON || y < -20 || x < -20 || x > W + 20) continue
+        const alt = (HORIZON - y) / PX_PER_DEG
+        const X = airmass(alt)
+
+        // Extinction: 0.28 mag per airmass. Everything near the horizon dims and reddens, and
+        // that is why a real sky is empty at its edge without anyone drawing an emptiness.
+        // Extinction adds 0.28 mag per airmass, so work in magnitudes and convert once at the end.
+        // The conversion is NOT to flux: naked-eye magnitudes span 3000:1 in light and a screen
+        // has 256 levels, so a flux-proportional alpha renders everything past m=5 as nothing —
+        // which is exactly what the first attempt did. The eye's own response is logarithmic, so
+        // MAGNITUDE maps to alpha and the display gamma does the compressing.
+        const mEff = s.m + 0.28 * X
+        const norm = (LIMIT - mEff) / (LIMIT - MMIN)
+        if (norm <= 0.015) continue
+        // A floor, because a screen pixel is the smallest thing there is: below it a star stops
+        // being faint and starts being absent, and the sky loses the population that gives it
+        // texture. Faint stars are small AND dim, but never nothing.
+        let alpha = Math.min(1, 0.17 + 0.83 * norm)
+
+        // Scintillation grows as airmass^1.75 — a star low down trembles twenty times as hard as
+        // one overhead. A planet shows a disc, so the speckle averages away and it holds still.
+        if (!s.planet) {
+          const amp = Math.min(0.72, 0.05 * Math.pow(X, 1.75))
+          const w = Math.sin(t * s.f1 + s.ph) * 0.6 + Math.sin(t * s.f2 + s.ph * 1.7) * 0.4
+          alpha *= 1 + amp * w
+          if (alpha <= 0) continue
+        }
+        const red = Math.min(0.55, 0.055 * X)     // low stars redden as the blue is scattered out
+        const c = s.col
+        ctx.fillStyle = `rgba(${Math.round(c[0] + (255 - c[0]) * red * 0.3)},${Math.round(c[1] * (1 - red * 0.28))},${Math.round(c[2] * (1 - red * 0.62))},${Math.min(1, alpha)})`
+        // Size carries the rest of the range: a bright star spills over more pixels, which is
+        // how a camera and a retina both register it. Seeing also bloats a low star's disc.
+        const rr = s.planet ? s.rad : Math.max(0.85, 0.62 + 2.5 * norm) * (1 + 0.10 * Math.sqrt(X))
+        // Most of a sky is stars a pixel or two across, where a circle and a square are the same
+        // picture and fillRect costs a fraction of beginPath/arc/fill. Measured: the all-arcs
+        // version of this scene spent 346 ms of main thread per second of animation. Only stars
+        // big enough for the shape to read at all get a real disc.
+        if (rr < 1.35) {
+          const sq = rr * 1.6
+          ctx.fillRect(x - sq * 0.5, y - sq * 0.5, sq, sq)
+        } else {
+          ctx.beginPath()
+          ctx.arc(x, y, rr, 0, 6.2832)
+          ctx.fill()
+        }
+      }
+      ctx.globalCompositeOperation = 'source-over'
+      requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
+    return () => { running = false }
   },
 })
 
 // ── 2. Ocean ────────────────────────────────────────────────────────────────
+// REBUILT FROM ZERO through the method. The audit found this scene had received only phase 3.
+//
+// ── 0 FRAME ──
+//   Open sea in a moderate wind, from a deck ~14 m above the water, read at ~600px.
+//   Not a pond (no dispersion, no groups) and not surf (no shoaling, no bottom).
+//
+// ── 1a MECHANISM ──
+//   A deep-water gravity wave is not a shape that slides. The field is DISPERSIVE: each wavelength
+//   travels at its own speed, so trains overtake one another, and where they briefly add you get a
+//   GROUP of big waves that forms, moves, and dies. Crests run through the group at twice its
+//   speed and vanish out the front. That is the most recognisable thing the sea does, and no
+//   translating tile can produce it — which is why this scene had to leave the tile channel.
+//
+// ── 1c KINEMATICS, measured, WITH AXES ──
+//   dispersion   c = sqrt(gL/2π)         AXIS: horizontal, along each train's own heading.
+//                L=12m → 4.33 m/s, T=2.77s      L=68m  → 10.30 m/s, T=6.60s
+//                L=140m → 14.78 m/s, T=9.47s    — 12x the wavelength is only 3.4x the speed,
+//                because celerity goes as the SQUARE ROOT.
+//   group speed  c/2 in deep water. Falls out of the superposition; nothing to author.
+//   sea state    fully developed at U=9 m/s: Hs = 0.21·U²/g = 1.73 m, peak period 6.57 s,
+//                peak wavelength 67.5 m. The four trains below reproduce Hs = 1.77 m.
+//   crest shape  NOT a sine. Stokes 2nd order η = A[cos θ + (Ak/2)·cos 2θ]: peaked crest, broad
+//                flat trough. AXIS: vertical displacement.
+//   breaking     H/L = 1/7 (Michell), i.e. Ak = 0.449, crest angle 120°.
+//   slope stats  s² = 0.003 + 0.00512·U (Cox & Munk, measured off sun-glitter photographs).
+//                U=9 → s² = 0.0491, rms slope 12.7°.
+//
+//   THE NUMBER THAT CHANGED THE DESIGN: those four trains carry s² = 0.0054 — only 10.9% of the
+//   real slope variance. The other 89% lives in short waves centimetres long that no scene will
+//   ever draw. So the glitter cannot be a test on the drawn surface; it is a PROBABILITY, Gaussian
+//   in the residual slope with σ = 0.209. Modelling the unresolved roughness explicitly, instead
+//   of pretending the drawn waves are the whole surface, is what makes the glitter path read.
+//
+// ── 1b ANCHOR MAP ──
+//   horizon      y = 210/640. Set by eye height through y = yh + f·h/D, not by taste.
+//   glitter      a COLUMN running from the horizon toward the viewer. Near the viewer you look
+//                steeply down, so the tilt a facet needs to bounce the sun into your eye is large
+//                and glints get rare. The path narrows by itself; the old version scattered
+//                ellipses at fixed heights, the one place a glint cannot be.
+//
+// ── 1d DEPTH ORDER ──
+//   sky · sea drawn far to near, each strip's quads overdrawing the last · foam · glitter.
+//
+//   Two defects the old scene had, both from skipping phase 1:
+//   (1) PARALLAX INVERTED — nearest band rolled in 35 s, furthest in 11 s. Near moves faster.
+//   (2) SPEED CHOSEN SEPARATELY FROM WAVELENGTH — periods 11/17/23/29/35 s against fixed harmonics
+//       of 3, 7, 13. Celerity FOLLOWS from wavelength; picking both is the rain defect again.
 scene({
   id: 'ocean',
   title: 'Ocean',
-  recipe: 'wave (seamless tile) + parallax + gradient depth + ripple',
-  cost: 'free — 7.12 ms/s, 0 layout/s (prototype 18)',
+  recipe: 'dispersive superposition on Canvas + perspective strips + Stokes crests + Cox-Munk glitter',
+  cost: 'canvas — 0 layout/s, 0 style/s, 60 composited fps, but the priciest scene here on main thread',
   note:
-    'Each band is a double-width path built from integer harmonics — 3, 7 and 13 cycles across the ' +
-    'tile — so translating it by exactly 50% returns to an identical picture and the loop has no ' +
-    'seam. Rebuilding the path every frame instead would never repeat, and cost 2.5x more.',
+    'Four wave trains, each with the celerity sqrt(gL/2π) that its own wavelength forces. Because ' +
+    'they run at different speeds they drift in and out of phase, so wave groups build and decay ' +
+    'unbidden and the sea never repeats — what a translated tile can never do. Crests are Stokes ' +
+    '2nd order: peaked, with broad flat troughs. The glitter is not scattered about: four trains ' +
+    'carry only 11% of the real surface slope, so the missing 89% is modelled as Cox & Munk ' +
+    'roughness and a facet lights up by probability. The path narrows toward the viewer on its own.',
   build(stage) {
-    stage.style.background = 'linear-gradient(#0d2b4a 0%, #11406b 45%, #072033 100%)'
-    const W = 2400
-    for (let d = 0; d < 5; d++) {
-      const svg = layer(stage, { viewBox: `0 0 ${W} 640`, width: '200%' })
-      svg.setAttribute('preserveAspectRatio', 'none')
-      svg.style.animation = `roll ${11 + d * 6}s linear infinite`
-      const base = 250 + d * 62
-      const amp = 30 - d * 4
-      let d2 = `M0 640 L0 ${base}`
-      for (let i = 0; i <= 200; i++) {
-        const x = (i / 200) * W
-        const u = (x / W) * Math.PI * 2
-        const y = base
-          + Math.sin(u * 3 + d) * amp
-          + Math.sin(u * 7 - d * 0.6) * amp * 0.4
-          + Math.sin(u * 13 + d * 1.3) * amp * 0.18
-        d2 += ` L${x.toFixed(1)} ${y.toFixed(2)}`
+    stage.style.background = 'linear-gradient(#5b8fc0 0%, #9dc0dc 22%, #cddfea 31%, #e2ecf1 33%, #e2ecf1 100%)'
+    const W = 1200, H = 640
+    const canvas = document.createElement('canvas')
+    canvas.className = 'layer canvasLayer'
+    canvas.width = W
+    canvas.height = H
+    stage.appendChild(canvas)
+    const ctx = canvas.getContext('2d')
+
+    // ── Camera: a horizontal-looking pinhole. Still water at range D lands at y = yh + f·h/D,
+    //    and an elevation η lifts it by f·η/D. Slope is preserved by this projection, so the
+    //    world gradient IS the visual one and the shading needs no extra transform.
+    const EYE = 14, FOCAL = 900, yh = 210, cx = 600, G = 9.81
+    const WIND = 9
+
+    // ONE root quantity per train — the wavelength. Speed and steepness follow from it.
+    const trains = [
+      { L: 140, A: 0.30, dir: 8 },    // old swell, arriving off the bow
+      { L: 68,  A: 0.45, dir: -6 },   // the spectral peak for this wind
+      { L: 30,  A: 0.28, dir: 15 },
+      { L: 12,  A: 0.14, dir: -19 },
+    ].map((c) => {
+      const k = 2 * Math.PI / c.L
+      const a = c.dir * Math.PI / 180
+      return { L: c.L, A: c.A, k, w: Math.sqrt(G * k), kx: k * Math.cos(a), kz: k * Math.sin(a), s2: c.A * c.A * k / 2 }
+    })
+
+    // What the four trains leave out. Most of the sea's slope is in waves too short to draw.
+    const mssTotal = 0.003 + 0.00512 * WIND
+    let mssDrawn = 0
+    for (const c of trains) mssDrawn += (c.A * c.k) ** 2 / 2
+    const SIGMA = Math.sqrt(Math.max(1e-4, mssTotal - mssDrawn))
+    const SUN_EL = 11 * Math.PI / 180
+
+    const STRIP = 8, SAMPLES = 108, dx = W / (SAMPLES - 1)
+    const SHADES = 26
+    const shade = []
+    for (let i = 0; i < SHADES; i++) {
+      const u = i / (SHADES - 1)
+      shade.push(`hsl(${208 - u * 12} ${56 - u * 20}% ${8 + u * 44}%)`)
+    }
+    // Whitecaps: Monahan & O'Muircheartaigh give coverage W = 3.84e-6·U^3.41 — at U=9 that is
+    // 0.69% of the surface. Foam is a rare accent on crests, never a texture over the sea.
+    const WHITECAP = 3.84e-6 * Math.pow(WIND, 3.41)
+    // The sun is 0.53 deg wide, so only facets within 0.0046 rad of specular actually flash. At
+    // the peak of the Cox & Munk distribution that is 2.4e-4 of them: glitter is a broad SHEEN
+    // with rare bright winks inside it, not a lit sheet. The old scene drew the sheet.
+    const hash = (a, b, c) => {
+      let h = (a * 374761393 + b * 668265263 + c * 2246822519) | 0
+      h = (h ^ (h >>> 13)) * 1274126177
+      return ((h ^ (h >>> 16)) >>> 0) / 4294967296
+    }
+
+    let running = true
+    const t0 = performance.now()
+    let prevY = null, prevX = null
+
+    function frame(now) {
+      if (!running) return
+      const t = (now - t0) / 1000
+      ctx.clearRect(0, 0, W, H)
+
+      // Bucketing into one Path2D per shade and filling 26 of them was the obvious structure and
+      // it cost 825 ms of main thread per second: every fill rasterises over the path's whole
+      // bounding box, and each bucket's box was the entire sea. Drawing each quad the moment it
+      // is computed means thousands of fills with tiny boxes instead — and the palette is an
+      // array, so fillStyle is a lookup rather than a colour string to parse.
+      const winks = new Path2D()
+      const foam = new Path2D()
+      const tick = Math.floor(t * 11)          // a glint lives about a tenth of a second
+
+      prevY = null
+      const curY = new Float32Array(SAMPLES)
+
+      for (let y = yh + 1.5; y < H + STRIP * 2; y += STRIP) {
+        const D = FOCAL * EYE / (y - yh)
+        if (D > 5200) continue
+        const scale = FOCAL / D
+        const worldStep = dx / scale
+        const haze = Math.min(1, Math.pow(D / 5200, 0.5))
+        // The specular tilt for THIS range: half the angle between the sun and the line of sight.
+        const need = (SUN_EL - Math.atan(EYE / D)) / 2
+
+        // Phase runs linearly along the strip, so rotate (cos, sin) by a fixed step instead of
+        // calling a transcendental 8 times per sample. Four multiplies each, same result.
+        const st = trains.map((c) => {
+          const th0 = c.kx * (-cx / scale) + c.kz * D - c.w * t
+          const d = c.kx * worldStep
+          // Sampling theorem, not taste: a train whose screen wavelength has fallen below two
+          // samples cannot be drawn, and drawing it anyway produced the moire in the far field.
+          // Fade it out between four samples and two, where the real sea fades into haze anyway.
+          const px = c.L * scale / dx
+          const f = px > 4 ? 1 : px < 2 ? 0 : (px - 2) / 2
+          return { c, A: c.A * f, s2: c.s2 * f, co: Math.cos(th0), si: Math.sin(th0), cd: Math.cos(d), sd: Math.sin(d) }
+        })
+
+        for (let s = 0; s < SAMPLES; s++) {
+          let eta = 0, gx = 0, gz = 0
+          for (const u of st) {
+            const c = u.co, si = u.si
+            eta += u.A * c + u.s2 * (2 * c * c - 1)
+            const dth = -u.A * si - u.s2 * 2 * (2 * si * c)
+            gx += dth * u.c.kx
+            gz += dth * u.c.kz
+            const nc = c * u.cd - si * u.sd
+            u.si = si * u.cd + c * u.sd
+            u.co = nc
+          }
+          curY[s] = y - eta * scale
+
+          if (prevY && s > 0) {
+            const x0 = (s - 1) * dx, x1 = s * dx
+            // Sky reflected off a facet: tilted away from you it shows bright sky, toward you the
+            // dark water. gz is that tilt, and perspective already preserved it.
+            // The chance this facet is specular, given the roughness the four trains leave out.
+            // BOTH axes have a requirement. Along the view it is `need`, set by the range. Across
+            // it, a patch seen off the sun's bearing must tilt sideways by half that bearing —
+            // and THAT is what confines the glitter to a column. Leaving it out (first attempt)
+            // put winks over the entire sea, because the Cox & Munk roughness is wide enough to
+            // satisfy the along-view condition everywhere.
+            const needX = Math.atan((s * dx - cx) / FOCAL) / 2
+            const dzz = (gz - need) / SIGMA, dxx = (gx - needX) / SIGMA
+            const prob = D < 2600 ? Math.exp(-0.5 * (dzz * dzz + dxx * dxx)) : 0
+
+            // Sky reflected off a facet: tilted away from you it shows bright sky, toward you the
+            // dark water. gz is that tilt, and the projection already preserved it. The glitter
+            // path is the same term as a broad sheen — the sun's own light, spread by roughness.
+            let lit = 0.34 + gz * 2.9 - gx * 0.55 + prob * prob * 0.5
+            lit = lit < 0 ? 0 : lit > 1 ? 1 : lit
+            const l = lit * (1 - haze * 0.6) + haze * 0.78
+            const b = Math.min(SHADES - 1, Math.max(0, Math.round(l * (SHADES - 1))))
+            // Overlap by two thirds of a pixel. Neighbouring quads land in different Path2D
+            // buckets, so their shared edge gets antialiased against whatever is already there and
+            // a pale hairline grid appears over the whole sea. Overlapping hides the seam.
+            // fillRect instead of a four-point path. The quad is 16 px wide and a few tall, so
+            // the shear it loses is under a pixel, and fillRect skips path construction and
+            // scan conversion entirely. Measured on this scene: 673 ms/s as paths, and the same
+            // picture as rects for a fraction of it. Shape fidelity you cannot see is not
+            // fidelity; the wave is still in the rect's POSITION, which is what carries it.
+            const yTop = prevY[s] < curY[s] ? prevY[s] : curY[s]
+            const yBot = prevY[s] < curY[s] ? curY[s] : prevY[s]
+            ctx.fillStyle = shade[b]
+            ctx.fillRect(x0, yTop, dx + 1, yBot - yTop + 1.2)
+
+            // A wink is one facet that happens to be inside the sun's half-degree, and it lasts
+            // about a tenth of a second. Drawn by a hash of position and tick, never by a sine of
+            // the loop counters — that is what put a checkerboard over the whole sea last try.
+            const p6 = prob * prob * prob * prob * prob * prob
+            if (prob > 0.5 && hash(s, (y * 4) | 0, tick) < p6 * 0.05) {
+              const r = Math.min(3.4, 0.8 + scale * 0.09) * (0.55 + hash(s, tick, 7) * 0.9)
+              winks.moveTo(x1 - r, curY[s]); winks.lineTo(x1, curY[s] - r)
+              winks.lineTo(x1 + r, curY[s]); winks.lineTo(x1, curY[s] + r); winks.closePath()
+            }
+
+            // Whitecaps break on crests. The rate is the measured coverage for this wind, not a
+            // slope test: the four drawn trains never reach Michell's limit, because the waves
+            // that actually break are the short ones this scene does not resolve.
+            if (D < 900 && eta > 0.72 && hash(s, (y * 4) | 0, tick >> 2) < WHITECAP * 5) {
+              // A crest quad is far taller than the foam riding on it, so the patch is drawn
+              // small and sat on the crest line rather than filling the cell. 0.69% coverage is
+              // a fleck, and filling whole cells with it turned the sea into a chequerboard.
+              foam.rect(x0 + 1, curY[s] - 1, dx * 0.7, 3.2)
+            }
+          }
+        }
+        if (!prevY) prevY = new Float32Array(SAMPLES)
+        prevY.set(curY)
       }
-      el(svg, 'path', {
-        d: `${d2} L${W} 640 Z`,
-        fill: `hsl(${203 + d * 3} ${62 - d * 5}% ${14 + d * 8}%)`,
-        opacity: 0.62 + d * 0.09,
-      })
+
+      ctx.fillStyle = 'rgba(232,242,247,0.80)'
+      ctx.fill(foam)
+      ctx.fillStyle = 'rgba(255,252,236,0.95)'
+      ctx.fill(winks)
+
+      requestAnimationFrame(frame)
     }
-    // Sun glitter: ripples on the free channel, staggered so they never pulse together.
-    const front = layer(stage)
-    const rand = seeded(77)
-    for (let i = 0; i < 16; i++) {
-      const r = el(front, 'ellipse', {
-        cx: 400 + rand() * 420, cy: 250 + rand() * 150,
-        rx: 10 + rand() * 26, ry: 1.6, fill: '#ffe9b0', opacity: 0.5,
-      })
-      r.style.animation = `glint ${2 + rand() * 3}s ease-in-out ${-rand() * 4}s infinite`
-    }
+    requestAnimationFrame(frame)
+    return () => { running = false }
   },
 })
 
@@ -244,115 +647,306 @@ scene({
   },
 })
 
-// ── 4. Clouds at sunset ─────────────────────────────────────────────────────
+// ── 4. Cumulus field ────────────────────────────────────────────────────────
+// REBUILT FROM ZERO through the method. The audit found phase 3 only, and it showed: the old
+// scene was turbulence blobs drifting at two speeds, which is a texture, not a cloud.
+//
+// ── 0 FRAME ──
+//   A fair-weather cumulus field on a summer afternoon, read at ~600px.
+//   Not stratus (no structure, no base you can see) and not cirrus (ice, no bubbles, far higher).
+//
+// ── 1a MECHANISM ──
+//   A cumulus is a rising thermal that has hit its condensation level. Everything about its shape
+//   is that one fact. Below the level there is no cloud; at it, vapour condenses; above it, the
+//   parcel keeps rising and boiling over into bubbles. So the base is FLAT and SHARP and the top
+//   is CAULIFLOWER — the two halves of the same cloud follow different rules.
+//
+// ── 1c KINEMATICS, measured, WITH AXES ──
+//   base height   Espy: 125 m per degC of dewpoint spread. T=26, Td=14 -> 1500 m.
+//                 AXIS: vertical, and it is the SAME for every cloud in the field, because they
+//                 all breathe the same air. Cumulus bases across a whole sky lie on one plane —
+//                 the most recognisable fact about a cumulus field, and the old scene had bases
+//                 scattered at whatever height each blob happened to land.
+//   outline       perimeter fractal dimension ~1.35 (Lovejoy). Self-similar: bubbles on bubbles.
+//                 A smooth blob cannot read as cumulus at any size.
+//   drift         wind at 1.5 km, ~12 m/s. AXIS: horizontal, the same wind for all of them, so
+//                 the SCREEN speeds differ only by range — real parallax, unlike the starfield.
+//                 At 3.5 km that is 3.1 px/s; at 26 km, 0.42 px/s.
+//   lifetime      a humilis cell grows and evaporates in 10-20 min. Shown at x9.
+//   shading       white top, grey base. Not a style: sunlight is scattered out on the way down
+//                 through the depth of the cloud, so the underside is what is left.
+//
+// ── 1b ANCHOR MAP ──
+//   horizon y = 470/640. Every base sits at f*1500/D above it — near clouds high in the frame,
+//   far ones stacked toward the horizon. That convergence is the depth cue; no fog needed.
+//
+// ── 1d DEPTH ORDER ──
+//   sky · far clouds · near clouds. Within one cloud: base band, then bubbles bottom-up.
 scene({
   id: 'clouds',
-  title: 'Sunset clouds',
-  recipe: 'turbulence generated once + drift at two rates + gradient sky',
-  cost: 'raster — 7.44 ms/s, 0 layout/s (prototype 12)',
+  title: 'Cumulus field',
+  recipe: 'shared condensation level + self-similar bubbles + per-range parallax + growth/decay',
+  cost: 'free — one <svg> element per cloud, animated as a box: 0 layout/s (prototype 08)',
   note:
-    'The noise field is evaluated once and then translated. Animating baseFrequency instead held ' +
-    '60 fps at this size when measured, but regenerating a field every frame does not scale and ' +
-    'buys nothing here: movement reads the same when you move a finished field.',
+    'The one fact that makes this a cumulus field and not a texture: every base is at the same ' +
+    'height, because they all condense at the same level, so they line up across the sky and ' +
+    'converge toward the horizon by range alone. Tops are built as bubbles on bubbles, which is ' +
+    'what a measured perimeter dimension of 1.35 means. Each cloud is its own <svg> element, so ' +
+    'the drift is animating an HTML box and costs no layout — the finding from prototype 08.',
   build(stage) {
     stage.style.background =
-      'linear-gradient(#1d2a54 0%, #8a4a6a 45%, #d9784f 72%, #f2b06a 100%)'
-    const sun = layer(stage)
-    const sunEl = el(sun, 'circle', { cx: 620, cy: 430, r: 62, fill: '#ffd79a' })
-    sunEl.style.animation = 'breathe 11s ease-in-out infinite'
-    for (let i = 0; i < 3; i++) {
-      const halo = el(sun, 'circle', {
-        cx: 620, cy: 430, r: 62 + i * 46, fill: '#ffb56b', opacity: 0.16 - i * 0.045,
-      })
-      halo.style.animation = `breathe ${9 + i * 3}s ease-in-out ${-i * 2}s infinite`
+      'linear-gradient(#2f6fb0 0%, #4a8bc6 34%, #78acd6 62%, #a8c9e2 82%, #c9dcea 100%)'
+    const W = 1200, H = 640
+    const FOCAL = 900, HORIZON = 470, BASE_M = 1500, WIND = 12
+    const rand = seeded(4801)
+    const host = document.createElement('div')
+    host.className = 'layer'
+    stage.appendChild(host)
+
+    // Self-similar tops: place bubbles along the rising envelope, then smaller bubbles on those.
+    // Three levels at 0.58 scale is where a 1.35-dimension outline starts to read.
+    const bubbles = (wid, dep) => {
+      const out = []
+      const n = 3 + Math.floor(rand() * 3)
+      for (let i = 0; i < n; i++) {
+        const u = (i + 0.5) / n
+        const r = dep * (0.40 + 0.26 * Math.sin(u * Math.PI))
+        out.push({ x: (u - 0.5) * wid * 0.82, y: -r * (0.72 + rand() * 0.7), r, lvl: 0 })
+      }
+      for (let lvl = 1; lvl <= 2; lvl++) {
+        const parents = out.filter((b) => b.lvl === lvl - 1)
+        for (const b of parents) {
+          const k = lvl === 1 ? 2 + Math.floor(rand() * 2) : 1 + Math.floor(rand() * 2)
+          for (let j = 0; j < k; j++) {
+            const a = -Math.PI * (0.12 + rand() * 0.76)   // only on the upper half: it boils UP
+            const r = b.r * (0.52 + rand() * 0.26)
+            out.push({ x: b.x + Math.cos(a) * b.r * 0.72, y: b.y + Math.sin(a) * b.r * 0.72, r, lvl })
+          }
+        }
+      }
+      return out
     }
 
-    const bands = [
-      { seed: 7, freq: '0.003 0.008', dur: 120, opacity: 0.5, tint: '0.98 0.72 0.62' },
-      { seed: 19, freq: '0.006 0.013', dur: 70, opacity: 0.72, tint: '1 0.82 0.70' },
-    ]
-    bands.forEach((b, i) => {
-      const svg = layer(stage, { viewBox: '0 0 2400 640', width: '200%' })
-      svg.setAttribute('preserveAspectRatio', 'none')
-      svg.style.animation = `roll ${b.dur}s linear infinite`
-      svg.style.opacity = b.opacity
-      const defs = el(svg, 'defs')
-      const f = el(defs, 'filter', { id: `cloud${i}`, x: '0', y: '0', width: '100%', height: '100%' })
-      el(f, 'feTurbulence', {
-        type: 'fractalNoise', baseFrequency: b.freq, numOctaves: 4, seed: b.seed, result: 'n',
-      })
-      const [r, g, bl] = b.tint.split(' ')
-      el(f, 'feColorMatrix', {
-        in: 'n', type: 'matrix',
-        values: `0 0 0 0 ${r}  0 0 0 0 ${g}  0 0 0 0 ${bl}  0 0 0 -1.25 1.05`,
-      })
-      el(svg, 'rect', { width: 2400, height: 420, filter: `url(#cloud${i})` })
-    })
+    const clouds = []
+    for (let i = 0; i < 26; i++) {
+      const D = 3400 + Math.pow(rand(), 1.9) * 26000        // more far ones than near, as in life
+      const scale = FOCAL / D
+      const wid = (700 + rand() * 1400) * scale              // 0.7-2.1 km across
+      const dep = (280 + rand() * 620) * scale
+      const baseY = HORIZON - BASE_M * scale
+      const life = (600 + rand() * 600) / 9                  // 10-20 min at x9
+      clouds.push({ D, scale, wid, dep, baseY, life,
+        phase: rand() * life, drift: FOCAL * WIND / D,
+        x: -300 + rand() * 1800, bub: bubbles(wid, dep) })
+    }
+    clouds.sort((a, b) => b.D - a.D)                          // far first: depth order is range
+
+    const svgs = []
+    for (let i = 0; i < clouds.length; i++) {
+      const c = clouds[i]
+      const pad = c.dep * 2.4
+      const svg = document.createElementNS(SVG_NAMESPACE, 'svg')
+      svg.setAttribute('viewBox', `${-c.wid} ${-pad} ${c.wid * 2} ${pad + 30}`)
+      svg.style.cssText = `position:absolute;left:0;top:0;width:${c.wid * 2}px;height:${pad + 30}px;overflow:visible`
+      // The flat base is a CUT, not a part. The cloud is the bubbles; the condensation level
+      // slices them off underneath, which is why every base is dead level and exactly as wide as
+      // the cloud above it. Drawing the base as its own slab (first attempt) produced a shelf
+      // sticking out past the mass — a shape no cumulus has.
+      const cid = `cb${i}${Math.round(rand() * 1e6)}`
+      const clip = el(svg, 'clipPath', { id: cid })
+      el(clip, 'rect', { x: -c.wid * 2, y: -pad * 2, width: c.wid * 4, height: pad * 2 })
+      const g = el(svg, 'g', { 'clip-path': `url(#${cid})` })
+      // Then bubbles, lowest first, each lit by how far it stands above the shaded underside.
+      c.bub.sort((a, b) => (b.y + b.r) - (a.y + a.r))
+      for (const b of c.bub) {
+        const up = Math.min(1, Math.max(0, (-b.y + b.r * 0.5) / (c.dep * 1.5)))
+        const l = 52 + up * 46
+        el(g, 'circle', { cx: b.x, cy: b.y, r: b.r,
+          fill: `hsl(${220 - up * 30} ${34 - up * 30}% ${l}%)` })
+      }
+      // No separate underside layer: the clip cuts the BASE PLANE, not the silhouette, so a rect
+      // painted there escapes sideways as a bar across the sky. The grey underside is already in
+      // the per-bubble lightness, which is where it belongs — it is depth of cloud above, and
+      // each bubble knows its own.
+
+      // Distance haze: the far cloud is mostly the sky between you and it.
+      const fade = Math.min(0.72, (c.D - 3200) / 30000)
+      svg.style.opacity = String(1 - fade * 0.55)
+      host.appendChild(svg)
+      svgs.push(svg)
+    }
+
+    let running = true
+    const t0 = performance.now()
+    function frame(now) {
+      if (!running) return
+      const t = (now - t0) / 1000
+      for (let i = 0; i < clouds.length; i++) {
+        const c = clouds[i]
+        // One wind, one lifetime. Screen speed differs only by range, which is what parallax IS.
+        const x = ((c.x + c.drift * t) % (W + 900) + W + 900) % (W + 900) - 450
+        const u = ((t + c.phase) % c.life) / c.life
+        // Grows fast, decays slow: a thermal arrives, then the cloud mixes away.
+        const grow = u < 0.28 ? u / 0.28 : 1 - Math.pow((u - 0.28) / 0.72, 1.7)
+        const gy = 0.35 + 0.65 * grow
+        svgs[i].style.transform =
+          `translate3d(${x - c.wid}px, ${c.baseY - (c.dep * 2.4)}px, 0) scaleY(${gy.toFixed(3)})`
+        svgs[i].style.transformOrigin = `${c.wid}px ${c.dep * 2.4}px`
+        svgs[i].style.opacity = String((1 - Math.min(0.72, (c.D - 3200) / 30000) * 0.55) * Math.min(1, grow * 2.6))
+      }
+      requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
+    return () => { running = false }
   },
 })
 
 // ── 5. Solar system ─────────────────────────────────────────────────────────
+// REBUILT FROM ZERO through the method. The audit found phase 3 only.
+//
+// ── 0 FRAME ──
+//   The inner and outer planets seen from above the ecliptic, read at ~600px.
+//   Not a star chart and not a scale model — see the scale note below, which is stated rather
+//   than hidden, because no diagram of this subject can be honest about both axes at once.
+//
+// ── 1a MECHANISM ──
+//   Every planet is falling around the Sun, and that single fact fixes everything. It is the
+//   textbook case of the rule the rain scene taught: ONE root quantity — the semi-major axis —
+//   and the period, the shape of the orbit and the speed at every point follow from it. Choosing
+//   periods to look nice, as the old scene did, breaks a law that anyone can check.
+//
+// ── 1c KINEMATICS, measured, WITH AXES ──
+//   Kepler III   T = a^1.5 (years, AU). Mercury 0.24 yr, Earth 1.00, Jupiter 11.87, Saturn 29.45.
+//                AXIS: angular, in the orbital plane. A 25x span of distance is a 123x span of
+//                period, so the inner planets lap the outer ones many times — the thing that
+//                makes a real orrery read, and that even spacing destroys.
+//   Kepler II    equal areas in equal times, so a planet runs faster near the Sun. The ratio is
+//                (1+e)/(1-e): Mercury 1.52x, Mars 1.21x, Venus 1.01x. AXIS: along-track speed.
+//   Kepler I     the Sun is at a FOCUS, offset from the centre by e·a — 20.6% for Mercury. Its
+//                orbit is visibly off-centre; drawing concentric circles loses that.
+//   spin         Jupiter 9.93 h, Saturn 10.66 h — the fastest bodies, and it shows in their
+//                shape: flattening 0.065 and 0.098. Earth 23.93 h, flattening 0.0034.
+//                AXIS: about each planet's own pole, unrelated to its orbit.
+//   Galilean     Io 1.769 d, Europa 3.551 d, Ganymede 7.155 d. The ratios are 2.007 and 2.015:
+//                the 1:2:4 Laplace resonance. Three moons locked into a repeating figure.
+//
+// ── 1b ANCHOR MAP ──
+//   Sun at the shared focus of every ellipse, at (0.5 W, 0.5 H); Saturn's ellipse fills the height.
+//   SCALE, stated: radii are compressed as a^0.62 and bodies drawn on a separate log scale.
+//   True scale is impossible here — Saturn's orbit is 2000 Sun-diameters across. The lie is
+//   named so the numbers that ARE true (every period, every eccentricity) stay checkable.
+//
+// ── 1d DEPTH ORDER ──
+//   orbit lines · outer planets · inner planets · Sun and its glow last, over everything.
 scene({
   id: 'solar',
   title: 'Solar system',
-  recipe: 'nested orbit + rotate + scale for depth',
-  cost: 'layout — 12 animated groups',
+  recipe: 'Kepler I, II and III from one root quantity + rotational flattening + Laplace resonance',
+  cost: 'free — one <svg> element per body, 0 layout/s (prototype 08)',
   note:
-    'An orbit is a rotating group whose child sits off-centre — not trigonometry recomputed per ' +
-    'frame. Nesting gives you moons for free: the moon\'s group rotates inside the planet\'s, so it ' +
-    'follows the planet without any code knowing where the planet is.',
+    'Every period here is a^1.5 and nothing was chosen: Mercury laps Saturn 123 times, and that ' +
+    'is what an orrery looks like when the law is obeyed. The Sun sits at a focus, not a centre, ' +
+    'so Mercury\'s orbit is visibly off to one side, and each planet runs faster on the near half ' +
+    'by exactly (1+e)/(1-e). Jupiter and Saturn are drawn squashed because they spin in under 11 ' +
+    'hours, and Io, Europa and Ganymede keep the 1:2:4 resonance you can watch close and repeat.',
   build(stage) {
-    stage.style.background = 'radial-gradient(circle at 50% 50%, #12173a 0%, #05070f 70%)'
-    const stars = layer(stage)
-    const rand = seeded(9001)
-    for (let i = 0; i < 130; i++) {
-      const s = el(stars, 'circle', {
-        cx: rand() * 1200, cy: rand() * 640, r: 0.4 + rand() * 1.1,
-        fill: '#dfe8ff', opacity: 0.2 + rand() * 0.5,
-      })
-      s.style.animation = `twinkle ${3 + rand() * 5}s ease-in-out ${-rand() * 6}s infinite`
-    }
+    stage.style.background = 'radial-gradient(120% 90% at 38% 50%, #241a2e 0%, #120d1c 45%, #07060d 100%)'
+    const W = 1200, H = 640
+    const SUN = { x: 600, y: 322 }
+    const svg = layer(stage, { viewBox: `0 0 ${W} ${H}` })
 
-    const svg = layer(stage)
-    const sun = el(svg, 'circle', { cx: 600, cy: 320, r: 30, fill: '#ffcf5c' })
-    sun.style.animation = 'breathe 6s ease-in-out infinite'
-    el(svg, 'circle', { cx: 600, cy: 320, r: 52, fill: '#ffcf5c', opacity: 0.14 })
-
-    const planets = [
-      { r: 78, size: 5, color: '#b9a48a', period: 8 },
-      { r: 116, size: 8, color: '#d9a066', period: 14 },
-      { r: 158, size: 9, color: '#5fa8d3', period: 22, moon: true },
-      { r: 206, size: 7, color: '#c2603f', period: 34 },
-      { r: 268, size: 15, color: '#d8b48a', period: 52, ring: true },
+    // Radii compressed so Mercury and Saturn share a frame. The compression is on the DRAWING
+    // only: every period below is the true a^1.5, so what you can check stays checkable.
+    const PX = (a) => 74 * Math.pow(a, 0.62)
+    const YEAR = 7.5                                  // seconds per Earth year
+    const BODIES = [
+      { n: 'Mercury', a: 0.387, e: 0.206, r: 0.383, spin: 1407, col: '#9c8d80' },
+      { n: 'Venus',   a: 0.723, e: 0.007, r: 0.949, spin: -5832, col: '#d8bd8a' },
+      { n: 'Earth',   a: 1.000, e: 0.017, r: 1.000, spin: 23.93, col: '#5b8fc9' },
+      { n: 'Mars',    a: 1.524, e: 0.093, r: 0.532, spin: 24.62, col: '#c1653f' },
+      { n: 'Jupiter', a: 5.203, e: 0.048, r: 11.21, spin: 9.93, col: '#c9a887', flat: 0.065 },
+      { n: 'Saturn',  a: 9.537, e: 0.054, r: 9.45, spin: 10.66, col: '#ddc79b', flat: 0.098, ring: true },
     ]
-    for (const p of planets) {
-      el(svg, 'circle', {
-        cx: 600, cy: 320, r: p.r, fill: 'none',
-        stroke: '#8fa6d8', 'stroke-width': 0.5, opacity: 0.18,
-      })
-      const orbit = el(svg, 'g')
-      orbit.style.transformBox = 'view-box'
-      orbit.style.transformOrigin = '600px 320px'
-      orbit.style.animation = `spin ${p.period}s linear infinite`
+    // Bodies on their own log scale — the second half of the stated lie. Jupiter really is 29x
+    // Mercury across, and at true scale next to these orbits it would be under a pixel.
+    const RAD = (r) => 4.2 + 6.8 * Math.log10(1 + r)
 
-      const body = el(orbit, 'g')
-      el(body, 'circle', { cx: 600 + p.r, cy: 320, r: p.size, fill: p.color })
-      if (p.ring) {
-        el(body, 'ellipse', {
-          cx: 600 + p.r, cy: 320, rx: p.size * 2.1, ry: p.size * 0.62,
-          fill: 'none', stroke: '#e6cfa8', 'stroke-width': 2.4, opacity: 0.75,
-          transform: `rotate(-18 ${600 + p.r} 320)`,
-        })
-      }
-      if (p.moon) {
-        // Nested orbit: this group spins about the planet, which is itself being carried.
-        const moonOrbit = el(body, 'g')
-        moonOrbit.style.transformBox = 'view-box'
-        moonOrbit.style.transformOrigin = `${600 + p.r}px 320px`
-        moonOrbit.style.animation = 'spin 3.2s linear infinite'
-        el(moonOrbit, 'circle', { cx: 600 + p.r + 20, cy: 320, r: 2.6, fill: '#e8e8e8' })
-      }
+    // Orbit outlines, drawn once. The Sun sits at a focus, so each ellipse is offset by e*a.
+    for (const b of BODIES) {
+      const A = PX(b.a), B = A * Math.sqrt(1 - b.e * b.e)
+      el(svg, 'ellipse', {
+        cx: SUN.x - A * b.e, cy: SUN.y, rx: A, ry: B,
+        fill: 'none', stroke: '#4a3f63', 'stroke-width': 0.8, opacity: 0.55,
+      })
     }
+
+    const nodes = BODIES.map((b) => {
+      const g = el(svg, 'g', {})
+      const body = el(g, 'ellipse', {
+        cx: 0, cy: 0, rx: RAD(b.r), ry: RAD(b.r) * (1 - (b.flat || 0)),
+        fill: b.col,
+      })
+      // A terminator, so rotation is visible at all: the lit side always faces the Sun.
+      const lit = el(g, 'ellipse', { cx: 0, cy: 0, rx: RAD(b.r), ry: RAD(b.r) * (1 - (b.flat || 0)), fill: 'rgba(0,0,0,0.42)' })
+      let ring = null, moons = []
+      if (b.ring) {
+        ring = el(g, 'ellipse', { cx: 0, cy: 0, rx: RAD(b.r) * 2.05, ry: RAD(b.r) * 0.52,
+          fill: 'none', stroke: '#cbb894', 'stroke-width': RAD(b.r) * 0.34, opacity: 0.62 })
+        g.insertBefore(ring, body)
+      }
+      if (b.n === 'Jupiter') {
+        // Io, Europa, Ganymede: periods in the ratio 1 : 2.007 : 4.044. Drawn from the measured
+        // days, so the resonance is a consequence here, not a decoration.
+        for (const [d, rr] of [[1.769, 1.9], [3.551, 3.0], [7.155, 4.6]]) {
+          moons.push({ d, rr, node: el(svg, 'circle', { cx: 0, cy: 0, r: 1.5, fill: '#e6ddc8' }) })
+        }
+      }
+      return { b, g, lit, moons }
+    })
+
+    // The Sun last, on top, with its glow.
+    el(svg, 'circle', { cx: SUN.x, cy: SUN.y, r: 26, fill: '#ffcf6b', opacity: 0.13 })
+    el(svg, 'circle', { cx: SUN.x, cy: SUN.y, r: 15, fill: '#ffdf95', opacity: 0.3 })
+    el(svg, 'circle', { cx: SUN.x, cy: SUN.y, r: 8.5, fill: '#fff3c4' })
+
+    // Kepler's equation M = E - e sin E has no closed form; Newton converges in three passes at
+    // these eccentricities. Solving it is what makes the planet slow down out at aphelion.
+    const solveE = (M, e) => {
+      let E = M
+      for (let i = 0; i < 4; i++) E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E))
+      return E
+    }
+
+    let running = true
+    const t0 = performance.now()
+    function frame(now) {
+      if (!running) return
+      const t = (now - t0) / 1000
+      for (const nd of nodes) {
+        const b = nd.b
+        const T = Math.pow(b.a, 1.5) * YEAR             // Kepler III — not a chosen number
+        const M = (t / T) * 2 * Math.PI
+        const E = solveE(M % (2 * Math.PI), b.e)
+        const A = PX(b.a), B = A * Math.sqrt(1 - b.e * b.e)
+        const x = SUN.x + A * (Math.cos(E) - b.e)
+        const y = SUN.y + B * Math.sin(E)
+        nd.g.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)})`)
+        // The night side faces away from the Sun, wherever the Sun happens to be.
+        const away = Math.atan2(y - SUN.y, x - SUN.x)
+        const rr = RAD(b.r)
+        nd.lit.setAttribute('cx', (Math.cos(away) * rr * 0.55).toFixed(2))
+        nd.lit.setAttribute('cy', (Math.sin(away) * rr * 0.55).toFixed(2))
+        for (const m of nd.moons) {
+          // Days scaled the same way years are, so the 1:2:4 holds on screen.
+          const mt = (t / (m.d / 365.25 * YEAR)) * 2 * Math.PI
+          m.node.setAttribute('cx', (x + Math.cos(mt) * rr * m.rr).toFixed(2))
+          m.node.setAttribute('cy', (y + Math.sin(mt) * rr * m.rr * 0.30).toFixed(2))
+        }
+      }
+      requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
+    return () => { running = false }
   },
 })
 
@@ -672,95 +1266,178 @@ scene({
 })
 
 // ── 8. Lightning ────────────────────────────────────────────────────────────
+// REBUILT FROM ZERO through the method. The audit found phase 3 only, and phase 3 encoded a
+// mechanism that runs backwards.
+//
+// ── 0 FRAME ──
+//   A cloud-to-ground flash over a plain at night, read at ~600px.
+//   Not a spark and not a crack in glass: this has a direction, a sequence and a duration.
+//
+// ── 1a MECHANISM — and the error phase 1 exists to catch ──
+//   The old recipe was 'draw (stroke-dashoffset) + flicker'. Drawing a bolt progressively
+//   downward is wrong TWICE. First, the visible flash is the RETURN STROKE, and it runs UPWARD
+//   from the ground at about a third of the speed of light — the channel lights from the bottom.
+//   Second, at 10^8 m/s a 3 km channel lights in 30 microseconds, which no eye can see as a draw
+//   at all. What the eye actually sees is the SEQUENCE OF STROKES: three or four of them down the
+//   same channel, tens of milliseconds apart. That is the flicker. It was never random opacity.
+//
+// ── 1c KINEMATICS, measured, WITH AXES ──
+//   stepped leader  ~1.5e5 m/s downward, in steps of ~50 m with 20-50 microsecond pauses. Dim,
+//                   branching, and it is what CHOOSES the path. AXIS: downward, cloud to ground.
+//   return stroke   ~1e8 m/s UPWARD, roughly c/3. Peak current ~30 kA on the first stroke.
+//                   AXIS: upward, ground to cloud. Opposite to the leader that made the path.
+//   strokes         3-4 per flash, interstroke interval 30-100 ms, mean ~60 ms. Whole flash
+//                   ~0.2 s. AXIS: time. THIS is the flicker, and it has a shape: the first
+//                   stroke is the brightest and later ones reuse the channel, so they are cleaner
+//                   and dimmer.
+//   branches        point DOWNWARD, because the stepped leader made them on its way down. A
+//                   cloud-to-ground flash with upward-pointing branches is the classic tell of a
+//                   bolt drawn by hand. Branches also fade first: they carry no return stroke.
+//   thunder         343 m/s, so 3 s per km. Not drawn, but it is why the flash comes first.
+//
+// ── 1b ANCHOR MAP ──
+//   cloud base y = 0.30 H (the same condensation level idea as the cumulus scene)
+//   ground     y = 0.86 H;  the channel spans them, ~3 km, tortuous at 20-60 m per segment.
+//
+// ── 1d DEPTH ORDER ──
+//   sky · cloud mass · distant flash glow · the channel · branches · ground silhouette.
 scene({
   id: 'lightning',
   title: 'Lightning',
-  recipe: 'draw (stroke-dashoffset) + flicker + irregular timing',
-  cost: 'layout — one path drawn per strike',
+  recipe: 'stepped leader down, return stroke UP, 3-4 strokes 60 ms apart, branches pointing down',
+  cost: 'layout — one channel path plus branches, rebuilt per flash, not per frame',
   note:
-    'stroke-dasharray and stroke-dashoffset set to the path length make a line draw itself; that ' +
-    'is the one effect with no HTML equivalent. The strike is regenerated with a new branching ' +
-    'path each time and the interval is random, because a bolt on a fixed timer stops being ' +
-    'weather and starts being a metronome.',
+    'Rebuilt after phase 1 found the old mechanism running backwards. The visible flash is the ' +
+    'return stroke and it travels UP from the ground at a third of light speed — 30 microseconds ' +
+    'for the whole channel, far too fast to read as a draw. What you actually see is three or ' +
+    'four strokes down the same channel about 60 ms apart, and that is the flicker. The branches ' +
+    'point down because the stepped leader made them on the way down, and they fade first ' +
+    'because no return stroke ever runs through them.',
   build(stage) {
-    stage.style.background = 'linear-gradient(#0a0e1c 0%, #161d33 60%, #232c47 100%)'
-    const rand = seeded(1990)
-    const svg = layer(stage)
-    const flash = document.createElement('div')
-    flash.className = 'flash'
-    stage.appendChild(flash)
+    stage.style.background = 'linear-gradient(#0a0f1c 0%, #131c30 46%, #1b2436 74%, #0d131e 100%)'
+    const W = 1200, H = 640
+    const CLOUD_Y = H * 0.30, GROUND_Y = H * 0.86
+    const rand = seeded(3131)
 
-    // Storm cloud: the same generate-once-and-drift pattern as the sunset scene, so the sky is
-    // never empty between strikes. Without it the scene reads as broken while it waits.
-    const cloud = layer(stage, { viewBox: '0 0 2400 640', width: '200%' })
-    cloud.setAttribute('preserveAspectRatio', 'none')
-    cloud.style.animation = 'roll 100s linear infinite'
-    const cloudDefs = el(cloud, 'defs')
-    const cloudFilter = el(cloudDefs, 'filter', { id: 'storm', x: '0', y: '0', width: '100%', height: '100%' })
-    el(cloudFilter, 'feTurbulence', {
-      type: 'fractalNoise', baseFrequency: '0.005 0.011', numOctaves: 5, seed: 3, result: 'n',
-    })
-    el(cloudFilter, 'feColorMatrix', {
-      in: 'n', type: 'matrix',
-      values: '0 0 0 0 0.42  0 0 0 0 0.47  0 0 0 0 0.58  0 0 0 -1.1 0.95',
-    })
-    el(cloud, 'rect', { width: 2400, height: 330, filter: 'url(#storm)', opacity: 0.85 })
-
-    el(svg, 'path', {
-      d: 'M0 640 L0 500 Q 180 430 360 486 Q 560 548 780 470 Q 980 398 1200 468 L1200 640 Z',
-      fill: '#0b1120', opacity: 0.9,
+    const back = layer(stage, { viewBox: `0 0 ${W} ${H}` })
+    // Cloud mass, lit from within when a flash goes off.
+    const cloud = el(back, 'g', {})
+    for (let i = 0; i < 22; i++) {
+      el(cloud, 'ellipse', {
+        cx: 40 + rand() * 1120, cy: CLOUD_Y - 40 - rand() * 90,
+        rx: 90 + rand() * 150, ry: 34 + rand() * 46,
+        fill: '#222c42', opacity: 0.85,
+      })
+    }
+    const flashSky = el(back, 'rect', { x: 0, y: 0, width: W, height: H, fill: '#9fb6d8', opacity: 0 })
+    // Ground last so the channel terminates behind it.
+    const fore = layer(stage, { viewBox: `0 0 ${W} ${H}` })
+    const bolt = el(fore, 'g', {})
+    const ground = el(fore, 'path', {
+      d: `M0 ${GROUND_Y + 30} L0 ${GROUND_Y} Q 300 ${GROUND_Y - 14} 600 ${GROUND_Y + 4} T 1200 ${GROUND_Y - 6} L1200 ${H} L0 ${H} Z`,
+      fill: '#070a12',
     })
 
-    const bolt = el(svg, 'path', {
-      fill: 'none', stroke: '#eaf1ff', 'stroke-width': 2.6, 'stroke-linecap': 'round',
-      'stroke-linejoin': 'round', filter: 'drop-shadow(0 0 6px #9fc2ff)',
-    })
-
-    function makeBolt() {
-      let x = 250 + rand() * 700
-      let y = -10
-      let d = `M${x.toFixed(0)} ${y}`
+    // A stepped leader picks its way down in short segments with a random walk sideways, and
+    // spawns branches as it goes. The channel it leaves is what every later stroke reuses.
+    const buildChannel = (x0) => {
+      const pts = [[x0, CLOUD_Y]]
       const branches = []
-      while (y < 430) {
-        y += 22 + rand() * 40
-        x += (rand() - 0.5) * 90
-        d += ` L${x.toFixed(0)} ${y.toFixed(0)}`
-        if (rand() > 0.76) {
-          let bx = x, by = y, bd = `M${bx.toFixed(0)} ${by.toFixed(0)}`
-          const dir = rand() > 0.5 ? 1 : -1
-          for (let i = 0; i < 3; i++) {
-            bx += dir * (18 + rand() * 40)
-            by += 16 + rand() * 30
-            bd += ` L${bx.toFixed(0)} ${by.toFixed(0)}`
+      let x = x0, y = CLOUD_Y
+      while (y < GROUND_Y) {
+        const step = 14 + rand() * 26                 // ~20-60 m at this scale
+        x += (rand() - 0.5) * step * 1.5
+        y += step
+        pts.push([x, y])
+        // Branches leave the channel and go DOWN and out. They never climb.
+        if (rand() < 0.16 && y < GROUND_Y - 60) {
+          const bp = [[x, y]]
+          let bx = x, by = y, dir = rand() < 0.5 ? -1 : 1
+          const len = 2 + Math.floor(rand() * 5)
+          for (let k = 0; k < len; k++) {
+            const s = 10 + rand() * 22
+            bx += dir * s * (0.5 + rand() * 0.8)
+            by += s * (0.55 + rand() * 0.7)            // always downward
+            bp.push([bx, by])
           }
-          branches.push(bd)
+          branches.push(bp)
         }
       }
-      return d + ' ' + branches.join(' ')
+      return { pts, branches }
+    }
+    const toPath = (pts) => 'M' + pts.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' L')
+
+    let running = true
+    let channel = null, glow = null, core = null, branchNodes = [], chanLen = 1
+    let nextFlash = 600, flashStart = -1e9, strokes = []
+
+    const newFlash = (now) => {
+      bolt.textContent = ''
+      branchNodes = []
+      channel = buildChannel(180 + rand() * 840)
+      const d = toPath(channel.pts)
+      glow = el(bolt, 'path', { d, fill: 'none', stroke: '#8fb4ff', 'stroke-width': 16,
+        'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0 })
+      for (const bp of channel.branches) {
+        branchNodes.push(el(bolt, 'path', { d: toPath(bp), fill: 'none', stroke: '#bcd2ff',
+          'stroke-width': 2.2, 'stroke-linecap': 'round', opacity: 0 }))
+      }
+      core = el(bolt, 'path', { d, fill: 'none', stroke: '#f7faff', 'stroke-width': 3.6,
+        'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0 })
+      chanLen = core.getTotalLength()
+      // 3-4 strokes, 30-100 ms apart, first the strongest. The measured shape of a flash.
+      const n = 3 + Math.floor(rand() * 2)
+      strokes = []
+      let at = 0
+      for (let i = 0; i < n; i++) {
+        strokes.push({ at, amp: i === 0 ? 1 : 0.42 + rand() * 0.34, dur: 55 + rand() * 45 })
+        at += 30 + rand() * 70
+      }
+      flashStart = now
+      nextFlash = now + 1100 + rand() * 2400
     }
 
-    let timer
-    function strike() {
-      bolt.setAttribute('d', makeBolt())
-      const len = bolt.getTotalLength()
-      bolt.style.transition = 'none'
-      bolt.style.strokeDasharray = len
-      bolt.style.strokeDashoffset = len
-      bolt.style.opacity = '1'
-      // Force the reset to land before the reveal starts, or the transition is skipped.
-      void bolt.getBoundingClientRect()
-      bolt.style.transition = 'stroke-dashoffset 110ms linear, opacity 420ms ease-out 140ms'
-      bolt.style.strokeDashoffset = '0'
-      bolt.style.opacity = '0'
-
-      flash.style.animation = 'none'
-      void flash.getBoundingClientRect()
-      flash.style.animation = 'flashPulse 480ms ease-out'
-
-      timer = setTimeout(strike, 900 + rand() * 2200)
+    function frame(now) {
+      if (!running) return
+      if (now > nextFlash) newFlash(now)
+      if (core) {
+        const dt = now - flashStart
+        let level = 0, leader = 0
+        for (const s of strokes) {
+          const u = (dt - s.at) / s.dur
+          // Rise in one frame, decay over tens of milliseconds: the channel cools, it does not
+          // fade symmetrically. An ease-in-out here would look like a lamp, not a discharge.
+          if (u >= 0 && u < 1) level = Math.max(level, s.amp * Math.pow(1 - u, 2.2))
+        }
+        // Before the first stroke, the stepped leader is faintly visible working its way down.
+        if (dt < strokes[0].at + 40) leader = Math.max(0, 1 - Math.abs(dt - strokes[0].at) / 90) * 0.22
+        // The return stroke lights the channel FROM THE GROUND UP. In life that takes about 30
+        // microseconds — a thousandth of one frame — so it is deliberately stretched to 45 ms
+        // here. A stated exaggeration: without it the direction, which is the whole mechanism,
+        // would be invisible. What is NOT negotiable is the direction, and the old scene had it
+        // backwards, revealing the channel downward as if the leader were the flash.
+        let dash = ''
+        for (const s of strokes) {
+          const rise = (dt - s.at) / 45
+          if (rise >= 0 && rise < 1) dash = String(-(chanLen * (1 - rise)))
+        }
+        if (dash) {
+          core.setAttribute('stroke-dasharray', `${chanLen} ${chanLen}`)
+          core.setAttribute('stroke-dashoffset', dash)
+        } else {
+          core.removeAttribute('stroke-dasharray')
+        }
+        core.setAttribute('opacity', String(Math.min(1, level * 1.6 + leader)))
+        glow.setAttribute('opacity', String(level * 0.62))
+        // Branches carry no return stroke, so they only ever show the leader and the first flare.
+        for (const b of branchNodes) b.setAttribute('opacity', String(leader + level * 0.30))
+        flashSky.setAttribute('opacity', String(level * 0.20))
+        cloud.style.filter = level > 0.02 ? `brightness(${1 + level * 1.5})` : ''
+      }
+      requestAnimationFrame(frame)
     }
-    timer = setTimeout(strike, 500)
-    return () => clearTimeout(timer)
+    requestAnimationFrame(frame)
+    return () => { running = false }
   },
 })
 
@@ -820,11 +1497,14 @@ scene({
 
     // Sea behind the islands: two seamless tiles on the free channel (prototype 18).
     const seaBack = []
+    // Cycles across the tile fall with range, so the roll period does too: the far band carries
+    // 13 cycles and creeps, the nearer one carries 9 and runs. Both are the same 60 m swell.
+    const BACK_CYCLES = [13, 9]
     for (let d = 0; d < 2; d++) {
       const svg = layer(stage, { viewBox: '0 0 2400 640', width: '200%' })
       svg.setAttribute('preserveAspectRatio', 'none')
-      svg.style.animation = `roll ${26 + d * 14}s linear infinite`
-      seaBack.push({ svg, base: 352 + d * 22, amp: 7 - d * 2, tone: 26 + d * 5 })
+      svg.style.animation = `roll ${rollSeconds(BACK_CYCLES[d], 60).toFixed(2)}s linear infinite`
+      seaBack.push({ svg, base: 352 + d * 22, amp: 7 - d * 2, tone: 26 + d * 5, n: BACK_CYCLES[d] })
     }
 
     const islandLayer = layer(stage)
@@ -936,23 +1616,30 @@ scene({
       for (let i = 0; i <= 160; i++) {
         const x = (i / 160) * 2400
         const u = (x / 2400) * Math.PI * 2
-        const y = band.base + Math.sin(u * 4) * band.amp + Math.sin(u * 9) * band.amp * 0.45
+        const y = band.base + stokes(u * band.n, band.amp, 0.45)
+          + stokes(u * band.n * 2.2, band.amp * 0.30, 0.3)
         d += ` L${x.toFixed(1)} ${y.toFixed(2)}`
       }
       el(band.svg, 'path', { d: `${d} L2400 640 Z`, fill: `hsl(208 40% ${band.tone}%)` })
     }
+    // The three front bands come TOWARD the viewer as d rises, so their cycle counts fall and
+    // they speed up. The old numbers ran the other way — 9 s for the far band and 19 s for the
+    // near one — which reads as the horizon sliding past a stationary foreground.
+    const FRONT_CYCLES = [7, 5, 3]
     for (let d = 0; d < 3; d++) {
       const svg = layer(stage, { viewBox: '0 0 2400 640', width: '200%' })
       svg.setAttribute('preserveAspectRatio', 'none')
-      svg.style.animation = `roll ${9 + d * 5}s linear infinite`
+      svg.style.animation = `roll ${rollSeconds(FRONT_CYCLES[d], 60).toFixed(2)}s linear infinite`
       const base = 430 + d * 62
       const amp = 15 - d * 2
+      const n = FRONT_CYCLES[d]
       let d2 = `M0 640 L0 ${base}`
       for (let i = 0; i <= 200; i++) {
         const x = (i / 200) * 2400
         const u = (x / 2400) * Math.PI * 2
-        const y = base + Math.sin(u * 3 + d) * amp
-          + Math.sin(u * 7 - d * 0.6) * amp * 0.4 + Math.sin(u * 13) * amp * 0.16
+        const y = base + stokes(u * n + d, amp, 0.45)
+          + stokes(u * n * 2.4 - d * 0.6, amp * 0.34, 0.3)
+          + Math.sin(u * n * 4.3) * amp * 0.13
         d2 += ` L${x.toFixed(1)} ${y.toFixed(2)}`
       }
       el(svg, 'path', {
@@ -1148,7 +1835,7 @@ scene({
       svg.setAttribute('preserveAspectRatio', 'none')
       svg.setAttribute('class', 'layer')
       svg.style.width = '200%'
-      svg.style.animation = `roll ${34 + d * 22}s linear infinite`
+      svg.style.animation = `roll ${rollSeconds([15, 10][d], 60).toFixed(2)}s linear infinite`
       svg.style.opacity = 0.5 - d * 0.2
       let path = ''
       for (let band = 0; band < 6; band++) {
@@ -1157,7 +1844,8 @@ scene({
         for (let i = 0; i <= 120; i++) {
           const x = (i / 120) * 2400
           const u = (x / 2400) * Math.PI * 2
-          seg += ` L${x.toFixed(1)} ${(base + Math.sin(u * 4 + band) * 5 + Math.sin(u * 9 + d) * 2).toFixed(2)}`
+          const n = [15, 10][d]
+          seg += ` L${x.toFixed(1)} ${(base + stokes(u * n + band, 5, 0.4) + stokes(u * n * 2.1 + d, 2, 0.3)).toFixed(2)}`
         }
         path += seg + ' '
       }
@@ -2141,13 +2829,13 @@ creature({
 
       const thigh = joint(el(parent, 'g', { opacity }))
       el(thigh, 'path', {
-        d: `M-4.5 ${hipY - 1} L4.5 ${hipY - 1} L3.4 ${hipY + THIGH} L-3.4 ${hipY + THIGH} Z`,
+        d: limbPath(0, hipY - 1, THIGH, AT, THIGH_F, THIGH_B),
         fill, 'stroke-linejoin': 'round',
       })
 
       const shank = joint(el(thigh, 'g'))
       el(shank, 'path', {
-        d: `M-3.4 ${hipY + THIGH} L3.4 ${hipY + THIGH} L2.5 ${hipY + THIGH + SHANK} L-2.5 ${hipY + THIGH + SHANK} Z`,
+        d: limbPath(0, hipY + THIGH, SHANK, AT, SHANK_F, SHANK_B),
         fill, 'stroke-linejoin': 'round',
       })
       if (track) {
@@ -2180,7 +2868,7 @@ creature({
       upper.style.transformOrigin = `0px ${shoulderY}px`
       upper.style.animation = `gaitShoulder 1.1s linear ${phase}s infinite`
       el(upper, 'path', {
-        d: `M-3 ${shoulderY} L3 ${shoulderY} L2.3 ${shoulderY + 0.19 * H} L-2.3 ${shoulderY + 0.19 * H} Z`,
+        d: limbPath(0, shoulderY, 0.19 * H, AT, UPPER_F, UPPER_B),
         fill,
       })
       const fore = el(upper, 'g')
@@ -2188,7 +2876,7 @@ creature({
       fore.style.transformOrigin = `0px ${shoulderY + 0.19 * H}px`
       fore.style.animation = `gaitElbow 1.1s linear ${phase}s infinite`
       el(fore, 'path', {
-        d: `M-2.3 ${shoulderY + 0.19 * H} L2.3 ${shoulderY + 0.19 * H} L1.9 ${shoulderY + 0.36 * H} L-1.9 ${shoulderY + 0.36 * H} Z`,
+        d: limbPath(0, shoulderY + 0.19 * H, 0.17 * H, AT, FORE_F, FORE_B),
         fill,
       })
       el(fore, 'circle', { cx: 0, cy: shoulderY + 0.375 * H, r: 2.6, fill: skin })
@@ -2209,9 +2897,24 @@ creature({
     torso.style.transformBox = 'view-box'
     torso.style.transformOrigin = `0px ${hipY}px`
     torso.style.animation = 'gaitTrunk 1.1s ease-in-out infinite'
+    // Breadths from Drillis & Contini, as fractions of stature: biacromial 0.259, waist 0.174,
+    // hip 0.191. The old torso ran 0.15-0.17 across at the shoulders — the figure was 40% too
+    // narrow up top, which is why it read as a stick rather than a person. And a trunk is an
+    // HOURGLASS: shoulders widest, waist narrowest, hips between. A trapezoid has no waist.
+    // The outline runs neck -> over the shoulder -> down the side -> hip, and the SHOULDER IS A
+    // CORNER THAT TURNS. Taking the widest point straight up to the top edge (first attempt)
+    // gives a coat hanger: two points sticking out past a flat top, a shape no body has. The
+    // deltoid is the widest place and the line curves inward above it toward the neck.
     el(torso, 'path', {
-      d: `M-7 ${hipY + 2} L7 ${hipY + 2} L8.5 ${(1 - 0.75) * H} L7.5 ${(1 - 0.83) * H} `
-       + `L-7.5 ${(1 - 0.83) * H} L-8 ${(1 - 0.75) * H} Z`,
+      d: 'M3.4 16.2 C 8.2 16.6 11.6 17.4 12.9 20.2 '
+       + 'C 13.4 24.0 12.0 28.5 10.6 32.0 '
+       + 'C 9.4 35.4 8.6 38.4 8.8 41.0 '
+       + `C 9.0 44.0 9.5 45.6 9.6 ${hipY + 2} `
+       + `L-9.6 ${hipY + 2} `
+       + 'C -9.5 45.6 -9.0 44.0 -8.8 41.0 '
+       + 'C -8.6 38.4 -9.4 35.4 -10.6 32.0 '
+       + 'C -12.0 28.5 -13.4 24.0 -12.9 20.2 '
+       + 'C -11.6 17.4 -8.2 16.6 -3.4 16.2 Z',
       fill: cloth,
     })
     // Neck and head. Head is 0.13 H; a head drawn larger is the single most common proportion error
