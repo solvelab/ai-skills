@@ -63,3 +63,39 @@ pico e custo — e cada uma era pior que a anterior.
 - **WHEN** uma alteração é verificada contra a física e passa
 - **THEN** a comparação lado a lado com a versão anterior é apresentada antes de manter
 - **AND** se a anterior for melhor, a alteração é revertida ou reduzida
+
+### Requirement: A skill que representa objetos escolhe a tecnologia a partir do regime
+
+Uma skill que produza representação visual SHALL derivar a tecnologia de renderização das respostas
+do esquema de regime — quantos elementos se movem, se a geometria é reconstruída a cada quadro, e se
+a cena é plana — e SHALL NOT escolhê-la pelo tipo do objeto. Uma alegação de custo sobre uma
+tecnologia SHALL vir de medição neste repositório ou ser marcada como não medida, com o que decidiria
+a questão. Quando a resposta for tridimensional, a skill SHALL repassar às skills que o catálogo já
+carrega para 3D em vez de reimplementá-lo.
+
+#### Scenario: mesmo animal, regimes diferentes
+
+- **WHEN** o pedido é um bando de dois mil pássaros
+- **THEN** a skill classifica em `ballistic-ensemble` e escolhe canvas, citando a medição de 466 ms/s
+  contra 125 ms/s
+- **AND** para um único pássaro classifica em `articulated-body` e escolhe SVG
+- **AND** SHALL NOT justificar nenhuma das duas escolhas por se tratar de "um animal"
+
+#### Scenario: tecnologia sem medição no repositório
+
+- **WHEN** a escolha aponta para uma ferramenta que este repositório nunca mediu
+- **THEN** a recomendação diz explicitamente que não foi medida e o que decidiria
+- **AND** SHALL NOT apresentar número de desempenho que ninguém aqui rodou
+
+### Requirement: O gatilho para perguntar é derivável, não uma impressão
+
+Uma skill que represente objetos SHALL perguntar sobre ponto de vista, registro visual, tamanho de
+leitura ou o que o objeto está fazendo quando a ausência dessa informação mudaria a GEOMETRIA, e
+SHALL NOT tratar a decisão de perguntar como uma questão de confiança do modelo.
+
+#### Scenario: registro visual muda a geometria
+
+- **WHEN** o pedido não diz o registro e o objeto tem marcas de reconhecimento que só existem em
+  alguns registros
+- **THEN** a skill pergunta antes de desenhar
+- **AND** se prosseguir sem resposta, marca o registro adotado como `assumed` na entrega

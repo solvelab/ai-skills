@@ -1,17 +1,20 @@
 ---
 name: svg-animation
 description: >-
-  Build an object in SVG by understanding it first — classify the request into physical REGIMES
-  (articulated body, driven oscillator, dispersive wave field, ballistic ensemble, growth structure,
-  advected field, threshold discharge, orbital bodies, radiant point set), load each regime's
-  schema of what must be known before drawing, fix the viewpoint, then geometry, appearance and
-  motion. Use when asked to draw or animate anything in SVG — an animal, a tree, weather, water,
-  a figure, a scene — or when an existing SVG animation reads as mechanical, dead or wrong.
-  Carries measured platform costs for SVG/CSS/Canvas and the traps that produce silent breakage.
-  Do NOT use for 3D/three.js work — that is r3f-animation.
+  Create or animate a visual object by understanding it before drawing it. Use whenever someone asks
+  for a thing to be drawn or moved — "a toucan flying", "a tree in a light breeze", "a car driving",
+  "waves", "rain", "a walking figure", a specific animal or plant or vehicle or weather — whether or
+  not they name a technology, and also when an existing animation reads as mechanical, dead or
+  wrong. Classifies the request into physical REGIMES (articulated body, driven oscillator,
+  dispersive wave field, ballistic ensemble, growth structure, advected field, threshold discharge,
+  orbital bodies, radiant point set, mechanism and linkage), loads each regime's schema of what must
+  be known before drawing, then CHOOSES THE TECHNOLOGY from what the regime implies — SVG, Canvas,
+  WebGL, a playback or orchestration tool, or a hand-off to the r3f-* skills for 3D — and only then
+  fixes viewpoint, geometry, appearance and motion. Carries measured costs for SVG/CSS/Canvas and
+  the traps that break silently.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: frontend
 license: MIT
 compatibility: Works in any environment with filesystem access; verification steps need a Chrome binary.
@@ -58,9 +61,36 @@ wheat field and a hanging sign are four different subjects and one list of quest
 
 ## Workflow
 
+### −1 · Recognise what is being asked
+
+Before anything else, notice that this IS an object-creation request. It usually arrives without a
+technology named and often without the word "animate":
+
+> "faça um tucano voando" · "uma árvore com brisa leve" · "um carro andando" · "ondas do mar" ·
+> "quero uma tartaruga nadando devagar" · "isso aqui ficou mecânico, arruma"
+
+Three things separate this from a chart, an icon, or a UI illustration, and any one of them is
+enough: **the subject is a thing in the world** (an animal, a plant, weather, water, a vehicle, a
+figure), **it has behaviour** that a viewer would recognise or miss, or **an existing version reads
+as wrong** and nobody can say why.
+
+Then say back, in one line, what you understood — object, what it is doing, and what you are about
+to decide. A misread here is the cheapest possible thing to fix and the most expensive to discover
+after the geometry is written.
+
 ### 0 · Frame
 
 Object in one sentence · what it is NOT · reading size · **the view** (gate 1).
+
+**Four things are worth asking about when the request does not say them.** Not "ask when unsure" —
+these are derivable triggers, and each one changes the work rather than the taste:
+
+| ask about | when |
+|---|---|
+| **viewpoint** | the mechanism's principal axis is not visible in the requested view (a dolphin's stroke is vertical: from above it does not exist), or the object has more than one canonical view |
+| **visual register** | the answer would change the geometry, not just the palette — which it usually does. See `references/style.md` |
+| **reading size** | the object will be small enough that some parts stop existing, or large enough that absent detail becomes a hole |
+| **what it is doing** | the behaviour is the subject and more than one is plausible: swimming, resting, hunting, fleeing are different animals |
 
 ### 1 · Route to regimes
 
@@ -78,14 +108,33 @@ motion. Load only the schemas named.
 | lightning, a crack, a spark, a failure event | threshold discharge | `references/regimes/threshold-discharge.md` |
 | planets, moons, anything falling around something | orbital bodies | `references/regimes/orbital-bodies.md` |
 | stars, distant lights, a field of point sources | radiant point set | `references/regimes/radiant-point-set.md` |
+| a vehicle, a machine, anything whose parts are joined by constraints | mechanism and linkage | `references/regimes/mechanism-linkage.md` |
 
 A tree in wind is `growth-structure` (geometry) + `driven-oscillator` (motion). A gull is
 `articulated-body` (wings) + its own trajectory. Neither is "vegetation" or "animals".
 
 **If the request falls in a regime with no schema here, say which regime is missing and what you
-cannot vouch for without it.** Do not present the result as if that regime had been covered. There
-is no schema yet for mechanisms and linkages (vehicles, machines) — nothing in this repository has
-been built and measured in that regime.
+cannot vouch for without it.** Do not present the result as if that regime had been covered.
+
+`mechanism-linkage` is present but **UNEXERCISED**: its questions come from mechanics rather than
+from defects measured here, and it says so at the top. Use it, and say that it is unproven.
+
+### 1b · Choose the technology
+
+**The technology is an OUTPUT of the regime, not an input.** Once the schema is answered you know
+how many things move, whether their geometry is rebuilt each frame, and whether the scene is flat —
+which is the whole decision. `references/technology.md` carries it, along with what is measured here
+and what is not.
+
+The short form: tens to hundreds of parts moving by transform, flat → SVG. Thousands, or geometry
+rebuilt per frame → Canvas. Depth the viewer moves through → hand off to the `r3f-*` skills, which
+this catalogue already carries; do not reimplement 3D here. And the question that decides whether a
+tool replaces the technique at all: **do you need to PLAY a motion, or COMPUTE one?** A wingbeat is
+playback. A tree in wind is computation — no keyframe sequence represents a randomly driven system.
+
+Never choose by what the object IS. A flock of two thousand birds is a ballistic ensemble and
+belongs on canvas; one bird is an articulated body and belongs in SVG. Same animal, different
+regime, different technology.
 
 ### 2 · Answer the regime's questions
 
@@ -126,7 +175,11 @@ Check large, against a grid.
 
 ### 4 · Appearance
 
-Colour from materials by name, not by taste. **Turnable surfaces have two faces** — a leaf, a sail,
+Colour from materials by name, not by taste, and **at the register the work is in** — see
+`references/style.md`. Lower the register and the recognition marks must get LOUDER, not fewer: the
+gulls here had correct anatomy, correct proportions and a documented viewpoint, and still read as
+dark blobs until they were given a herring gull's actual plumage. No geometry changed. In a flat
+register colour was carrying the entire recognition, and it had never been researched. **Turnable surfaces have two faces** — a leaf, a sail,
 a hand — and without the second face the flip cannot read at all.
 
 **Density is a legibility decision, not a fidelity one.** A detail that carries 5% of the energy

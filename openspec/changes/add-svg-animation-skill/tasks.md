@@ -89,12 +89,43 @@
       de cada taxa, com fonte — forçou a amplitude a crescer do mastro à ponta e a ser zero no
       vínculo, que é justamente o erro clássico de bandeira em SVG.
 
+## 3b. Ampliação: reconhecimento de intenção, tecnologia, mecanismos, registro
+
+- [x] A.1 A skill reconhece o pedido SEM tecnologia nomeada
+
+      `python3 -c "casos in description"` -> `6/6` formas de pedido cobertas:
+      "faça um tucano voando", "uma árvore com brisa leve", "um carro andando",
+      "quero uma tartaruga nadando devagar", "ondas do mar", "isso ficou mecânico, arruma".
+
+- [x] A.2 A tecnologia passa a ser SAÍDA do regime, não entrada
+
+      `references/technology.md`, decidida por três perguntas — quantos elementos se movem, se a
+      geometria é reconstruída por quadro, se a cena é plana. Toda alegação de custo é medida aqui
+      ou marcada: `grep -c 'NOT measured|Unmeasured|not measured'` -> `4` linhas marcadas.
+      3D repassa às skills `r3f-*` que o catálogo já carrega, em vez de reimplementar.
+
+- [x] A.3 Regime de mecanismos e articulações, declarado não exercitado
+
+      `references/regimes/mechanism-linkage.md`, 10 perguntas de mecânica — rolamento sem
+      escorregamento `w = v/r`, efeito estroboscópico dos raios, Ackermann, transferência de carga,
+      suspensão, inclinação em curva, biela-manivela que não é senoide, razões de transmissão,
+      esteira que corre a `2v`. `grep -c UNEXERCISED` -> `1`: a coluna de defeitos está vazia de
+      propósito, porque nada foi construído nesse regime aqui.
+
+- [x] A.4 Registro visual como referência, e gatilho derivável para perguntar
+
+      `references/style.md`: seis registros, e a regra que generaliza — baixar o registro exige
+      marcas de reconhecimento MAIS fortes, não menos. Evidência medida: as gaivotas tinham anatomia
+      de asa correta, proporções em unidades de comprimento e ponto de vista documentado, e ainda
+      liam como borrões escuros até ganharem a plumagem real. Nenhuma geometria mudou.
+
 ## 4. Quality Gates (MANDATORY)
 
 - [x] Q.1 `bash scripts/validate-rite.sh` -> `rite gate OK`
 - [x] Q.2 `python3 scripts/validate-repo-hygiene.py` -> `repo hygiene: 0 findings`
 - [x] Q.3 `openspec validate add-svg-animation-skill --strict` -> `is valid`
 - [x] Q.4 `python3 scripts/validate-skills.py` -> `skills checked: 35   findings: 0`
+- [x] Q.6 `npx @anthropic-ai/claude-code@2.1.246 plugin validate . --strict` -> `Validation passed`
 - [x] Q.5 `python3 skills/code-locale/references/check-identifier-locale.py --selftest` -> `selftest OK`
 
 ## 5. Validation & Closure (MANDATORY)
