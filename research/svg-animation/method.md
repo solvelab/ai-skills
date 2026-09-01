@@ -986,6 +986,71 @@ motion was the integrator's own noise.
 Fourth time in this directory that the truer version has also been the cheaper one. This time it
 was the more legible one as well, and legibility was what the reader had been asking for all along.
 
+---
+
+## Eleventh trial: looking at all of it at once
+
+Asked to redo every example carefully, the first thing done was the one thing never done before:
+**render all fifteen subjects onto a single sheet and look at them together.** Every previous pass
+had judged one subject at a time, which is why several were quietly bad for weeks.
+
+The sheet read, worst first: lightning (an empty frame between flashes), solar (tiny and dark), rain
+(buildings were plain rectangles), starfield (too dark to see), ocean (the far half chequered),
+clouds (one cloud, cut off), birds (dark blobs), whale (pectoral detached), turtle (flippers like
+planks), tree (a parasol).
+
+Two of those judgements were wrong, and being wrong is the point of looking closely:
+
+- **The shark was called the worst and was already correct.** It is drawn from above — a deliberate,
+  documented choice, because its undulation is lateral and would be invisible in profile — and its
+  vertical fins are correctly narrow slivers edge-on. Reading a plan view as a broken profile view
+  and "fixing" it would have destroyed a scene that was right.
+- **The tree got three structural rewrites and all three were worse.** Leader-and-laterals leant the
+  whole tree over, because a turn relative to the parent ACCUMULATES over four levels. Pulling the
+  leader back toward vertical then made a column. Both were reverted. The crown that stands is
+  domed with a thin interior, which is a real criticism that remains recorded, and it is still the
+  best of the three.
+
+### What the sheet fixed
+
+**A single colour fact turned the birds into gulls.** They were uniform slate. *Larus argentatus* is
+a WHITE bird with a pale grey mantle, black outer primaries carrying white mirrors, and a yellow
+bill with a red gonys spot. The geometry never changed. Colour was carrying the recognition and had
+simply not been researched.
+
+**Two limbs were rooted on an outline instead of inside a body.** The humpback's pectoral lay along
+the belly line so no pale wedge would show through — and a root that only touches an outline opens
+a gap the moment it rotates, which is worse than a wedge. Drawing it BEHIND the body solves both:
+the buried part is covered, so the root can go as deep as it likes. The turtle's flipper needed the
+same. This is the gull's wing-joint lesson for the third time: **the parent shape has to extend past
+the pivot.**
+
+**A flipper was three units wide over a thirty-one unit span** — a plank, which is what a limb looks
+like when nobody wrote down how wide it is. Rebuilt from a profile table: a sea turtle's fore
+flipper is about a quarter of its own length across near the base, tapering to a blunt tip, and
+asymmetric like a wing.
+
+### The ocean's chequerboard, which was a sampling limit nobody looks for
+
+The far half had been broken into blocks through several passes and two fixes aimed at the sample
+spacing ACROSS each strip, which is the obvious limit. Neither helped, because the real limit is the
+other one:
+
+> **In a perspective projection the STRIPS THEMSELVES are a sampling rate — in the range direction —
+> and their world spacing grows as D².**
+
+```
+D =   40 m   strips 1.0 m apart      a 30 m train needs < 15 m   ok
+D =  100 m   strips 6.3 m apart                                  ok
+D =  200 m   strips 25.4 m apart                                 UNDERSAMPLED
+D =  500 m   strips 158.7 m apart                                UNDERSAMPLED
+```
+
+Fading each train against BOTH limits removed the chequerboard completely and left a sea that is
+detailed near and hazed far, which is what a sea looks like from fourteen metres up. The general
+form: **a projection that compresses one axis creates a sampling limit along it, and it is the axis
+nobody thinks to check because it is not where the samples were authored.**
+
 ## What this method costs, and when to skip it
 
 Phases 1 and 3 are perhaps twenty minutes for an object nobody has drawn before, and they are the

@@ -140,7 +140,7 @@ scene({
   build(stage) {
     const W = 1200, H = 640
     stage.style.background =
-      'linear-gradient(#05070f 0%, #070c1a 42%, #0b1526 72%, #142033 90%, #1d2a3c 100%)'
+      'linear-gradient(#080d1c 0%, #0c1428 40%, #122140 70%, #1c2d४f 88%, #26374f 100%)'.replace('४','4')
     const canvas = document.createElement('canvas')
     canvas.className = 'layer canvasLayer'
     canvas.width = W; canvas.height = H
@@ -256,7 +256,7 @@ scene({
         // A floor, because a screen pixel is the smallest thing there is: below it a star stops
         // being faint and starts being absent, and the sky loses the population that gives it
         // texture. Faint stars are small AND dim, but never nothing.
-        let alpha = Math.min(1, 0.17 + 0.83 * norm)
+        let alpha = Math.min(1, 0.30 + 0.70 * norm)
 
         // Scintillation grows as airmass^1.75 — a star low down trembles twenty times as hard as
         // one overhead. A planet shows a disc, so the speckle averages away and it holds still.
@@ -271,7 +271,7 @@ scene({
         ctx.fillStyle = `rgba(${Math.round(c[0] + (255 - c[0]) * red * 0.3)},${Math.round(c[1] * (1 - red * 0.28))},${Math.round(c[2] * (1 - red * 0.62))},${Math.min(1, alpha)})`
         // Size carries the rest of the range: a bright star spills over more pixels, which is
         // how a camera and a retina both register it. Seeing also bloats a low star's disc.
-        const rr = s.planet ? s.rad : Math.max(0.85, 0.62 + 2.5 * norm) * (1 + 0.10 * Math.sqrt(X))
+        const rr = s.planet ? s.rad : Math.max(1.0, 0.75 + 2.8 * norm) * (1 + 0.10 * Math.sqrt(X))
         // Most of a sky is stars a pixel or two across, where a circle and a square are the same
         // picture and fillRect costs a fraction of beginPath/arc/fill. Measured: the all-arcs
         // version of this scene spent 346 ms of main thread per second of animation. Only stars
@@ -389,7 +389,7 @@ scene({
     const SUN_EL = 11 * Math.PI / 180
 
     const STRIP = 8, SAMPLES = 108, dx = W / (SAMPLES - 1)
-    const SHADES = 26
+    const SHADES = 40
     const shade = []
     for (let i = 0; i < SHADES; i++) {
       const u = i / (SHADES - 1)
@@ -433,7 +433,7 @@ scene({
         if (D > 5200) continue
         const scale = FOCAL / D
         const worldStep = dx / scale
-        const haze = Math.min(1, Math.pow(D / 5200, 0.5))
+        const haze = Math.min(1, Math.pow(D / 3400, 0.62))
         // The specular tilt for THIS range: half the angle between the sun and the line of sight.
         const need = (SUN_EL - Math.atan(EYE / D)) / 2
 
@@ -445,8 +445,16 @@ scene({
           // Sampling theorem, not taste: a train whose screen wavelength has fallen below two
           // samples cannot be drawn, and drawing it anyway produced the moire in the far field.
           // Fade it out between four samples and two, where the real sea fades into haze anyway.
+          // TWO sampling limits, and the second one is the one that mattered. Across the strip the
+          // samples are dx apart, which is the obvious limit. But the STRIPS THEMSELVES are a
+          // sampling rate in the range direction, and in perspective their world spacing grows as
+          // D²: at 100 m consecutive strips are 6 m apart, at 500 m they are 159 m apart — far
+          // wider than any wavelength being drawn. That is what put a chequerboard over the middle
+          // distance, and no amount of fading in x could reach it.
           const px = c.L * scale / dx
-          const f = px > 4 ? 1 : px < 2 ? 0 : (px - 2) / 2
+          const pz = c.L / (D * D * STRIP / (FOCAL * EYE))
+          const fade = (v, hi, lo) => (v > hi ? 1 : v < lo ? 0 : (v - lo) / (hi - lo))
+          const f = Math.min(fade(px, 6, 3), fade(pz, 2.6, 1.3))
           return { c, A: c.A * f, s2: c.s2 * f, co: Math.cos(th0), si: Math.sin(th0), cd: Math.cos(d), sd: Math.sin(d) }
         })
 
@@ -679,6 +687,7 @@ scene({
     }
 
     let markedTwig = false
+    let branchIndex = 0
     const members = []
     const tufts = []
     function branch(parent, x, y, len, angle, depth, radius) {
@@ -721,7 +730,7 @@ scene({
       // Density is a LEGIBILITY decision, not a fidelity one. Going a level deeper and forking
       // three ways more often is more like a real tree and buried the branch structure under a mat
       // of leaves — the crown stopped reading as a tree at all. Back to what could be seen.
-      const kids = depth < 4 ? (depth > 1 && rand() > 0.58 ? 3 : 2) : 0
+      const kids = depth < 4 ? (depth > 0 && rand() > 0.45 ? 3 : 2) : 0
       const childRadius = kids ? radius / Math.sqrt(kids) : radius
 
       // The drawn shape is the UNLOADED one, so it is pre-tilted upwind by the mean lean and the
@@ -755,11 +764,21 @@ scene({
         el(g, 'circle', { cx: x2, cy: y2, r: 0.01, fill: 'none', 'data-track': 'twig-tip' }) }
 
       if (kids) {
-        // Length and angle both vary: equal daughters at equal angles build a flat, fan-shaped
-        // crown, and a broadleaf crown is domed because no two limbs get the same share.
-        branch(g, x2, y2, len * (0.62 + rand() * 0.20), drawn - 0.36 - rand() * 0.34, depth + 1, childRadius)
-        branch(g, x2, y2, len * (0.62 + rand() * 0.20), drawn + 0.34 + rand() * 0.34, depth + 1, childRadius)
-        if (kids === 3) branch(g, x2, y2, len * (0.44 + rand() * 0.22), drawn + (rand() - 0.5) * 0.7, depth + 1, childRadius)
+        // REVERTED to a balanced fork with varied shares. Two attempts at a leader-and-laterals
+        // structure were tried here — the first leant the whole tree over because a turn relative
+        // to the parent accumulates, the second pulled the leader so hard toward vertical that the
+        // crown became a column. BOTH WERE WORSE THAN THIS. The crown this produces is domed and
+        // its interior is thinner than a real broadleaf's, which is a real criticism and stands
+        // recorded; it is still the best of the three, and the rule is that the version it replaces
+        // has to win the comparison, not the argument.
+        //
+        // Length and angle both vary: equal daughters at equal angles build a flat fan, and a
+        // broadleaf crown is domed because no two limbs get the same share.
+        const side = (depth + branchIndex++) % 2 ? -1 : 1
+        branch(g, x2, y2, len * (0.66 + rand() * 0.20), drawn - 0.30 - rand() * 0.38, depth + 1, childRadius)
+        branch(g, x2, y2, len * (0.66 + rand() * 0.20), drawn + 0.28 + rand() * 0.38, depth + 1, childRadius)
+        // The third daughter is short and aimed INWARD, which is the only foliage the interior gets.
+        if (kids === 3) branch(g, x2, y2, len * (0.40 + rand() * 0.18), drawn - side * (0.16 + rand() * 0.3), depth + 1, childRadius)
       } else {
         // Leaves belong to their TWIG, not to themselves. The eddies that move a leaf are around
         // 10 cm across, so every leaf on one twig sits inside the same one and they flutter
@@ -785,8 +804,8 @@ scene({
           faces = el(host, 'g')
           tufts.push({ host, faces, thresh: 1.16 + rand() * 0.20, flipped: false })
         }
-        for (let i = 0; i < 14; i++) {
-          const lx = x2 + (rand() - 0.5) * 36, ly = y2 + (rand() - 0.5) * 34
+        for (let i = 0; i < 18; i++) {
+          const lx = x2 + (rand() - 0.5) * 40, ly = y2 + (rand() - 0.5) * 38
           const hue = 92 + rand() * 26
           const rx = 7 + rand() * 5, ry = 4.5 + rand() * 3
           const spin = (rand() * 360).toFixed(0)
@@ -803,7 +822,7 @@ scene({
       return g
     }
 
-    branch(svg, 600, 632, 128, -Math.PI / 2, 0, 16)
+    branch(svg, 600, 638, 132, -Math.PI / 2, 0, 17)
 
     // ── The driver ───────────────────────────────────────────────────────────────────────
     let running = true
@@ -911,7 +930,7 @@ scene({
     stage.style.background =
       'linear-gradient(#2f6fb0 0%, #4a8bc6 34%, #78acd6 62%, #a8c9e2 82%, #c9dcea 100%)'
     const W = 1200, H = 640
-    const FOCAL = 900, HORIZON = 470, BASE_M = 1500, WIND = 12
+    const FOCAL = 900, HORIZON = 470, BASE_M = 1350, WIND = 12
     const rand = seeded(4801)
     const host = document.createElement('div')
     host.className = 'layer'
@@ -942,11 +961,16 @@ scene({
     }
 
     const clouds = []
-    for (let i = 0; i < 26; i++) {
-      const D = 3400 + Math.pow(rand(), 1.9) * 26000        // more far ones than near, as in life
+    for (let i = 0; i < 30; i++) {
+      const D = 4600 + Math.pow(rand(), 1.7) * 24000        // more far ones than near, as in life
       const scale = FOCAL / D
       const wid = (700 + rand() * 1400) * scale              // 0.7-2.1 km across
-      const dep = (280 + rand() * 620) * scale
+      let dep = (280 + rand() * 620) * scale
+      // The frame is a constraint, not an afterthought. A near cloud whose top leaves the picture
+      // is not a composition, it is an accident: the depth is capped so the cauliflower always
+      // fits between its own base and the top edge.
+      const headroom = (HORIZON - BASE_M * scale) - 26
+      dep = Math.min(dep, Math.max(24, headroom / 1.9))
       const baseY = HORIZON - BASE_M * scale
       const life = (600 + rand() * 600) / 9                  // 10-20 min at x9
       clouds.push({ D, scale, wid, dep, baseY, life,
@@ -1064,14 +1088,14 @@ scene({
     'by exactly (1+e)/(1-e). Jupiter and Saturn are drawn squashed because they spin in under 11 ' +
     'hours, and Io, Europa and Ganymede keep the 1:2:4 resonance you can watch close and repeat.',
   build(stage) {
-    stage.style.background = 'radial-gradient(120% 90% at 38% 50%, #241a2e 0%, #120d1c 45%, #07060d 100%)'
+    stage.style.background = 'radial-gradient(115% 95% at 50% 50%, #33253f 0%, #1a1226 42%, #0a0812 100%)'
     const W = 1200, H = 640
-    const SUN = { x: 600, y: 322 }
+    const SUN = { x: 600, y: 318 }
     const svg = layer(stage, { viewBox: `0 0 ${W} ${H}` })
 
     // Radii compressed so Mercury and Saturn share a frame. The compression is on the DRAWING
     // only: every period below is the true a^1.5, so what you can check stays checkable.
-    const PX = (a) => 74 * Math.pow(a, 0.62)
+    const PX = (a) => 98 * Math.pow(a, 0.62)
     const YEAR = 7.5                                  // seconds per Earth year
     const BODIES = [
       { n: 'Mercury', a: 0.387, e: 0.206, r: 0.383, spin: 1407, col: '#9c8d80' },
@@ -1083,14 +1107,14 @@ scene({
     ]
     // Bodies on their own log scale — the second half of the stated lie. Jupiter really is 29x
     // Mercury across, and at true scale next to these orbits it would be under a pixel.
-    const RAD = (r) => 4.2 + 6.8 * Math.log10(1 + r)
+    const RAD = (r) => 5.4 + 8.6 * Math.log10(1 + r)
 
     // Orbit outlines, drawn once. The Sun sits at a focus, so each ellipse is offset by e*a.
     for (const b of BODIES) {
       const A = PX(b.a), B = A * Math.sqrt(1 - b.e * b.e)
       el(svg, 'ellipse', {
         cx: SUN.x - A * b.e, cy: SUN.y, rx: A, ry: B,
-        fill: 'none', stroke: '#4a3f63', 'stroke-width': 0.8, opacity: 0.55,
+        fill: 'none', stroke: '#6d5f8c', 'stroke-width': 1.1, opacity: 0.72,
       })
     }
 
@@ -1119,9 +1143,10 @@ scene({
     })
 
     // The Sun last, on top, with its glow.
-    el(svg, 'circle', { cx: SUN.x, cy: SUN.y, r: 26, fill: '#ffcf6b', opacity: 0.13 })
-    el(svg, 'circle', { cx: SUN.x, cy: SUN.y, r: 15, fill: '#ffdf95', opacity: 0.3 })
-    el(svg, 'circle', { cx: SUN.x, cy: SUN.y, r: 8.5, fill: '#fff3c4' })
+    el(svg, 'circle', { cx: SUN.x, cy: SUN.y, r: 46, fill: '#ffcf6b', opacity: 0.10 })
+    el(svg, 'circle', { cx: SUN.x, cy: SUN.y, r: 27, fill: '#ffcf6b', opacity: 0.16 })
+    el(svg, 'circle', { cx: SUN.x, cy: SUN.y, r: 16, fill: '#ffdf95', opacity: 0.34 })
+    el(svg, 'circle', { cx: SUN.x, cy: SUN.y, r: 10, fill: '#fff6d2' })
 
     // Kepler's equation M = E - e sin E has no closed form; Newton converges in three passes at
     // these eccentricities. Solving it is what makes the planet slow down out at aphelion.
@@ -1252,18 +1277,18 @@ scene({
       // Far wing first, so the body occludes its root. Dimmer, because it is on the other side of
       // the body and further from the light — and lagging slightly, because a bird's two wings are
       // never exactly in phase from this angle.
-      wing(g, -0.022, '#2b3540', 0.9)
+      wing(g, -0.022, '#8ba1b1', 0.9)   // asa distante: mesma cor, um degrau mais escura pela distância
 
       // Body: deep chest forward, tapering to the tail. A gull in cruise carries its mass ahead of
       // the wing root, which is what makes the silhouette read as flying rather than floating.
       el(g, 'path', {
         d: 'M-13 1.2 C -10 -1.6, -3 -4.4, 4 -4.2 C 9 -4, 12.5 -2.4, 13.5 -0.6 '
          + 'C 12.5 1.6, 8 3.4, 1 3.4 C -5 3.4, -10 2.8, -13 1.2 Z',
-        fill: '#39434f',
+        fill: '#f0f3f6',
       })
 
       // Tail: a short fan, angled down a little. Not a spike — a spike reads as a second beak.
-      el(g, 'path', { d: 'M-11.5 0.4 C -15 -0.8, -19.5 -1.6, -22 -0.4 C -19 1.2, -15 2.4, -11.5 2.6 Z', fill: '#39434f' })
+      el(g, 'path', { d: 'M-11.5 0.4 C -15 -0.8, -19.5 -1.6, -22 -0.4 C -19 1.2, -15 2.4, -11.5 2.6 Z', fill: '#eceff3' })
 
       // Head and bill are ONE PIECE, and that is not a shortcut — it is the diagnostic feature.
       // On a gull the apex of the skull sits BEHIND the eye, with a low, swept-back forehead
@@ -1277,13 +1302,23 @@ scene({
          + 'C 16.2 -3.2, 18.4 -2.9, 20 -2.5 '               // continuous ramp into the bill
          + 'L20.1 -1.9 C 18.2 -1.5, 16 -1.2, 14.6 -1 '
          + 'C 12 -1, 10.2 -2.2, 9.6 -4.1 Z',
-        fill: '#39434f',
+        fill: '#f0f3f6',
       })
       el(g, 'path', { d: 'M16.4 -3.2 C 18 -2.9, 19.6 -2.6, 20.4 -2.2 L20.4 -1.8 C 19 -1.6, 17.4 -1.4, 16.2 -1.3 Z', fill: '#e0a33f' })
       el(g, 'circle', { cx: 13.1, cy: -3.3, r: 0.62, fill: '#101820' })
+      // The red gonys spot: the target a chick pecks to be fed, and the reason a gull's bill is
+      // not just yellow. One of the two marks that say Larus argentatus rather than "seabird".
+      el(g, 'circle', { cx: 18.4, cy: -1.9, r: 0.5, fill: '#cf4530' })
+      // The MANTLE — pale blue-grey over the back and shoulders, white everywhere else. A gull is
+      // a white bird with grey wings; drawing the whole body slate lost the one colour fact that
+      // makes it read as a gull at any distance.
+      el(g, 'path', {
+        d: 'M9.5 -3.4 C 4 -5.2, -4 -5.4, -10.5 -3.6 C -6 -1.6, 2 -1.4, 9.5 -3.4 Z',
+        fill: '#9db0be',
+      })
 
       // Near wing last, over the body.
-      wing(g, 0, '#39434f', 1)
+      wing(g, 0, '#a6bac7', 1)
 
       function wing(parent, lag, fill, opacity) {
         // Shoulder sits over the BACK — x just behind the chest, y at the top of the body.
@@ -1405,21 +1440,52 @@ scene({
     'motion blur, so its length is velocity times exposure. One roll of the dice, the diameter, ' +
     'now sets size, speed, streak and opacity together, and they cannot contradict each other.',
   build(stage) {
-    stage.style.background = 'linear-gradient(#2b3444 0%, #3d4a5c 60%, #4a5768 100%)'
-    const back = layer(stage)
-    for (let i = 0; i < 5; i++) {
-      el(back, 'rect', {
-        x: 90 + i * 210, y: 300 - (i % 3) * 52, width: 150, height: 400,
-        rx: 6, fill: '#1d2531', opacity: 0.55,
-      })
-      for (let w = 0; w < 6; w++) {
-        const lit = (i * 7 + w * 3) % 5 < 2
-        el(back, 'rect', {
-          x: 104 + i * 210 + (w % 2) * 66, y: 320 - (i % 3) * 52 + Math.floor(w / 2) * 78,
-          width: 52, height: 60, rx: 2,
-          fill: lit ? '#f0d79a' : '#2a3442', opacity: lit ? 0.82 : 0.9,
-        })
+    stage.style.background = 'linear-gradient(#232b39 0%, #33404f 46%, #4a5768 100%)'
+    // The city is not the subject, but it has to be legible or the rain has nothing to fall past.
+    // Three depth bands, and RAIN IS THE HAZE: each band further back is greyer and lower-contrast
+    // because there is more falling water between it and the eye. Windows sit on a grid, because
+    // buildings have floors — scattering them is the tell that nobody looked at a building.
+    const cityRand = seeded(9182)
+    for (let band = 0; band < 3; band++) {
+      const back = layer(stage)
+      const depth = band / 2
+      const haze = 0.16 + depth * 0.58                 // how much of the band is just wet air
+      const base = 640 - band * 6
+      let x = -40 - cityRand() * 60
+      while (x < 1240) {
+        const w = 48 + cityRand() * (110 - band * 26)
+        const h = (110 + cityRand() * 250) * (1 - depth * 0.26)
+        const top = base - h
+        el(back, 'rect', { x, y: top, width: w, height: h,
+          fill: `hsl(213 ${20 - band * 5}% ${11 + band * 7}%)`, opacity: 1 - haze * 0.35 })
+        // A roofline that is not flat: setbacks, water tanks, a mast. Skylines read by their tops.
+        if (cityRand() < 0.45) el(back, 'rect', { x: x + w * 0.2, y: top - 14 - cityRand() * 26,
+          width: w * (0.3 + cityRand() * 0.3), height: 30,
+          fill: `hsl(213 ${20 - band * 5}% ${11 + band * 7}%)`, opacity: 1 - haze * 0.35 })
+        if (band === 0 && cityRand() < 0.3) {
+          el(back, 'rect', { x: x + w * 0.5, y: top - 46, width: 2, height: 46, fill: '#39424f' })
+          const bl = el(back, 'circle', { cx: x + w * 0.5 + 1, cy: top - 48, r: 2.6, fill: '#ff6b5e' })
+          bl.style.animation = `pulseLamp ${1.6 + cityRand()}s ease-in-out ${-cityRand() * 2}s infinite`
+        }
+        // Windows on the building's own grid, lit at a rate that falls with the hour, not at random
+        // positions. Column and row pitch come from the facade, so every floor lines up.
+        const cols = Math.max(1, Math.round(w / 26)), rows = Math.max(1, Math.round(h / 34))
+        const cw = w / cols, rh = h / rows
+        for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
+          const lit = cityRand() < 0.26 - depth * 0.08
+          if (!lit && cityRand() > 0.4) continue
+          el(back, 'rect', {
+            x: x + c * cw + cw * 0.22, y: top + r * rh + rh * 0.24,
+            width: cw * 0.56, height: rh * 0.5,
+            fill: lit ? '#ffe2a0' : '#121821',
+            opacity: (lit ? 1 : 0.8) * (1 - haze * 0.62),
+          })
+        }
+        x += w + 4 + cityRand() * 26
       }
+      // The haze itself, painted over the band: this is what distance looks like in rain.
+      el(back, 'rect', { x: 0, y: 0, width: 1200, height: 640,
+        fill: '#3d4a5c', opacity: haze * 0.42 })
     }
 
     const canvas = document.createElement('canvas')
@@ -1528,20 +1594,58 @@ scene({
     'point down because the stepped leader made them on the way down, and they fade first ' +
     'because no return stroke ever runs through them.',
   build(stage) {
-    stage.style.background = 'linear-gradient(#0a0f1c 0%, #131c30 46%, #1b2436 74%, #0d131e 100%)'
+    stage.style.background = 'linear-gradient(#0b1120 0%, #16203a 42%, #223052 68%, #33436b 84%, #1a2236 100%)'
     const W = 1200, H = 640
     const CLOUD_Y = H * 0.30, GROUND_Y = H * 0.86
     const rand = seeded(3131)
 
     const back = layer(stage, { viewBox: `0 0 ${W} ${H}` })
-    // Cloud mass, lit from within when a flash goes off.
+    // Between strokes the frame was empty, which is not what a storm looks like. A storm has a
+    // visible mass, a rain shaft under it, distant sheet flashes lighting other cells, and a lit
+    // horizon. The subject is the discharge; the scene has to exist for the discharge to happen in.
     const cloud = el(back, 'g', {})
-    for (let i = 0; i < 22; i++) {
+    for (let i = 0; i < 34; i++) {
+      const cx = 20 + rand() * 1160, cy = CLOUD_Y - 30 - rand() * 130
       el(cloud, 'ellipse', {
-        cx: 40 + rand() * 1120, cy: CLOUD_Y - 40 - rand() * 90,
-        rx: 90 + rand() * 150, ry: 34 + rand() * 46,
-        fill: '#222c42', opacity: 0.85,
+        cx, cy, rx: 80 + rand() * 170, ry: 30 + rand() * 52,
+        // The base of a storm cloud is darker than its shoulders: the same depth attenuation as
+        // any cloud, just deeper, which is why a thunderhead reads as heavy.
+        fill: `hsl(220 ${18 + rand() * 10}% ${13 + Math.max(0, (CLOUD_Y - 30 - cy)) * 0.11}%)`,
+        opacity: 0.9,
       })
+    }
+    // Rain shafts: a storm you can see is a storm you can see the rain of. Slanted, soft, and
+    // reaching the ground only under part of the cell.
+    // A rain shaft has no edges. It is denser in the middle and fades out sideways and downward as
+    // the drops spread and thin — drawn as a flat quadrilateral it reads as a pane of glass, which
+    // is what the first version looked like. A gradient in both axes, and several narrow shafts
+    // rather than a few wide ones, because that is how a cell actually unloads.
+    const defs = el(back, 'defs', {})
+    const grad = el(defs, 'linearGradient', { id: 'rainShaft', x1: '0', y1: '0', x2: '0', y2: '1' })
+    el(grad, 'stop', { offset: '0', 'stop-color': '#6b7fa8', 'stop-opacity': '0.34' })
+    el(grad, 'stop', { offset: '0.55', 'stop-color': '#5a6d94', 'stop-opacity': '0.20' })
+    el(grad, 'stop', { offset: '1', 'stop-color': '#4a5c80', 'stop-opacity': '0' })
+    const blur = el(defs, 'filter', { id: 'shaftBlur', x: '-30%', y: '-10%', width: '160%', height: '130%' })
+    el(blur, 'feGaussianBlur', { stdDeviation: '14' })
+    const shafts = el(back, 'g', { filter: 'url(#shaftBlur)' })
+    for (let i = 0; i < 9; i++) {
+      const x = 60 + rand() * 1000, w = 40 + rand() * 90
+      el(shafts, 'path', {
+        d: `M${x} ${CLOUD_Y - 6} L${x + w} ${CLOUD_Y - 6} L${x + w + 46} ${GROUND_Y + 10} L${x + 28} ${GROUND_Y + 10} Z`,
+        fill: 'url(#rainShaft)', opacity: 0.55 + rand() * 0.45,
+      })
+    }
+    // Distant cells flashing on their own schedule: sheet lightning, no channel visible, just the
+    // cloud lighting from inside. Interstroke timing is the same mechanism, seen from far enough
+    // that the channel is hidden by the cloud.
+    const sheet = []
+    for (let i = 0; i < 3; i++) {
+      const s = el(back, 'ellipse', {
+        cx: 120 + i * 430 + rand() * 130, cy: CLOUD_Y - 60 - rand() * 60,
+        rx: 150 + rand() * 90, ry: 46 + rand() * 26,
+        fill: '#9fb6d8', opacity: 0,
+      })
+      sheet.push({ node: s, next: 900 + rand() * 5000, on: 0 })
     }
     const flashSky = el(back, 'rect', { x: 0, y: 0, width: W, height: H, fill: '#9fb6d8', opacity: 0 })
     // Ground last so the channel terminates behind it.
@@ -1549,7 +1653,7 @@ scene({
     const bolt = el(fore, 'g', {})
     const ground = el(fore, 'path', {
       d: `M0 ${GROUND_Y + 30} L0 ${GROUND_Y} Q 300 ${GROUND_Y - 14} 600 ${GROUND_Y + 4} T 1200 ${GROUND_Y - 6} L1200 ${H} L0 ${H} Z`,
-      fill: '#070a12',
+      fill: '#0a0f19',
     })
 
     // A stepped leader picks its way down in short segments with a random walk sideways, and
@@ -1613,6 +1717,18 @@ scene({
 
     function frame(now) {
       if (!running) return
+      // Distant cells, on their own clocks. Each flash is a short train of pulses, like the near
+      // one, because it is the same event at another range.
+      for (const s of sheet) {
+        if (now > s.next) { s.on = now; s.next = now + 1400 + Math.random() * 6000 }
+        const d = now - s.on
+        let lv = 0
+        if (d < 260) for (const at of [0, 70, 150]) {
+          const u = (d - at) / 90
+          if (u >= 0 && u < 1) lv = Math.max(lv, (1 - u) * (at === 0 ? 1 : 0.55))
+        }
+        s.node.setAttribute('opacity', String(lv * 0.30))
+      }
       if (now > nextFlash) newFlash(now)
       if (core) {
         const dt = now - flashStart
@@ -2507,7 +2623,14 @@ creature({
 
     // Pectoral: Megaptera — "big wing". About a THIRD of body length, scalloped along the leading
     // edge, white below. It sculls slowly and out of phase with the tail.
+    // Drawn BEHIND the body, and rooted well inside it. The earlier version laid the root on the
+    // belly line so no pale wedge would show through — but a root that only touches the outline
+    // opens a gap the moment the flipper rotates, and a flipper floating below a whale is worse
+    // than a wedge. Putting it behind the body solves both at once: the buried part is simply
+    // covered, so the root can go as deep as it likes. Same fix as the gull's wing joint, which
+    // needed the parent shape to extend PAST the pivot.
     const pec = el(root, 'g')
+    root.insertBefore(pec, root.firstChild)
     pec.style.transformBox = 'view-box'
     pec.style.transformOrigin = '24px 15px'
     pec.style.animation = 'whalePectoral 5.8s ease-in-out infinite'
@@ -2533,7 +2656,7 @@ creature({
       // found. The fix is not a deeper root: it is a root that follows the belly line, so there is
       // no interior part at all. The two numbers below are belly(0.22) and belly(0.30) read off the
       // profile table above.
-      d: 'M28 13.9 C 26.8 15.4, 25.6 16.6, 24 17.8 '
+      d: 'M31 8.5 C 30 11, 29 12.6, 28 13.9 C 26.8 15.4, 25.6 16.6, 24 17.8 '
         // Leading edge, root to tip. Each pair of curves is one tubercle: out, then back in.
        + 'C 22.4 19.6, 21.9 20.5, 20.1 22.2 '
        + 'C 18.4 24, 17.8 24.9, 15.8 26.5 '
@@ -2545,7 +2668,7 @@ creature({
        + 'C -6.2 31.7, -4.7 30.1, -2.6 29.1 '
         // Trailing edge back to the root: smooth, no tubercles, gently concave.
        + 'C 3.6 25.9, 11.2 21.2, 17.4 16.4 '
-       + 'C 19.4 15.8, 20 15.2, 20 14.8 Z',
+       + 'C 19.4 15.8, 21.5 13.2, 23.5 9.5 Z',
       fill: '#cbdae5', stroke: '#93a8ba', 'stroke-width': 0.7, 'stroke-linejoin': 'round',
     })
 
@@ -2819,17 +2942,55 @@ creature({
       // the closed loop the research describes, instead of a flat arc.
       wrist.style.animation = `turtleSweep 4.35s cubic-bezier(.3,0,.35,1) ${((lag - 0.14) * 2.6).toFixed(2)}s infinite`
 
-      // The paddle: long, broad, bluntly rounded, with a single claw on the leading edge — the
-      // recognition mark from the sheet, and one path.
+      // The paddle, built from a PROFILE TABLE along its own axis rather than from two curves by
+      // eye. The eye version came out 3 units wide over a 31-unit span — a plank, not a limb, and
+      // that is what a flipper looks like when nobody wrote down how wide it is.
+      //
+      // A sea turtle's fore flipper is a BLADE: about 0.4 of carapace length, and roughly a
+      // quarter of its own length across near the base, tapering to a blunt tip. Like a wing it is
+      // asymmetric — the leading edge is convex and carries the claw, the trailing edge is nearly
+      // straight, and that asymmetry is what makes it read as a limb that generates lift rather
+      // than an oar that pushes.
+      const ax = { x0: (0.5 - 0.19) * L, y0: 0.055 * L, x1: (0.5 - 0.585) * L, y1: 0.235 * L }
+      const dx = ax.x1 - ax.x0, dy = ax.y1 - ax.y0
+      const len = Math.hypot(dx, dy)
+      const ux = dx / len, uy = dy / len            // along the flipper
+      const nx = -uy, ny = ux                       // across it
+      //            u      lead   trail    (half-widths as a fraction of the flipper's length)
+      const blade = [[-0.17, 0.052, 0.044],   // buried in the shoulder: no root edge can show
+                     [0.00, 0.075, 0.055],
+                     [0.16, 0.115, 0.080],
+                     [0.36, 0.108, 0.070],
+                     [0.56, 0.090, 0.055],
+                     [0.76, 0.062, 0.036],
+                     [0.90, 0.038, 0.021],
+                     [1.00, 0.012, 0.012]]
+      // Straight segments between table rows leave visible facets on a curved edge. Quadratic
+      // smoothing through the midpoints turns the same table into a curve without inventing any
+      // control point: each row is the control, each midpoint the on-curve point.
+      const edge = (which, rev) => {
+        const rows = rev ? [...blade].reverse() : blade
+        const pts = rows.map(([u, lead, trail]) => {
+          const w = (which === 'lead' ? lead : -trail) * len
+          return [ax.x0 + ux * len * u + nx * w, ax.y0 + uy * len * u + ny * w]
+        })
+        const f = (q) => `${q[0].toFixed(2)} ${q[1].toFixed(2)}`
+        let d = `M${f(pts[0])}`
+        for (let i = 1; i < pts.length - 1; i++) {
+          const m = [(pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2]
+          d += ` Q${f(pts[i])} ${f(m)}`
+        }
+        return d + ` L${f(pts[pts.length - 1])}`
+      }
       el(wrist, 'path', {
-        d: `M${(0.5 - 0.27) * L} ${0.080 * L} `
-         + `C${(0.5 - 0.36) * L} ${0.135 * L}, ${(0.5 - 0.47) * L} ${0.205 * L}, ${(0.5 - 0.58) * L} ${0.250 * L} `
-         + `C${(0.5 - 0.625) * L} ${0.266 * L}, ${(0.5 - 0.655) * L} ${0.250 * L}, ${(0.5 - 0.635) * L} ${0.220 * L} `
-         + `C${(0.5 - 0.55) * L} ${0.170 * L}, ${(0.5 - 0.42) * L} ${0.110 * L}, ${(0.5 - 0.30) * L} ${0.048 * L} Z`,
-        fill,
+        d: `${edge('lead', false)} ${edge('trail', true).replace(/^M/, 'L')} Z`,
+        fill, 'stroke-linejoin': 'round',
       })
+      // The claw, on the LEADING edge about a fifth of the way out — the recognition mark.
       el(wrist, 'path', {
-        d: `M${(0.5 - 0.60) * L} ${0.243 * L} L${(0.5 - 0.645) * L} ${0.232 * L} L${(0.5 - 0.615) * L} ${0.222 * L} Z`,
+        d: `M${(ax.x0 + ux * len * 0.20 + nx * 0.112 * len).toFixed(2)} ${(ax.y0 + uy * len * 0.20 + ny * 0.112 * len).toFixed(2)} `
+         + `L${(ax.x0 + ux * len * 0.26 + nx * 0.150 * len).toFixed(2)} ${(ax.y0 + uy * len * 0.26 + ny * 0.150 * len).toFixed(2)} `
+         + `L${(ax.x0 + ux * len * 0.30 + nx * 0.104 * len).toFixed(2)} ${(ax.y0 + uy * len * 0.30 + ny * 0.104 * len).toFixed(2)} Z`,
         fill: '#c9c48d',
       })
       el(wrist, 'circle', {
@@ -3667,7 +3828,10 @@ const sceneCss = `
   /* Counterphase to the tail, and much smaller — the head yaws a little because the tail sweeps a
      lot, not the other way round. */
   @keyframes sharkYaw { 0%,100% { transform: rotate(2.2deg) } 50% { transform: rotate(-2.2deg) } }
-  @keyframes whalePectoral    { 0%,100% { transform: rotate(-7deg) } 50% { transform: rotate(9deg) } }
+  /* A humpback's pectoral SWEEPS BACK, it does not hang. Hanging put the tip outside the frame and
+     read as a broken limb; the whole range is rotated up so the flipper trails along the flank the
+     way a wing does on a gliding animal. The 16-degree swing is the sculling, unchanged. */
+  @keyframes whalePectoral    { 0%,100% { transform: rotate(13deg) } 50% { transform: rotate(29deg) } }
 
   /* Gait cycle. Every stop below is a published number, placed at its published percentage — this
      is the first figure in this directory whose keyframes were transcribed rather than guessed.
