@@ -52,7 +52,7 @@ The marketplace ships **per-domain plugins** so a project enables only coherent 
 `ai-skills-fivem`, `ai-skills-nui` (NUI React/CEF), `ai-skills-frontend` (SPA API client),
 `ai-skills-game` (R3F + AssettoServer), `ai-skills-devops`, `ai-skills-docs`,
 `ai-skills-tooling` (Claude Code status line) — plus the full
-`ai-skills` bundle for whoever really wants all 34.
+`ai-skills` bundle for whoever really wants all 35.
 
 **B1 — manual**, inside Claude Code:
 
@@ -79,7 +79,7 @@ one accept, zero manual steps):
 ```
 
 Pick the groups that match the project (a FiveM repo takes `ai-skills-fivem`, an R3F game takes
-`ai-skills-game`, ...) — dumping all 34 skills into every project is noise, not help.
+`ai-skills-game`, ...) — dumping all 35 skills into every project is noise, not help.
 
 **B3 — user-level (whole machine)** — same snippet in `~/.claude/settings.json` enables the plugin
 for every project on the machine.
@@ -543,6 +543,7 @@ against, and flags the R3F v10 `state.gl` → `state.renderer` rename that is co
 
 | Skill | Covers |
 |-------|--------|
+| **svg-animation** | Classify the request into physical regimes, then draw: viewpoint gate, provenance on every quantity, regime schemas (articulated body, driven oscillator, dispersive waves, ballistic ensembles, growth structures, advected fields, discharges, orbits, point sets), measured SVG/CSS/Canvas costs |
 | **r3f-fundamentals** | Canvas, useFrame/useThree, JSX elements, events, refs, extend, Leva |
 | **r3f-animation** | useFrame motion, useAnimations, springs, morph/skeletal, procedural walk/jump cycles, zustand perf |
 | **r3f-assets** | Model loading (useGLTF, Draco, gltfjsx), textures (useTexture, colorSpace, FBO), Suspense/preload |
