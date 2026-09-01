@@ -1,0 +1,79 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Model scenes — open this file to see them all run</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; background: #0a0d16; color: #d7e2f5;
+    font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 20px 24px 6px; }
+  h1 { margin: 0 0 4px; font-size: 19px; letter-spacing: -0.01em; }
+  header p { margin: 0; max-width: 62ch; color: #93a4bf; }
+  .grid { display: grid; gap: 20px; padding: 20px 24px 40px;
+    grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); }
+  figure { margin: 0; border: 1px solid #1e2740; border-radius: 10px; overflow: hidden;
+    background: #0d1220; }
+  .stage { aspect-ratio: 15 / 8; }
+  figcaption { padding: 10px 14px 13px; border-top: 1px solid #1e2740; }
+  .title { font-weight: 650; }
+  .recipe { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+    color: #8fb4ff; margin-top: 2px; }
+  .cost { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+    color: #7fd6a8; margin-top: 2px; }
+  .note { color: #93a4bf; font-size: 13px; margin-top: 7px; }
+</style>
+<header>
+  <h1>Model scenes</h1>
+  <p>Every scene is a composition of the primitives in <code>../primitives.md</code>, built from
+  <code>scenes.js</code> — the same file the published showcase is generated from. Costs cite
+  <code>../measurements.md</code>.</p>
+</header>
+<div class="grid" id="grid"></div>
+<script src="scenes.js"></script>
+<script>
+  const { scenes, primitives, sceneCss, reducedMotionCss } = window.SvgScenes
+
+  const style = document.createElement('style')
+  style.textContent = sceneCss + reducedMotionCss
+  document.head.appendChild(style)
+
+  // Scene notes talk about markup, so they contain literal <svg> and <g>. Inserted as HTML they
+  // would be parsed as tags and swallow the rest of the sentence — which is exactly what happened
+  // the first time this page was rendered.
+  const escapeHtml = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
+
+  const grid = document.getElementById('grid')
+
+  // The primitives, rendered the same way the showcase renders them, so this page stays a complete
+  // local view of what is published.
+  const strip = document.createElement('div')
+  strip.className = 'grid'
+  strip.style.gridTemplateColumns = 'repeat(auto-fit, minmax(150px, 1fr))'
+  document.body.appendChild(strip)
+  for (const prim of primitives) {
+    const cell = document.createElement('figure')
+    const box = document.createElement('div')
+    box.className = 'stage'
+    box.style.aspectRatio = '5 / 3'
+    box.style.color = '#8fb4ff'
+    cell.appendChild(box)
+    cell.insertAdjacentHTML('beforeend',
+      '<figcaption><div class="title">' + prim.id + '</div><div class="recipe">' + prim.channel + '</div></figcaption>')
+    strip.appendChild(cell)
+    prim.build(box)
+  }
+  for (const s of scenes) {
+    const fig = document.createElement('figure')
+    const stage = document.createElement('div')
+    stage.className = 'stage'
+    fig.appendChild(stage)
+    fig.insertAdjacentHTML('beforeend', `
+      <figcaption>
+        <div class="title">${escapeHtml(s.title)}</div>
+        <div class="recipe">${escapeHtml(s.recipe)}</div>
+        <div class="cost">${escapeHtml(s.cost)}</div>
+        <div class="note">${escapeHtml(s.note)}</div>
+      </figcaption>`)
+    grid.appendChild(fig)
+    s.build(stage)
+  }
+</script>

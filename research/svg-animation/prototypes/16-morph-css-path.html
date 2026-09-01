@@ -1,0 +1,71 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>16 — path morphing declared in CSS with d: path()</title>
+<style>
+  html, body { margin: 0; background: #0b1020; color: #cfe1ff;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .caption { padding: 8px 12px; }
+  svg { display: block; width: 100vw; height: calc(100vh - 40px); }
+  path { animation: morph 2s ease-in-out infinite alternate; }
+</style>
+<div class="caption">16 — <b>morph declared in CSS</b> (<code>d: path(...)</code>). Same 24 shapes, browser owns the timeline.</div>
+<svg id="stage" viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid slice"></svg>
+<script>
+  // Pair to 15. Identical geometry and identical command counts; the difference is that the
+  // interpolation is declared once as a CSS keyframe on the `d` property instead of being computed
+  // and written every frame by script. `d` as an animatable CSS property is Chromium-only at the
+  // time of writing, which is the trade this pair exists to price: less script, less portability.
+  const SVGNS = 'http://www.w3.org/2000/svg'
+  const COUNT = 24
+  const SEGMENTS = 8
+  const stage = document.getElementById('stage')
+
+  function blob(cx, cy, radius, wobble, phase) {
+    const pts = []
+    for (let i = 0; i < SEGMENTS; i++) {
+      const a = (i / SEGMENTS) * Math.PI * 2
+      const r = radius * (1 + Math.sin(a * 3 + phase) * wobble)
+      pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r])
+    }
+    return pts
+  }
+
+  function toPath(pts) {
+    const n = pts.length
+    let d = `M${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`
+    for (let i = 0; i < n; i++) {
+      const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n]
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6]
+      const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6]
+      d += `C${c1[0].toFixed(2)} ${c1[1].toFixed(2)} ${c2[0].toFixed(2)} ${c2[1].toFixed(2)} ${p2[0].toFixed(2)} ${p2[1].toFixed(2)}`
+    }
+    return d + 'Z'
+  }
+
+  // One shared keyframe rule; per-shape endpoints come through custom properties so the stylesheet
+  // stays at a single rule instead of 24, and the stagger is a negative delay as in 03.
+  const sheet = new CSSStyleSheet()
+  sheet.replaceSync(`@keyframes morph { from { d: var(--from); } to { d: var(--to); } }`)
+  document.adoptedStyleSheets = [sheet]
+
+  for (let i = 0; i < COUNT; i++) {
+    const p = document.createElementNS(SVGNS, 'path')
+    const cx = 100 + (i % 8) * 143, cy = 120 + Math.floor(i / 8) * 200
+    p.setAttribute('fill', 'none')
+    p.setAttribute('stroke', `hsl(${(i * 15 + 190) % 360} 80% 68%)`)
+    p.setAttribute('stroke-width', 2)
+    p.style.setProperty('--from', `path("${toPath(blob(cx, cy, 52, 0.05, 0))}")`)
+    p.style.setProperty('--to', `path("${toPath(blob(cx, cy, 44, 0.42, 2.1))}")`)
+    p.style.d = `var(--from)`
+    p.style.animationDelay = `${-(i / COUNT) * 2}s`
+    stage.appendChild(p)
+  }
+
+  // Report whether the property actually took, so a silent no-op is visible rather than assumed.
+  requestAnimationFrame(() => {
+    const first = stage.querySelector('path')
+    const applied = getComputedStyle(first).d
+    document.querySelector('.caption').insertAdjacentHTML('beforeend',
+      ` &nbsp; <span style="opacity:.7">computed d: ${applied && applied !== 'none' ? 'applied' : 'NOT SUPPORTED'}</span>`)
+  })
+</script>

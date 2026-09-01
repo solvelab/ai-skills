@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>00 — baseline: same scene, nothing animated</title>
+<style>
+  html, body { margin: 0; background: #0b1020; color: #cfe1ff;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .caption { padding: 8px 12px; }
+  svg { display: block; width: 100vw; height: calc(100vh - 40px); }
+</style>
+<div class="caption">00 — <b>baseline</b>. Same 300 circles, no animation at all.</div>
+<svg id="stage" viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid slice"></svg>
+<script>
+  // The floor. Whatever style/layout counts this page reports are the cost of existing, not the
+  // cost of animating — every other number in this directory is only meaningful above this line.
+  const COUNT = 300
+  const stage = document.getElementById('stage')
+  for (let i = 0; i < COUNT; i++) {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+    const row = i % 20, col = Math.floor(i / 20)
+    c.setAttribute('cx', 40 + col * 78)
+    c.setAttribute('cy', 20 + row * 32)
+    c.setAttribute('r', 7)
+    c.setAttribute('fill', `hsl(${(i * 7) % 360} 70% 62%)`)
+    stage.appendChild(c)
+  }
+</script>

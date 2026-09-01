@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>19 — Feldt archipelago, canvas only (the screen as it is today)</title>
+<style>
+  html, body { margin: 0; background: #0c1a2b; }
+  #stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+</style>
+<div id="stage" class="stage motionOff"></div>
+<script src="../scenes/scenes.js"></script>
+<script>
+  // The baseline: the archipelago exactly as feldt draws it today — one baked canvas, no ambient
+  // motion. `motionOff` hides the added layers, so this measures the starting point rather than a
+  // reimplementation of it.
+  const style = document.createElement('style')
+  style.textContent = window.SvgScenes.sceneCss
+  document.head.appendChild(style)
+  window.SvgScenes.scenes.find((s) => s.id === 'feldt').build(document.getElementById('stage'))
+</script>

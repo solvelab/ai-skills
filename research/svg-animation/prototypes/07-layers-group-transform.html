@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>07 — parallax by transforming &lt;g&gt; layers inside one SVG</title>
+<style>
+  html, body { margin: 0; background: #05070f; color: #cfe1ff;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .caption { padding: 8px 12px; }
+  svg { display: block; width: 100vw; height: calc(100vh - 40px); }
+  .layer { animation: drift 12s linear infinite; will-change: transform; }
+  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(-300px); } }
+</style>
+<div class="caption">07 — <b>parallax via &lt;g&gt; layers</b>. 5 depth layers, 600 stars, one SVG.</div>
+<svg id="stage" viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid slice"></svg>
+<script>
+  // The obvious way to build parallax in SVG: one <g> per depth, each drifting at its own rate.
+  // Pair to 08, which builds the identical scene out of sibling <svg> elements instead. 01-06
+  // showed that SVG elements pay layout per frame while HTML boxes do not; an <svg> element is an
+  // HTML-level replaced box, so 08 tests whether moving the boundary up one level buys that back.
+  const SVGNS = 'http://www.w3.org/2000/svg'
+  const stage = document.getElementById('stage')
+  const LAYERS = 5, PER_LAYER = 120
+
+  for (let d = 0; d < LAYERS; d++) {
+    const g = document.createElementNS(SVGNS, 'g')
+    g.setAttribute('class', 'layer')
+    // Nearer layers drift faster: that speed ratio is the whole of the parallax illusion.
+    g.style.animationDuration = `${24 - d * 4}s`
+    for (let i = 0; i < PER_LAYER; i++) {
+      const c = document.createElementNS(SVGNS, 'circle')
+      c.setAttribute('cx', (i * 137 + d * 61) % 1500)
+      c.setAttribute('cy', (i * 89 + d * 43) % 640)
+      c.setAttribute('r', 0.6 + d * 0.5)
+      c.setAttribute('fill', '#dce8ff')
+      c.setAttribute('opacity', 0.25 + d * 0.15)
+      g.appendChild(c)
+    }
+    stage.appendChild(g)
+  }
+</script>

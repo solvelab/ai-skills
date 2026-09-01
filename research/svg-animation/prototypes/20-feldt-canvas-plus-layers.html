@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>20 — Feldt archipelago, canvas plus the added motion layers</title>
+<style>
+  html, body { margin: 0; background: #0c1a2b; }
+  #stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+</style>
+<div id="stage" class="stage"></div>
+<script src="../scenes/scenes.js"></script>
+<script>
+  // Pair to 19. Byte-identical scene and identical canvas; the only difference is that the motion
+  // layers above it are visible. The delta between the two rows is the price of everything the
+  // doctrine adds — swell, sked rings, state lamps and the silent-post mark.
+  const style = document.createElement('style')
+  style.textContent = window.SvgScenes.sceneCss
+  document.head.appendChild(style)
+  window.SvgScenes.scenes.find((s) => s.id === 'feldt').build(document.getElementById('stage'), { naiveMarks: true })
+</script>

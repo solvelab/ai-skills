@@ -1,0 +1,55 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>14 — the same 2000 particles on a canvas</title>
+<style>
+  html, body { margin: 0; background: #05070f; color: #cfe1ff;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .caption { padding: 8px 12px; }
+  canvas { display: block; width: 100vw; height: calc(100vh - 40px); }
+</style>
+<div class="caption">14 — <b>2000 particles on a canvas</b>. Identical simulation to 13, one node instead of 2000.</div>
+<canvas id="stage"></canvas>
+<script>
+  // Pair to 13. The physics, the seed, the particle count and the visual result are the same; the
+  // difference is retained mode versus immediate mode. Canvas keeps no per-particle node, so the
+  // browser has no style, no layout and no hit-testing to do for any of them — it just draws.
+  const COUNT = 2000
+  const canvas = document.getElementById('stage')
+  const ctx = canvas.getContext('2d')
+  const W = 1200, H = 640
+
+  // Fixed backing store so the drawing cost is identical to 13's viewBox and does not follow the
+  // window size; the CSS above stretches it, exactly as preserveAspectRatio does for the SVG.
+  canvas.width = W
+  canvas.height = H
+
+  let seed = 1337
+  const rand = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff
+
+  const parts = []
+  for (let i = 0; i < COUNT; i++) {
+    const p = { x: rand() * W, y: rand() * H, r: 0.7 + rand() * 1.8, drift: rand() * 2 - 1 }
+    p.speed = 12 + p.r * 22
+    p.alpha = 0.35 + p.r * 0.22
+    parts.push(p)
+  }
+
+  let last = performance.now()
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000, 0.05)
+    last = now
+    ctx.clearRect(0, 0, W, H)
+    for (const p of parts) {
+      p.y += p.speed * dt
+      p.x += Math.sin(now / 1400 + p.y / 90) * p.drift * 14 * dt
+      if (p.y > H + 5) { p.y = -5; p.x = rand() * W }
+      ctx.globalAlpha = p.alpha
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
+      ctx.fillStyle = '#eaf2ff'
+      ctx.fill()
+    }
+    requestAnimationFrame(frame)
+  }
+  requestAnimationFrame(frame)
+</script>
