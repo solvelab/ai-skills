@@ -28,7 +28,7 @@ accepted deliberately: the injected text says diagnosis is free").
 - `python3 <hook> --selftest` sai 0 com uma linha por caso e uma linha de resumo; qualquer regressão
   numa decisão fixada sai 1 e o CI fica vermelho.
 - Payload que não é objeto JSON (`[]`, `"x"`, stdin vazio): saída vazia, exit 0, sem traceback.
-- Comportamento para payloads válidos idêntico ao atual, exceto `fail\w*` no lado inglês.
+- Comportamento para payloads válidos idêntico ao atual, exceto `fail(s|ed|ing)?` no lado inglês.
 - O falso positivo aceito fica **fixado como caso que dispara**, com a decisão citada ao lado.
 
 **Non-Goals:**
@@ -67,12 +67,24 @@ subprocess. É o único ponto em que a forma diverge do `locale-rite.py`, e dive
 Um `prompt` que existe mas não é string (`{"prompt": 42}`) é tratado como ausente pelo mesmo motivo:
 `SKIP.search(42)` estouraria em `TypeError`, e o contrato do hook é nunca derrubar o turno.
 
+O mesmo vale para o outro campo que o backlog-rite lê: `{"cwd": 42}` (ou lista, ou objeto) estourava
+em `os.path.join` com `TypeError` e exit 1 — medido na revisão, depois da guarda do `prompt` ter
+entrado sozinha. `has_spec_rite()` passa a aceitar só string não-vazia e cai em `os.getcwd()` no
+resto. O caso do selftest afirma apenas "não estoura e dispara": com o fallback no cwd real, afirmar
+a frase do spec-rite leria o cwd de quem roda o teste, o que TR1 proíbe.
+
 ### D3 — `--selftest` é lido de `sys.argv[1:]`, nunca de stdin
 
 Hoje `python3 backlog-rite.py --selftest` lê stdin, encontra vazio, sai 0 e não imprime nada. Um step
 de CI escrito assim seria verde para sempre. O parse explícito é o que torna o step honesto, e o
 selftest imprime uma linha por caso mais uma de resumo pelo mesmo motivo: um step que passa sem
 nenhuma saída é indistinguível do no-op de hoje, e um leitor do log do CI precisa ver os casos.
+
+Ler `--selftest` por pertinência (`"--selftest" in sys.argv[1:]`, a forma do `locale-rite.py:245`)
+não fecha a porta: `--self-test` grafado errado num step cai no caminho do stdin, lê vazio e sai 0 —
+o mesmo no-op verde, medido na revisão. Por isso `argv` é comparado por igualdade: exatamente
+`["--selftest"]` roda o selftest, vazio lê stdin, qualquer outra coisa imprime o usage em stderr e
+sai 2. O `locale-rite.py` carrega a fraqueza herdada e fica como follow-up, fora desta change.
 
 ### D4 — A fixture de `openspec/` vive em `tempfile.TemporaryDirectory()`
 
@@ -86,12 +98,29 @@ então o resultado é o mesmo rodando do repositório, de `/tmp` ou do runner do
 `2026-08-07-add-backlog-first-rite/design.md:32` e `:78`. O selftest passa a ser onde a decisão fica
 visível: quem tentar "corrigir" o falso positivo vê o caso quebrar e lê o porquê antes de mexer.
 
-### D6 — `fail\w*` entra no lado inglês da linha 47
+### D6 — `fail(s|ed|ing)?` entra no lado inglês da linha 47, medido e não `fail\w*`
 
-`falha` casa "falha", "falhou", "falhando" pelo `\b...\b` com a alternância; o par inglês precisa
-de `\w*` para casar "fail", "fails", "failed", "failing". Isso amplia o matcher em inglês na exata
-medida em que o português já é amplo — coerente com a assimetria escolhida (falso positivo barato,
-falso negativo caro). O selftest fixa "why does the build fail?" como caso que dispara.
+A issue pediu `fail\w*` "para simetria com `falha`". Probado contra o regex antes de decidir
+(`CHANGE_SIGNALS.search`, via `importlib` no próprio hook):
+
+| Lado | Expressão | Casa | Não casa |
+|---|---|---|---|
+| pt-BR (já existia) | `\bfalha\b` | "o teste falha" | "falhou", "falhando", "falhas", "falhar", "falharam" |
+| inglês, forma pedida | `fail\w*` | fail, fails, failed, failing, **failure, failover, failsafe** | — |
+| inglês, forma adotada | `fail(s|ed|ing)?` | fail, fails, failed, failing | failure, failover, failsafe |
+
+Duas alternativas fechavam a assimetria: estreitar o inglês ou alargar o português para `falh\w*`.
+Fica o estreitamento, por dois motivos. FR3 da issue exige comportamento idêntico para todo payload
+válido exceto o sinal `fail`, e alargar `falha` mudaria prompts em português ("o teste falhou
+ontem" passaria a disparar) — fora do que a issue autorizou. E os três substantivos que `\w*`
+arrasta (failure, failover, failsafe) são conceito, não pedido: "what is a failover cluster?"
+disparando é custo de contexto sem contrapartida de rastreabilidade.
+
+O lado inglês continua mais amplo que o português (quatro formas do verbo contra a palavra nua) —
+de propósito e agora medido, coerente com a assimetria escolhida (falso positivo barato, falso
+negativo caro). O selftest fixa os dois lados da decisão: "why does the build fail?" e "the tests
+are failing" disparam; "what is a failover cluster?" fica mudo, e restaurar `fail\w*` deixa esse
+caso vermelho.
 
 ### D7 — O verify-rite fixa que slash command **não** silencia
 
@@ -122,8 +151,9 @@ Nenhuma skill do catálogo é editada por esta change, então não há doutrina 
   o que dispara é uma string que começa pelo cabeçalho do lembrete (`DEVELOPMENT RITE` /
   `GROUNDING RITE`) e, no backlog-rite, que a frase do spec-rite está presente só com `openspec/`
   no cwd. A simulação por stdin (grupo 3) compara os 8 prompts antes e depois.
-- **`fail\w*` dispara em mais prompts em inglês** → aceito e registrado (D6); é a simetria com o
-  lado português que já existe.
+- **`fail(s|ed|ing)?` dispara em mais prompts em inglês** → aceito e registrado (D6) com o conjunto
+  medido: três prompts do corpus passam a disparar (fail / failing / failed) e os de substantivo
+  (failover, failure, failsafe) ficam mudos; o lado português não muda.
 - **O selftest não reproduz o payload real do harness** → declarado no docstring de cada hook: só
   `prompt` e `cwd` são alimentados, que são os únicos campos lidos. O que um payload real prova e o
   selftest não é se o harness ainda manda esses campos com esses nomes — isso fica com a simulação

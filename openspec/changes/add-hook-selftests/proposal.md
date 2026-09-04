@@ -37,12 +37,15 @@ avisasse.
 
 - `backlog-rite.py` e `verify-rite.py` ganham o mesmo formato do `locale-rite.py`: a decisão vira
   uma função pura `evaluate(payload) -> str | None`; `--selftest` é lido explicitamente de
-  `sys.argv[1:]`; um payload que não é objeto JSON é ignorado (saída vazia, exit 0).
+  `sys.argv[1:]` e qualquer outro argumento imprime o usage e sai 2; um payload que não é objeto
+  JSON, ou cujo `cwd` não é string, é ignorado (saída vazia ou fallback, exit 0, sem traceback).
 - Cada selftest fixa os casos que o design de cada hook já assume — inclusive o falso positivo
   aceito do backlog-rite, gravado como caso que **dispara**, e o fato de o verify-rite **não**
   silenciar em slash command (`verify-rite.py:78-79`).
-- O lado inglês do sinal em `backlog-rite.py:47` ganha `fail\w*`, simétrico ao `falha` que já
-  existe: "por que o teste falha?" dispara hoje e "why does the build fail?" fica mudo.
+- O lado inglês do sinal em `backlog-rite.py:47` ganha `fail(s|ed|ing)?` — as quatro formas do
+  verbo — como par do `falha` que já existe: "por que o teste falha?" dispara hoje e "why does the
+  build fail?" fica mudo. (`fail\w*`, a forma pedida na issue, foi medida casando failover /
+  failsafe / failure e estreitada; design D6.)
 - Dois steps novos em `ci.yml`, logo após o step do `locale-rite`, rodam os dois selftests.
 - `README.md` ganha uma frase, junto à lista do que silencia o hook, dizendo que perguntas contendo
   `erro`/`bug`/`falha` disparam e por quê.
