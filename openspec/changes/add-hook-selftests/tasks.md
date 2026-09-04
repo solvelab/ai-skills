@@ -113,45 +113,197 @@
 
 ## 2. Selftest e guarda de payload nos dois hooks
 
-- [ ] 2.1 `backlog-rite.py`: decisão extraída para `evaluate(payload) -> str | None`; leitura de
+- [x] 2.1 `backlog-rite.py`: decisão extraída para `evaluate(payload) -> str | None`; leitura de
       stdin em `read_payload(stream) -> dict | None` com guarda `isinstance(payload, dict)`;
-      `--selftest` lido de `sys.argv[1:]`; docstring declara o que o selftest não cobre (D1-D3)
-- [ ] 2.2 `backlog-rite.py`: `fail\w*` no lado inglês da linha 47, ao lado de `falha` (D6)
-- [ ] 2.3 `backlog-rite.py --selftest`: casos que disparam (pedido de mudança pt/en, cwd com
-      `openspec/` em `tempfile` acrescenta `SPEC_RITE`, cwd sem ele não acrescenta, "por que o teste
-      falha?" com a decisão de 2026-08-07 citada, "why does the build fail?"), casos mudos (slash
-      command, "sem backlog", pergunta neutra, prompt vazio/ausente/não-string), payloads
-      malformados (`[]`, `"x"`, vazio, `null`, `42`) via `read_payload`, asserção de forma da
-      saída, uma linha OK/FAILED por caso, linha de resumo, exit code (D4, D5)
-- [ ] 2.4 `verify-rite.py`: mesma extração — `evaluate`, `read_payload`, `--selftest` explícito,
-      docstring com o limite do selftest (D1-D3)
-- [ ] 2.5 `verify-rite.py --selftest`: casos que disparam ("isso é achismo", "where did you see
-      that", "essa flag não existe", "that's not what I asked", slash command com correção —
-      `verify-rite.py:78-79`), casos mudos (dispensa "pode chutar", "implementa o endpoint", prompt
-      vazio/ausente), payloads malformados via `read_payload`, forma da saída, resumo, exit code (D7)
-- [ ] 2.6 `.github/workflows/ci.yml`: dois steps novos logo após `Locale write-gate hook self-test`,
-      um por hook, mesmo padrão de nome dos gates auto-testados (D8)
-- [ ] 2.7 `README.md`, junto à frase "It stays silent for prompts already inside the rite…": uma
-      frase dizendo que perguntas de diagnóstico contendo `erro`/`bug`/`falha` disparam e por quê
+      `--selftest` lido de `sys.argv[1:]`; docstring declara o que o selftest não cobre (D1-D3).
+      Commit `7804e62`.
+- [x] 2.2 `backlog-rite.py`: `fail\w*` no lado inglês da linha 47, ao lado de `falha` (D6)
+
+      ```
+      git diff -U0 origin/master...HEAD -- claude/global/hooks/backlog-rite.py | grep -E '^[-+].*falha\|'
+      -> -    r"fix|bug|erro|error|falha|quebr\w*|broken|"
+      -> +    r"fix|bug|erro|error|falha|fail\w*|quebr\w*|broken|"
+      ```
+
+- [x] 2.3 `backlog-rite.py --selftest`: casos que disparam, casos mudos, payloads malformados via
+      `read_payload`, asserção de forma, uma linha OK/FAILED por caso, resumo, exit code (D4, D5)
+
+      ```
+      python3 claude/global/hooks/backlog-rite.py --selftest; echo "rc=$?"
+      ->   OK      change request fires
+      ->   OK      cwd with openspec/ appends the spec sentence
+      ->   OK      cwd without openspec/ omits the spec sentence
+      ->   OK      diagnostic question containing 'falha' fires (accepted trade-off)
+      ->   OK      english 'fail' mirrors 'falha'
+      ->   OK      slash command is silent
+      ->   OK      waiver 'sem backlog' is silent
+      ->   OK      neutral question is silent
+      ->   OK      malformed payload is ignored: json array
+      ->   [...]
+      -> selftest OK: 12 decisions, 6 malformed payloads, plus the output shape
+      -> rc=0
+      ```
+
+      O selftest fica vermelho quando uma decisão regride — provado numa cópia sem `fail\w*`:
+
+      ```
+      sed 's/|fail\\w\*//' claude/global/hooks/backlog-rite.py > $SCR/backlog-rite-broken.py
+      python3 $SCR/backlog-rite-broken.py --selftest; echo "broken rc=$?"
+      ->   FAILED  english 'fail' mirrors 'falha'
+      -> selftest FAILED: english 'fail' mirrors 'falha'
+      -> broken rc=1
+      ```
+
+- [x] 2.4 `verify-rite.py`: mesma extração — `evaluate`, `read_payload`, `--selftest` explícito,
+      docstring com o limite do selftest (D1-D3). Commit `7804e62`.
+- [x] 2.5 `verify-rite.py --selftest`: casos que disparam (inclusive slash command com correção,
+      `verify-rite.py:78-79`), casos mudos, payloads malformados, forma da saída, resumo, exit code
+      (D7)
+
+      ```
+      python3 claude/global/hooks/verify-rite.py --selftest; echo "rc=$?"
+      ->   OK      portuguese caught guess fires
+      ->   OK      english demand for a source fires
+      ->   OK      correction inside a slash command still fires
+      ->   OK      waiver 'pode chutar' is silent
+      ->   OK      implementation request is silent
+      ->   [...]
+      -> selftest OK: 12 decisions, 6 malformed payloads, plus the output shape
+      -> rc=0
+      ```
+
+      Vermelho quando a regra do slash command é "harmonizada" com o backlog-rite — cópia com
+      `^\s*/[a-z-]+` acrescentado ao `SKIP`:
+
+      ```
+      python3 $SCR/verify-rite-broken.py --selftest; echo "broken rc=$?"
+      ->   FAILED  correction inside a slash command still fires
+      -> selftest FAILED: correction inside a slash command still fires
+      -> broken rc=1
+      ```
+
+- [x] 2.6 `.github/workflows/ci.yml`: dois steps novos logo após `Locale write-gate hook self-test`,
+      um por hook, mesmo padrão de nome dos gates auto-testados (D8). Commit `bb683b7`:
+
+      ```
+      git diff origin/master...HEAD -- .github/workflows/ci.yml
+      -> +      - name: Backlog rite hook self-test (the shipped hook is itself gated)
+      -> +        run: python3 claude/global/hooks/backlog-rite.py --selftest
+      -> +      - name: Grounding rite hook self-test (the shipped hook is itself gated)
+      -> +        run: python3 claude/global/hooks/verify-rite.py --selftest
+      ```
+
+- [x] 2.7 `README.md:258-264`, junto à frase "It stays silent for prompts already inside the
+      rite…": uma frase dizendo que perguntas de diagnóstico contendo `erro`/`bug`/`falha`/`fail`
+      disparam e por quê, citando o custo assimétrico e o selftest que fixa o caso. Commit `0381b1f`.
 
 ## 3. Simulation & Field Proof (MANDATORY)
 
-- [ ] S.1 O artefato foi exercitado pelo caminho real — stdin do harness — com a saída observada
-- [ ] S.2 Matriz de casos medida, em contagens
-- [ ] S.3 O que escapou ou se comportou diferente do esperado
+- [x] S.1 O artefato foi exercitado pelo caminho real — stdin do harness — com a saída observada
+
+      Entrada: `printf '{"prompt": <json>, "cwd": "<repo>"}' | python3 claude/global/hooks/backlog-rite.py`,
+      um processo por prompt, `chars` = tamanho da saída, `spec` = ocorrências da frase do spec-rite.
+      Os 8 prompts, **antes** (`d2918ed`) e **depois** (`7804e62`):
+
+      ```
+      implementa o endpoint de login               -> antes rc=0 chars=740 spec=1 | depois rc=0 chars=740 spec=1
+      /backlog nova ideia                          -> antes rc=0 chars=0   spec=0 | depois rc=0 chars=0   spec=0
+      faz isso sem backlog, corrige o typo         -> antes rc=0 chars=0   spec=0 | depois rc=0 chars=0   spec=0
+      o que é um hook?                             -> antes rc=0 chars=0   spec=0 | depois rc=0 chars=0   spec=0
+      por que o teste falha?                       -> antes rc=0 chars=740 spec=1 | depois rc=0 chars=740 spec=1
+      why does the build fail?                     -> antes rc=0 chars=0   spec=0 | depois rc=0 chars=740 spec=1
+      por que não implementa o endpoint de login?  -> antes rc=0 chars=740 spec=1 | depois rc=0 chars=740 spec=1
+      como corrijo esse bug?                       -> antes rc=0 chars=740 spec=1 | depois rc=0 chars=740 spec=1
+      ```
+
+      Só "why does the build fail?" mudou, como a issue previu. A frase do spec-rite some quando o
+      `cwd` não tem `openspec/`:
+
+      ```
+      printf '{"prompt": "implementa o endpoint", "cwd": "/tmp"}' | python3 claude/global/hooks/backlog-rite.py | grep -c 'spec-driven rite'
+      -> 0            (503 chars: só o REMINDER)
+      ```
+
+      `verify-rite.py` pelo mesmo caminho (`{"prompt": <json>}`), antes e depois idênticos:
+
+      ```
+      isso é achismo                      -> rc=0 chars=883
+      where did you see that              -> rc=0 chars=883
+      pode chutar, de onde tirou isso?    -> rc=0 chars=0
+      /backlog você inventou essa flag    -> rc=0 chars=883
+      implementa o endpoint               -> rc=0 chars=0
+      ```
+
+      Payloads malformados, **antes** (traceback, E.2) e **depois**:
+
+      ```
+      echo '[]'  | python3 claude/global/hooks/backlog-rite.py; echo "rc=$?"   -> rc=0  (sem saída)
+      echo '"x"' | python3 claude/global/hooks/backlog-rite.py; echo "rc=$?"   -> rc=0  (sem saída)
+      printf ''  | python3 claude/global/hooks/backlog-rite.py; echo "rc=$?"   -> rc=0  (sem saída)
+      echo null  | python3 claude/global/hooks/backlog-rite.py; echo "rc=$?"   -> rc=0  (sem saída)
+      echo '[]'  | python3 claude/global/hooks/verify-rite.py;  echo "rc=$?"   -> rc=0  (sem saída)
+      echo '"x"' | python3 claude/global/hooks/verify-rite.py;  echo "rc=$?"   -> rc=0  (sem saída)
+      printf ''  | python3 claude/global/hooks/verify-rite.py;  echo "rc=$?"   -> rc=0  (sem saída)
+      echo null  | python3 claude/global/hooks/verify-rite.py;  echo "rc=$?"   -> rc=0  (sem saída)
+      ```
+
+- [x] S.2 Matriz de casos medida, em contagens
+
+      | Artefato | Expectativa | Casos | Resultado |
+      |---|---|---|---|
+      | backlog-rite (stdin, 8 prompts) | tinha de disparar e disparou | 5/5 | inclui o falso positivo aceito e "why does the build fail?" (novo) |
+      | backlog-rite (stdin, 8 prompts) | tinha de ficar mudo e ficou | 3/3 | slash command, "sem backlog", pergunta neutra |
+      | backlog-rite (stdin) | payload malformado mudo, exit 0 | 4/4 | `[]`, `"x"`, vazio, `null` (antes: 2/4 estouravam) |
+      | backlog-rite `--selftest` | decisões OK | 12/12 + forma da saída + 6/6 malformados | rc=0 |
+      | backlog-rite `--selftest` (cópia sem `fail\w*`) | tinha de ficar vermelho e ficou | 1/1 | rc=1 |
+      | verify-rite (stdin, 5 prompts) | tinha de disparar e disparou | 3/3 | inclui slash command com correção |
+      | verify-rite (stdin, 5 prompts) | tinha de ficar mudo e ficou | 2/2 | dispensa, pedido de implementação |
+      | verify-rite (stdin) | payload malformado mudo, exit 0 | 4/4 | `[]`, `"x"`, vazio, `null` (antes: 2/4 estouravam) |
+      | verify-rite `--selftest` | decisões OK | 12/12 + forma da saída + 6/6 malformados | rc=0 |
+      | verify-rite `--selftest` (cópia que silencia slash command) | tinha de ficar vermelho e ficou | 1/1 | rc=1 |
+      | escape conhecido | ficou mudo | 1/1 | ver S.3 |
+
+- [x] S.3 O que escapou ou se comportou diferente do esperado
+
+      Nada se comportou diferente do previsto na issue: os 8 prompts dão o mesmo resultado antes e
+      depois, exceto "why does the build fail?", que passa a disparar.
+
+      Um escape conhecido e mantido de propósito: "por que não implementa o endpoint de login?" é
+      um pedido real com forma de pergunta, e dispara — por isso a exclusão por forma de pergunta
+      não entra (design, Non-Goals). O que continua fora do alcance de qualquer selftest é o
+      KNOWN LIMIT do `verify-rite.py`: ele dispara na correção, nunca no achismo em si; isso está
+      declarado no docstring, não medido aqui.
+
+      O que a simulação **não** prova: que o harness real ainda envie `prompt` e `cwd` com esses
+      nomes — a entrada aqui foi construída à mão a partir da doc pinada (E.3).
 
 ## 4. Quality Gates (MANDATORY)
 
-- [ ] Q.1 Frontmatter uniforme em todo `SKILL.md` tocado
-- [ ] Q.2 Conteúdo de skill tocado em inglês
-- [ ] Q.3 Gatilhos de descrição testáveis
-- [ ] Q.4 Sem doutrina duplicada
-- [ ] Q.5 Identificadores em inglês no que a change introduz
+- [x] Q.1 Frontmatter uniforme em todo `SKILL.md` tocado — **não se aplica**: esta change não toca
+      nenhuma skill. O loop do CI foi rodado mesmo assim:
+      `bash $SCR/frontmatter-loop.sh` -> `frontmatter checks: fail=0 (35 files)`
+- [x] Q.2 Conteúdo de skill tocado em inglês — **não se aplica** pelo mesmo motivo; o delta de spec,
+      os docstrings dos hooks, os nomes dos casos do selftest e a frase do README estão em inglês,
+      como o catálogo exige; proposal/design/tasks em português, como as changes da casa
+- [x] Q.3 Gatilhos de descrição testáveis — **não se aplica**: nenhuma descrição de skill muda
+- [x] Q.4 Sem doutrina duplicada: o selftest e o README **citam** a decisão de 2026-08-07 em vez de
+      reescrevê-la; o docstring do verify-rite continua apontando para `verify-before-claiming`;
+      ver a tabela de Canonical Home em `design.md`
+- [x] Q.5 Identificadores em inglês no que a change introduz — `evaluate`, `read_payload`,
+      `selftest`, `with_rite`, `without_rite`, `spec_sentence`, ids de step — conforme o glossário
+      da issue #115 e `code-locale`:
+
+      ```
+      python3 skills/code-locale/references/check-identifier-locale.py claude/global/hooks/backlog-rite.py claude/global/hooks/verify-rite.py
+      -> findings: 0
+      ```
 
 ## 5. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `openspec validate add-hook-selftests --strict` verde
-- [ ] V.2 Descoberta do catálogo intacta: contagem de skills inalterada, sem órfão ou renomeado
-- [ ] V.3 README / docs atualizados onde a change altera composição ou uso do catálogo
+- [x] V.1 `openspec validate add-hook-selftests --strict` -> `Change 'add-hook-selftests' is valid`
+- [x] V.2 Descoberta do catálogo intacta: `npx skills add . --list` -> `Found 35 skills`;
+      `ls -d skills/*/ | wc -l` -> `35`; sem órfão ou renomeado
+- [x] V.3 README / docs atualizados: `README.md:258-264` ganha a frase do falso positivo aceito
+      (2.7); a composição do catálogo não muda
 - [ ] V.4 `openspec archive add-hook-selftests --yes` depois que todos os grupos acima estiverem
       `[x]` — PR separado, como o repositório já faz
