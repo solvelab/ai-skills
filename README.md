@@ -794,12 +794,14 @@ python3 scripts/scan-secrets.py --history    # audit: what the published history
 
 ```bash
 npm install -g @fission-ai/openspec   # CLI (>= 1.6.0)
-openspec init --tools claude          # generates the /opsx commands into .claude/ (git-ignored, per machine)
+openspec init --tools claude          # generates the /opsx commands into .claude/ (not tracked; ignore it per machine)
 ```
 
 > `openspec init` also writes six helper skills (`openspec-propose`, `openspec-apply-change`, …) into
-> `.claude/skills/`. They are git-ignored and not part of the catalog, so `npx skills add ./ --list`
-> in a maintainer checkout finds 41 skills against the 35 that `git archive HEAD` ships.
+> `.claude/skills/`. They are not part of the catalog and the repo `.gitignore` does not exclude
+> `.claude/` — ignore it in your global excludes file (`core.excludesFile`) so `git add -A` never
+> commits them. That is why `npx skills add ./ --list` in a maintainer checkout finds 41 skills
+> against the 35 that `git archive HEAD` ships.
 
 ### Board integration
 
