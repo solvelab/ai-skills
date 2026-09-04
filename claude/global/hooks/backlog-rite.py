@@ -160,8 +160,11 @@ def selftest() -> int:
              {"prompt": "por que o teste falha?", "cwd": without_rite}, False),
             ("english 'fail' mirrors 'falha'", True,
              {"prompt": "why does the build fail?", "cwd": without_rite}, False),
-            ("slash command is silent", False,
-             {"prompt": "/backlog nova ideia", "cwd": with_rite}, None),
+            # The prompt carries a change word on purpose: silence can then only come from the
+            # slash-command SKIP rule. "/backlog nova ideia" has no signal and stays silent even
+            # with that rule deleted — it never exercised the decision it was named for.
+            ("slash command carrying a change word is silent", False,
+             {"prompt": "/execute-backlog 12 implementa o endpoint", "cwd": with_rite}, None),
             ("waiver 'sem backlog' is silent", False,
              {"prompt": "faz isso sem backlog, corrige o typo", "cwd": with_rite}, None),
             ("neutral question is silent", False,
