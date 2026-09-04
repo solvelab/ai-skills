@@ -374,22 +374,26 @@
 
       ```
       grep -nE '^### (Frontend|Game)|^\| \*\*svg-animation\*\*' README.md | cut -c1-60
-      -> 514:### Frontend
-      -> 520:| **svg-animation** | "a toucan flying", "a tree in a light
-      -> 548:### Game (React Three Fiber)
+      -> 517:### Frontend
+      -> 523:| **svg-animation** | "a toucan flying", "a tree in a li
+      -> 551:### Game (React Three Fiber)
       grep -c '^| \*\*svg-animation\*\*' README.md
-      -> 1      (uma linha só, entre 514 e 522 = tabela Frontend; nenhuma sob 548)
+      -> 1      (uma linha só, entre 517 e 525 = tabela Frontend; nenhuma sob 551)
       ```
+
+      Numeração de `349a0ce`: o parágrafo de 5.3 ganhou três linhas na revisão 2, então as
+      referências a `README.md:548` e `:355` em 4.1, 4.2 e S.2 (medidas em `5bff578`) hoje são
+      `:551` e `:358`.
 
 - [x] 5.2 Cabeçalho Game sem "10 topics"; o parágrafo nomeia o que `ai-skills-game` embarca (D5)
 
       ```
-      sed -n '548p;555,556p' README.md
+      sed -n '551p;558,559p' README.md
       -> ### Game (React Three Fiber)
       -> The `ai-skills-game` plugin bundles every skill in this table plus `assettoserver-plugin` and
       -> `assettoserver-csp-lua` from the AssettoServer table above (`assettoserver-ops` ships with
       grep -nE '[0-9]+ topics' README.md
-      -> 355:│   └── r3f-*/SKILL.md                        # React Three Fiber skills (10 topics)   (dentro de bloco de código, review-only; E.4)
+      -> 358:│   └── r3f-*/SKILL.md                        # React Three Fiber skills (10 topics)   (dentro de bloco de código, review-only; E.4)
       ```
 
 - [x] 5.3 `README.md:50-55` nomeia as skills de cada plugin (D5)
