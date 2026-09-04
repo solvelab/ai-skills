@@ -10,7 +10,7 @@ description: >-
   api-resilience-testing.
 metadata:
   author: solvelab
-  version: 2.2.1
+  version: 2.2.2
   category: testing
 license: MIT
 compatibility: Works in any environment with filesystem access.
@@ -76,7 +76,9 @@ checklist that stopped finding things.
 
 List each hunted scenario as a test (automatable stacks) or as a checklist item + documented smoke test
 (where no headless runtime exists). A change isn't done until its Bug-Hunter group is green/checked.
-This pairs with the OpenSpec `tasks.md` "Testes & Bug-Hunter" gate used by `openspec-drivezone`.
+This pairs with the OpenSpec `tasks.md` "Testes & Bug-Hunter" gate used by `openspec-drivezone` —
+that spelling is the literal heading the DriveZone schema scaffolds (its English alias in that skill
+is *Tests & Bug-Hunter*), so match the literal when grepping a change.
 
 ## See also
 

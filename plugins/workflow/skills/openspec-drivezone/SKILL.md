@@ -11,7 +11,7 @@ description: >-
   Do NOT use for vanilla OpenSpec on non-DriveZone projects — that is the openspec skill.
 metadata:
   author: solvelab
-  version: 2.1.1
+  version: 2.1.2
   category: process
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -23,6 +23,12 @@ compatibility: Works in Claude Code, Claude.ai, and any environment with filesys
 > spec-driven process — the base workflow is the **`openspec` skill** — but with a **project-local
 > forked schema** that makes three sections **mandatory** where vanilla has none: **Fallback & Failure
 > Modes**, **Tests & Bug-Hunter**, and **Validation & Closure**.
+>
+> The `tasks.md` group is scaffolded with the literal heading **`Testes & Bug-Hunter`** — the
+> repos' working language, and the string the rite-gate grep and the `bug-hunter` skill's trigger
+> match (read on 2026-09-04 from `openspec/schemas/spec-driven/templates/tasks.md` in the repos
+> `fivem-drivezone` and `backend-drivezone`). *Tests & Bug-Hunter* is this catalog's English alias
+> for the same group; when you grep or scaffold, use the literal.
 >
 > Two parts: **Part 1 — For the AI** (dense, imperative: what to execute) and **Part 2 — For humans**
 > (why each rule exists, and the difference vs vanilla).
@@ -68,7 +74,8 @@ Dependencies to cover per track:
 - **Backend**: Consul `/config/*`, integrations, DB/transaction.
   → Mechanics: **[backend-resilience]**; error envelope `status:error` + `RC_*` (never a raw 500).
 
-**2. `tasks.md` → group `## 3. Tests & Bug-Hunter (MANDATORY)`**
+**2. `tasks.md` → group `## 3. Testes & Bug-Hunter (OBRIGATÓRIO — <track>)`** (literal heading as
+scaffolded; the English alias is *Tests & Bug-Hunter*)
 
 Adversarial QA, not happy-path. → Methodology and per-stack scenarios: **[bug-hunter]**
 (`bug-hunter/references/track-fivem-lua.md` for the resource, `bug-hunter/references/track-python-pytest.md` for the
@@ -130,7 +137,7 @@ in a game where the player can disconnect mid-flow. Without declaring each depen
 into `design.md` makes resilience a design input, not a patch. Execution mechanics live in
 **[backend-resilience]** / **[fivem-fallback]**.
 
-**Why `Tests & Bug-Hunter` is mandatory.**
+**Why `Testes & Bug-Hunter` is mandatory.**
 Project premise: **every feature/fix requires adversarial QA** before in-game validation — the AI
 cannot play the game, so the backend must be proven by adversarial pytest E2E and the Lua by testable
 pure modules + the hunt. The *how* lives in **[bug-hunter]** and **[api-resilience-testing]**.
@@ -169,7 +176,7 @@ describing the execution:
 - **[openspec]** — the vanilla workflow this rite extends.
 - **[backend-resilience]** — stack-agnostic resilience doctrine → the *Fallback* gate.
 - **[fivem-fallback]** — Lua adaptation → the *Fallback* gate (FiveM track).
-- **[bug-hunter]** — adversarial QA rite → the *Tests & Bug-Hunter* gate.
+- **[bug-hunter]** — adversarial QA rite → the *Testes & Bug-Hunter* gate.
 - **[api-resilience-testing]** — API negative/fuzz/contract testing → reinforces the backend test gate.
 - **[fivem-lua]** — Lua resource conventions (trust boundary, fxmanifest, NUI) → implementation base.
 - **[verify-before-claiming]** — research-before-asserting doctrine; the reason this skill's "the CLI
