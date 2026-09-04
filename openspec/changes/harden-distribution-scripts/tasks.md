@@ -293,7 +293,17 @@
 
 ## 7. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `openspec validate harden-distribution-scripts --strict` green
-- [ ] V.2 Catalog discovery intact: skill count unchanged, no orphan/renamed leftovers
-- [ ] V.3 README / docs updated where the change alters catalog composition or usage
+- [x] V.1 `openspec validate harden-distribution-scripts --strict` verde — em `5cc6d6a`:
+      `Change 'harden-distribution-scripts' is valid`, `exit=0`
+- [x] V.2 Descoberta do catálogo intacta: contagem de skills inalterada, sem órfão ou renomeado —
+      `ls -d skills/*/ | wc -l` -> `35` no branch; `git ls-tree --name-only master skills/ | wc -l`
+      -> `35`; `diff` das duas listas de nomes -> idêntico; `npx -y skills add . --list` ->
+      `Found 35 skills` (rodado com rede disponível; não foi provado que resolve offline). O único
+      caminho extra sob `skills/` é `skills/code-locale/references/__pycache__/`, ignorado pelo git
+      (`!!` em `git status --ignored`), produto do self-test do detector de locale, não do catálogo
+- [x] V.3 README / docs atualizados onde a change altera composição ou uso do catálogo — a
+      composição não muda; o uso (`update.sh`) muda de texto: `git diff master...HEAD -- README.md`
+      -> `-... regenerate the Cursor wrappers:` / `+... regenerate all tool wrappers:`;
+      `sed -n 141p README.md` -> `Pull the latest skills/rules into ~/ai-skills and regenerate
+      all tool wrappers:`. `update.sh` linhas 6 e 33 dizem o mesmo (2.4)
 - [ ] V.4 `openspec archive harden-distribution-scripts --yes` after all groups above are `[x]`
