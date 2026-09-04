@@ -17,3 +17,18 @@ unknown: <what was looked for and not found>
 
 A number with no source is marked `assumed` and says so. A dossier that would need an invented
 number stops at the gap instead.
+
+## Existing dossiers
+
+| Dossier | Object | Regimes |
+|---|---|---|
+| `broadleaf-tree.md` | Broadleaf tree | `growth-structure` (geometry) + `driven-oscillator` (motion) |
+| `cumulus.md` | Fair-weather cumulus | `advected-field` |
+| `herring-gull.md` | Herring gull (*Larus argentatus*) | `articulated-body` (wing) + a steered trajectory |
+| `night-sky.md` | Night sky | `radiant-point-set` |
+| `ocean.md` | Open ocean | `dispersive-wave-field` |
+| `rain.md` | Rain | `ballistic-ensemble` |
+| `sea-turtle.md` | Sea turtle | `articulated-body` |
+| `walking-human.md` | Walking human | `articulated-body` |
+
+A new dossier is added to this table when it is written.

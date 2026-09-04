@@ -23,7 +23,9 @@ Solve, then **check by forward kinematics**: rotate the joints by the solution a
 extremity lands on the target. Normalise angles before comparing — an unnormalised elbow angle read
 196° and nearly "fixed" a wing that was correct.
 
-`research/svg-animation/verify-motion.mjs` checks cycle closure, phase pairs (`-near`/`-far` for
+`verify-motion.mjs` — in the catalog repository, outside the installed skill
+([research/svg-animation](https://github.com/solvelab/ai-skills/tree/master/research/svg-animation)) —
+checks cycle closure, phase pairs (`-near`/`-far` for
 alternating limbs, `-sync-near`/`-sync-far` for limbs that beat together), contact slip measured
 relative to the surface, and anchor stillness. Its `--cycle` argument is in MILLISECONDS: passing
 seconds made the half-cycle shift round to zero, so the antiphase test silently became an in-phase

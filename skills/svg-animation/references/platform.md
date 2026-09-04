@@ -1,7 +1,9 @@
 # Platform: what SVG, CSS and Canvas actually cost
 
-Every number here was measured with `research/svg-animation/measure.mjs`, a dependency-free CDP
-harness, against Chrome for Testing 151.0.7922.34, headless, software rasterisation, one machine,
+Every number here was measured with `measure.mjs`, a dependency-free CDP harness kept in the
+catalog repository, outside the installed skill
+([research/svg-animation](https://github.com/solvelab/ai-skills/tree/master/research/svg-animation)),
+against Chrome for Testing 151.0.7922.34, headless, software rasterisation, one machine,
 2026-08-30/31. **What transfers is the relative ordering of two techniques measured in the same run**
 — absolute frame times on a machine with no GPU are not a desktop and are not a phone.
 
