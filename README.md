@@ -47,12 +47,25 @@ The CLI detects your installed agents (Claude Code, Codex, Cursor, Copilot, and 
 
 ### Option B — Claude Code plugin marketplace
 
-The marketplace ships **per-domain plugins** so a project enables only coherent sets —
-`ai-skills-workflow` (commits + OpenSpec), `ai-skills-backend`, `ai-skills-testing`,
-`ai-skills-fivem`, `ai-skills-nui` (NUI React/CEF), `ai-skills-frontend` (SPA API client),
-`ai-skills-game` (R3F + AssettoServer), `ai-skills-devops`, `ai-skills-docs`,
-`ai-skills-tooling` (Claude Code status line) — plus the full
-`ai-skills` bundle for whoever really wants all 35.
+The marketplace ships **per-domain plugins** so a project enables only coherent sets — plus the
+full `ai-skills` bundle for whoever really wants all 35. What each plugin ships. The published
+description of each plugin is derived by `generate.sh` from `plugins/<group>/skills/` and checked
+against that tree by `scripts/validate-repo-hygiene.py` (H3); this table is **hand-maintained** and
+mirrors it — no gate compares it with the tree (H3's declared KNOWN LIMIT), so review it when a skill
+changes category:
+
+| Plugin | Ships |
+|---|---|
+| `ai-skills-workflow` | `backlog`, `code-locale`, `conventional-commit`, `execute-backlog`, `openspec`, `openspec-drivezone`, `verify-before-claiming` |
+| `ai-skills-backend` | `backend-resilience`, `log-event-collector`, `observability`, `python-rest-api` |
+| `ai-skills-testing` | `api-resilience-testing`, `bug-hunter` |
+| `ai-skills-fivem` | `fivem-fallback`, `fivem-lua` |
+| `ai-skills-nui` | `fivem-nui-react` |
+| `ai-skills-frontend` | `react-api-client`, `svg-animation` |
+| `ai-skills-game` | `assettoserver-csp-lua`, `assettoserver-plugin`, `r3f-animation`, `r3f-assets`, `r3f-fundamentals`, `r3f-geometry`, `r3f-interaction`, `r3f-lighting`, `r3f-materials`, `r3f-physics`, `r3f-postprocessing`, `r3f-shaders` |
+| `ai-skills-devops` | `assettoserver-ops`, `helm-migration`, `k8s-tune-resources` |
+| `ai-skills-docs` | `documentation` |
+| `ai-skills-tooling` | `claude-statusline` |
 
 **B1 — manual**, inside Claude Code:
 
@@ -507,6 +520,7 @@ Project v2 in the org/user. Full details live in the skills themselves:
 |-------|----------|--------------|
 | **fivem-nui-react** | NUI, CEF, SendNUIMessage/useNUIEvent, ui_page, tokens.css | FiveM/RedM NUI React conventions — Lua↔React bridge (multiplexed callback, uiReady handshake, invisible-by-default), Vite-for-CEF build, CEF rendering quirks, tokens design-system law, browser dev-mode |
 | **react-api-client** | React SPA calling a REST API, axios client, auth store, error codes | Typed-envelope client discipline — ErrorCodes + ApiException, zod parsers that throw on drift, tokens-only auth persistence with single-flight refresh, realtime polling facade, dedup nonce on paid mutations |
+| **svg-animation** | "a toucan flying", "a tree in a light breeze", "waves", "rain", a walking figure — anything to be drawn or moved, with or without a technology named; an animation that reads as mechanical, dead or wrong | Classify the request into physical regimes, then draw — viewpoint gate, provenance on every quantity, regime schemas (articulated body, driven oscillator, dispersive waves, ballistic ensembles, growth structures, advected fields, discharges, orbits, point sets), measured SVG/CSS/Canvas costs |
 
 ### Process & git
 
@@ -534,16 +548,19 @@ Project v2 in the org/user. Full details live in the skills themselves:
 |-------|----------|--------------|
 | **claude-statusline** | "configure my Claude Code status line", statusLine in settings.json, statusline.sh, "add context/cost/git to my statusline", install a statusline gist | Sets up or customizes the Claude Code status bar — ships a ready-made 3-line script (model/effort/thinking/cost · repo/branch/diff/token-cost · context/rate-limits) plus the full JSON-field reference; safe install, custom-build rules, and gist sharing |
 
-### Game (React Three Fiber — 10 topics)
+### Game (React Three Fiber)
 
 Every code block in these skills is compile-checked: blocks tagged `tsx` are complete modules that
 typecheck against `three@0.185` · `@react-three/fiber@9.7` · `@react-three/drei@10.7` · `react@19.2`,
 and illustrative fragments carry a `// excerpt` marker. Each skill states the stack it was verified
 against, and flags the R3F v10 `state.gl` → `state.renderer` rename that is coming.
 
+The `ai-skills-game` plugin bundles every skill in this table plus `assettoserver-plugin` and
+`assettoserver-csp-lua` from the AssettoServer table above (`assettoserver-ops` ships with
+`ai-skills-devops`); the exact list is in its published description.
+
 | Skill | Covers |
 |-------|--------|
-| **svg-animation** | Classify the request into physical regimes, then draw: viewpoint gate, provenance on every quantity, regime schemas (articulated body, driven oscillator, dispersive waves, ballistic ensembles, growth structures, advected fields, discharges, orbits, point sets), measured SVG/CSS/Canvas costs |
 | **r3f-fundamentals** | Canvas, useFrame/useThree, JSX elements, events, refs, extend, Leva |
 | **r3f-animation** | useFrame motion, useAnimations, springs, morph/skeletal, procedural walk/jump cycles, zustand perf |
 | **r3f-assets** | Model loading (useGLTF, Draco, gltfjsx), textures (useTexture, colorSpace, FBO), Suspense/preload |

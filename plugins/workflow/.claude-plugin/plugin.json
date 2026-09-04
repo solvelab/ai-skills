@@ -2,7 +2,7 @@
   "name": "ai-skills-workflow",
   "displayName": "AI Skills — workflow",
   "version": "2.17.1",
-  "description": "Commit format, OpenSpec spec-driven workflow, the anti-guessing rite and the code-locale rule (conventional-commit, openspec, openspec-drivezone, verify-before-claiming, code-locale)",
+  "description": "Commit format, OpenSpec spec-driven workflow, the backlog rite, the anti-guessing rite and the code-locale rule (7 skills: backlog, code-locale, conventional-commit, execute-backlog, openspec, openspec-drivezone, verify-before-claiming)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
   "license": "MIT"

@@ -2,7 +2,7 @@
   "name": "ai-skills-backend",
   "displayName": "AI Skills — backend",
   "version": "2.17.1",
-  "description": "Backend service conventions and resilience (python-rest-api, backend-resilience)",
+  "description": "Backend service conventions, dependency resilience, observability and log-event collection (4 skills: backend-resilience, log-event-collector, observability, python-rest-api)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
   "license": "MIT"
