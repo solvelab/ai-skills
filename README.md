@@ -87,7 +87,8 @@ for every project on the machine.
 Plugin updates are **version-pinned**: you only receive changes when a new release is tagged (see
 [Releases & Versioning](#-releases--versioning)).
 
-> **Pick ONE method per machine.** Plugin skills are namespaced (`ai-skills:fivem-lua`) and don't
+> **Pick ONE method per machine.** Plugin skills are namespaced by plugin — `ai-skills-<group>:<skill>`,
+> e.g. `ai-skills-fivem:fivem-lua`; `ai-skills:fivem-lua` only under the full bundle — and don't
 > conflict with the symlink install (Option C) — but running both duplicates every skill in
 > discovery. On a machine using symlinks, disable a project's auto-install locally with
 > `.claude/settings.local.json` setting the same plugin keys to `false`.
@@ -170,14 +171,14 @@ Releases are **fully automated** by [semantic-release](https://github.com/semant
 | `BREAKING CHANGE:` footer or `!` | major |
 | `docs:`, `chore:` | none |
 
-Each release automatically: bumps `VERSION`, propagates it to `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` (via `scripts/set-version.sh`), regenerates all wrappers, updates `CHANGELOG.md` from the commit messages, commits (`chore(release): vX.Y.Z [skip ci]`), tags `vX.Y.Z`, and publishes a GitHub Release with the notes.
+Each release automatically: bumps `VERSION`, propagates it to `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` (via `scripts/set-version.sh`), regenerates all wrappers, updates `CHANGELOG.md` from the commit messages, commits (`chore(release): X.Y.Z [skip ci]`), tags `vX.Y.Z`, and publishes a GitHub Release with the notes.
 
 | Channel | What you get |
 |---------|--------------|
 | Claude Code plugin | **Version-pinned** — updates only when `plugin.json` version is bumped by a release |
 | `npx skills` / `install.sh` / `update.sh` | Latest `master` |
 
-Each skill also carries its own `metadata.version` in its `SKILL.md` frontmatter — bump it when that skill's behavior changes. Repo version = the collection; skill version = the individual contract. The CI/CD pipeline (`.github/workflows/ci.yml`) validates every push/PR (wrapper sync, version coherence, frontmatter) and cuts releases on `master`.
+Each skill also carries its own `metadata.version` in its `SKILL.md` frontmatter — bump it when that skill's behavior changes. Repo version = the collection; skill version = the individual contract. The CI/CD pipeline (`.github/workflows/ci.yml`) validates every pull request and every push to `master` (wrapper sync, version coherence, frontmatter) and cuts releases on `master`.
 
 ---
 
@@ -346,6 +347,12 @@ ai-skills/
 ├── .claude-plugin/
 │   ├── plugin.json                           # Claude Code plugin manifest (version-pinned)
 │   └── marketplace.json                      # Claude Code marketplace catalog
+├── plugins/                                  # Per-domain plugins (10 of the 11 marketplace entries)
+│   └── <group>/                              # backend, devops, docs, fivem, frontend, game, nui, testing, tooling, workflow
+│       ├── .claude-plugin/plugin.json        # ai-skills-<group> manifest
+│       └── skills/                           # Generated: copies of the group's skills
+├── openspec/                                 # Spec-driven rite: specs/, changes/, schemas/skills-rite/
+├── research/                                 # Measurements behind a skill (e.g. svg-animation)
 ├── claude/
 │   ├── global/personal-rules.md              # Maintainer's portable Claude Code rules (example)
 │   └── skills/                               # Generated: thin wrappers for legacy CLAUDE.md installs
@@ -359,7 +366,12 @@ ai-skills/
 ├── generate.sh                               # Regenerates all tool wrappers from skills/
 ├── install.sh                                # One-line installer with --tool flag
 ├── update.sh                                 # Sync + regenerate
-├── scripts/set-version.sh                    # Version propagation (called by semantic-release)
+├── scripts/
+│   ├── set-version.sh                        # Version propagation (called by semantic-release)
+│   ├── validate-skills.py                    # Skill content checks (C1–C9) + selftest-validate-skills.py
+│   ├── validate-repo-hygiene.py              # Compiled artifacts, published counts
+│   ├── validate-rite.sh                      # OpenSpec rite gate (+ validate-rite-evidence.py, validate-spec-rite.py)
+│   └── scan-secrets.py                       # Credential scan (working tree gates, history reports)
 ├── .releaserc.json                           # semantic-release config (auto-versioning from commits)
 └── README.md
 ```
@@ -739,12 +751,13 @@ from a fork, so it is matched as text and never executed. The checkout runs at `
 because a gate with no base revision cannot measure, and a gate that cannot measure must not approve.
 
 A second gate checks the **content** of the skills themselves.
-[`scripts/validate-skills.py`](scripts/validate-skills.py) runs eight checks over every
+[`scripts/validate-skills.py`](scripts/validate-skills.py) runs nine checks over every
 `skills/*/SKILL.md` and its references — referenced paths exist (C1), cross-skill references name a
 real skill (C2), code blocks parse (C3, bash/yaml/json/lua/python), the description states no policy
 the body contradicts (C4), versioned external APIs are pinned (C5), fence tags match their content
-(C6), no generated wrapper is orphaned from a canonical source (C7), and no meta section sits in a
-`SKILL.md` body where it cannot affect routing (C8). The list is the script's own docstring — run
+(C6), no generated wrapper is orphaned from a canonical source (C7), no meta section sits in a
+`SKILL.md` body where it cannot affect routing (C8), and code examples use English identifiers
+(C9). The list is the script's own docstring — run
 `grep -E '^  C[0-9]' scripts/validate-skills.py` rather than trusting this paragraph. It reports any
 check skipped for want of a tool rather than counting it as a pass.
 
@@ -772,7 +785,7 @@ as operational detail, never as a build failure.
 
 ```bash
 python3 scripts/validate-skills.py           # 0 findings expected
-python3 scripts/selftest-validate-skills.py  # 12/12 defect classes detected
+python3 scripts/selftest-validate-skills.py  # 13/13 defect classes detected
 python3 scripts/scan-secrets.py              # gate: no credentials in the working tree
 python3 scripts/scan-secrets.py --history    # audit: what the published history still contains
 ```
@@ -783,6 +796,10 @@ python3 scripts/scan-secrets.py --history    # audit: what the published history
 npm install -g @fission-ai/openspec   # CLI (>= 1.6.0)
 openspec init --tools claude          # generates the /opsx commands into .claude/ (git-ignored, per machine)
 ```
+
+> `openspec init` also writes six helper skills (`openspec-propose`, `openspec-apply-change`, …) into
+> `.claude/skills/`. They are git-ignored and not part of the catalog, so `npx skills add ./ --list`
+> in a maintainer checkout finds 41 skills against the 35 that `git archive HEAD` ships.
 
 ### Board integration
 
@@ -833,11 +850,13 @@ This emits the Claude/Codex/Cursor/Copilot wrappers automatically. Commit them t
 
 ### 3. Release
 
-Commit with a [Conventional Commit](https://www.conventionalcommits.org) message and push — the release pipeline does the rest (version bump, changelog, tag, GitHub Release):
+Commit with a [Conventional Commit](https://www.conventionalcommits.org) message on a branch and open a
+pull request — `master` takes no direct push (PR-only, by convention). The release runs after the
+merge and does the rest (version bump, changelog, tag, GitHub Release):
 
 ```bash
-git commit -m "skill: add my-skill"   # skill:/feat: → minor release on push to master
-git push origin master
+git commit -m "skill: add my-skill"   # skill:/feat: → minor release once merged into master
+git push -u origin backlog/<n>-my-skill && gh pr create --fill
 ```
 
 ### 4. Key guidelines for writing skills
