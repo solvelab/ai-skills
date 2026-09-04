@@ -182,8 +182,10 @@ jobs:
         # flight, so it publishes what is due for every commit up to the tip, and the next run finds
         # nothing left to release.
         # The commit released may therefore be newer than the one Validate examined in THIS run.
-        # Each of those commits passed Validate on its own pull request; master is protected and
-        # takes no direct push other than the [skip ci] release commit.
+        # Each of those commits passed Validate on its own pull request; master takes no direct push
+        # by convention (PR-only) other than the [skip ci] release commit. No branch protection rule
+        # exists as of 2026-09-04 (`gh api repos/solvelab/ai-skills/branches/master/protection` -> 404);
+        # whether to add one is issue #120's decision.
         uses: actions/checkout@v5
         with:
           ref: master
