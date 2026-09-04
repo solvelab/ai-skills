@@ -443,5 +443,12 @@
       `ls -d skills/*/ | wc -l` -> `35`; sem órfão ou renomeado
 - [x] V.3 README / docs atualizados: `README.md:258-264` ganha a frase do falso positivo aceito
       (2.7); a composição do catálogo não muda
-- [ ] V.4 `openspec archive add-hook-selftests --yes` depois que todos os grupos acima estiverem
+- [x] V.4 `openspec archive add-hook-selftests --yes` depois que todos os grupos acima estiverem
       `[x]` — PR separado, como o repositório já faz
+
+
+      ```
+      openspec archive add-hook-selftests --yes
+      -> Specs updated successfully.
+      -> Change 'add-hook-selftests' archived as '2026-09-04-add-hook-selftests'.
+      ```
