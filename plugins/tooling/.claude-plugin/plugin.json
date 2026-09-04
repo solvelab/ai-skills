@@ -2,7 +2,7 @@
   "name": "ai-skills-tooling",
   "displayName": "AI Skills — tooling",
   "version": "2.16.0",
-  "description": "AI-assistant developer tooling — Claude Code status line setup and customization (claude-statusline)",
+  "description": "AI-assistant developer tooling — Claude Code status line setup and customization (1 skill: claude-statusline)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
   "license": "MIT"

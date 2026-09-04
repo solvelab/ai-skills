@@ -18,61 +18,61 @@
     {
       "name": "ai-skills-workflow",
       "source": "./plugins/workflow",
-      "description": "Commit format (Conventional Commits + gitmoji), OpenSpec spec-driven workflow (vanilla + DriveZone rite), the anti-guessing rite (research ladder, claim labels, not-found report) and the code-locale rule (English machine layer, repo-language prose).",
+      "description": "Commit format, OpenSpec spec-driven workflow, the backlog rite, the anti-guessing rite and the code-locale rule (7 skills: backlog, code-locale, conventional-commit, execute-backlog, openspec, openspec-drivezone, verify-before-claiming)",
       "category": "productivity"
     },
     {
       "name": "ai-skills-backend",
       "source": "./plugins/backend",
-      "description": "Python REST API conventions and dependency-resilience doctrine.",
+      "description": "Backend service conventions, dependency resilience, observability and log-event collection (4 skills: backend-resilience, log-event-collector, observability, python-rest-api)",
       "category": "productivity"
     },
     {
       "name": "ai-skills-testing",
       "source": "./plugins/testing",
-      "description": "Adversarial testing rite (bug-hunter) and REST negative/fuzz/contract testing.",
+      "description": "Adversarial testing rite and REST negative/fuzz/contract testing (2 skills: api-resilience-testing, bug-hunter)",
       "category": "productivity"
     },
     {
       "name": "ai-skills-fivem",
       "source": "./plugins/fivem",
-      "description": "FiveM/CitizenFX Lua conventions and Lua-side resilience patterns.",
+      "description": "FiveM/CitizenFX Lua conventions and Lua-side resilience patterns (2 skills: fivem-fallback, fivem-lua)",
       "category": "productivity"
     },
     {
       "name": "ai-skills-game",
       "source": "./plugins/game",
-      "description": "React Three Fiber + AssettoServer game-dev skills (12 topics).",
+      "description": "React Three Fiber and AssettoServer game-dev conventions (12 skills: assettoserver-csp-lua, assettoserver-plugin, r3f-animation, r3f-assets, r3f-fundamentals, r3f-geometry, r3f-interaction, r3f-lighting, r3f-materials, r3f-physics, r3f-postprocessing, r3f-shaders)",
       "category": "productivity"
     },
     {
       "name": "ai-skills-devops",
       "source": "./plugins/devops",
-      "description": "Kubernetes YAML to Helm migration (requires the solvelab chart template).",
+      "description": "Kubernetes/Helm migration, cluster resource tuning and AssettoServer operations (3 skills: assettoserver-ops, helm-migration, k8s-tune-resources)",
       "category": "productivity"
     },
     {
       "name": "ai-skills-docs",
       "source": "./plugins/docs",
-      "description": "Project documentation generation (three-tier model).",
+      "description": "Three-tier project documentation generation (1 skill: documentation)",
       "category": "productivity"
     },
     {
       "name": "ai-skills-nui",
       "source": "./plugins/nui",
-      "description": "FiveM/RedM NUI React conventions — Lua↔React bridge, CEF rendering quirks, tokens design system.",
+      "description": "FiveM/RedM NUI React conventions — Lua↔React bridge, CEF rendering quirks, tokens design system (1 skill: fivem-nui-react)",
       "category": "productivity"
     },
     {
       "name": "ai-skills-frontend",
       "source": "./plugins/frontend",
-      "description": "React SPA API-client conventions — typed envelope + error codes, auth store factory, realtime facade.",
+      "description": "React SPA API-client conventions and physically-grounded SVG/CSS animation (2 skills: react-api-client, svg-animation)",
       "category": "productivity"
     },
     {
       "name": "ai-skills-tooling",
       "source": "./plugins/tooling",
-      "description": "AI-assistant developer tooling — Claude Code status line setup and customization.",
+      "description": "AI-assistant developer tooling — Claude Code status line setup and customization (1 skill: claude-statusline)",
       "category": "productivity"
     }
   ]

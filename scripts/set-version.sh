@@ -10,7 +10,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$SCRIPT_DIR"
 
 NEW="${1:-}"
-[[ "$NEW" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || { echo "❌ Usage: scripts/set-version.sh <X.Y.Z>"; exit 1; }
+# Same literal as SEMVER_RE in generate.sh: the two readers of a version must agree on its shape.
+# End-anchored on purpose — the previous pattern accepted `2.15.1dirtychange`.
+SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+[[ "$NEW" =~ $SEMVER_RE ]] || { echo "❌ Usage: scripts/set-version.sh <X.Y.Z[-prerelease]> (got '$NEW')"; exit 1; }
 
 CURRENT="$(tr -d '[:space:]' < VERSION)"
 
