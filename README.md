@@ -138,7 +138,7 @@ cp ~/ai-skills/copilot/instructions/*.instructions.md /path/to/project/.github/i
 
 ## ♻️ Update
 
-Pull the latest skills/rules into `~/ai-skills` and regenerate the Cursor wrappers:
+Pull the latest skills/rules into `~/ai-skills` and regenerate all tool wrappers:
 
 ```bash
 # One-line (no clone needed)

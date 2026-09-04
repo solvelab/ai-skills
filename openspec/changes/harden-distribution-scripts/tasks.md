@@ -1,0 +1,339 @@
+## 1. Evidence & Sources (MANDATORY)
+
+- [x] E.1 Caminhos locais abertos e lidos, com o commit em que foram lidos
+
+      Lidos em `d2918ed` (`docs(openspec): arquiva as duas changes de svg-animation`), topo de
+      `master` em 2026-09-04:
+
+      - `install.sh` — 185 linhas; `--tool` lê `$2` em 108; `git pull` sem `--ff-only` em 148;
+        `case "$TOOL"` com a rejeição de valor desconhecido em 158-181, depois do clone.
+      - `update.sh` — 70 linhas; "Cursor rules" em 6 e 20; `pull --ff-only` com mensagem e dica em
+        47-51; `bash generate.sh >/dev/null && echo` em 59.
+      - `generate.sh` — lê `VERSION` (linha 180, `VERSION_STR`) e `skills/*/SKILL.md` (78, 170);
+        `rm -rf "$PLUGINS_OUT"` em 149; grava `"version": "${VERSION_STR}"` (189) em cada
+        `plugins/<group>/.claude-plugin/plugin.json` (185-195). Não é editado por esta change.
+      - `README.md` — linha 141 ("regenerate the Cursor wrappers"), 145 (`curl | bash`), 154 ("all
+        tool wrappers"), 216 ("edit `~/ai-skills/claude/global/personal-rules.md`").
+      - `.github/workflows/ci.yml` — 231 linhas; step `Repo hygiene self-test` em 102-103; o step
+        novo entra logo depois dele.
+      - `openspec/specs/skills-catalog/spec.md:487` — *"The repository itself is gated, not only
+        its skills"*, cenário *"The uncovered part is declared, not implied"*.
+      - `openspec/config.yaml` — `schema: skills-rite`.
+      - `openspec/changes/archive/2026-08-30-fix-release-race/{proposal,design,tasks}.md` e
+        `specs/skills-catalog/spec.md` — modelo de estilo desta change.
+      - `scripts/validate-rite.sh`, `scripts/validate-rite-evidence.py`,
+        `scripts/validate-spec-rite.py` — o que os gates exigem de `tasks.md` e do diff.
+
+- [x] E.2 Ferramentas e comportamentos externos probados contra a versão instalada
+
+      ```
+      git --version
+      -> git version 2.47.3
+      openspec --version
+      -> 1.6.0
+      ```
+
+      O `&&` engole a falha sob `set -e` (motivo de D3):
+
+      ```
+      bash -c 'set -e; f() { echo "generate boom" >&2; return 3; }; f >/dev/null && echo "  ok"; echo "after: still running"'
+      -> generate boom
+      -> after: still running
+      -> exit=0
+      ```
+
+      `--tool` sem valor sob `set -u` (motivo de D4):
+
+      ```
+      bash -c 'set -euo pipefail; while [[ $# -gt 0 ]]; do case "$1" in --tool) TOOL="$2"; shift 2;; esac; done' probe --tool
+      -> probe: line 1: $2: unbound variable
+      -> exit=1
+      ```
+
+      O que o git diz num clone divergente, com e sem `--ff-only` (motivo de D5):
+
+      ```
+      git -C b pull
+      -> hint: You have divergent branches and need to specify how to reconcile them.
+      -> fatal: Need to specify how to reconcile divergent branches.
+      -> exit=128
+      git -C b pull --ff-only --quiet
+      -> hint: Diverging branches can't be fast-forwarded, you need to either:
+      -> (mais 8 linhas de hint:)
+      -> fatal: Not possible to fast-forward, aborting.
+      -> exit=128
+      ```
+
+      O filtro da guarda, num clone de `d2918ed` com `VERSION` editado, `skills/untracked.txt`
+      criado e `README.md` editado (motivo de D1 e D2):
+
+      ```
+      git status --porcelain --untracked-files=no -- VERSION skills/
+      ->  M VERSION
+      git status --porcelain
+      ->  M README.md
+      ->  M VERSION
+      -> ?? skills/untracked.txt
+      ```
+
+      O branch inicial de `git init` num `HOME` vazio (motivo de fixar `HEAD` do bare em D6):
+
+      ```
+      HOME=<vazio> git init -q dflt && git -C dflt symbolic-ref HEAD
+      -> refs/heads/master
+      ```
+
+      Contagem de skills que o caso idempotente tem de reportar:
+
+      ```
+      ls skills | wc -l
+      -> 35
+      ```
+
+- [x] E.3 O que não pôde ser probado
+
+      O comportamento de `actions/checkout` num `pull_request` (HEAD destacado no commit de merge)
+      não foi lido no código da action; D6 não depende dele, porque o teste faz
+      `git push <bare> HEAD:refs/heads/master`, que funciona com HEAD destacado ou não. A run de CI
+      do pull request é o que fecha essa lacuna. Nada mais ficou por probar.
+
+- [x] E.4 Checagem de escopo
+
+      A change faz só o que a issue #113 pediu. Notados pelo caminho e **não** feitos, ficam como
+      follow-up:
+
+      - `generate.sh` grava em `plugin.json` qualquer conteúdo de `VERSION` sem validar semver —
+        pertence à issue que reescreve esse bloco, como a #113 registra em "Fora de escopo".
+      - `install.sh` e `update.sh` duplicam o bloco de pull/mensagem em vez de compartilhar uma
+        função; como os dois rodam via `curl | bash` sem o repositório presente, não há de onde
+        carregar um arquivo comum.
+      - O README (`README.md:154`) já dizia o certo; só a linha 141 contradizia.
+
+## 2. update.sh — guarda de entradas, falha visível, texto
+
+- [x] 2.1 A regeneração roda só quando `git status --porcelain --untracked-files=no -- VERSION
+      skills/` está vazio; caso contrário imprime a lista, o comando que limpa, pula a regeneração e
+      não aborta o update (D1) — `update.sh`, bloco `DIRTY_INPUTS`
+- [x] 2.2 `bash generate.sh` sai do `&&`: falha vira exit ≠ 0 com a saída capturada (D3) —
+      `update.sh`, `if GEN_OUT="$(bash generate.sh 2>&1)"` com `exit "$GEN_RC"` no `else`
+- [x] 2.3 O `pull --ff-only` captura o stderr do git e o imprime indentado sob a mensagem própria e
+      a dica, com `advice.diverging=false` (D5) — `update.sh`, bloco `PULL_ERR`
+- [x] 2.4 Cabeçalho e `--help` dizem "all tool wrappers" e o cabeçalho declara o que a guarda não
+      cobre (D2) — `update.sh` linhas 6, 16-20 e 33
+
+## 3. install.sh — validação antes do clone, ff-only no re-run
+
+- [x] 3.1 `--tool` lê `${2:-}`; valor vazio é erro de uso com a lista suportada, exit 1 (D4) —
+      `bash install.sh --tool` -> `❌ --tool requires a value. Supported: claude, codex, cursor,
+      copilot, all`, `exit=1`
+- [x] 3.2 `SUPPORTED_TOOLS` valida o valor logo após o parse, antes de `command -v git` e do clone;
+      a mensagem de erro deriva da mesma variável (D4) — `bash install.sh --tool bogus` num HOME
+      vazio -> `❌ Unknown tool: bogus. Supported: claude, codex, cursor, copilot, all`, `exit=1`,
+      `ls $HOME` -> vazio (nada clonado). O texto do `--help` continua literal.
+- [x] 3.3 Re-run faz `git pull --ff-only` com a mesma mensagem, dica e detalhe indentado de
+      `update.sh` (D5) — `install.sh`, bloco `PULL_ERR`; o `case` final perde o ramo `*)`, que
+      nunca mais é alcançado
+- [x] 3.4 `AI_SKILLS_REPO_URL` sobrepõe `REPO_URL`, documentado no cabeçalho junto com o que a
+      guarda não cobre (D6) — `install.sh` linhas 15-27 e 30
+
+## 4. Teste de fumaça e gate
+
+- [x] 4.1 `scripts/smoke-install-scripts.sh`: bare local a partir do HEAD, `HOME` temporário por
+      caso, cobrindo install padrão, re-run idempotente, `--legacy`, `--tool codex`, `--tool all`,
+      `--tool bogus` (HOME vazio e clone existente), `--tool` sem valor, update limpo, update com
+      `VERSION` sujo, update com `skills/` sujo (edição rastreada e deleção em stage — as duas
+      metades do pathspec da guarda), update com edição fora das entradas, update com `generate.sh`
+      falhando, divergência sem `--force` (update e install) e com `--force` (D6). Os transportes https/ssh
+      ficam desligados em cada invocação (`protocol.<name>.allow=never`), probado:
+      `git clone https://github.com/solvelab/ai-skills.git` -> `fatal: transport 'https' not
+      allowed`, `exit=128`; clone e pull por caminho local com o mesmo env -> `exit=0`
+- [x] 4.2 O resumo final imprime a matriz em contagens `n/n` e o script sai 1 se qualquer caso
+      falhar (D7) — `bash scripts/smoke-install-scripts.sh` -> `smoke: 17/17 cases passed —
+      refusals that had to fire: 6/6, paths that had to succeed: 11/11`, `exit=0`.
+      Controle por mutação (revisão round 2): com o pathspec da guarda reduzido a `-- VERSION`
+      (`sed -i 's|-- VERSION skills/)"|-- VERSION)"|' update.sh` num clone de `91f583a`), o teste
+      de 15 casos passava `15/15`; com os casos 10b/10c -> `FAIL  [accept] update: dirty skills/
+      tree`, `FAIL  [accept] update: staged deletion under skills/`, `smoke: 15/17 cases passed`,
+      `exit=1`
+- [x] 4.3 Step novo em `.github/workflows/ci.yml`, logo após `Repo hygiene self-test`, rodando o
+      teste de fumaça — `grep -n 'smoke-install' .github/workflows/ci.yml` -> linha 109
+- [x] 4.4 `README.md:141` diz "all tool wrappers" — `sed -n 141p README.md` -> `Pull the latest
+      skills/rules into ~/ai-skills and regenerate all tool wrappers:`
+
+## 5. Simulation & Field Proof (MANDATORY)
+
+- [x] S.1 Os scripts foram exercitados pelo caminho real, com a saída observada
+
+      Os dois scripts rodados como o usuário roda (`bash install.sh ...`, `bash update.sh ...`),
+      num `HOME` temporário, clonando de um bare local construído do HEAD (`cd3c39e`):
+
+      ```
+      HOME=<tmp> AI_SKILLS_REPO_URL=<bare> bash install.sh --tool bogus
+      -> ❌ Unknown tool: bogus. Supported: claude, codex, cursor, copilot, all
+      -> exit=1
+      ls $HOME
+      -> (vazio: nada clonado)
+      ```
+
+      ```
+      HOME=<tmp> AI_SKILLS_REPO_URL=<bare> bash install.sh --tool
+      -> ❌ --tool requires a value. Supported: claude, codex, cursor, copilot, all
+      -> exit=1
+      ```
+
+      ```
+      HOME=<tmp> AI_SKILLS_REPO_URL=<bare> bash install.sh
+      ->   ✏️  Claude Code: 35 skill(s) symlinked into ~/.claude/skills/ (0 already up to date).
+      -> ✅ ai-skills installed successfully for claude! Restart your tool to apply.
+      -> exit=0
+      ```
+
+      ```
+      echo dirtychange >> $HOME/ai-skills/VERSION; HOME=<tmp> bash update.sh
+      -> ⏭️  Skipping wrapper regeneration: the generator's inputs have uncommitted changes:
+      ->       M VERSION
+      ->      Clean them with: git -C ~/ai-skills checkout -- VERSION skills/
+      ->      (or discard every local change with: cd ~/ai-skills && ./update.sh --force)
+      -> exit=0
+      git -C $HOME/ai-skills status --porcelain
+      ->  M VERSION
+      grep -c dirtychange $HOME/ai-skills/plugins/*/.claude-plugin/plugin.json | grep -v ':0$'
+      -> (nenhuma linha: nenhum plugin.json carrega a versão suja)
+      ```
+
+      ```
+      (commit local no clone + commit upstream no bare) HOME=<tmp> bash update.sh
+      -> 📦 Updating ~/ai-skills (current: v2.16.0)...
+      ->   ❌ Fast-forward failed — local changes diverge from origin.
+      ->      Re-run with --force to discard them: cd ~/ai-skills && ./update.sh --force
+      ->      git: fatal: Not possible to fast-forward, aborting.
+      -> exit=1
+      HOME=<tmp> AI_SKILLS_REPO_URL=<bare> bash install.sh
+      -> 📦 ~/ai-skills already exists. Pulling latest changes...
+      ->   ❌ Fast-forward failed — local changes diverge from origin.
+      ->      Re-run with --force to discard them: cd ~/ai-skills && ./update.sh --force
+      ->      git: fatal: Not possible to fast-forward, aborting.
+      -> exit=1
+      HOME=<tmp> bash update.sh --force
+      ->   ⚠️  --force: discarding local changes, resetting to origin/master
+      -> 🔧 Regenerating tool wrappers...
+      ```
+
+      O teste de fumaça pelo próprio ponto de entrada, no checkout e no oldroot (os scripts de
+      `188bdaa`, anteriores a esta change, com o mesmo teste copiado para dentro):
+
+      ```
+      bash scripts/smoke-install-scripts.sh
+      -> smoke: origin=/tmp/ai-skills-smoke.WEyXKw/origin.git head=91f583a skills=35
+      -> PASS  [accept] install: default (claude symlinks)
+      -> [...] (mais 8 linhas PASS)
+      -> PASS  [accept] update: dirty VERSION (pull, skip regeneration, exit 0)
+      -> PASS  [accept] update: dirty skills/ tree (pull, skip regeneration, exit 0)
+      -> PASS  [accept] update: staged deletion under skills/ (skip regeneration, exit 0)
+      -> [...] (mais 4 linhas PASS)
+      -> PASS  [accept] update: diverged, --force (reset to origin)
+      -> smoke: 17/17 cases passed — refusals that had to fire: 6/6, paths that had to succeed: 11/11
+      -> exit=0
+      ```
+
+      Os dois casos de `skills/` sujo, na mão, antes de entrarem no teste:
+
+      ```
+      echo x >> $HOME/ai-skills/skills/backlog/SKILL.md; HOME=<tmp> bash update.sh
+      -> ⏭️  Skipping wrapper regeneration: the generator's inputs have uncommitted changes:
+      ->       M skills/backlog/SKILL.md
+      -> exit=0
+      git -C $HOME/ai-skills rm -q skills/backlog/SKILL.md; HOME=<tmp> bash update.sh
+      -> ⏭️  Skipping wrapper regeneration: the generator's inputs have uncommitted changes:
+      ->      D  skills/backlog/SKILL.md
+      -> exit=0
+      ```
+
+      ```
+      bash oldroot/scripts/smoke-install-scripts.sh   # scripts antigos, teste de 15 casos, antes do bloqueio de transporte
+      -> FAIL  [refuse] install: --tool bogus (exit 1, nothing cloned)
+      ->         - output must not contain: Cloning
+      ->         - no clone directory was created
+      -> FAIL  [refuse] install: --tool without a value (exit 1, nothing cloned)
+      ->         - output must not contain: unbound variable
+      -> FAIL  [accept] update: dirty VERSION (pull, skip regeneration, exit 0)
+      ->         - no plugin.json carries the dirty version
+      -> FAIL  [refuse] update: failing generate.sh (exit 7 with its output)
+      ->         - expected exit 7, got 0
+      -> FAIL  [refuse] update: diverged, no --force (exit 1 with hint)
+      ->         - expected exit 1, got 0
+      -> smoke: 5/15 cases passed — refusals that had to fire: 0/6, paths that had to succeed: 5/9
+      -> exit=1
+      ```
+
+      ```
+      bash oldroot/scripts/smoke-install-scripts.sh   # scripts antigos, com o bloqueio de transporte
+      ->         | fatal: transport 'https' not allowed
+      -> ::error::smoke aborted at line 178: BEFORE="$(head_of "$INSTALL")"
+      -> exit=128
+      ```
+
+- [x] S.2 Matriz de casos medida, em contagens
+
+      | Expectativa | Casos | Resultado |
+      |---|---|---|
+      | Tinha de recusar e recusou (scripts novos) | 6/6 | `--tool bogus` ×2, `--tool` sem valor, `generate.sh` falhando, divergência sem `--force` (update e install) |
+      | Tinha de passar e passou (scripts novos) | 11/11 | install padrão, re-run idempotente (0 linked / 35 up to date), `--legacy`, `--tool codex`, `--tool all`, update limpo, `VERSION` sujo, `skills/` sujo (edição rastreada), `skills/` com deleção em stage, edição fora das entradas, `--force` |
+      | Controle negativo: o teste de 15 casos sobre os scripts antigos tinha de reprovar e reprovou | 10/15 reprovados, 0/6 recusas | ver S.1; o teste de 17 casos sobre os mesmos scripts aborta no bloqueio de transporte (`exit=128`), como já registrado |
+      | Controle por mutação: pathspec da guarda sem `skills/` tinha de reprovar e reprovou | 2/17 reprovados (10b, 10c) | ver 4.2; com o teste de 15 casos a mesma mutação passava `15/15` |
+      | Escape conhecido ficou mudo | 1/1 | arquivo novo não rastreado em `skills/` não pula a regeneração — declarado no cabeçalho de `update.sh`, ver S.3 |
+
+- [x] S.3 O que escapou ou se comportou diferente do esperado
+
+      Dois pontos, nenhum deles um defeito desta change:
+
+      - O `install.sh` antigo, rodado pelo teste antes do bloqueio de transporte, **clonou do
+        GitHub** (o caso 1 reprovou em "origin is the local bare"). O risco que a issue nomeia —
+        teste dependendo de rede — era real para qualquer script que ignore o override. Por isso
+        o `run` do teste desliga `protocol.https.allow` e `protocol.ssh.allow`; com isso o mesmo
+        script antigo morre em `fatal: transport 'https' not allowed` sem baixar nada (S.1).
+      - O banner `current: v$(cat VERSION)` de `update.sh` imprime a `VERSION` suja com a quebra de
+        linha extra (`current: v2.16.0\ndirtychange`). Cosmético, só ocorre com o arquivo que o
+        próprio usuário sujou, e o script logo abaixo diz que ele está sujo. Não tocado.
+
+      O escape declarado (D2) ficou mudo como esperado: `--untracked-files=no` não vê um
+      `skills/<novo>/` não rastreado, e a regeneração roda. Está escrito no cabeçalho de
+      `update.sh`; o teste exercita só a direção prometida (edição fora das entradas regenera).
+
+      Notado ao cobrir a deleção em stage (caso 10c, revisão round 2): a dica impressa pela guarda
+      (`git checkout -- VERSION skills/`) restaura o worktree a partir do índice, então não desfaz
+      um `git rm` — para esse estado é preciso `git checkout HEAD -- skills/` (é o que o teste usa
+      para restaurar a fixture). A guarda recusa corretamente; só a dica é incompleta para esse
+      caso. Não tocado nesta change: fica como follow-up, ao lado dos itens de E.4.
+
+## 6. Quality Gates (MANDATORY)
+
+- [x] Q.1 Frontmatter uniforme em todo `SKILL.md` tocado — **não se aplica**: esta change não toca
+      nenhuma skill (`git diff --name-only master...HEAD` -> nenhum caminho sob `skills/`)
+- [x] Q.2 Conteúdo de skill tocado em inglês — **não se aplica** pelo mesmo motivo; o delta de spec
+      e os cabeçalhos dos scripts estão em inglês, como o catálogo exige
+- [x] Q.3 Gatilhos de descrição testáveis — **não se aplica**: nenhuma descrição de skill muda
+- [x] Q.4 Sem doutrina duplicada: a regra "um check declara o que não cobre" é aplicada nos
+      cabeçalhos de `install.sh`, `update.sh` e do teste de fumaça, não reescrita; ver a tabela de
+      Canonical Home em `design.md`
+- [x] Q.5 Identificadores em inglês no que a change introduz — `SUPPORTED_TOOLS`,
+      `AI_SKILLS_REPO_URL`, `DIRTY_INPUTS`, `PULL_ERR`, `GEN_OUT`, `smoke-install-scripts.sh`, o
+      nome do step — conforme o glossário da issue #113 e `code-locale`; o hook de locale só
+      apontou `TMPDIR` como palavra desconhecida (é a variável de ambiente POSIX)
+
+## 7. Validation & Closure (MANDATORY)
+
+- [x] V.1 `openspec validate harden-distribution-scripts --strict` verde — em `5cc6d6a`:
+      `Change 'harden-distribution-scripts' is valid`, `exit=0`
+- [x] V.2 Descoberta do catálogo intacta: contagem de skills inalterada, sem órfão ou renomeado —
+      `ls -d skills/*/ | wc -l` -> `35` no branch; `git ls-tree --name-only master skills/ | wc -l`
+      -> `35`; `diff` das duas listas de nomes -> idêntico; `npx -y skills add . --list` ->
+      `Found 35 skills` (rodado com rede disponível; não foi provado que resolve offline). O único
+      caminho extra sob `skills/` é `skills/code-locale/references/__pycache__/`, ignorado pelo git
+      (`!!` em `git status --ignored`), produto do self-test do detector de locale, não do catálogo
+- [x] V.3 README / docs atualizados onde a change altera composição ou uso do catálogo — a
+      composição não muda; o uso (`update.sh`) muda de texto: `git diff master...HEAD -- README.md`
+      -> `-... regenerate the Cursor wrappers:` / `+... regenerate all tool wrappers:`;
+      `sed -n 141p README.md` -> `Pull the latest skills/rules into ~/ai-skills and regenerate
+      all tool wrappers:`. `update.sh` linhas 6 e 33 dizem o mesmo (2.4)
+- [ ] V.4 `openspec archive harden-distribution-scripts --yes` after all groups above are `[x]`
