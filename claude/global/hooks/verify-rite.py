@@ -190,8 +190,15 @@ def selftest() -> int:
 
 
 def main() -> int:
-    if "--selftest" in sys.argv[1:]:
+    args = sys.argv[1:]
+    if args == ["--selftest"]:
         return selftest()
+    if args:
+        # An unknown argument must not fall through to the stdin path: a misspelt flag in a CI
+        # step would then read empty stdin and exit 0 — the silent no-op the selftest mode exists
+        # to make impossible.
+        print(f"usage: {sys.argv[0]} [--selftest]", file=sys.stderr)
+        return 2
     payload = read_payload(sys.stdin)
     if payload is None:
         return 0

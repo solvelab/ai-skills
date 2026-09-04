@@ -102,7 +102,11 @@ SPEC_RITE_DIR = "openspec"
 
 
 def has_spec_rite(payload: dict) -> bool:
-    cwd = payload.get("cwd") or os.getcwd()
+    # A `cwd` that is missing, empty or not a string falls back to the process cwd: the field is
+    # read from untrusted JSON, and os.path.join on a non-string would cost the turn.
+    cwd = payload.get("cwd")
+    if not isinstance(cwd, str) or not cwd:
+        cwd = os.getcwd()
     return os.path.isdir(os.path.join(cwd, SPEC_RITE_DIR))
 
 
@@ -172,6 +176,11 @@ def selftest() -> int:
             ("empty prompt is silent", False, {"prompt": "", "cwd": with_rite}, None),
             ("payload without prompt is silent", False, {"cwd": with_rite}, None),
             ("prompt that is not a string is silent", False, {"prompt": 42, "cwd": with_rite}, None),
+            # The fallback for a malformed cwd is os.getcwd(), so this case cannot assert the spec
+            # sentence either way without reading the real cwd (TR1): it asserts only "no crash,
+            # still fires".
+            ("cwd that is not a string falls back and still fires", True,
+             {"prompt": "implementa o endpoint", "cwd": 42}, None),
         ]
         for name, should_fire, payload, spec_sentence in cases:
             got = evaluate(payload)
@@ -212,8 +221,15 @@ def selftest() -> int:
 
 
 def main() -> int:
-    if "--selftest" in sys.argv[1:]:
+    args = sys.argv[1:]
+    if args == ["--selftest"]:
         return selftest()
+    if args:
+        # An unknown argument must not fall through to the stdin path: a misspelt flag in a CI
+        # step would then read empty stdin and exit 0 — the silent no-op the selftest mode exists
+        # to make impossible.
+        print(f"usage: {sys.argv[0]} [--selftest]", file=sys.stderr)
+        return 2
     payload = read_payload(sys.stdin)
     if payload is None:
         return 0
