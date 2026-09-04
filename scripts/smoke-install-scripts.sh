@@ -210,6 +210,37 @@ want "only VERSION is dirty" test "$(git -C "$INSTALL" status --porcelain)" = " 
 finish accept "update: dirty VERSION (pull, skip regeneration, exit 0)"
 git -C "$INSTALL" checkout -q -- VERSION
 
+# ── 10b. update with a dirty skills/ tree: the other half of the pathspec ──
+# Case 10 alone let a pathspec reduced to `-- VERSION` pass the whole matrix (round-2 review of
+# issue #113): nothing dirtied skills/. A tracked edit under skills/ has to trip the same guard.
+echo "# smoke: dirty skill" >> "$INSTALL/skills/backlog/SKILL.md"
+run "$H1" bash "$ROOT/update.sh"
+want_rc 0
+want_out "Skipping wrapper regeneration"
+want_out " M skills/backlog/SKILL.md"
+want_out "checkout -- VERSION skills/"
+want_no_out "Wrappers regenerated"
+want_out "Already up to date"
+want "only the skill file is dirty" test "$(git -C "$INSTALL" status --porcelain)" = " M skills/backlog/SKILL.md"
+finish accept "update: dirty skills/ tree (pull, skip regeneration, exit 0)"
+git -C "$INSTALL" checkout -q -- skills/
+
+# ── 10c. update with a staged deletion under skills/: the index is read too ─
+# `--porcelain` reports the index as well as the worktree, so a `git rm` (worktree clean, index
+# dirty) must also skip the regeneration: generate.sh reads skills/ from the worktree, where the
+# file is gone, and would drop that skill's wrappers. Restored with `checkout HEAD --` because
+# the printed hint (`checkout -- ...`) reads the index, which no longer carries the file.
+git -C "$INSTALL" rm -q skills/backlog/SKILL.md
+run "$H1" bash "$ROOT/update.sh"
+want_rc 0
+want_out "Skipping wrapper regeneration"
+want_out "D  skills/backlog/SKILL.md"
+want_no_out "Wrappers regenerated"
+want "only the staged deletion is pending" test "$(git -C "$INSTALL" status --porcelain)" = "D  skills/backlog/SKILL.md"
+git -C "$INSTALL" checkout -q HEAD -- skills/
+want "fixture restored: tree clean" test -z "$(git -C "$INSTALL" status --porcelain)"
+finish accept "update: staged deletion under skills/ (skip regeneration, exit 0)"
+
 # ── 11. update with an edit outside the generator's inputs: regenerates ───
 echo "# local customization" >> "$INSTALL/claude/global/personal-rules.md"
 run "$H1" bash "$ROOT/update.sh"

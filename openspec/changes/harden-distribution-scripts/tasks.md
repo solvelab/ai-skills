@@ -141,14 +141,20 @@
 - [x] 4.1 `scripts/smoke-install-scripts.sh`: bare local a partir do HEAD, `HOME` temporário por
       caso, cobrindo install padrão, re-run idempotente, `--legacy`, `--tool codex`, `--tool all`,
       `--tool bogus` (HOME vazio e clone existente), `--tool` sem valor, update limpo, update com
-      `VERSION` sujo, update com edição fora das entradas, update com `generate.sh` falhando,
-      divergência sem `--force` (update e install) e com `--force` (D6). Os transportes https/ssh
+      `VERSION` sujo, update com `skills/` sujo (edição rastreada e deleção em stage — as duas
+      metades do pathspec da guarda), update com edição fora das entradas, update com `generate.sh`
+      falhando, divergência sem `--force` (update e install) e com `--force` (D6). Os transportes https/ssh
       ficam desligados em cada invocação (`protocol.<name>.allow=never`), probado:
       `git clone https://github.com/solvelab/ai-skills.git` -> `fatal: transport 'https' not
       allowed`, `exit=128`; clone e pull por caminho local com o mesmo env -> `exit=0`
 - [x] 4.2 O resumo final imprime a matriz em contagens `n/n` e o script sai 1 se qualquer caso
-      falhar (D7) — `bash scripts/smoke-install-scripts.sh` -> `smoke: 15/15 cases passed —
-      refusals that had to fire: 6/6, paths that had to succeed: 9/9`
+      falhar (D7) — `bash scripts/smoke-install-scripts.sh` -> `smoke: 17/17 cases passed —
+      refusals that had to fire: 6/6, paths that had to succeed: 11/11`, `exit=0`.
+      Controle por mutação (revisão round 2): com o pathspec da guarda reduzido a `-- VERSION`
+      (`sed -i 's|-- VERSION skills/)"|-- VERSION)"|' update.sh` num clone de `91f583a`), o teste
+      de 15 casos passava `15/15`; com os casos 10b/10c -> `FAIL  [accept] update: dirty skills/
+      tree`, `FAIL  [accept] update: staged deletion under skills/`, `smoke: 15/17 cases passed`,
+      `exit=1`
 - [x] 4.3 Step novo em `.github/workflows/ci.yml`, logo após `Repo hygiene self-test`, rodando o
       teste de fumaça — `grep -n 'smoke-install' .github/workflows/ci.yml` -> linha 109
 - [x] 4.4 `README.md:141` diz "all tool wrappers" — `sed -n 141p README.md` -> `Pull the latest
@@ -218,16 +224,33 @@
 
       ```
       bash scripts/smoke-install-scripts.sh
-      -> smoke: origin=/tmp/ai-skills-smoke.IjMZdd/origin.git head=188bdaa skills=35
+      -> smoke: origin=/tmp/ai-skills-smoke.WEyXKw/origin.git head=91f583a skills=35
       -> PASS  [accept] install: default (claude symlinks)
-      -> (mais 13 linhas PASS)
+      -> [...] (mais 8 linhas PASS)
+      -> PASS  [accept] update: dirty VERSION (pull, skip regeneration, exit 0)
+      -> PASS  [accept] update: dirty skills/ tree (pull, skip regeneration, exit 0)
+      -> PASS  [accept] update: staged deletion under skills/ (skip regeneration, exit 0)
+      -> [...] (mais 4 linhas PASS)
       -> PASS  [accept] update: diverged, --force (reset to origin)
-      -> smoke: 15/15 cases passed — refusals that had to fire: 6/6, paths that had to succeed: 9/9
+      -> smoke: 17/17 cases passed — refusals that had to fire: 6/6, paths that had to succeed: 11/11
+      -> exit=0
+      ```
+
+      Os dois casos de `skills/` sujo, na mão, antes de entrarem no teste:
+
+      ```
+      echo x >> $HOME/ai-skills/skills/backlog/SKILL.md; HOME=<tmp> bash update.sh
+      -> ⏭️  Skipping wrapper regeneration: the generator's inputs have uncommitted changes:
+      ->       M skills/backlog/SKILL.md
+      -> exit=0
+      git -C $HOME/ai-skills rm -q skills/backlog/SKILL.md; HOME=<tmp> bash update.sh
+      -> ⏭️  Skipping wrapper regeneration: the generator's inputs have uncommitted changes:
+      ->      D  skills/backlog/SKILL.md
       -> exit=0
       ```
 
       ```
-      bash oldroot/scripts/smoke-install-scripts.sh   # scripts antigos, antes do bloqueio de transporte
+      bash oldroot/scripts/smoke-install-scripts.sh   # scripts antigos, teste de 15 casos, antes do bloqueio de transporte
       -> FAIL  [refuse] install: --tool bogus (exit 1, nothing cloned)
       ->         - output must not contain: Cloning
       ->         - no clone directory was created
@@ -255,8 +278,9 @@
       | Expectativa | Casos | Resultado |
       |---|---|---|
       | Tinha de recusar e recusou (scripts novos) | 6/6 | `--tool bogus` ×2, `--tool` sem valor, `generate.sh` falhando, divergência sem `--force` (update e install) |
-      | Tinha de passar e passou (scripts novos) | 9/9 | install padrão, re-run idempotente (0 linked / 35 up to date), `--legacy`, `--tool codex`, `--tool all`, update limpo, `VERSION` sujo, edição fora das entradas, `--force` |
-      | Controle negativo: o mesmo teste sobre os scripts antigos tinha de reprovar e reprovou | 10/15 reprovados, 0/6 recusas | ver S.1 |
+      | Tinha de passar e passou (scripts novos) | 11/11 | install padrão, re-run idempotente (0 linked / 35 up to date), `--legacy`, `--tool codex`, `--tool all`, update limpo, `VERSION` sujo, `skills/` sujo (edição rastreada), `skills/` com deleção em stage, edição fora das entradas, `--force` |
+      | Controle negativo: o teste de 15 casos sobre os scripts antigos tinha de reprovar e reprovou | 10/15 reprovados, 0/6 recusas | ver S.1; o teste de 17 casos sobre os mesmos scripts aborta no bloqueio de transporte (`exit=128`), como já registrado |
+      | Controle por mutação: pathspec da guarda sem `skills/` tinha de reprovar e reprovou | 2/17 reprovados (10b, 10c) | ver 4.2; com o teste de 15 casos a mesma mutação passava `15/15` |
       | Escape conhecido ficou mudo | 1/1 | arquivo novo não rastreado em `skills/` não pula a regeneração — declarado no cabeçalho de `update.sh`, ver S.3 |
 
 - [x] S.3 O que escapou ou se comportou diferente do esperado
@@ -275,6 +299,12 @@
       O escape declarado (D2) ficou mudo como esperado: `--untracked-files=no` não vê um
       `skills/<novo>/` não rastreado, e a regeneração roda. Está escrito no cabeçalho de
       `update.sh`; o teste exercita só a direção prometida (edição fora das entradas regenera).
+
+      Notado ao cobrir a deleção em stage (caso 10c, revisão round 2): a dica impressa pela guarda
+      (`git checkout -- VERSION skills/`) restaura o worktree a partir do índice, então não desfaz
+      um `git rm` — para esse estado é preciso `git checkout HEAD -- skills/` (é o que o teste usa
+      para restaurar a fixture). A guarda recusa corretamente; só a dica é incompleta para esse
+      caso. Não tocado nesta change: fica como follow-up, ao lado dos itens de E.4.
 
 ## 6. Quality Gates (MANDATORY)
 
