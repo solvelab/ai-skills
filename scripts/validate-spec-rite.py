@@ -15,12 +15,18 @@ retroactively by PR #88.
 
   S1 a diff outside openspec/ carries a change, an archive, or a written waiver
   S2 the waiver names a reason
+  S3 the change it carries is ITS change: the diff touches openspec/changes/<id>/ of an active
+     change, or the pull request body names one on a `Spec-rite: <id>` line. Until issue #117
+     (2026-09-04) the mere existence of any active change registered any diff, and the selftest
+     pinned that as a silent case.
 
-KNOWN LIMIT: this proves that a change EXISTS, never that it is honest — a change scaffolded to
-satisfy the gate passes it, exactly as a padded evidence box passes the shape gate. Existence is a
-required, reviewable artifact; the review is what judges it. The selftest exercises the decision
-rules against synthetic inputs, not the git plumbing that feeds them: a misconfigured checkout is
-caught by the CI-only base-resolution failure below, not by the selftest.
+KNOWN LIMIT: this proves that a change EXISTS and is LINKED to the diff — by path or by name, never
+by content — not that it is honest. A change scaffolded to satisfy the gate passes it, exactly as a
+padded evidence box passes the shape gate, and a single tick in the tasks.md of any active change
+links any diff to it. Existence and relevance are required, reviewable artifacts; the review is what
+judges them. The selftest exercises the decision rules against synthetic inputs, not the git
+plumbing that feeds them: a misconfigured checkout is caught by the CI-only base-resolution failure
+below, not by the selftest.
 
 The waiver is read from the event payload the runner already writes (GITHUB_EVENT_PATH), not from
 an environment variable handed to the step: GitHub Actions prints a step's `env:` block into the
@@ -72,6 +78,16 @@ WAIVER_NO_REASON = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 MIN_REASON = 8
+
+# The line that names the change a pull request belongs to — the form execute-backlog writes into
+# the body (skills/execute-backlog/references/spec-rite.md). Same treatment as the waiver: anchored
+# to the start of a line, matched as text, never executed. `none` is the waiver, not a change id,
+# and is filtered out after the match rather than excluded in the pattern so the two regexes stay
+# readable side by side.
+NAMED_CHANGE = re.compile(
+    r"^[ \t>*-]*Spec-rite:[ \t]*(?P<id>[A-Za-z0-9][A-Za-z0-9._-]*)[ \t]*$",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 findings: list[str] = []
 
@@ -168,12 +184,28 @@ def waiver_reason(pr_body: str) -> str | None:
     return m.group("reason").strip() if m else None
 
 
+def named_changes(pr_body: str) -> list[str]:
+    """Every change id the body names on a `Spec-rite: <id>` line, in order; the waiver is not one."""
+    return [m.group("id") for m in NAMED_CHANGE.finditer(pr_body or "")
+            if m.group("id").lower() != "none"]
+
+
+def touched_changes(paths: list[str], changes: list[str]) -> list[str]:
+    """The active changes whose own directory this diff touches — a tick in tasks.md counts."""
+    return sorted(c for c in changes if any(p.startswith(f"{CHANGES}/{c}/") for p in paths))
+
+
 def evaluate(paths: list[str], changes: list[str], pr_body: str) -> None:
     """The whole decision, as a pure function of its inputs — this is what --selftest exercises."""
     offenders = requires_registration(paths)
     if not offenders:
         return
-    if changes or archived_in_diff(paths):
+    if archived_in_diff(paths):
+        return
+
+    # Relevance, not existence (S3): the diff is registered by the change it touches or names.
+    named = named_changes(pr_body)
+    if touched_changes(paths, changes) or any(n in changes for n in named):
         return
 
     reason = waiver_reason(pr_body)
@@ -189,6 +221,19 @@ def evaluate(paths: list[str], changes: list[str], pr_body: str) -> None:
         return
 
     sample = ", ".join(offenders[:5]) + (f" (+{len(offenders) - 5} more)" if len(offenders) > 5 else "")
+    if changes:
+        stale = [n for n in named if n not in changes]
+        stale_note = (f"; the body names {', '.join(stale)}, which is not an active change"
+                      if stale else "")
+        add("S3 unrelated change",
+            f"this diff touches {len(offenders)} path(s) outside {EXEMPT_PREFIX} — {sample} — and "
+            f"{len(changes)} active change(s) exist ({', '.join(changes)}), but the diff touches none "
+            f"of their directories and the pull request body names none of them{stale_note}. "
+            f"Link the diff to its change: touch {CHANGES}/<id>/ (a tick in tasks.md counts) or add "
+            "a line `Spec-rite: <id>` to the pull request body — or waive it with "
+            "`Spec-rite: none — <reason>`")
+        return
+
     add("S1 unregistered change",
         f"this diff touches {len(offenders)} path(s) outside {EXEMPT_PREFIX} — {sample} — with no "
         f"active change under {CHANGES}/, no change archived in the same diff, and no waiver. "
@@ -202,14 +247,30 @@ DEFECTS = [
     ("S1 unregistered change", (["skills/backlog/SKILL.md"], [], "")),
     ("S2 waiver reason", (["skills/backlog/SKILL.md"], [], "Spec-rite: none — x")),
     ("S2 waiver reason", (["skills/backlog/SKILL.md"], [], "Spec-rite: none")),
+    # Until issue #117 this exact input was SILENT[2] "active change present": any active change
+    # registered any diff. It is the defect the relevance rule exists to catch.
+    ("S3 unrelated change", (["skills/backlog/SKILL.md"], ["add-spec-rite-gate"], "")),
+    ("S3 unrelated change", (["skills/backlog/SKILL.md"], ["add-spec-rite-gate"],
+                             "Spec-rite: some-archived-change")),
+    ("S3 unrelated change", (["skills/backlog/SKILL.md"], ["add-spec-rite-gate"],
+                             "see the Spec-rite: add-spec-rite-gate line elsewhere")),
 ]
 
 SILENT = [
     ("diff confined to openspec/", (["openspec/changes/x/tasks.md"], [], "")),
     ("release automation only", (["VERSION", "CHANGELOG.md", ".claude-plugin/plugin.json"], [], "")),
-    ("active change present", (["skills/backlog/SKILL.md"], ["add-spec-rite-gate"], "")),
+    ("active change touched in the diff",
+     (["skills/backlog/SKILL.md", f"{CHANGES}/add-spec-rite-gate/tasks.md"], ["add-spec-rite-gate"], "")),
+    ("active change named in the body",
+     (["skills/backlog/SKILL.md"], ["add-spec-rite-gate", "other-change"], "Spec-rite: add-spec-rite-gate")),
+    ("active change named in a list item",
+     (["README.md"], ["add-spec-rite-gate"], "- Spec-rite: add-spec-rite-gate")),
     ("archived in the same diff", ([f"{CHANGES}/archive/2026-01-01-x/tasks.md", "README.md"], [], "")),
+    ("archived with an unrelated active change",
+     ([f"{CHANGES}/archive/2026-01-01-x/tasks.md", "README.md"], ["other-change"], "")),
     ("waiver with a reason", (["skills/backlog/SKILL.md"], [], "Spec-rite: none — typo no README")),
+    ("waiver with a reason beside an unrelated active change",
+     (["skills/backlog/SKILL.md"], ["other-change"], "Spec-rite: none — typo no README")),
     ("waiver quoted in a list item", (["README.md"], [], "- Spec-rite: none — correcao de link quebrado")),
 ]
 
