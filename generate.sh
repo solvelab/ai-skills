@@ -34,6 +34,49 @@ VERSION_STR="$(tr -d '[:space:]' < "${SCRIPT_DIR}/VERSION" 2>/dev/null || true)"
     exit 1
 }
 
+# The theme is the ONLY hand-written part of a plugin's published description. The skill names and
+# their count are read from plugins/<group>/skills/ at generation time, so a skill that changes
+# category moves in every published description on the next run. Keep names and numbers out of
+# these strings: scripts/validate-repo-hygiene.py (H3) compares the generated parenthetical against
+# the tree, and a name here would be published twice and drift once.
+declare -A GROUP_THEME=(
+  [backend]="Backend service conventions, dependency resilience, observability and log-event collection"
+  [testing]="Adversarial testing rite and REST negative/fuzz/contract testing"
+  [fivem]="FiveM/CitizenFX Lua conventions and Lua-side resilience patterns"
+  [game]="React Three Fiber and AssettoServer game-dev conventions"
+  [devops]="Kubernetes/Helm migration, cluster resource tuning and AssettoServer operations"
+  [docs]="Three-tier project documentation generation"
+  [workflow]="Commit format, OpenSpec spec-driven workflow, the backlog rite, the anti-guessing rite and the code-locale rule"
+  [nui]="FiveM/RedM NUI React conventions — Lua↔React bridge, CEF rendering quirks, tokens design system"
+  [frontend]="React SPA API-client conventions and physically-grounded SVG/CSS animation"
+  [tooling]="AI-assistant developer tooling — Claude Code status line setup and customization"
+)
+
+group_of() {
+  case "$1" in
+    git|process) echo "workflow" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+category_of() {
+  grep -m1 '^  category:' "$1" | sed 's/^  category: *//'
+}
+
+# Every plugin group the tree will produce must already have a theme, checked HERE — before the
+# first mkdir/>, before `rm -rf plugins/` — so that a new category stops the generator with the
+# working tree untouched, the same guarantee the VERSION guard gives. Checked inside the plugins/
+# loop (as it once was) the failure came after the wrappers were written and after plugins/ was
+# wiped, leaving the tree half-generated.
+for skill_md in "$SKILLS"/*/SKILL.md; do
+  [ -f "$skill_md" ] || continue
+  group="$(group_of "$(category_of "$skill_md")")"
+  [[ -v GROUP_THEME[$group] ]] || {
+    echo "❌ generate.sh: no GROUP_THEME for plugin group '${group}' (from $(basename "$(dirname "$skill_md")")/SKILL.md) — add its theme to GROUP_THEME in generate.sh. Nothing was written." >&2
+    exit 1
+  }
+done
+
 mkdir -p "$CURSOR_OUT" "$COPILOT_OUT"
 
 # Extract the YAML frontmatter block (including delimiters) from a SKILL.md
@@ -158,44 +201,21 @@ done
 # (enabledPlugins in .claude/settings.json) instead of the full bundle.
 PLUGINS_OUT="${SCRIPT_DIR}/plugins"
 rm -rf "$PLUGINS_OUT"
-# The theme is the ONLY hand-written part of a plugin's published description. The skill names and
-# their count are read from plugins/<group>/skills/ at generation time, so a skill that changes
-# category moves in every published description on the next run. Keep names and numbers out of
-# these strings: scripts/validate-repo-hygiene.py (H3) compares the generated parenthetical against
-# the tree, and a name here would be published twice and drift once.
-declare -A GROUP_THEME=(
-  [backend]="Backend service conventions, dependency resilience, observability and log-event collection"
-  [testing]="Adversarial testing rite and REST negative/fuzz/contract testing"
-  [fivem]="FiveM/CitizenFX Lua conventions and Lua-side resilience patterns"
-  [game]="React Three Fiber and AssettoServer game-dev conventions"
-  [devops]="Kubernetes/Helm migration, cluster resource tuning and AssettoServer operations"
-  [docs]="Three-tier project documentation generation"
-  [workflow]="Commit format, OpenSpec spec-driven workflow, the backlog rite, the anti-guessing rite and the code-locale rule"
-  [nui]="FiveM/RedM NUI React conventions — Lua↔React bridge, CEF rendering quirks, tokens design system"
-  [frontend]="React SPA API-client conventions and physically-grounded SVG/CSS animation"
-  [tooling]="AI-assistant developer tooling — Claude Code status line setup and customization"
-)
-
-group_of() {
-  case "$1" in
-    git|process) echo "workflow" ;;
-    *) echo "$1" ;;
-  esac
-}
 
 for skill_md in "$SKILLS"/*/SKILL.md; do
   [ -f "$skill_md" ] || continue
   skill_dir="$(dirname "$skill_md")"
   name="$(basename "$skill_dir")"
-  cat="$(grep -m1 '^  category:' "$skill_md" | sed 's/^  category: *//')"
-  group="$(group_of "$cat")"
+  group="$(group_of "$(category_of "$skill_md")")"
   mkdir -p "$PLUGINS_OUT/$group/skills"
   cp -r --no-preserve=mode "$skill_dir" "$PLUGINS_OUT/$group/skills/$name"
 done
 
 # "<theme> (<N> skills: <names>)" — names sorted under LC_ALL=C so the output is identical on every
-# machine and a second run produces no diff. An unknown group fails here on purpose: the old
-# `:-Skill group <g>` fallback would have published a placeholder for a new category without a word.
+# machine and a second run produces no diff. The theme lookup is guarded a second time on purpose,
+# even though the pre-write check above already refused any group without one: the old
+# `:-Skill group <g>` fallback would have published a placeholder for a new category without a
+# word, and this is the line that would do it again if the check above were ever removed.
 group_description() {
   local group="$1" names count
   [[ -v GROUP_THEME[$group] ]] || {

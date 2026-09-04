@@ -26,8 +26,8 @@ injetado cada no `--selftest`; H2 lê só `README.md` e `marketplace.json` (`COU
   de categoria altera os três artefatos na próxima geração sem edição manual.
 - Um texto publicado que nomeia skill fora do grupo, omite uma do grupo, ou publica uma contagem
   nua, falha o build nomeando arquivo, grupo e diferença.
-- `VERSION` inválido derruba o gerador com exit ≠ 0 antes de gravar qualquer arquivo, e
-  `set-version.sh 1.2.3garbage` é recusado pela mesma regex.
+- `VERSION` inválido e um grupo sem tema derrubam o gerador com exit ≠ 0 antes de gravar
+  qualquer arquivo, e `set-version.sh 1.2.3garbage` é recusado pela mesma regex.
 - Segunda run de `generate.sh` sem diff; o release não produz segundo diff.
 
 **Non-Goals:**
@@ -48,9 +48,16 @@ publicada é montada na geração como `"<tema> (<N> skills: <nomes>)"`, com os 
 em qualquer máquina e a segunda run não produzir diff.
 
 O fallback `:-Skill group ${group}` some. Um grupo que aparece na árvore sem tema derruba o gerador
-com `❌ generate.sh: no GROUP_THEME for plugin group '<g>'` e exit 1. Uma categoria nova passa a
-exigir um tema explícito, que é exatamente o momento em que alguém deveria decidir o que o plugin
-novo é.
+com `❌ generate.sh: no GROUP_THEME for plugin group '<g>' (from <skill>/SKILL.md)` e exit 1. A
+checagem roda **antes do primeiro `mkdir`/`>` e antes do `rm -rf plugins/`**: logo depois da guarda
+de `VERSION` (D2), o gerador lê `metadata.category` de cada `skills/*/SKILL.md` (`category_of`),
+passa por `group_of` e exige a chave em `GROUP_THEME` — a mesma leitura que o loop de `plugins/` faz
+depois, feita duas vezes de propósito para a falha ser atômica. Na primeira versão desta change a
+checagem vivia só em `group_description`, dentro do loop de `plugins/`, e o gerador saía com os
+wrappers gravados e `plugins/` já apagado (medido em `tasks.md` S.3); o `[[ -v ]]` de
+`group_description` fica como segunda guarda, para o placeholder não voltar se a checagem de cima
+for removida. Uma categoria nova passa a exigir um tema explícito, que é exatamente o momento em que
+alguém deveria decidir o que o plugin novo é.
 
 ### D2 — `VERSION` é validado no topo do gerador, com uma regex partilhada
 
@@ -120,7 +127,10 @@ das linhas da tabela (`assettoserver-plugin` e `assettoserver-csp-lua`, que têm
 acima). Sem número nenhum ali: um número escrito à mão numa prosa que H3 não lê é a deriva que a
 change está removendo. As linhas 50-55 viram uma tabela `Plugin | Ships` com os nomes das skills de
 cada plugin — também prosa, também review-only, e registrada como follow-up (gerar esse bloco a
-partir da mesma fonte).
+partir da mesma fonte). O parágrafo que introduz a tabela diz exatamente isso: a descrição
+publicada vem do gerador e é conferida por H3; a tabela é mantida à mão e nenhum gate a compara com
+a árvore. A primeira versão desta change escrevia ali que `generate.sh` "deriva as duas", o que era
+falso para a tabela (`grep -n README generate.sh` → nada) e foi corrigido na revisão.
 
 ## Canonical Home & Cross-Links (MANDATORY)
 

@@ -26,7 +26,8 @@ script, which remains their only writer.
 #### Scenario: A group without a theme stops the generator
 
 - **WHEN** the tree yields a plugin group for which no theme is declared
-- **THEN** the generator exits non-zero naming the group, instead of publishing a placeholder
+- **THEN** the generator exits non-zero naming the group and the skill that yielded it, before any
+  wrapper or plugin manifest is written, instead of publishing a placeholder
 
 #### Scenario: A malformed version stops the generator before it writes
 

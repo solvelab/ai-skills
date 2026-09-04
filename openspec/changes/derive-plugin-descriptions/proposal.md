@@ -32,7 +32,9 @@ Por fim, `generate.sh:180` lê `VERSION` com `tr -d '[:space:]'` sem validar a f
 - `generate.sh`: `GROUP_DESC` vira `GROUP_THEME` (só o tema, sem nomes nem contagens). A descrição
   publicada de cada plugin passa a ser `"<tema> (<N> skills: <nomes ordenados>)"`, com `N` e os
   nomes lidos de `plugins/<g>/skills/` no momento da geração. O fallback `:-Skill group` some: um
-  grupo sem tema derruba o gerador com mensagem que nomeia o grupo.
+  grupo sem tema derruba o gerador com mensagem que nomeia o grupo e a skill, **antes de gravar
+  qualquer arquivo** — a categoria de cada `skills/*/SKILL.md` é lida contra `GROUP_THEME` logo
+  depois da guarda de `VERSION`, antes do primeiro `mkdir` e do `rm -rf plugins/`.
 - `generate.sh` passa a reescrever também as `description` das entradas por plugin de
   `.claude-plugin/marketplace.json` (inclusive a do bundle `ai-skills`, que publica `all N skills`)
   e a `description` do `.claude-plugin/plugin.json` raiz, derivada do conjunto de temas. Os campos
@@ -50,7 +52,8 @@ Por fim, `generate.sh:180` lê `VERSION` com `tr -d '[:space:]'` sem validar a f
   cada check não cobre (o texto do tema) fica declarado dentro dele.
 - `README.md`: a linha de `svg-animation` sai da tabela Game e entra na tabela Frontend; o
   cabeçalho Game deixa de dizer "10 topics" e o parágrafo nomeia o que o plugin `game` de fato
-  embarca; `README.md:50-55` vira uma tabela que nomeia as skills de cada plugin.
+  embarca; `README.md:50-55` vira uma tabela que nomeia as skills de cada plugin, e o parágrafo
+  que a introduz diz que ela é mantida à mão (só a descrição publicada vem do gerador).
 
 ## Capabilities
 

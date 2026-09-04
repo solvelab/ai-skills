@@ -125,15 +125,16 @@
 
       - `.github/workflows/ci.yml:47` continua sem a regex ancorada (a issue pedia; o orquestrador
         desta execução vetou editar o workflow). Cobertura transitiva via o step *Wrappers in sync*.
-      - A tabela de `README.md:50-55` que nomeia as skills por plugin é prosa escrita à mão; gerar
-        esse bloco a partir da mesma fonte (marcadores + `generate.sh`) fecharia a última deriva.
+      - A tabela de `README.md:50-55` que nomeia as skills por plugin é prosa escrita à mão (o
+        parágrafo que a introduz diz isso desde a revisão 2; antes atribuía a tabela ao gerador);
+        gerar esse bloco a partir da mesma fonte (marcadores + `generate.sh`) fecharia a última deriva.
       - `README.md:345` (`r3f-*/SKILL.md # ... (10 topics)`) está dentro de um bloco de código e
         fora das linhas desta change; é verdadeiro hoje (10 diretórios `r3f-*`) e review-only.
       - `install.sh`/`update.sh` — issue própria.
-      - A checagem de tema (`group_description`, `generate.sh:201`) roda depois de `rm -rf plugins/`;
-        um grupo sem tema deixa `plugins/` incompleto ao sair (medido em S.3). Checar as categorias
-        de `skills/*/SKILL.md` contra `GROUP_THEME` antes do primeiro `rm -rf` tornaria essa falha
-        tão atômica quanto a de `VERSION`.
+      - Um grupo **com** tema mas sem entrada no `marketplace.json` ainda derruba o gerador depois
+        de gravar os wrappers e `plugins/<g>/` (D3 roda depois do loop; medido em S.3). O spec só
+        promete atomicidade para `VERSION` e para o tema (fechado na revisão 2); ler o
+        `marketplace.json` antes do primeiro `mkdir` fecharia também este caminho.
 
 ## 2. Gerador: tema à mão, nomes e contagem da árvore
 
@@ -141,7 +142,7 @@
 
       ```
       grep -nE 'declare -A GROUP_THEME' generate.sh; grep -c GROUP_DESC generate.sh
-      -> 166:declare -A GROUP_THEME=(
+      -> 42:declare -A GROUP_THEME=(
       -> 0
       sed -n '/declare -A GROUP_THEME/,/^)/p' generate.sh | grep -cE '\[[a-z]+\]=".*[0-9]'
       -> 0    (nenhum tema carrega dígito)
@@ -152,7 +153,7 @@
 
       ```
       grep -n 'LC_ALL=C sort' generate.sh
-      -> 205:  names="$(ls -1 "$PLUGINS_OUT/$group/skills" | LC_ALL=C sort | paste -sd, - | sed 's/,/, /g')"
+      -> 225:  names="$(ls -1 "$PLUGINS_OUT/$group/skills" | LC_ALL=C sort | paste -sd, - | sed 's/,/, /g')"
       python3 -c "import json;print(json.load(open('plugins/game/.claude-plugin/plugin.json'))['description'])"
       -> React Three Fiber and AssettoServer game-dev conventions (12 skills: assettoserver-csp-lua, assettoserver-plugin, r3f-animation, r3f-assets, r3f-fundamentals, r3f-geometry, r3f-interaction, r3f-lighting, r3f-materials, r3f-physics, r3f-postprocessing, r3f-shaders)
       python3 -c "import json;print(json.load(open('plugins/docs/.claude-plugin/plugin.json'))['description'])"
@@ -177,22 +178,34 @@
       -> repo hygiene: 0 findings
       ```
 
-- [x] 2.3 O fallback `:-Skill group` some: grupo sem tema derruba o gerador nomeando o grupo (D1)
+- [x] 2.3 O fallback `:-Skill group` some: grupo sem tema derruba o gerador nomeando o grupo, antes
+      de gravar qualquer arquivo (D1)
 
       ```
       grep -n ':-Skill group' generate.sh
-      -> 198:# `:-Skill group <g>` fallback would have published a placeholder [...]   (só o comentário)
+      -> 217:# `:-Skill group <g>` fallback would have published a placeholder for a new category without a   (só o comentário)
       grep -n -- '-v GROUP_THEME' generate.sh
-      -> 201:  [[ -v GROUP_THEME[$group] ]] || {
+      -> 74:  [[ -v GROUP_THEME[$group] ]] || {      (pré-checagem sobre skills/*/SKILL.md, antes do mkdir da 80)
+      -> 221:  [[ -v GROUP_THEME[$group] ]] || {     (segunda guarda em group_description)
+      grep -nE '^category_of|^rm -rf' generate.sh
+      -> 62:category_of() {
+      -> 203:rm -rf "$PLUGINS_OUT"
       ```
 
-      Na cópia de simulação, `skills/zz-probe/` com `category: newcat`:
+      Na cópia de simulação (`git archive` do worktree + `git init`), `skills/zz-probe/` com
+      `category: newcat` commitado como base. Revisão 2, com a checagem antes do primeiro write:
 
       ```
-      bash generate.sh; echo rc=$?
-      -> ❌ generate.sh: no GROUP_THEME for plugin group 'newcat' — add its theme to GROUP_THEME in generate.sh.
+      bash generate.sh; echo rc=$?; echo "porcelain: $(git status --porcelain | wc -l)"
+      -> ❌ generate.sh: no GROUP_THEME for plugin group 'newcat' (from zz-probe/SKILL.md) — add its theme to GROUP_THEME in generate.sh. Nothing was written.
       -> rc=1
+      -> porcelain: 0
+      find plugins codex/AGENTS.md -newer generate.sh | wc -l
+      -> 0        (nada gravado depois da cópia do gerador)
       ```
+
+      Na primeira versão da change a mesma prova dava `porcelain` 10 (`M codex/AGENTS.md`, quatro
+      `D plugins/*/.claude-plugin/plugin.json`, cinco `??`): a saída está guardada em S.3.
 
 - [x] 2.4 `generate.sh` reescreve as `description` das entradas do `marketplace.json` (por plugin e
       bundle) e a do `plugin.json` raiz por round-trip JSON, sem tocar `version`; entrada sem grupo
@@ -200,10 +213,10 @@
 
       ```
       grep -nE '^python3 - |def marketplace|def root_manifest|if out != raw' generate.sh
-      -> 238:python3 - "$SCRIPT_DIR" "$generated" "$plugin_count" "${group_args[@]}" <<'PY'
-      -> 254:    if out != raw:
-      -> 258:def marketplace(data: dict) -> None:
-      -> 280:def root_manifest(data: dict) -> None:
+      -> 258:python3 - "$SCRIPT_DIR" "$generated" "$plugin_count" "${group_args[@]}" <<'PY'
+      -> 274:    if out != raw:
+      -> 278:def marketplace(data: dict) -> None:
+      -> 300:def root_manifest(data: dict) -> None:
       python3 -c "import json;d=json.load(open('.claude-plugin/marketplace.json'));print(d['plugins'][0]['description']);print(d['metadata']['version'])"
       -> FULL bundle (all 35 skills). Prefer the per-domain plugins — enable only what fits the project.
       -> 2.16.0
@@ -238,9 +251,17 @@
       -> 24:[ -d "$SKILLS" ] || { echo "❌ skills/ directory not found."; exit 1; }
       -> 30:SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
       -> 32:[[ "$VERSION_STR" =~ $SEMVER_RE ]] || {
-      -> 37:mkdir -p "$CURSOR_OUT" "$COPILOT_OUT"
+      -> 80:mkdir -p "$CURSOR_OUT" "$COPILOT_OUT"
       grep -c 'echo 0.0.0' generate.sh
       -> 0
+      ```
+
+      Entre a 32 e a 80 só há declarações (`GROUP_THEME`, `group_of`, `category_of`) e a
+      pré-checagem de tema (2.3), que lê `skills/*/SKILL.md` e não grava nada:
+
+      ```
+      sed -n '33,79p' generate.sh | grep -vE '^\s*#' | grep -E '(^|[^&])>[^&]|\bmkdir\b|\brm\b|\bcp\b' | wc -l
+      -> 0        (o único `>` fora de comentário é o `>&2` da mensagem de erro)
       ```
 
       Com mtime de três saídas medido antes e depois (`plugins/game/.claude-plugin/plugin.json`,
@@ -384,7 +405,20 @@
       ```
 
       A tabela é prosa e não é comparada com a árvore por H3 (limite declarado em
-      `scripts/validate-repo-hygiene.py:161-170`); medido em S.3.
+      `scripts/validate-repo-hygiene.py:161-170`); medido em S.3. O parágrafo que a introduz diz
+      isso (revisão 2 — antes dizia que `generate.sh` "deriva as duas", e o gerador nunca leu nem
+      escreveu o README):
+
+      ```
+      grep -n README generate.sh; echo rc=$?
+      -> rc=1
+      sed -n '51,55p' README.md | cut -c1-100
+      -> full `ai-skills` bundle for whoever really wants all 35. What each plugin ships. The published
+      -> description of each plugin is derived by `generate.sh` from `plugins/<group>/skills/` and checked
+      -> against that tree by `scripts/validate-repo-hygiene.py` (H3); this table is **hand-maintained** and
+      -> mirrors it — no gate compares it with the tree (H3's declared KNOWN LIMIT), so review it when a sk
+      -> changes category:
+      ```
 
 ## 6. Simulation & Field Proof (MANDATORY)
 
@@ -460,7 +494,7 @@
 
       | Expectativa | Casos | Resultado |
       |---|---|---|
-      | Tinha de disparar e disparou | **11/11** | `VERSION` `1.2.3garbage` (gerador, exit 1, mtimes intactos); `VERSION` ausente (exit 1); `set-version.sh 1.2.3garbage` (exit 1, `VERSION` intacto); grupo sem tema (exit 1, nomeia `newcat`); tema sem entrada no marketplace (exit 1, nomeia `newcat`); entrada `ai-skills-ghost` sem grupo (exit 1); H3 `plugin.json` sem `log-event-collector` (2 findings, nomeia arquivo, grupo, faltando); H3 entrada `ai-skills-fivem` com `fivem-nui-react` (nomeia sobrando e faltando); H2 `(10 topics)` no `plugin.json` raiz; H2 `(… — 10 topics)` no cabeçalho `README.md:548`; `--selftest` 4/4 |
+      | Tinha de disparar e disparou | **11/11** | `VERSION` `1.2.3garbage` (gerador, exit 1, mtimes intactos); `VERSION` ausente (exit 1); `set-version.sh 1.2.3garbage` (exit 1, `VERSION` intacto); grupo sem tema (exit 1, nomeia `newcat` e `zz-probe/SKILL.md`, porcelain 0 — revisão 2); tema sem entrada no marketplace (exit 1, nomeia `newcat`); entrada `ai-skills-ghost` sem grupo (exit 1); H3 `plugin.json` sem `log-event-collector` (2 findings, nomeia arquivo, grupo, faltando); H3 entrada `ai-skills-fivem` com `fivem-nui-react` (nomeia sobrando e faltando); H2 `(10 topics)` no `plugin.json` raiz; H2 `(… — 10 topics)` no cabeçalho `README.md:548`; `--selftest` 4/4 |
       | Tinha de mudar e mudou | **1/1** | `svg-animation` `frontend → game`: `marketplace.json` (2 entradas), `plugins/frontend` e `plugins/game` reescritos com `1 skill`/`13 skills`, hygiene 0 findings sobre a árvore movida |
       | Tinha de ficar mudo e ficou | **8/8** | segunda `generate.sh` (porcelain 0); `set-version.sh 9.9.9` + `generate.sh` (sem segundo diff, 12 arquivos em 9.9.9); pré-release `3.0.0-rc.1` aceito; hygiene no worktree (0 findings); `README.md:355` dentro de fence (0 findings); `claude plugin validate --strict` em 2.1.260 e em 2.1.246; `Wrappers in sync` e `Version coherence` do `ci.yml` literais |
       | Escape conhecido ficou mudo | **2/2** | tema errado (`[fivem]="Kubernetes cluster tuning…"`): publicado e hygiene 0 findings; `README.md:63` tabela de plugins com `helm-migration` em `ai-skills-docs`: hygiene 0 findings |
@@ -489,11 +523,12 @@
       com esses tamanhos — mas nenhum comando local renderiza a listagem do marketplace sem
       sessão interativa (E.3). Fica como limite conhecido.
 
-      Uma diferença de comportamento, medida e registrada como limite: um grupo sem tema derruba
-      o gerador **no meio do loop** de `plugins/`, não antes de gravar. `rm -rf plugins/`
-      (`generate.sh:160`) já rodou, os wrappers já foram gravados, e os `plugin.json` dos grupos
-      que vêm depois do grupo órfão na ordem alfabética ainda não foram recriados. Medido na
-      cópia, com `skills/zz-probe/` (`category: newcat`) commitado como base:
+      Uma diferença de comportamento, medida na primeira versão da change e **fechada na revisão
+      2**: um grupo sem tema derrubava o gerador **no meio do loop** de `plugins/`, não antes de
+      gravar. `rm -rf plugins/` já tinha rodado, os wrappers já estavam gravados, e os `plugin.json`
+      dos grupos que vêm depois do grupo órfão na ordem alfabética ainda não tinham sido recriados.
+      Medido na cópia, com `skills/zz-probe/` (`category: newcat`) commitado como base, no gerador
+      de `5bff578`:
 
       ```
       bash generate.sh; echo rc=$?; git status --porcelain
@@ -508,13 +543,33 @@
       -> [...]  (codex/, copilot/, cursor/ e plugins/newcat/ novos)
       ```
 
-      `.claude-plugin/marketplace.json` e `.claude-plugin/plugin.json` ficam intactos (a reescrita
-      de D3 vem depois do loop). "Antes de gravar qualquer arquivo" (D2) vale para `VERSION` e foi
-      medido em 3.1; para o tema, a garantia é exit 1 com os manifestos da raiz intactos e uma
-      árvore `plugins/` visivelmente incompleta, que o step *Wrappers in sync* do `ci.yml` reprova
-      e que uma segunda run após declarar o tema recompõe. Mover a checagem de tema para antes do
-      `rm -rf` (ler as categorias de `skills/*/SKILL.md` primeiro) fecharia isso e fica como
-      follow-up em E.4. Nada mais escapou nem se comportou de forma diferente.
+      O spec prometia "antes de gravar qualquer arquivo" para os dois casos e o código só cumpria
+      para `VERSION` (finding da revisão 2). A checagem de tema foi movida para logo depois da
+      guarda de `VERSION`, sobre `skills/*/SKILL.md`, antes do primeiro `mkdir` e do `rm -rf`
+      (`generate.sh:66-78`); a mesma prova, na mesma cópia, com o gerador revisado:
+
+      ```
+      bash generate.sh; echo rc=$?; echo "porcelain: $(git status --porcelain | wc -l)"
+      -> ❌ generate.sh: no GROUP_THEME for plugin group 'newcat' (from zz-probe/SKILL.md) — add its theme to GROUP_THEME in generate.sh. Nothing was written.
+      -> rc=1
+      -> porcelain: 0
+      ```
+
+      O que **continua** não atômico, medido na mesma cópia e fora do que o spec promete: tema
+      declarado para `newcat` mas sem entrada no `marketplace.json` derruba o gerador em D3, depois
+      do loop, com os wrappers e `plugins/newcat/` já gravados (os `plugin.json` dos outros grupos
+      já foram recriados, então não há `D`):
+
+      ```
+      bash generate.sh; echo rc=$?; git status --porcelain | grep -v '^ M generate.sh'
+      -> ❌ generate.sh: plugin group(s) with no marketplace entry: newcat — add the entry to .claude-plugin/marketplace.json.
+      -> rc=1
+      ->  M codex/AGENTS.md
+      -> ?? claude/skills/zz-probe/
+      -> [...]  (codex/, copilot/, cursor/ e plugins/newcat/ novos)
+      ```
+
+      Fica como follow-up em E.4. Nada mais escapou nem se comportou de forma diferente.
 
 ## 7. Quality Gates (MANDATORY)
 

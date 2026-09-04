@@ -48,8 +48,11 @@ The CLI detects your installed agents (Claude Code, Codex, Cursor, Copilot, and 
 ### Option B — Claude Code plugin marketplace
 
 The marketplace ships **per-domain plugins** so a project enables only coherent sets — plus the
-full `ai-skills` bundle for whoever really wants all 35. What each plugin ships (the same list its
-published description carries; `generate.sh` derives both from `plugins/<group>/skills/`):
+full `ai-skills` bundle for whoever really wants all 35. What each plugin ships. The published
+description of each plugin is derived by `generate.sh` from `plugins/<group>/skills/` and checked
+against that tree by `scripts/validate-repo-hygiene.py` (H3); this table is **hand-maintained** and
+mirrors it — no gate compares it with the tree (H3's declared KNOWN LIMIT), so review it when a skill
+changes category:
 
 | Plugin | Ships |
 |---|---|
