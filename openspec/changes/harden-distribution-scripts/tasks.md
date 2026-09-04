@@ -156,25 +156,140 @@
 
 ## 5. Simulation & Field Proof (MANDATORY)
 
-- [ ] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
-      observed output are recorded (or: this change touches no runtime artifact)
-- [ ] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
-      silent and did, known escapes that stayed silent
-- [ ] S.3 What escaped or behaved differently than expected is named here — or it is stated
-      explicitly that nothing did
+- [x] S.1 Os scripts foram exercitados pelo caminho real, com a saída observada
+
+      Os dois scripts rodados como o usuário roda (`bash install.sh ...`, `bash update.sh ...`),
+      num `HOME` temporário, clonando de um bare local construído do HEAD (`cd3c39e`):
+
+      ```
+      HOME=<tmp> AI_SKILLS_REPO_URL=<bare> bash install.sh --tool bogus
+      -> ❌ Unknown tool: bogus. Supported: claude, codex, cursor, copilot, all
+      -> exit=1
+      ls $HOME
+      -> (vazio: nada clonado)
+      ```
+
+      ```
+      HOME=<tmp> AI_SKILLS_REPO_URL=<bare> bash install.sh --tool
+      -> ❌ --tool requires a value. Supported: claude, codex, cursor, copilot, all
+      -> exit=1
+      ```
+
+      ```
+      HOME=<tmp> AI_SKILLS_REPO_URL=<bare> bash install.sh
+      ->   ✏️  Claude Code: 35 skill(s) symlinked into ~/.claude/skills/ (0 already up to date).
+      -> ✅ ai-skills installed successfully for claude! Restart your tool to apply.
+      -> exit=0
+      ```
+
+      ```
+      echo dirtychange >> $HOME/ai-skills/VERSION; HOME=<tmp> bash update.sh
+      -> ⏭️  Skipping wrapper regeneration: the generator's inputs have uncommitted changes:
+      ->       M VERSION
+      ->      Clean them with: git -C ~/ai-skills checkout -- VERSION skills/
+      ->      (or discard every local change with: cd ~/ai-skills && ./update.sh --force)
+      -> exit=0
+      git -C $HOME/ai-skills status --porcelain
+      ->  M VERSION
+      grep -c dirtychange $HOME/ai-skills/plugins/*/.claude-plugin/plugin.json | grep -v ':0$'
+      -> (nenhuma linha: nenhum plugin.json carrega a versão suja)
+      ```
+
+      ```
+      (commit local no clone + commit upstream no bare) HOME=<tmp> bash update.sh
+      -> 📦 Updating ~/ai-skills (current: v2.16.0)...
+      ->   ❌ Fast-forward failed — local changes diverge from origin.
+      ->      Re-run with --force to discard them: cd ~/ai-skills && ./update.sh --force
+      ->      git: fatal: Not possible to fast-forward, aborting.
+      -> exit=1
+      HOME=<tmp> AI_SKILLS_REPO_URL=<bare> bash install.sh
+      -> 📦 ~/ai-skills already exists. Pulling latest changes...
+      ->   ❌ Fast-forward failed — local changes diverge from origin.
+      ->      Re-run with --force to discard them: cd ~/ai-skills && ./update.sh --force
+      ->      git: fatal: Not possible to fast-forward, aborting.
+      -> exit=1
+      HOME=<tmp> bash update.sh --force
+      ->   ⚠️  --force: discarding local changes, resetting to origin/master
+      -> 🔧 Regenerating tool wrappers...
+      ```
+
+      O teste de fumaça pelo próprio ponto de entrada, no checkout e no oldroot (os scripts de
+      `188bdaa`, anteriores a esta change, com o mesmo teste copiado para dentro):
+
+      ```
+      bash scripts/smoke-install-scripts.sh
+      -> smoke: origin=/tmp/ai-skills-smoke.IjMZdd/origin.git head=188bdaa skills=35
+      -> PASS  [accept] install: default (claude symlinks)
+      -> (mais 13 linhas PASS)
+      -> PASS  [accept] update: diverged, --force (reset to origin)
+      -> smoke: 15/15 cases passed — refusals that had to fire: 6/6, paths that had to succeed: 9/9
+      -> exit=0
+      ```
+
+      ```
+      bash oldroot/scripts/smoke-install-scripts.sh   # scripts antigos, antes do bloqueio de transporte
+      -> FAIL  [refuse] install: --tool bogus (exit 1, nothing cloned)
+      ->         - output must not contain: Cloning
+      ->         - no clone directory was created
+      -> FAIL  [refuse] install: --tool without a value (exit 1, nothing cloned)
+      ->         - output must not contain: unbound variable
+      -> FAIL  [accept] update: dirty VERSION (pull, skip regeneration, exit 0)
+      ->         - no plugin.json carries the dirty version
+      -> FAIL  [refuse] update: failing generate.sh (exit 7 with its output)
+      ->         - expected exit 7, got 0
+      -> FAIL  [refuse] update: diverged, no --force (exit 1 with hint)
+      ->         - expected exit 1, got 0
+      -> smoke: 5/15 cases passed — refusals that had to fire: 0/6, paths that had to succeed: 5/9
+      -> exit=1
+      ```
+
+      ```
+      bash oldroot/scripts/smoke-install-scripts.sh   # scripts antigos, com o bloqueio de transporte
+      ->         | fatal: transport 'https' not allowed
+      -> ::error::smoke aborted at line 178: BEFORE="$(head_of "$INSTALL")"
+      -> exit=128
+      ```
+
+- [x] S.2 Matriz de casos medida, em contagens
+
+      | Expectativa | Casos | Resultado |
+      |---|---|---|
+      | Tinha de recusar e recusou (scripts novos) | 6/6 | `--tool bogus` ×2, `--tool` sem valor, `generate.sh` falhando, divergência sem `--force` (update e install) |
+      | Tinha de passar e passou (scripts novos) | 9/9 | install padrão, re-run idempotente (0 linked / 35 up to date), `--legacy`, `--tool codex`, `--tool all`, update limpo, `VERSION` sujo, edição fora das entradas, `--force` |
+      | Controle negativo: o mesmo teste sobre os scripts antigos tinha de reprovar e reprovou | 10/15 reprovados, 0/6 recusas | ver S.1 |
+      | Escape conhecido ficou mudo | 1/1 | arquivo novo não rastreado em `skills/` não pula a regeneração — declarado no cabeçalho de `update.sh`, ver S.3 |
+
+- [x] S.3 O que escapou ou se comportou diferente do esperado
+
+      Dois pontos, nenhum deles um defeito desta change:
+
+      - O `install.sh` antigo, rodado pelo teste antes do bloqueio de transporte, **clonou do
+        GitHub** (o caso 1 reprovou em "origin is the local bare"). O risco que a issue nomeia —
+        teste dependendo de rede — era real para qualquer script que ignore o override. Por isso
+        o `run` do teste desliga `protocol.https.allow` e `protocol.ssh.allow`; com isso o mesmo
+        script antigo morre em `fatal: transport 'https' not allowed` sem baixar nada (S.1).
+      - O banner `current: v$(cat VERSION)` de `update.sh` imprime a `VERSION` suja com a quebra de
+        linha extra (`current: v2.16.0\ndirtychange`). Cosmético, só ocorre com o arquivo que o
+        próprio usuário sujou, e o script logo abaixo diz que ele está sujo. Não tocado.
+
+      O escape declarado (D2) ficou mudo como esperado: `--untracked-files=no` não vê um
+      `skills/<novo>/` não rastreado, e a regeneração roda. Está escrito no cabeçalho de
+      `update.sh`; o teste exercita só a direção prometida (edição fora das entradas regenera).
 
 ## 6. Quality Gates (MANDATORY)
 
-- [ ] Q.1 Frontmatter uniform on every touched SKILL.md: name == directory, folded description,
-      metadata.author solvelab, semver metadata.version, category in the controlled set, license MIT,
-      compatibility present
-- [ ] Q.2 All touched skill content in English (catalog locale)
-- [ ] Q.3 Description triggers testable: phrases a user would actually say route to this skill and
-      do NOT collide with a sibling skill's triggers; "Do NOT use for" boundary present where overlap exists
-- [ ] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
-      its canonical skill (see design.md Canonical Home table)
-- [ ] Q.5 Every code example in a touched skill uses English identifiers, routes, keys and event
-      names; a term kept in another language carries its reason inline (`code-locale`)
+- [x] Q.1 Frontmatter uniforme em todo `SKILL.md` tocado — **não se aplica**: esta change não toca
+      nenhuma skill (`git diff --name-only master...HEAD` -> nenhum caminho sob `skills/`)
+- [x] Q.2 Conteúdo de skill tocado em inglês — **não se aplica** pelo mesmo motivo; o delta de spec
+      e os cabeçalhos dos scripts estão em inglês, como o catálogo exige
+- [x] Q.3 Gatilhos de descrição testáveis — **não se aplica**: nenhuma descrição de skill muda
+- [x] Q.4 Sem doutrina duplicada: a regra "um check declara o que não cobre" é aplicada nos
+      cabeçalhos de `install.sh`, `update.sh` e do teste de fumaça, não reescrita; ver a tabela de
+      Canonical Home em `design.md`
+- [x] Q.5 Identificadores em inglês no que a change introduz — `SUPPORTED_TOOLS`,
+      `AI_SKILLS_REPO_URL`, `DIRTY_INPUTS`, `PULL_ERR`, `GEN_OUT`, `smoke-install-scripts.sh`, o
+      nome do step — conforme o glossário da issue #113 e `code-locale`; o hook de locale só
+      apontou `TMPDIR` como palavra desconhecida (é a variável de ambiente POSIX)
 
 ## 7. Validation & Closure (MANDATORY)
 
