@@ -1,41 +1,37 @@
 ---
 name: code-locale
 description: >-
-  Decides which natural language each artifact of a change is written in: prose follows the
-  repository's working language, and anything a machine parses is English. Use when naming a
-  variable, function, class, file, module, REST route segment, query param, DB table or column,
-  enum value, event or topic name, config key or log field; when reviewing a diff or PR that
-  introduces names; when a backlog item written in another language is about to become code; when
-  deciding whether a domain term like CPF, CNPJ, boleto, PIX or nota fiscal keeps its name; when an
-  external API's payload fields are in another language; or when the user says "código em
-  português", "nome de variável em inglês", "rota em português", "traduz esse nome", "identificador
-  em inglês", "should this be in English", "our code is half Portuguese", "naming convention",
-  "ubiquitous language", "anti-corruption layer". Covers the prose/machine boundary, the
-  untranslatable-domain-term exception and its gate, the grooming glossary, the new-code-only
-  migration policy, and a shipped detector a repository can wire into CI. Do NOT use for the
-  language of commit subjects or PR bodies (that is conventional-commit), for the language of
-  documentation prose (that is documentation), for format-level naming conventions like case style
-  or test-method patterns (those live in each stack's skill), or for i18n and user-facing
-  translation.
+  Decides which natural language each artifact is written in: prose follows the repository's
+  working language, anything a machine parses is English. Use when naming a variable, function,
+  class, file, route, query param, DB table or column, enum value, event, config key or log field;
+  when reviewing a diff that introduces names; when a backlog item in another language becomes
+  code; when a domain term like CPF, CNPJ, boleto, PIX or nota fiscal may keep its name; when an
+  external API's payload is in another language; or when the user says "código em português",
+  "nome de variável em inglês", "rota em português", "traduz esse nome", "identificador em
+  inglês", "should this be in English", "our code is half Portuguese", "naming convention",
+  "ubiquitous language", "anti-corruption layer". Do NOT use for commit subjects or PR bodies
+  (that is conventional-commit), for docs prose (that is documentation), for case style or test
+  naming (each stack's skill), or for i18n and user-facing translation.
 metadata:
   author: solvelab
-  version: 1.2.0
+  version: 1.3.0
   category: process
 license: MIT
 compatibility: >-
   The doctrine is language- and stack-agnostic and needs no runtime. The shipped detector
-  `references/check-identifier-locale.py` needs Python 3.9+ and no third-party package; it
-  tokenizes Python, Lua, JavaScript, TypeScript, C#, SQL, YAML, JSON and Bash, measures the path of
-  every file it is given, reports the contents of any other file type as skipped rather than
-  passing, and ships the public-domain word list that answers its second question (read with the
-  standard library's gzip module, so there is still no third-party package). The optional write-time hook `claude/global/hooks/locale-rite.py` needs a harness that
-  emits a post-write tool event; it was built against Claude Code 2.1.246 and exits silently
-  anywhere else.
+  `references/check-identifier-locale.py` needs Python 3.9+ and no third-party package (its word
+  list is read with the standard library's gzip module); it tokenizes Python, Lua, JavaScript,
+  TypeScript, C#, SQL, YAML, JSON and Bash and reports any other file type as skipped. The
+  optional hook `claude/global/hooks/locale-rite.py` was built against Claude Code 2.1.246 and
+  exits silently anywhere else.
 ---
 
 # Code locale — prose follows the repo, the machine layer is English
 
 **Prose follows the repository's working language. Anything a machine parses is English.**
+This skill covers the prose/machine boundary, the untranslatable-domain-term exception and its
+gate, the grooming glossary, the new-code-only migration policy, and a shipped detector a
+repository can wire into CI.
 
 The boundary is drawn by *what consumes the artifact*, not by who wrote it. A commit body and a
 code comment have the same audience, so they land on the same side. A route segment and a database
@@ -45,7 +41,8 @@ without a taste debate.
 - **Per-stack enumeration, wrong → right pairs**: `references/boundary-map.md`
 - **Producing and consuming the PT→EN glossary**: `references/glossary-protocol.md`
 - **Existing names: the three migration tiers**: `references/migration.md`
-- **The detector**: `references/check-identifier-locale.py`
+- **The detector** — measures the path of every file it is given and the contents of the types
+  it tokenizes: `references/check-identifier-locale.py`
 
 ## The two layers
 

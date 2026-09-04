@@ -1,6 +1,6 @@
 ---
 description: >-
-  Decides which natural language each artifact of a change is written in: prose follows the repository's working language, and anything a machine parses is English. Use when naming a variable, function, class, file, module, REST route segment, query param, DB table or column, enum value, event or topic name, config key or log field; when reviewing a diff or PR that introduces names; when a backlog item written in another language is about to become code; when deciding whether a domain term like CPF, CNPJ, boleto, PIX or nota fiscal keeps its name; when an external API's payload fields are in another language; or when the user says "código em português", "nome de variável em inglês", "rota em português", "traduz esse nome", "identificador em inglês", "should this be in English", "our code is half Portuguese", "naming convention", "ubiquitous language", "anti-corruption layer". Covers the prose/machine boundary, the untranslatable-domain-term exception and its gate, the grooming glossary, the new-code-only migration policy, and a shipped detector a repository can wire into CI. Do NOT use for the language of commit subjects or PR bodies (that is conventional-commit), for the language of documentation prose (that is documentation), for format-level naming conventions like case style or test-method patterns (those live in each stack's skill), or for i18n and user-facing translation.
+  Decides which natural language each artifact is written in: prose follows the repository's working language, anything a machine parses is English. Use when naming a variable, function, class, file, route, query param, DB table or column, enum value, event, config key or log field; when reviewing a diff that introduces names; when a backlog item in another language becomes code; when a domain term like CPF, CNPJ, boleto, PIX or nota fiscal may keep its name; when an external API's payload is in another language; or when the user says "código em português", "nome de variável em inglês", "rota em português", "traduz esse nome", "identificador em inglês", "should this be in English", "our code is half Portuguese", "naming convention", "ubiquitous language", "anti-corruption layer". Do NOT use for commit subjects or PR bodies (that is conventional-commit), for docs prose (that is documentation), for case style or test naming (each stack's skill), or for i18n and user-facing translation.
 alwaysApply: false
 ---
 
@@ -8,6 +8,9 @@ alwaysApply: false
 # Code locale — prose follows the repo, the machine layer is English
 
 **Prose follows the repository's working language. Anything a machine parses is English.**
+This skill covers the prose/machine boundary, the untranslatable-domain-term exception and its
+gate, the grooming glossary, the new-code-only migration policy, and a shipped detector a
+repository can wire into CI.
 
 The boundary is drawn by *what consumes the artifact*, not by who wrote it. A commit body and a
 code comment have the same audience, so they land on the same side. A route segment and a database
@@ -17,7 +20,8 @@ without a taste debate.
 - **Per-stack enumeration, wrong → right pairs**: `references/boundary-map.md`
 - **Producing and consuming the PT→EN glossary**: `references/glossary-protocol.md`
 - **Existing names: the three migration tiers**: `references/migration.md`
-- **The detector**: `references/check-identifier-locale.py`
+- **The detector** — measures the path of every file it is given and the contents of the types
+  it tokenizes: `references/check-identifier-locale.py`
 
 ## The two layers
 

@@ -80,12 +80,34 @@ jobs:
 
       - name: Skill content checks (paths, cross-refs, code blocks, pins)
         run: |
-          python3 -m pip install --quiet pyyaml
+          python3 -m pip install --quiet pyyaml skills-ref==0.1.1
           sudo apt-get install -y -qq lua5.4 >/dev/null 2>&1 || true
           python3 scripts/validate-skills.py
 
       - name: Skill validator self-test (the gate is itself gated)
         run: python3 scripts/selftest-validate-skills.py
+
+      - name: Agent Skills reference validator (skills-ref, pinned, blocking)
+        # README.md says the catalog follows the open Agent Skills standard; this is the standard's
+        # own validator (PyPI `skills-ref`, binary `agentskills` — not `skills-ref`), installed on
+        # the pip line above so a missing package fails loudly. Measured on 2026-09-04 with 0.1.1:
+        # it rejected 5 of 35 skills for a description over 1024 characters before this step existed.
+        #
+        # The version is pinned on purpose: skills_ref/validator.py:15-22 whitelists the frontmatter
+        # fields it accepts, so a newer release could reject a field this catalog uses and fail the
+        # build on someone else's release schedule. Bump it deliberately, after running it locally
+        # over skills/*.
+        #
+        # WHAT THIS COVERS AND WHAT IT DOES NOT: name (length, charset, == directory), description
+        # and compatibility limits, and the field whitelist — per skill, frontmatter only. It reads
+        # nothing below the frontmatter: bodies, references/, cross-skill links and code blocks stay
+        # with scripts/validate-skills.py, whose C10 measures the same two limits so the two agree.
+        run: |
+          fail=0
+          for d in skills/*/; do
+            agentskills validate "$d" || fail=1
+          done
+          exit $fail
 
       - name: Identifier-locale detector self-test (the shipped script is itself gated)
         run: python3 skills/code-locale/references/check-identifier-locale.py --selftest
@@ -101,6 +123,12 @@ jobs:
 
       - name: Repo hygiene self-test (the gate is itself gated)
         run: python3 scripts/validate-repo-hygiene.py --selftest
+
+      - name: Distribution scripts smoke test (install.sh + update.sh under a temporary HOME)
+        # Runs both scripts through their documented invocations against a local bare clone of this
+        # checkout's HEAD, never the network, and prints the case matrix as counts. Before this step
+        # nothing in CI executed either script (issue #113).
+        run: bash scripts/smoke-install-scripts.sh
 
       - name: OpenSpec rite gate (skills-rite schema)
         # The spec-rite gate reads the waiver line from the event payload the runner already wrote
