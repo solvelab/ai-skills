@@ -11,11 +11,26 @@
 #   codex    appends the Skills block to ~/.codex/AGENTS.md
 #   cursor   points at cursor/rules/*.mdc (copy per project)
 #   copilot  points at copilot/instructions/ (copy per project)
+#
+# `--tool` is validated before anything is cloned or pulled, so a typo never leaves a clone
+# behind. On a re-run over an existing ~/ai-skills the pull is fast-forward only: a clone that
+# diverged from origin is refused with the same message and recovery hint update.sh gives.
+#
+# WHAT THE GUARD DOES NOT COVER: this script never inspects the working tree. Uncommitted edits in
+# ~/ai-skills are neither refused nor discarded here (a fast-forward pull that touches the same
+# file fails on git's side, and that failure is reported under the divergence message). Only
+# update.sh decides whether the wrappers can be regenerated; install.sh regenerates nothing.
+# There is no interactive prompt on purpose: the README runs this script via `curl | bash`, where
+# stdin is the script itself.
+#
+# AI_SKILLS_REPO_URL overrides the clone source. It exists for scripts/smoke-install-scripts.sh,
+# which clones from a local bare repository instead of the network; unset, nothing changes.
 set -euo pipefail
 
-REPO_URL="https://github.com/solvelab/ai-skills.git"
+REPO_URL="${AI_SKILLS_REPO_URL:-https://github.com/solvelab/ai-skills.git}"
 INSTALL_DIR="$HOME/ai-skills"
 LEGACY=0
+SUPPORTED_TOOLS="claude codex cursor copilot all"
 
 # --- Tool-specific configurations ---
 
@@ -105,7 +120,11 @@ TOOL="claude"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --tool)
-            TOOL="$2"
+            TOOL="${2:-}"
+            if [ -z "$TOOL" ]; then
+                echo "❌ --tool requires a value. Supported: ${SUPPORTED_TOOLS// /, }"
+                exit 1
+            fi
             shift 2
             ;;
         --legacy)
@@ -136,6 +155,15 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Validate --tool BEFORE touching the network or the disk: a bad value must not leave a clone behind.
+case " $SUPPORTED_TOOLS " in
+    *" $TOOL "*) ;;
+    *)
+        echo "❌ Unknown tool: $TOOL. Supported: ${SUPPORTED_TOOLS// /, }"
+        exit 1
+        ;;
+esac
+
 # Check git is installed
 if ! command -v git &> /dev/null; then
     echo "❌ Error: git is not installed. Please install git first."
@@ -145,7 +173,14 @@ fi
 # Clone or pull the repository
 if [ -d "$INSTALL_DIR" ]; then
     echo "📦 ~/ai-skills already exists. Pulling latest changes..."
-    git -C "$INSTALL_DIR" pull
+    # Same contract as update.sh: fast-forward only, own message first, git's `fatal:` line as an
+    # indented detail (advice.diverging=false drops the nine `hint:` lines that precede it).
+    if ! PULL_ERR="$(git -C "$INSTALL_DIR" -c advice.diverging=false pull --ff-only --quiet 2>&1)"; then
+        echo "  ❌ Fast-forward failed — local changes diverge from origin."
+        echo "     Re-run with --force to discard them: cd ~/ai-skills && ./update.sh --force"
+        [ -z "$PULL_ERR" ] || printf '     git: %s\n' "$PULL_ERR"
+        exit 1
+    fi
 else
     echo "📦 Cloning ai-skills into ~/ai-skills..."
     git clone "$REPO_URL" "$INSTALL_DIR"
@@ -173,10 +208,6 @@ case "$TOOL" in
         setup_codex
         setup_cursor
         setup_copilot
-        ;;
-    *)
-        echo "❌ Unknown tool: $TOOL. Supported: claude, codex, cursor, copilot, all"
-        exit 1
         ;;
 esac
 

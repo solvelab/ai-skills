@@ -123,13 +123,18 @@
 
 ## 3. install.sh — validação antes do clone, ff-only no re-run
 
-- [ ] 3.1 `--tool` lê `${2:-}`; valor vazio é erro de uso com a lista suportada, exit 1 (D4)
-- [ ] 3.2 `SUPPORTED_TOOLS` valida o valor logo após o parse, antes de `command -v git` e do clone;
-      `--help` e a mensagem de erro usam a mesma lista (D4)
-- [ ] 3.3 Re-run faz `git pull --ff-only` com a mesma mensagem, dica e detalhe indentado de
-      `update.sh` (D5)
-- [ ] 3.4 `AI_SKILLS_REPO_URL` sobrepõe `REPO_URL`, documentado no cabeçalho junto com o que a
-      guarda não cobre (D6)
+- [x] 3.1 `--tool` lê `${2:-}`; valor vazio é erro de uso com a lista suportada, exit 1 (D4) —
+      `bash install.sh --tool` -> `❌ --tool requires a value. Supported: claude, codex, cursor,
+      copilot, all`, `exit=1`
+- [x] 3.2 `SUPPORTED_TOOLS` valida o valor logo após o parse, antes de `command -v git` e do clone;
+      a mensagem de erro deriva da mesma variável (D4) — `bash install.sh --tool bogus` num HOME
+      vazio -> `❌ Unknown tool: bogus. Supported: claude, codex, cursor, copilot, all`, `exit=1`,
+      `ls $HOME` -> vazio (nada clonado). O texto do `--help` continua literal.
+- [x] 3.3 Re-run faz `git pull --ff-only` com a mesma mensagem, dica e detalhe indentado de
+      `update.sh` (D5) — `install.sh`, bloco `PULL_ERR`; o `case` final perde o ramo `*)`, que
+      nunca mais é alcançado
+- [x] 3.4 `AI_SKILLS_REPO_URL` sobrepõe `REPO_URL`, documentado no cabeçalho junto com o que a
+      guarda não cobre (D6) — `install.sh` linhas 15-27 e 30
 
 ## 4. Teste de fumaça e gate
 
