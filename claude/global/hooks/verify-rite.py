@@ -42,8 +42,17 @@ Wiring (~/.claude/settings.json) — alongside the backlog rite, in the same arr
 
 Like personal-rules.md, this is the maintainer's config — edit the signal list and the reminder to
 match your own process instead of adopting it blindly.
+
+Modes: (default) read one payload from stdin   |   --selftest assert the decisions against synthetic payloads.
+
+WHAT THE SELFTEST DOES NOT COVER: the harness's real payload is not reproduced — only the one
+field this hook reads (`prompt`) is fed to `evaluate()`. That the harness still sends it under that
+name is a premise of the pinned docs (code.claude.com/docs/en/hooks), not something the selftest
+measures. The KNOWN LIMIT above is not measurable by any selftest: no case here can assert that a
+guess was caught before it was written, because the hook itself cannot see that moment.
 """
 
+import io
 import json
 import re
 import sys
@@ -100,19 +109,95 @@ REMINDER = (
 )
 
 
-def main() -> int:
+def read_payload(stream) -> "dict | None":
+    """One JSON object from the stream, or None for anything the hook must ignore.
+
+    A payload that is not an object (`[]`, `"x"`, `null`, empty stdin) is not a hook event this
+    script can read, and a hook that crashes on it costs the turn it was meant to inform.
+    """
     try:
-        payload = json.load(sys.stdin)
+        payload = json.load(stream)
     except (json.JSONDecodeError, ValueError):
-        return 0
+        return None
+    return payload if isinstance(payload, dict) else None
 
+
+def evaluate(payload: dict) -> "str | None":
+    """The whole decision, isolated from stdin and stdout so the selftest can drive it."""
     prompt = payload.get("prompt") or ""
-    if not prompt or SKIP.search(prompt):
+    if not isinstance(prompt, str) or not prompt or SKIP.search(prompt):
+        return None
+    if not GUESS_SIGNALS.search(prompt):
+        return None
+    return REMINDER
+
+
+def selftest() -> int:
+    failed = []
+    cases = [
+        ("portuguese caught guess fires", True, {"prompt": "isso é achismo"}),
+        ("english demand for a source fires", True, {"prompt": "where did you see that"}),
+        ("'essa flag não existe' fires", True, {"prompt": "essa flag não existe, lê a doc"}),
+        ("'that's not what I asked' fires", True, {"prompt": "that's not what I asked for"}),
+        # Deliberately the opposite of backlog-rite.py: a correction typed inside a slash command
+        # still deserves the reminder (see the comment above SKIP). A future "harmonisation" of
+        # the two hooks must break this case, not silently erase the difference.
+        ("correction inside a slash command still fires", True,
+         {"prompt": "/backlog você inventou essa flag"}),
+        ("waiver 'pode chutar' is silent", False, {"prompt": "pode chutar, de onde tirou isso?"}),
+        ("waiver 'from memory is fine' is silent", False,
+         {"prompt": "from memory is fine, where did you see that?"}),
+        ("implementation request is silent", False, {"prompt": "implementa o endpoint"}),
+        ("neutral question is silent", False, {"prompt": "o que é um hook?"}),
+        ("empty prompt is silent", False, {"prompt": ""}),
+        ("payload without prompt is silent", False, {}),
+        ("prompt that is not a string is silent", False, {"prompt": 42}),
+    ]
+    for name, should_fire, payload in cases:
+        got = evaluate(payload)
+        ok = bool(got) == should_fire
+        print(f"  {'OK     ' if ok else 'FAILED '} {name}")
+        if not ok:
+            failed.append(name)
+
+    # The harness reads plain stdout for UserPromptSubmit: what fires must be the reminder text.
+    fired = evaluate(cases[0][2])
+    shape_ok = isinstance(fired, str) and fired.startswith("GROUNDING RITE")
+    print(f"  {'OK     ' if shape_ok else 'FAILED '} output shape is the reminder the harness reads")
+    if not shape_ok:
+        failed.append("output shape")
+
+    # Malformed payloads are ignored, never raised on (issue #115: `[]`, `"x"`, empty stdin).
+    malformed = [("json array", "[]"), ("json string", '"x"'), ("empty stdin", ""),
+                 ("json null", "null"), ("json number", "42"), ("not json", "{not json")]
+    for name, raw in malformed:
+        ok = read_payload(io.StringIO(raw)) is None
+        print(f"  {'OK     ' if ok else 'FAILED '} malformed payload is ignored: {name}")
+        if not ok:
+            failed.append(f"malformed: {name}")
+    well_formed = read_payload(io.StringIO('{"prompt": "x"}'))
+    ok = well_formed == {"prompt": "x"}
+    print(f"  {'OK     ' if ok else 'FAILED '} well-formed payload is read")
+    if not ok:
+        failed.append("well-formed payload")
+
+    print()
+    if failed:
+        print("selftest FAILED: " + "; ".join(failed))
+        return 1
+    print(f"selftest OK: {len(cases)} decisions, {len(malformed)} malformed payloads, plus the output shape")
+    return 0
+
+
+def main() -> int:
+    if "--selftest" in sys.argv[1:]:
+        return selftest()
+    payload = read_payload(sys.stdin)
+    if payload is None:
         return 0
-
-    if GUESS_SIGNALS.search(prompt):
-        print(REMINDER)
-
+    result = evaluate(payload)
+    if result:
+        print(result)
     return 0
 
 
