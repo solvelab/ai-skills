@@ -22,7 +22,7 @@ Supports **Claude Code**, **OpenAI Codex**, **Cursor**, and **GitHub Copilot** f
 
 ## 🚀 Install
 
-Skills follow the open [Agent Skills](https://github.com/vercel-labs/skills) standard (`skills/<name>/SKILL.md`), so every mainstream install path works.
+Skills follow the open [Agent Skills](https://agentskills.io/specification) standard (`skills/<name>/SKILL.md`), so every mainstream install path works — including the [`npx skills`](https://github.com/vercel-labs/skills) CLI of Option A.
 
 ### Option A — `npx skills` (recommended, works with 70+ agents)
 
@@ -378,7 +378,7 @@ ai-skills/
 
 ## 🔀 Multi-Tool Architecture
 
-The canonical skill lives in `skills/<name>/SKILL.md` — a **self-contained** file following the open [Agent Skills](https://github.com/vercel-labs/skills) standard (YAML frontmatter + full instructions + optional `references/`). Because it's self-contained, `npx skills`, the Claude Code plugin, and plain directory copies all work without this repo being present at a fixed path.
+The canonical skill lives in `skills/<name>/SKILL.md` — a **self-contained** file following the open [Agent Skills](https://agentskills.io/specification) standard (YAML frontmatter + full instructions + optional `references/`). Because it's self-contained, `npx skills`, the Claude Code plugin, and plain directory copies all work without this repo being present at a fixed path.
 
 `generate.sh` derives all tool-specific wrappers from it:
 
