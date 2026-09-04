@@ -20,12 +20,15 @@ own CLAUDE.md, not here.
   check the relationship/permission and rate-limit it — otherwise it's an injection/DoS vector.
 - Server is authoritative for state and money/assets. The client only *requests*.
 - **Anti-forge merge** for telemetry the server can also read: treat the client report as a
-  *clamped hint* and let the server-side read of the live entity WIN when available:
+  *clamped hint* and let the server-side read of the live entity WIN when available. `clampNum` is
+  the `fivem-fallback` helper, `clampNum(v, lo, hi, default)`: the fourth argument is what a
+  missing or non-numeric client value becomes, and it is passed explicitly so a forged `nil` lands
+  on a safe number instead of propagating into the snapshot:
 
 ```lua
 local snap = {
-  body = clampNum(clientCond.body, 0.0, 1000.0),   -- client hint, clamped
-  fuel = clampNum(clientCond.fuel, 0.0, 100.0),
+  body = clampNum(clientCond.body, 0.0, 1000.0, 0.0),   -- client hint, clamped; nil -> 0.0
+  fuel = clampNum(clientCond.fuel, 0.0, 100.0, 0.0),
 }
 local live = exports["vehicle-owner-res"]:GetLiveCondition(src)
 if live and live.engine then snap.engine = live.engine end  -- server-read PREVAILS
