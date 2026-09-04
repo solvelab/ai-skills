@@ -11,6 +11,7 @@ Implements the mechanically checkable half of openspec/specs/skills-authoring:
   C7 no orphan wrapper skills               (every generated skill has a canonical source)
   C8 no meta sections in SKILL.md           (triggers belong in the description, not the body)
   C9 identifier locale                      (English identifiers in code examples)
+  C10 frontmatter limits                    (parsed description <= 1024 chars, compatibility <= 500)
 
 Exit 1 on any finding. Run from the repo root.
 """
@@ -274,7 +275,10 @@ def check_tags(skill: str, text: str) -> None:
 
 
 # ── C8: meta sections ─────────────────────────────────────────────────────
-META_HEADING = re.compile(r"^## (How to Use|Trigger Test Cases|Prompt|Usage)\s*$", re.M | re.I)
+# "When to use this skill" was added after skills/api-resilience-testing shipped one for months
+# under the four original titles' noses: same content as its description, read only after routing.
+META_HEADING = re.compile(r"^## (How to Use|When to use this skill|Trigger Test Cases|Prompt|Usage)\s*$",
+                          re.M | re.I)
 
 
 def check_meta(skill: str, text: str) -> None:
@@ -284,6 +288,64 @@ def check_meta(skill: str, text: str) -> None:
     reads when choosing a skill."""
     for m in META_HEADING.finditer(text):
         add(skill, "C8 meta section", f"`{m.group(0).strip()}` — move its content to the description")
+
+
+# ── C10: frontmatter limits ───────────────────────────────────────────────
+# The Agent Skills specification (agentskills.io/specification) fixes description at 1-1024
+# characters and compatibility at 1-500. The names mirror MAX_DESCRIPTION_LENGTH and
+# MAX_COMPATIBILITY_LENGTH in skills_ref/validator.py (skills-ref 0.1.1, the reference validator
+# CI runs in its own step), which measures len() of the parsed value — so does this check.
+MAX_DESCRIPTION_CHARS = 1024
+MAX_COMPATIBILITY_CHARS = 500
+FRONTMATTER_LIMITS = (("description", MAX_DESCRIPTION_CHARS),
+                      ("compatibility", MAX_COMPATIBILITY_CHARS))
+
+try:
+    import yaml as _yaml
+except ImportError:                                 # reported as skipped in main(), never as a pass
+    _yaml = None
+
+
+def check_limits(skill: str, text: str) -> None:
+    """Measure the PARSED frontmatter value, in characters, against the spec limits.
+
+    Why parsed and not the raw block C4 slices out of the file: a folded scalar (`>-`) carries its
+    indentation and line breaks in the file and loses them when a consumer reads it. Measured over
+    the 35 skills on 2026-09-04, the raw block is 6-26 characters longer than the value —
+    svg-animation is 1024 raw and 998 parsed. A gate on the raw block would reject a skill the
+    reference validator accepts. len() counts code points, not bytes, exactly like skills-ref;
+    the descriptions carry non-ASCII quoted triggers, so a byte count would disagree with it.
+
+    KNOWN LIMIT — what this check does NOT cover:
+      - Only `description` and `compatibility` are measured. The name length/charset rule (64,
+        lowercase) and the spec's whitelist of frontmatter fields are the reference validator's
+        job, run pinned in CI; name-vs-directory is the CI frontmatter loop's.
+      - It measures characters against the spec's hard limit, not tokens against the ~100-token
+        budget the spec suggests; a description under 1024 characters can still be expensive.
+      - The frontmatter is located with the same `split("---", 2)` C4 uses; a `---` inside a
+        frontmatter value would truncate the block and is not handled here.
+      - Skipped entirely without PyYAML, and reported as skipped rather than counted as a pass.
+    """
+    if _yaml is None:
+        return
+    fm = text.split("---", 2)
+    if len(fm) < 3:
+        return                                       # C4 already reports the missing frontmatter
+    try:
+        data = _yaml.safe_load(fm[1])
+    except _yaml.YAMLError as exc:
+        add(skill, "C10 frontmatter limits", f"frontmatter does not parse as YAML: {str(exc)[:90]}")
+        return
+    if not isinstance(data, dict):
+        return                                       # the CI frontmatter loop reports the shape
+    for field, limit in FRONTMATTER_LIMITS:
+        value = data.get(field)
+        if not isinstance(value, str):
+            continue                                 # presence is the CI frontmatter loop's job
+        n = len(value)
+        if n > limit:
+            add(skill, "C10 frontmatter limits",
+                f"{field} is {n} chars, limit {limit} (parsed value; {n - limit} over)")
 
 
 # ── C7: no orphan wrapper skills ──────────────────────────────────────────
@@ -312,6 +374,7 @@ def main() -> int:
         check_pin(skill, text)
         check_tags(skill, text)
         check_meta(skill, text)
+        check_limits(skill, text)
         for ref in (p.parent / "references").glob("*.md"):
             rtext = ref.read_text(encoding="utf-8")
             check_refs(f"{skill}/{ref.name}", ref, rtext)
@@ -329,6 +392,7 @@ def main() -> int:
         import yaml  # noqa: F401
     except ImportError:
         skipped.append("yaml parse (PyYAML not installed)")
+        skipped.append("frontmatter limits (PyYAML not installed)")
     print(f"skills checked: {len(SKILLS)}   findings: {len(findings)}")
     if skipped:
         print("  checks skipped: " + "; ".join(skipped))

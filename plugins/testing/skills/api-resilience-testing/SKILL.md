@@ -4,7 +4,7 @@ description: >-
   Tests REST/HTTP APIs beyond the happy path — negative, fuzz, contract, and security testing — to find critical failures before production. Use this skill whenever the work involves a REST API: adding or changing an endpoint, reviewing an API PR or diff, writing API tests, designing request/response schemas, or when the user says "test/harden/break/audit/review the API", "negative testing", "fuzz", "API robustness", "API security", "validate payloads", or asks about invalid inputs, status codes, error handling, auth/authz, or OpenAPI/Swagger contract validation. Produces an endpoint map, positive + negative scenarios, suggested automated tests, and a resilience checklist. Do NOT use for non-API or pure happy-path unit testing.
 metadata:
   author: solvelab
-  version: 1.2.1
+  version: 1.3.0
   category: testing
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -37,16 +37,6 @@ sub-disciplines precisely:
 Avoid vague "QA security testing" in formal docs — it is informal and ambiguous.
 ("Bug-Hunter" is fine as the name of the internal adversarial-testing rite — see the
 `bug-hunter` skill — but use the precise terms above when writing formal test docs.)
-
----
-
-## When to use this skill
-
-Trigger whenever the work involves a REST/HTTP API: adding or changing an
-endpoint, reviewing an API PR, writing API tests, designing request/response
-schemas, or the user asks to "test", "harden", "break", "audit", or "review"
-an API. Default to running the workflow below before an API change is
-considered done — happy-path tests alone are not sufficient.
 
 ---
 

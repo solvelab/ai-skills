@@ -35,16 +35,6 @@ Avoid vague "QA security testing" in formal docs — it is informal and ambiguou
 
 ---
 
-## When to use this skill
-
-Trigger whenever the work involves a REST/HTTP API: adding or changing an
-endpoint, reviewing an API PR, writing API tests, designing request/response
-schemas, or the user asks to "test", "harden", "break", "audit", or "review"
-an API. Default to running the workflow below before an API change is
-considered done — happy-path tests alone are not sufficient.
-
----
-
 ## The workflow (10 steps)
 
 Run these in order. Produce concrete, runnable tests and a checklist — not prose.
