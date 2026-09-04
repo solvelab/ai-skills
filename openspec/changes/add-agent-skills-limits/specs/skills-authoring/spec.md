@@ -21,8 +21,9 @@ The catalog declares itself an implementation of the open Agent Skills standard
 `description` is at most 1024 characters and `compatibility` at most 500. Both limits are measured
 on the **YAML-parsed value** — the string a consumer receives after the folded scalar is unfolded —
 counted in characters (code points), never on the raw frontmatter block and never in bytes. The raw
-block carries the indentation and line breaks of the folded scalar and measures 26–36 characters
-more than the value, so a gate on the raw block would reject a skill the standard accepts.
+block carries the indentation and line breaks of the folded scalar and measures more than the
+value — 6–26 characters more across this catalog, 1024 raw against 998 parsed on one skill — so a
+gate on the raw block would reject a skill the standard accepts.
 
 #### Scenario: CI rejects incomplete frontmatter
 

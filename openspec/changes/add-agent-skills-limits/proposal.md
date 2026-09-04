@@ -34,7 +34,7 @@ qualquer consumidor que use o validador de referência rejeita um sexto do catá
   caracteres do valor YAML parseado, e a cláusula de que a dobra de gatilhos respeita o teto: o que
   não cabe vai para a primeira linha do corpo ou para `references/`, nunca fica na description.
 - `scripts/validate-skills.py` ganha o check `C10 frontmatter limits`, que mede o valor parseado
-  (o C4 mede o bloco cru, que dá 26–36 caracteres a mais) com `len()` em caracteres, como
+  (o C4 mede o bloco cru, que dá 6–26 caracteres a mais) com `len()` em caracteres, como
   `skills_ref/validator.py`, e declara dentro de si o que não cobre.
 - `META_HEADING` (C8) passa a casar também `## When to use this skill`, que hoje escapa; a seção
   com esse título em `skills/api-resilience-testing/SKILL.md` é removida porque seu conteúdo já

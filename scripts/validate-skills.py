@@ -311,7 +311,7 @@ def check_limits(skill: str, text: str) -> None:
 
     Why parsed and not the raw block C4 slices out of the file: a folded scalar (`>-`) carries its
     indentation and line breaks in the file and loses them when a consumer reads it. Measured over
-    the 35 skills on 2026-09-04, the raw block is 26-36 characters longer than the value —
+    the 35 skills on 2026-09-04, the raw block is 6-26 characters longer than the value —
     svg-animation is 1024 raw and 998 parsed. A gate on the raw block would reject a skill the
     reference validator accepts. len() counts code points, not bytes, exactly like skills-ref;
     the descriptions carry non-ASCII quoted triggers, so a byte count would disagree with it.

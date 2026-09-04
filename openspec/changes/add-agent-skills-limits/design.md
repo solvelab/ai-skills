@@ -40,7 +40,7 @@ limite.
 ### D1 — C10 mede o valor YAML parseado, em caracteres, com os mesmos números do validador de referência
 
 O C4 mede o bloco cru (`fm[1]` de `text.split("---", 2)`), que carrega a indentação e as quebras
-do folded scalar: 26–36 caracteres a mais que o valor parseado, medido sobre as 35 skills
+do folded scalar: 6–26 caracteres a mais que o valor parseado, medido sobre as 35 skills
 (`svg-animation` dá 1024 cru contra 998 parseado). Um gate sobre o bloco cru reprovaria uma
 skill que o validador de referência aceita. C10 faz `yaml.safe_load` do bloco — o PyYAML já é
 dependência do C3 — e compara `len(description)` e `len(compatibility)` com
