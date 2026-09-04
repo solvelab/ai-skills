@@ -2,23 +2,19 @@
 name: execute-backlog
 description: >-
   Execute an existing GitHub backlog item end-to-end: locate the issue (number, URL or search),
-  validate it is complete enough to execute, re-analyze the current repo/workspace state, present
-  an implementation plan for approval BEFORE touching code, implement on a dedicated branch
-  following the repo's conventions, add/update tests, run the repo's discoverable validations
-  (tests/lint/build/typecheck), tick the issue's acceptance-criteria checkboxes that are proven by
-  evidence, open pull request(s) linking the issue (Closes #n), and move the GitHub Project item to
-  the review column. Use when the user invokes /execute-backlog <n>, says
-  "implement issue #N", "execute this backlog item", "pick up this ticket", or wants an existing
-  issue turned into a PR. Second half of the backlog-first rite: the item it consumes is produced
-  by the backlog skill, and this skill carries it to a reviewable PR. In a repository that runs a
-  spec-driven workflow (an openspec/ directory), it gates on that workflow before touching code:
-  the item's spec verdict is re-checked, the change is created and validated strict, and only then
-  does the plan go to approval. Uses the backlog skill's
-  config (.github/backlog.yml or workspace backlog.yml). Do NOT use for creating backlog items
-  (that is backlog), for merging PRs, for deploying, or for non-GitHub trackers.
+  validate it is complete enough, re-analyze the repo/workspace, present an implementation plan
+  for approval BEFORE touching code, implement on a dedicated branch with tests, run the repo's
+  discoverable validations, tick the acceptance criteria proven by evidence, open pull request(s)
+  with Closes #n, and move the GitHub Project item to the review column. Use when the user invokes
+  /execute-backlog <n>, says "implement issue #N", "execute this backlog item", "pick up this
+  ticket", or wants an existing issue turned into a PR. Second half of the backlog-first rite:
+  consumes the item the backlog skill produced. In a repository with a spec-driven workflow (an
+  openspec/ directory) it re-checks the item's spec verdict and validates the change strict before
+  the plan goes to approval. Do NOT use for creating backlog items (that is backlog), for merging
+  PRs, for deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.7.0
+  version: 1.8.0
   category: process
 license: MIT
 compatibility: >-
@@ -30,7 +26,9 @@ compatibility: >-
 # Execute-backlog — backlog item → implemented, validated PR
 
 Drive an existing issue to a reviewable pull request while keeping the board in sync. Companion
-to the `backlog` skill; consumes the same config.
+to the `backlog` skill; consumes the same config (`.github/backlog.yml` in repo mode,
+`backlog.yml` in workspace mode), follows the repo's own conventions, and runs the validations
+it can discover there (tests/lint/build/typecheck).
 
 - **Gates, plan format, scope-change protocol, multi-repo orchestration**: `references/execution-flow.md`
 - **Spec-driven gate: detection, verdict, upgrade/downgrade, archive timing**: `references/spec-rite.md`

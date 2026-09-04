@@ -1,24 +1,20 @@
 ---
 name: backlog
 description: >-
-  Turn a natural-language idea into a structured GitHub backlog item: analyze the current
-  repository (or multi-repo workspace) for real context, draft a rich issue (context, problem,
-  scope, acceptance criteria, risks, affected files/repos), preview it for approval, then create
-  the GitHub issue and add it to the configured GitHub Project v2 with fields set
-  (Status/Priority/Size/Estimate) via the gh CLI. Use when the user invokes /backlog <idea>, says
-  "create a backlog item", "add this to the backlog", "turn this idea into an issue", "groom this
-  idea", or wants an idea registered in a GitHub Project. Entry point of the backlog-first rite:
-  the item created here is what execute-backlog turns into a branch and a pull request. In a
-  repository that runs a spec-driven workflow (an openspec/ directory) the drafted item also
-  declares its spec verdict — the change that will register the work, or a written waiver —
-  so execute-backlog inherits a decision instead of making a new one.
-  First run per repo/workspace launches a
-  config wizard that writes .github/backlog.yml (repo mode) or backlog.yml (workspace mode). Do NOT
-  use for implementing an existing issue (that is execute-backlog), for creating pull requests, or
-  for non-GitHub trackers (Jira, Linear, Trello).
+  Turn a natural-language idea into a structured GitHub backlog item: analyze the repository (or
+  multi-repo workspace) for real context, draft a rich issue (context, problem, scope, acceptance
+  criteria, risks, affected files/repos), preview it for approval, then create the issue and add
+  it to the configured GitHub Project v2 with fields set (Status/Priority/Size/Estimate) via the
+  gh CLI. Use when the user invokes /backlog <idea>, says "create a backlog item", "add this to
+  the backlog", "turn this idea into an issue", "groom this idea", or wants an idea registered in
+  a GitHub Project. Entry point of the backlog-first rite: execute-backlog turns the item created
+  here into a branch and a pull request. In a repository with a spec-driven workflow (an openspec/
+  directory) the item also declares its spec verdict: a change id or a written waiver. Do NOT use
+  for implementing an existing issue (that is execute-backlog), for creating pull requests, or for
+  non-GitHub trackers (Jira, Linear, Trello).
 metadata:
   author: solvelab
-  version: 1.4.0
+  version: 1.5.0
   category: process
 license: MIT
 compatibility: >-
@@ -30,7 +26,9 @@ compatibility: >-
 
 Enrich a raw idea with real repository context and publish it as a GitHub issue inside the
 configured GitHub Project v2 — never a copy of the user's sentence, always grounded in the actual
-codebase.
+codebase. The first run per repo/workspace launches a config wizard that writes
+`.github/backlog.yml` (repo mode) or `backlog.yml` (workspace mode). The spec verdict the item
+declares is what `execute-backlog` inherits, instead of making a new decision.
 
 - **Issue section template + writing guidance**: `references/issue-template.md`
 - **Config schema (both modes, precedence, wizard, `spec_rite`)**: `references/backlog-config.md`
