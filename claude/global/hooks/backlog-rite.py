@@ -17,7 +17,7 @@ context. It informs — it never blocks a tool call, and the user can always wai
 
 ACCEPTED FALSE POSITIVE: a diagnostic question that contains a change word — "por que o
 teste falha?", "why does the build fail?", "como corrijo esse bug?" — fires. The matcher is
-deliberately generous: a false positive costs one paragraph of context, a false negative
+deliberately generous: a false positive costs one line of context, a false negative
 costs traceability, and the injected text itself says diagnosis is free. Decided in
 openspec/changes/archive/2026-08-07-add-backlog-first-rite/design.md:32 and :78; fixed
 below as a self-test case that FIRES, so a well-meant "fix" breaks the test and reads the
@@ -64,7 +64,9 @@ CHANGE_SIGNALS = re.compile(
     r"remov\w*|delet\w*|apaga\w*|drop|"
     r"ajusta\w*|altera\w*|muda\w*|troca\w*|atualiza\w*|change|update|"
     r"migra\w*|migrate|renomeia\w*|rename|"
-    r"fix|bug|erro|error|falha|fail\w*|quebr\w*|broken|"
+    # `fail(s|ed|ing)?` is the verb's four forms and nothing else: `fail\w*` was measured firing
+    # on failover / failsafe / failure, concept nouns that are questions, not change requests.
+    r"fix|bug|erro|error|falha|fail(s|ed|ing)?|quebr\w*|broken|"
     r"feature|funcionalidade|endpoint|"
     r"melhora\w*|otimiza\w*|improve|optimi[sz]e"
     r")\b",
@@ -162,8 +164,14 @@ def selftest() -> int:
             # recorded decision — read the design first.
             ("diagnostic question containing 'falha' fires (accepted trade-off)", True,
              {"prompt": "por que o teste falha?", "cwd": without_rite}, False),
-            ("english 'fail' mirrors 'falha'", True,
+            ("english 'fail' (verb forms fail/fails/failed/failing) fires", True,
              {"prompt": "why does the build fail?", "cwd": without_rite}, False),
+            ("english 'failing' fires", True,
+             {"prompt": "the tests are failing", "cwd": without_rite}, False),
+            # Fixes the narrowing: a concept noun that merely starts with "fail" is not a change
+            # request. Widening to `fail\w*` must break this case, not silently fire here.
+            ("english noun 'failover' is silent", False,
+             {"prompt": "what is a failover cluster?", "cwd": without_rite}, None),
             # The prompt carries a change word on purpose: silence can then only come from the
             # slash-command SKIP rule. "/backlog nova ideia" has no signal and stays silent even
             # with that rule deleted — it never exercised the decision it was named for.
