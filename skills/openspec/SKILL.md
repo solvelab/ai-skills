@@ -9,7 +9,7 @@ description: >-
   variant use openspec-drivezone.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.1.1
   category: process
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -52,7 +52,7 @@ propose (safer).
 |---|---|---|
 | Explore | `/opsx:explore` | Thinking-partner mode: read the codebase, align the requirement — no implementation. |
 | Propose | `/opsx:propose <name>` | Creates the change and generates proposal → spec deltas → design → tasks. |
-| Validate | `openspec validate <id> --strict` | **Gate before coding.** Fails if a required section is missing. |
+| Validate | `openspec validate <id> --strict` | **Gate before coding.** Checks the delta specs only: the change needs at least one delta, and every requirement in a delta needs at least one `#### Scenario:`. Headings in `proposal.md`/`design.md` are NOT checked (see *What `--strict` measures*). |
 | Apply | `/opsx:apply [<id>]` | Reads proposal/specs/design/tasks, implements each task, marks `[x]`. |
 | Archive | `/opsx:archive [<id>]` | Verifies completeness, syncs delta specs into `specs/`, moves the change to `archive/`. |
 
@@ -85,6 +85,24 @@ task is done and validated, not in a batch at the end.
 has security/performance/migration complexity, or has open technical decisions. Skeleton:
 `## Context`, `## Goals / Non-Goals`, `## Decisions` (with alternatives considered), `## Risks /
 Trade-offs`, `## Migration`.
+
+### What `--strict` measures
+
+The proposal/design skeletons above are conventions the CLI does not read. Probed on OpenSpec CLI
+1.6.0 (2026-09-04) with a change whose `proposal.md` was one line of plain text — no `## Why`, no
+`## What Changes`, no `## Impact` — and one delta carrying a requirement with a Scenario:
+
+```
+$ openspec validate probe-no-headings --strict
+Change 'probe-no-headings' is valid
+```
+
+The same change with the Scenario removed from the delta fails with
+`ADDED "Probe requirement" must include at least one scenario`, and with no `specs/` at all with
+`Change must have at least one delta`. So `--strict` guards the delta-spec format — at least one
+delta, every requirement with at least one `#### Scenario:` — and nothing about the sections of
+`proposal.md`, `design.md` or `tasks.md`. A project that needs those sections enforced adds its own
+gate (the DriveZone fork does: `openspec-drivezone`, *The hard gate*).
 
 ## Directory layout
 

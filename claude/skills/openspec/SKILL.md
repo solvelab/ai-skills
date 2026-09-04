@@ -9,7 +9,7 @@ description: >-
   variant use openspec-drivezone.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.1.1
   category: process
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
