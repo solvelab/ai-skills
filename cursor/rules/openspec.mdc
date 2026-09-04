@@ -66,7 +66,8 @@ The system SHALL ...
 ## REMOVED Requirements    (add **Reason** and **Migration**)
 ```
 
-Every requirement needs at least one `#### Scenario:`. `--strict` enforces this.
+Every requirement needs at least one `#### Scenario:` — the CLI rejects a delta without one as an
+ERROR in both modes, with or without `--strict` (see *What `--strict` measures*).
 
 **`tasks.md`** — numbered groups of checkboxes (`- [ ] 1.1 ...`). Mark `[x]` immediately after each
 task is done and validated, not in a batch at the end.
