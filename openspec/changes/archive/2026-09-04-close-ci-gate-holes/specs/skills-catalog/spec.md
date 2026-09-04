@@ -3,8 +3,9 @@
 ### Requirement: The repository itself is gated, not only its skills
 
 The catalog SHALL carry a gate whose subject is the whole repository rather than a subtree, wired
-into CI, covering at minimum two classes that have escaped every other gate: a compiled artifact
-that is tracked, and a published count of the catalog's contents that disagrees with the contents.
+into CI, covering at minimum three classes that have escaped every other gate: a compiled artifact
+that is tracked, a published count of the catalog's contents that disagrees with the contents, and
+a published plugin description whose membership disagrees with the plugin's tree.
 Tracked-file discovery SHALL read the index rather than the filesystem, so that an ignored artifact
 present in a working directory is not a finding and one forced into the index is.
 
@@ -47,6 +48,19 @@ that no consumer reads SHALL be removed or wired to one.
 - **WHEN** a document publishes a count of the catalog's skills that differs from the number of skill
   directories
 - **THEN** the gate fails and names the file, the line, the claimed number and the real one
+
+#### Scenario: A published description that disagrees with the tree fails the build
+
+- **WHEN** a plugin manifest or its marketplace entry names a skill that is not under the plugin's
+  tree, omits one that is, or publishes a count that does not match the names it lists
+- **THEN** the gate fails and names the file, the group, the names in excess and the names missing
+
+#### Scenario: A bare count with no membership is refused
+
+- **WHEN** a published document carries a parenthetical count of topics or skills that names no
+  members, outside a code block
+- **THEN** the gate fails and names the file and the line, because a count that says which set it
+  counts is the only kind the tree can check
 
 #### Scenario: A check that cannot fire is caught
 

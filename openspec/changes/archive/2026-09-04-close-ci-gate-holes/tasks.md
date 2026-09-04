@@ -529,4 +529,11 @@
 
 - [x] V.3 README / docs atualizados onde a change altera composição ou uso do catálogo — a composição
       não muda; o parágrafo do spec-rite no README é follow-up (E.4)
-- [ ] V.4 `openspec archive close-ci-gate-holes --yes` em PR separado, depois do merge
+- [x] V.4 `openspec archive close-ci-gate-holes --yes` em PR separado, depois do merge
+
+
+      ```
+      openspec archive close-ci-gate-holes --yes
+      -> Specs updated successfully.
+      -> Change 'close-ci-gate-holes' archived as '2026-09-04-close-ci-gate-holes'.
+      ```

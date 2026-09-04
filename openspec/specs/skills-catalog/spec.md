@@ -203,6 +203,14 @@ The decision to ship without a spec artifact SHALL be a written one. A judgment 
 assistant, or by a contributor in conversation, SHALL NOT satisfy the rite: the waiver SHALL exist as
 a reviewable line in the pull request, and the gate SHALL be what reads it.
 
+The enforcement artifact SHALL carry a self-test, exercised by the repository's own CI, that fixes
+the decisions its design already assumes — what fires, what stays silent, and where the spec
+sentence is appended — so that an edit to its signal list is measured rather than trusted. A
+deliberately accepted false positive SHALL be fixed in that self-test as a case that fires, with the
+recorded decision cited beside it, so that a well-meant correction cannot revert it unread. A
+payload that is not a JSON object SHALL be ignored: the artifact exits zero with no output and no
+traceback, because a hook that crashes on malformed input costs the turn it was meant to inform.
+
 #### Scenario: A code-change request carries the rite into context
 
 - **WHEN** a prompt asks for an implementation, fix, refactor or removal
@@ -236,6 +244,16 @@ a reviewable line in the pull request, and the gate SHALL be what reads it.
 - **WHEN** the shipped hook runs
 - **THEN** it reads the prompt payload, matches, prints and exits, writing no state outside the
   repository and requiring no credentials
+
+#### Scenario: The shipped hook carries a self-test and a malformed payload is ignored
+
+- **WHEN** the hook is run with `--selftest`
+- **THEN** it prints one OK/FAILED line per fixed decision plus a summary line and exits non-zero
+  when any decision regressed, and the repository's CI runs that mode as a blocking step
+- **AND** the case list includes a diagnostic question containing a change word as a case that
+  fires, citing the decision that accepted the false positive
+- **AND** when the payload on stdin is a JSON array, a JSON string or empty, the hook exits zero
+  with no output and no traceback
 
 ### Requirement: The backlog skills declare their place in one rite
 
@@ -387,6 +405,11 @@ truth of the contents**: a box padded to satisfy the shape passes, and no script
 invented output from a real one. A script that also verifies that a change exists SHALL state that
 existence is not honesty — a change scaffolded to satisfy the gate passes it.
 
+Where a shape rule accepts a box on a proxy — a length threshold standing in for "names something"
+— the proxy and what it lets through SHALL be declared in the script's own known limits, and the
+self-test SHALL carry an explicit case for it whose expected result is silence, so that the escape
+is measured on every run rather than remembered.
+
 The mandatory groups that are **not** gated on shape SHALL have their evidence density reported
 without affecting the exit code, so that a group whose boxes carry no probe is visible to a reviewer
 without reading the diff.
@@ -441,6 +464,13 @@ without reading the diff.
   indistinguishable from an earned one — so that a green run is not read as verified evidence
 - **AND** they state that the existence of a change is not the honesty of one
 
+#### Scenario: A declared escape is measured, not remembered
+
+- **WHEN** a gap box (E.3, E.4 or S.3) is ticked with more than the length threshold of text that
+  names no gap and declares none absent
+- **THEN** the gate stays silent, the script's known limits name that threshold as the reason, and
+  the self-test reports the case under its known escapes with the observed silence
+
 #### Scenario: A group that is reported rather than gated is not implied to be gated
 
 - **WHEN** a mandatory group carries items that are judgments rather than executions
@@ -465,6 +495,12 @@ The artifact SHALL state which moment it does **not** cover, and the documentati
 layer that enforces evidence when the artifact is not wired, so that a reader does not mistake a
 per-session convenience for a gate.
 
+The artifact SHALL carry a self-test, exercised by the repository's own CI, that fixes the decisions
+its design already assumes — a caught guess fires in each working language, a waiver silences, a
+correction typed inside a slash command still fires, an implementation request stays silent — so
+that an edit to its signal list is measured rather than trusted. A payload that is not a JSON object
+SHALL be ignored: the artifact exits zero with no output and no traceback.
+
 #### Scenario: A caught guess carries the doctrine into the turn
 
 - **WHEN** a prompt says the assistant invented something, demands a source, asks where a fact came
@@ -484,16 +520,48 @@ per-session convenience for a gate.
   that no prompt regex can observe the moment a model is about to guess, and that the artifact does
   not run in CI or for a contributor who has not wired it
 
+#### Scenario: The shipped hook carries a self-test and a malformed payload is ignored
+
+- **WHEN** the hook is run with `--selftest`
+- **THEN** it prints one OK/FAILED line per fixed decision plus a summary line and exits non-zero
+  when any decision regressed, and the repository's CI runs that mode as a blocking step
+- **AND** the case list fixes that a correction typed inside a slash command still fires, which is
+  the opposite of the backlog hook's rule and is deliberate
+- **AND** when the payload on stdin is a JSON array, a JSON string or empty, the hook exits zero
+  with no output and no traceback
+
 ### Requirement: The repository itself is gated, not only its skills
 
 The catalog SHALL carry a gate whose subject is the whole repository rather than a subtree, wired
-into CI, covering at minimum two classes that have escaped every other gate: a compiled artifact
-that is tracked, and a published count of the catalog's contents that disagrees with the contents.
+into CI, covering at minimum three classes that have escaped every other gate: a compiled artifact
+that is tracked, a published count of the catalog's contents that disagrees with the contents, and
+a published plugin description whose membership disagrees with the plugin's tree.
 Tracked-file discovery SHALL read the index rather than the filesystem, so that an ignored artifact
 present in a working directory is not a finding and one forced into the index is.
 
 The gate SHALL carry a self-test that injects one known defect per check and asserts detection, and
 each check SHALL state inside itself what it does not cover.
+
+The repository's other whole-repository checks SHALL measure what they claim to measure, and three
+classes that were measured escaping them SHALL be covered:
+
+- The check that keeps the generated wrapper trees in sync with `skills/` SHALL fail on a generated
+  file that is **untracked** after regeneration, naming the file, and not only on a tracked file
+  whose content changed — a diff against the index never sees an untracked file.
+- The check that a pull request registers its change SHALL require **relevance**, not existence: the
+  diff touches the directory of an active change, or the pull request body names an active change
+  on a `Spec-rite: <id>` line, or the diff archives a change, or the body carries the written
+  waiver. The mere presence of an unrelated active change SHALL NOT register a diff. The line
+  naming a change SHALL be matched as text, anchored to the start of a line, and never executed.
+- The frontmatter checks on `skills/*/SKILL.md` SHALL read only the frontmatter block — the text
+  between the two `---` delimiters, extracted the same way the wrapper generator extracts it — so a
+  field that appears only inside a code block in the body does not satisfy a check on the
+  frontmatter.
+
+The job that runs these gates SHALL hold the least privilege the gates need: read-only repository
+contents, no credential persisted past the checkout, a declared timeout, and every third-party tool
+it runs pinned to a version that was probed, with the bump rule stated beside the pin. A job output
+that no consumer reads SHALL be removed or wired to one.
 
 #### Scenario: A compiled artifact forced into the index fails the build
 
@@ -511,6 +579,19 @@ each check SHALL state inside itself what it does not cover.
   directories
 - **THEN** the gate fails and names the file, the line, the claimed number and the real one
 
+#### Scenario: A published description that disagrees with the tree fails the build
+
+- **WHEN** a plugin manifest or its marketplace entry names a skill that is not under the plugin's
+  tree, omits one that is, or publishes a count that does not match the names it lists
+- **THEN** the gate fails and names the file, the group, the names in excess and the names missing
+
+#### Scenario: A bare count with no membership is refused
+
+- **WHEN** a published document carries a parenthetical count of topics or skills that names no
+  members, outside a code block
+- **THEN** the gate fails and names the file and the line, because a count that says which set it
+  counts is the only kind the tree can check
+
 #### Scenario: A check that cannot fire is caught
 
 - **WHEN** a change to the gate silently stops one of its checks from detecting its defect class
@@ -522,6 +603,46 @@ each check SHALL state inside itself what it does not cover.
 - **WHEN** a check enforces its rule only over a named pattern or a named file list
 - **THEN** the pattern, the file list and what escapes them are stated in the check itself, so a
   passing run is not read as full coverage
+
+#### Scenario: An untracked generated file fails the wrapper-sync check
+
+- **WHEN** a commit adds a file under `skills/<name>/` whose regenerated mirror under `plugins/` is
+  not tracked
+- **THEN** the wrapper-sync step fails and names the untracked file, instead of passing because the
+  diff against the index is empty
+
+#### Scenario: An unrelated active change does not register a diff
+
+- **WHEN** a pull request's diff touches a path outside the workflow's own directory, an active
+  change exists whose directory the diff does not touch, and the body names no active change and
+  carries no waiver
+- **THEN** the spec-rite gate fails, naming the active changes it found and the two ways of linking
+  the diff to one of them
+
+#### Scenario: A pull request that touches or names its change passes
+
+- **WHEN** the diff touches `openspec/changes/<id>/` of an active change, or the body carries
+  `Spec-rite: <id>` naming an active change
+- **THEN** the spec-rite gate passes, so a pull request that only ticks a task list, or a small fix
+  opened against a change in progress elsewhere, is not rejected
+
+#### Scenario: An archive-only pull request still passes
+
+- **WHEN** a pull request only moves a change into `openspec/changes/archive/` and syncs the specs
+- **THEN** the spec-rite gate passes, whether or not another change is active
+
+#### Scenario: A frontmatter field inside a code block does not count
+
+- **WHEN** a `SKILL.md` carries no `name:` in its frontmatter but a fenced `yaml` block in its body
+  contains `name: <dir>`
+- **THEN** the frontmatter check fails with `Missing name`, because only the block between the two
+  `---` delimiters is read
+
+#### Scenario: The validate job holds no writable token
+
+- **WHEN** the validate job runs on a pull request
+- **THEN** its permissions grant read-only repository contents, the checkout does not persist the
+  token, the job carries a timeout, and the spec-driven CLI it runs is pinned to a probed version
 
 ### Requirement: Code locale has a canonical home
 
@@ -998,4 +1119,116 @@ SHALL NOT tratar a decisão de perguntar como uma questão de confiança do mode
   alguns registros
 - **THEN** a skill pergunta antes de desenhar
 - **AND** se prosseguir sem resposta, marca o registro adotado como `assumed` na entrega
+
+### Requirement: Distribution scripts refuse what they cannot honor, and CI exercises them
+
+The catalog's distribution scripts — the installer and the updater the README documents — SHALL
+refuse, or route around with a stated reason, every state they cannot honor, instead of failing
+silently or with the underlying tool's raw error.
+
+The updater SHALL always attempt the fast-forward pull, and SHALL regenerate the tool wrappers only
+when the generator's inputs (the version file and the canonical skills tree) are clean in the
+index. When they are not, it SHALL print which files are dirty and how to clean them, skip the
+regeneration, and still exit success, so that a user who edits the clone the way the README
+allows is neither blocked nor pushed toward a hard reset. A failure of the generator SHALL surface
+as a non-zero exit with the generator's output, never be swallowed by the shell.
+
+The installer SHALL validate its tool argument before any clone or pull, SHALL reject a missing
+value with a usage error that lists the supported tools, and on a re-run over an existing clone
+SHALL pull fast-forward only, giving the same message and recovery hint the updater gives when the
+clone has diverged.
+
+Neither script SHALL prompt: both are documented as piped into `bash` from `curl`, where standard
+input is the script itself. Each script SHALL state, in its own header, what its guard does not
+cover.
+
+The catalog's CI SHALL exercise both scripts through their real entry points, in a temporary home
+directory, cloning from a local repository rather than the network, covering every behavior this
+requirement names, and SHALL print the case matrix as counts.
+
+#### Scenario: A dirty generator input skips regeneration without blocking the update
+
+- **WHEN** the updater runs over a clone whose version file or canonical skills tree carries an
+  uncommitted, tracked modification
+- **THEN** the pull happens, the regeneration is skipped, the dirty files and the cleaning command
+  are printed, the script exits zero, and no generated plugin manifest is modified
+
+#### Scenario: An edit outside the generator's inputs does not skip regeneration
+
+- **WHEN** the updater runs over a clone whose only uncommitted change is outside the version file
+  and the canonical skills tree — such as the personal rules file the README tells users to edit
+- **THEN** the wrappers are regenerated as usual
+
+#### Scenario: A generator failure is visible
+
+- **WHEN** the generator exits non-zero during an update
+- **THEN** the updater exits non-zero and prints the generator's output, instead of reporting the
+  wrappers as regenerated
+
+#### Scenario: A diverged clone is refused with the recovery hint, by both scripts
+
+- **WHEN** the clone carries a local commit that the remote branch does not, and either the updater
+  without `--force` or the installer on a re-run is executed
+- **THEN** the script exits one with its own message naming the divergence and the `--force`
+  recovery command, and the tool's own error appears only as an indented detail under that message
+
+#### Scenario: An unsupported or missing tool value fails before any clone
+
+- **WHEN** the installer is invoked with a tool value outside the supported list, or with the tool
+  flag and no value at all
+- **THEN** it exits one listing the supported tools, and no clone directory is created and no pull
+  is attempted
+
+#### Scenario: The scripts are exercised in CI without the network
+
+- **WHEN** the catalog's validation job runs
+- **THEN** a smoke test clones from a local repository into a temporary home directory, runs the
+  installer and the updater through their documented invocations for every scenario above, prints
+  the case matrix as counts, and fails the job when any case regresses
+
+#### Scenario: The guard declares its own blind spot
+
+- **WHEN** the updater decides whether to regenerate by reading the index for a fixed set of paths
+- **THEN** its header states that untracked files and edits outside those paths are not seen, so a
+  regeneration that ran is not read as proof that the inputs were pristine
+
+### Requirement: Published plugin descriptions are derived from the tree
+
+The description a plugin publishes — in its own manifest and in the marketplace entry that points
+at it — SHALL be produced by the generator from the skills present under that plugin's tree at
+generation time. The only hand-written part SHALL be a one-line theme per group; the count of skills
+and their names SHALL be read from the tree, so that a skill entering or leaving a group changes
+every published description on the next generation without a manual edit.
+
+The generator SHALL refuse to run for a group that has no theme, and SHALL refuse a version string
+that is not of the shape `MAJOR.MINOR.PATCH` with an optional pre-release suffix, in both cases
+before writing any file. A placeholder description or a malformed version reaching a published
+manifest is the silent defect this requirement exists to remove.
+
+Regeneration SHALL be idempotent: a second run over an unchanged tree SHALL write nothing new. The
+generator SHALL leave the version fields of the marketplace and the root manifest to the release
+script, which remains their only writer.
+
+#### Scenario: A skill that changes category moves in every published description
+
+- **WHEN** a skill's category changes and the generator runs
+- **THEN** the plugin manifest of the group it left, the manifest of the group it joined, and both
+  marketplace entries name the new membership with the right count, and no file was edited by hand
+
+#### Scenario: A group without a theme stops the generator
+
+- **WHEN** the tree yields a plugin group for which no theme is declared
+- **THEN** the generator exits non-zero naming the group and the skill that yielded it, before any
+  wrapper or plugin manifest is written, instead of publishing a placeholder
+
+#### Scenario: A malformed version stops the generator before it writes
+
+- **WHEN** the version file carries a value such as `1.2.3garbage`
+- **THEN** the generator exits non-zero before any wrapper or plugin manifest is written, and the
+  release script refuses the same value with the same rule
+
+#### Scenario: A second generation is a no-op
+
+- **WHEN** the generator runs twice over an unchanged tree
+- **THEN** the second run leaves the working tree without a diff
 

@@ -562,5 +562,12 @@
       linkado pela especificação (4.1, `README.md:25` e `:381`). O validador de referência é
       documentado no próprio step do CI e no delta de `skills-authoring`.
 
-- [ ] V.4 `openspec archive add-agent-skills-limits --yes` depois que todos os grupos acima
+- [x] V.4 `openspec archive add-agent-skills-limits --yes` depois que todos os grupos acima
       estiverem `[x]` — PR separado, depois do merge
+
+
+      ```
+      openspec archive add-agent-skills-limits --yes
+      -> Specs updated successfully.
+      -> Change 'add-agent-skills-limits' archived as '2026-09-04-add-agent-skills-limits'.
+      ```

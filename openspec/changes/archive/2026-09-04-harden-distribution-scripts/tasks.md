@@ -336,4 +336,11 @@
       -> `-... regenerate the Cursor wrappers:` / `+... regenerate all tool wrappers:`;
       `sed -n 141p README.md` -> `Pull the latest skills/rules into ~/ai-skills and regenerate
       all tool wrappers:`. `update.sh` linhas 6 e 33 dizem o mesmo (2.4)
-- [ ] V.4 `openspec archive harden-distribution-scripts --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive harden-distribution-scripts --yes` after all groups above are `[x]`
+
+
+      ```
+      openspec archive harden-distribution-scripts --yes
+      -> Specs updated successfully.
+      -> Change 'harden-distribution-scripts' archived as '2026-09-04-harden-distribution-scripts'.
+      ```

@@ -613,4 +613,11 @@
 - [x] V.3 README / docs atualizados onde a change altera composição ou uso do catálogo: a
       composição não muda (35 skills, mesmos grupos); o que muda é o texto publicado por plugin, e o
       README foi ajustado nas linhas da proposta (5.1-5.3)
-- [ ] V.4 `openspec archive derive-plugin-descriptions --yes` depois que todos os grupos acima estiverem `[x]`
+- [x] V.4 `openspec archive derive-plugin-descriptions --yes` depois que todos os grupos acima estiverem `[x]`
+
+
+      ```
+      openspec archive derive-plugin-descriptions --yes
+      -> Specs updated successfully.
+      -> Change 'derive-plugin-descriptions' archived as '2026-09-04-derive-plugin-descriptions'.
+      ```
