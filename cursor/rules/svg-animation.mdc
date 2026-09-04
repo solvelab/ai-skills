@@ -9,8 +9,9 @@ alwaysApply: false
 
 The failure this skill exists to prevent is not ugly output. It is **plausible** output: an animation
 whose every part is defensible and whose whole is wrong. Measured on 22 objects and 12 primitives
-(`research/svg-animation/`, ten recorded trials), the defects classified by what was actually
-missing:
+([research/svg-animation in the catalog repository](https://github.com/solvelab/ai-skills/tree/master/research/svg-animation),
+ten recorded trials — the research directory is not part of the installed skill), the defects
+classified by what was actually missing:
 
 ```
 viewpoint / axis                    4
@@ -97,6 +98,10 @@ motion. Load only the schemas named.
 
 A tree in wind is `growth-structure` (geometry) + `driven-oscillator` (motion). A gull is
 `articulated-body` (wings) + its own trajectory. Neither is "vegetation" or "animals".
+
+Once the regimes are named, check `references/objects/` for a dossier of the object (format and
+the existing set: `references/objects/README.md`) — the facts a regime schema asks for, each with
+its source; write one when the object is first built, never in advance.
 
 **If the request falls in a regime with no schema here, say which regime is missing and what you
 cannot vouch for without it.** Do not present the result as if that regime had been covered.
@@ -193,7 +198,9 @@ Hierarchy is the part list. Lag makes the wave. Give each unit that moves as a w
 - reduced motion — remove, reduce, *or replace*
 - measured cost (`references/platform.md`)
 
-The tooling used to produce this skill's evidence lives in `research/svg-animation/`:
+The tooling used to produce this skill's evidence lives in the catalog repository, outside the
+installed skill:
+[research/svg-animation](https://github.com/solvelab/ai-skills/tree/master/research/svg-animation) —
 `measure.mjs` (CDP cost harness) and `verify-motion.mjs` (does it MOVE right, not just look right).
 
 ## What no gate here can catch
