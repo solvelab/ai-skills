@@ -270,7 +270,11 @@ workflow, so the reminder does not teach a step that does not exist there.
 
 It stays silent for prompts already inside the rite (`/backlog`, `/execute-backlog`, any slash
 command), for explicit waivers ("sem backlog", "skip the rite"), and for anything that does not look
-like a code change. It persists nothing and needs no credentials.
+like a code change. It persists nothing and needs no credentials. A diagnostic question that
+contains a change word — `erro`, `bug`, `falha`/`fail` ("por que o teste falha?") — does fire, on
+purpose: the matcher is deliberately generous because a false positive costs one line of context
+while a false negative costs traceability, the reminder itself says diagnosis is free, and the hook's
+`--selftest` fixes that case as one that fires so a well-meant "fix" cannot revert it unread.
 
 ### The grounding rite (anti-achismo)
 
