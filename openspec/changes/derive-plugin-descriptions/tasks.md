@@ -130,65 +130,428 @@
       - `README.md:345` (`r3f-*/SKILL.md # ... (10 topics)`) está dentro de um bloco de código e
         fora das linhas desta change; é verdadeiro hoje (10 diretórios `r3f-*`) e review-only.
       - `install.sh`/`update.sh` — issue própria.
+      - A checagem de tema (`group_description`, `generate.sh:201`) roda depois de `rm -rf plugins/`;
+        um grupo sem tema deixa `plugins/` incompleto ao sair (medido em S.3). Checar as categorias
+        de `skills/*/SKILL.md` contra `GROUP_THEME` antes do primeiro `rm -rf` tornaria essa falha
+        tão atômica quanto a de `VERSION`.
 
 ## 2. Gerador: tema à mão, nomes e contagem da árvore
 
-- [ ] 2.1 `GROUP_DESC` vira `GROUP_THEME`, uma frase por grupo sem nomes nem contagens (D1)
-- [ ] 2.2 A description de `plugins/<g>/.claude-plugin/plugin.json` é montada como
+- [x] 2.1 `GROUP_DESC` vira `GROUP_THEME`, uma frase por grupo sem nomes nem contagens (D1)
+
+      ```
+      grep -nE 'declare -A GROUP_THEME' generate.sh; grep -c GROUP_DESC generate.sh
+      -> 166:declare -A GROUP_THEME=(
+      -> 0
+      sed -n '/declare -A GROUP_THEME/,/^)/p' generate.sh | grep -cE '\[[a-z]+\]=".*[0-9]'
+      -> 0    (nenhum tema carrega dígito)
+      ```
+
+- [x] 2.2 A description de `plugins/<g>/.claude-plugin/plugin.json` é montada como
       `"<tema> (<N> skills: <nomes em LC_ALL=C sort>)"` a partir de `plugins/<g>/skills/` (D1)
-- [ ] 2.3 O fallback `:-Skill group` some: grupo sem tema derruba o gerador nomeando o grupo (D1)
-- [ ] 2.4 `generate.sh` reescreve as `description` das entradas do `marketplace.json` (por plugin e
+
+      ```
+      grep -n 'LC_ALL=C sort' generate.sh
+      -> 205:  names="$(ls -1 "$PLUGINS_OUT/$group/skills" | LC_ALL=C sort | paste -sd, - | sed 's/,/, /g')"
+      python3 -c "import json;print(json.load(open('plugins/game/.claude-plugin/plugin.json'))['description'])"
+      -> React Three Fiber and AssettoServer game-dev conventions (12 skills: assettoserver-csp-lua, assettoserver-plugin, r3f-animation, r3f-assets, r3f-fundamentals, r3f-geometry, r3f-interaction, r3f-lighting, r3f-materials, r3f-physics, r3f-postprocessing, r3f-shaders)
+      python3 -c "import json;print(json.load(open('plugins/docs/.claude-plugin/plugin.json'))['description'])"
+      -> Three-tier project documentation generation (1 skill: documentation)
+      ```
+
+      Uma skill que muda de categoria move nos três artefatos (FR2), medido na cópia de
+      simulação com `skills/svg-animation/SKILL.md:18` trocado de `frontend` para `game`:
+
+      ```
+      bash generate.sh; git status --porcelain | grep plugin.json
+      ->  M .claude-plugin/marketplace.json
+      ->  M plugins/frontend/.claude-plugin/plugin.json
+      ->  M plugins/game/.claude-plugin/plugin.json
+      git diff -U0 | grep -E '^[-+] ' | cut -c1-120
+      -> -      "description": "React Three Fiber and AssettoServer game-dev conventions (12 skills: assettoserver-csp-lua, [...]
+      -> +      "description": "React Three Fiber and AssettoServer game-dev conventions (13 skills: assettoserver-csp-lua, [...]
+      -> -      "description": "React SPA API-client conventions and physically-grounded SVG/CSS animation (2 skills: react-api-client, svg-animation)",
+      -> +      "description": "React SPA API-client conventions and physically-grounded SVG/CSS animation (1 skill: react-api-client)",
+      -> [...]  (as mesmas duas trocas nos plugin.json de frontend e game)
+      python3 scripts/validate-repo-hygiene.py | tail -1
+      -> repo hygiene: 0 findings
+      ```
+
+- [x] 2.3 O fallback `:-Skill group` some: grupo sem tema derruba o gerador nomeando o grupo (D1)
+
+      ```
+      grep -n ':-Skill group' generate.sh
+      -> 198:# `:-Skill group <g>` fallback would have published a placeholder [...]   (só o comentário)
+      grep -n -- '-v GROUP_THEME' generate.sh
+      -> 201:  [[ -v GROUP_THEME[$group] ]] || {
+      ```
+
+      Na cópia de simulação, `skills/zz-probe/` com `category: newcat`:
+
+      ```
+      bash generate.sh; echo rc=$?
+      -> ❌ generate.sh: no GROUP_THEME for plugin group 'newcat' — add its theme to GROUP_THEME in generate.sh.
+      -> rc=1
+      ```
+
+- [x] 2.4 `generate.sh` reescreve as `description` das entradas do `marketplace.json` (por plugin e
       bundle) e a do `plugin.json` raiz por round-trip JSON, sem tocar `version`; entrada sem grupo
       ou grupo sem entrada derruba o gerador (D3)
 
+      ```
+      grep -nE '^python3 - |def marketplace|def root_manifest|if out != raw' generate.sh
+      -> 238:python3 - "$SCRIPT_DIR" "$generated" "$plugin_count" "${group_args[@]}" <<'PY'
+      -> 254:    if out != raw:
+      -> 258:def marketplace(data: dict) -> None:
+      -> 280:def root_manifest(data: dict) -> None:
+      python3 -c "import json;d=json.load(open('.claude-plugin/marketplace.json'));print(d['plugins'][0]['description']);print(d['metadata']['version'])"
+      -> FULL bundle (all 35 skills). Prefer the per-domain plugins — enable only what fits the project.
+      -> 2.16.0
+      python3 -c "import json;print(json.load(open('.claude-plugin/plugin.json'))['description'][:120])"
+      -> Reusable AI skills for coding assistants — all 35 skills across 10 per-domain plugins: backend: Backend service conventi
+      ```
+
+      Os dois sentidos da falha, na cópia de simulação:
+
+      ```
+      # tema declarado para newcat, sem entrada no marketplace
+      bash generate.sh; echo rc=$?
+      -> ❌ generate.sh: plugin group(s) with no marketplace entry: newcat — add the entry to .claude-plugin/marketplace.json.
+      -> rc=1
+      # entrada ai-skills-ghost com source ./plugins/ghost, sem grupo na árvore
+      bash generate.sh; echo rc=$?
+      -> ❌ generate.sh: marketplace entry 'ai-skills-ghost' points at './plugins/ghost', which is not a plugin group in plugins/.
+      -> rc=1
+      # com tema E entrada, o gerador aceita e publica a description derivada
+      bash generate.sh | tail -1
+      -> Generated 11 category plugins in plugins/ (descriptions derived from the tree)
+      -> ['Probe theme (1 skill: zz-probe)']
+      ```
+
 ## 3. Guarda de `VERSION`
 
-- [ ] 3.1 `generate.sh` valida `VERSION` com `SEMVER_RE` logo após checar `skills/`, antes de gravar
+- [x] 3.1 `generate.sh` valida `VERSION` com `SEMVER_RE` logo após checar `skills/`, antes de gravar
       qualquer arquivo; sem `|| echo 0.0.0` (D2)
-- [ ] 3.2 `scripts/set-version.sh:13` usa a mesma regex literal (D2)
+
+      ```
+      grep -nE '^\[ -d "\$SKILLS"|SEMVER_RE=|=~ \$SEMVER_RE|^mkdir -p' generate.sh
+      -> 24:[ -d "$SKILLS" ] || { echo "❌ skills/ directory not found."; exit 1; }
+      -> 30:SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+      -> 32:[[ "$VERSION_STR" =~ $SEMVER_RE ]] || {
+      -> 37:mkdir -p "$CURSOR_OUT" "$COPILOT_OUT"
+      grep -c 'echo 0.0.0' generate.sh
+      -> 0
+      ```
+
+      Com mtime de três saídas medido antes e depois (`plugins/game/.claude-plugin/plugin.json`,
+      `codex/AGENTS.md`, `claude/skills/backlog/SKILL.md`):
+
+      ```
+      echo 1.2.3garbage > VERSION; bash generate.sh; echo rc=$?
+      -> ❌ VERSION is '1.2.3garbage' — expected MAJOR.MINOR.PATCH with an optional -prerelease suffix. Nothing was written.
+      -> rc=1
+      diff mtimes-before.txt mtimes-after.txt && echo "mtimes unchanged: no file written"
+      -> mtimes unchanged: no file written
+      git status --porcelain
+      ->  M VERSION          (só o que o teste escreveu; restaurado com git checkout -- VERSION)
+      ```
+
+      Arquivo ausente e pré-release, na cópia de simulação:
+
+      ```
+      rm VERSION; bash generate.sh; echo rc=$?
+      -> ❌ VERSION is '' — expected MAJOR.MINOR.PATCH with an optional -prerelease suffix. Nothing was written.
+      -> rc=1
+      echo 3.0.0-rc.1 > VERSION; bash generate.sh | tail -1; grep -c '"version": "3.0.0-rc.1"' plugins/game/.claude-plugin/plugin.json
+      -> Generated 10 category plugins in plugins/ (descriptions derived from the tree)
+      -> 1
+      ```
+
+- [x] 3.2 `scripts/set-version.sh:13` usa a mesma regex literal (D2)
+
+      ```
+      grep -n "SEMVER_RE='" generate.sh scripts/set-version.sh
+      -> generate.sh:30:SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+      -> scripts/set-version.sh:15:SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+      bash scripts/set-version.sh 1.2.3garbage; echo rc=$?; cat VERSION
+      -> ❌ Usage: scripts/set-version.sh <X.Y.Z[-prerelease]> (got '1.2.3garbage')
+      -> rc=1
+      -> 2.16.0
+      ```
 
 ## 4. Gate: H3 pertencimento e contagem nua
 
-- [ ] 4.1 `check_plugin_membership` (H3) compara o parêntese de cada `plugins/<g>/.claude-plugin/plugin.json`
+- [x] 4.1 `check_plugin_membership` (H3) compara o parêntese de cada `plugins/<g>/.claude-plugin/plugin.json`
       e da entrada `source: ./plugins/<g>` do `marketplace.json` com `plugins/<g>/skills/`,
       nomeando arquivo, grupo, sobrando e faltando (D4)
-- [ ] 4.2 H2 ganha `UNSCOPED_COUNT_CLAIM` para `(N topics)`/`(N skills)` sem lista, fora de blocos
+
+      ```
+      grep -nE '^MEMBERSHIP_CLAIM|^def check_plugin_membership|^CHECKS' scripts/validate-repo-hygiene.py
+      -> 42:MEMBERSHIP_CLAIM = re.compile(r"\((\d+) skills?: ([^)]*)\)")
+      -> 153:def check_plugin_membership(root: Path) -> None:
+      -> 202:CHECKS = (check_no_bytecode, check_counts, check_plugin_membership)
+      ```
+
+      Defeitos injetados no worktree e restaurados com `git checkout --` em seguida:
+
+      ```
+      # plugins/backend/.claude-plugin/plugin.json sem log-event-collector no parêntese
+      python3 scripts/validate-repo-hygiene.py; echo rc=$?
+      ->   H3 plugin description membership: plugins/backend/.claude-plugin/plugin.json (backend) names 3 skills but plugins/backend/skills/ has 4 — in excess: none; missing: ['log-event-collector']; regenerate with ./generate.sh
+      ->   H3 plugin description membership: plugins/backend/.claude-plugin/plugin.json (backend) says 4 skills but lists 3 names; regenerate with ./generate.sh
+      -> repo hygiene: 2 findings
+      -> rc=1
+      # marketplace.json, entrada ai-skills-fivem com fivem-nui-react no lugar de fivem-lua
+      python3 scripts/validate-repo-hygiene.py; echo rc=$?
+      ->   H3 plugin description membership: .claude-plugin/marketplace.json entry `ai-skills-fivem` (fivem) names 2 skills but plugins/fivem/skills/ has 2 — in excess: ['fivem-nui-react']; missing: ['fivem-lua']; regenerate with ./generate.sh
+      -> rc=1
+      ```
+
+- [x] 4.2 H2 ganha `UNSCOPED_COUNT_CLAIM` para `(N topics)`/`(N skills)` sem lista, fora de blocos
       de código; `.claude-plugin/plugin.json` entra em `COUNT_FILES` (D4)
-- [ ] 4.3 Um defeito injetado por check novo em `DEFECTS`; o docstring de cada check declara o que
+
+      ```
+      grep -nE '^COUNT_FILES|^UNSCOPED_COUNT_CLAIM|in_fence = not' scripts/validate-repo-hygiene.py
+      -> 33:COUNT_FILES = ("README.md", ".claude-plugin/marketplace.json", ".claude-plugin/plugin.json")
+      -> 39:UNSCOPED_COUNT_CLAIM = re.compile(r"(?<!all )\b(\d+) (?:topics|skills)\)")
+      -> 107:                in_fence = not in_fence
+      # .claude-plugin/plugin.json com "(10 topics)" injetado
+      python3 scripts/validate-repo-hygiene.py; echo rc=$?
+      ->   H2 unscoped count: .claude-plugin/plugin.json:5 publishes `10 topics)` with no member list — nothing in the tree can confirm it; write `all N` (catalog total) or `(N skills: <names>)` (group membership, checked by H3)
+      -> rc=1
+      # README.md:548 reescrito como "### Game (React Three Fiber — 10 topics)"
+      python3 scripts/validate-repo-hygiene.py; echo rc=$?
+      ->   H2 unscoped count: README.md:548 publishes `10 topics)` with no member list [...]
+      -> rc=1
+      # README.md:355 ("r3f-*/SKILL.md  # React Three Fiber skills (10 topics)") dentro do bloco ``` aberto na 339
+      python3 scripts/validate-repo-hygiene.py
+      -> repo hygiene: 0 findings     (mudo, como D4 pede)
+      ```
+
+- [x] 4.3 Um defeito injetado por check novo em `DEFECTS`; o docstring de cada check declara o que
       não cobre (tema não verificado semanticamente, README prosa review-only, fences) (D4)
+
+      ```
+      grep -nE '^DEFECTS|_defect_unscoped_count\)|_defect_membership\)|KNOWN LIMIT' scripts/validate-repo-hygiene.py
+      -> 66:    KNOWN LIMIT: covers the bytecode classes .gitignore names [...]
+      -> 86:    KNOWN LIMIT: both patterns run over exactly the files in COUNT_FILES [...]
+      -> 161:    KNOWN LIMIT: the theme — the text before the parenthetical — is not read at all. [...]
+      -> 240:DEFECTS = (("H1 tracked bytecode", _defect_bytecode),
+      -> 242:           ("H2 unscoped count", _defect_unscoped_count),
+      -> 243:           ("H3 plugin description membership", _defect_membership))
+      python3 scripts/validate-repo-hygiene.py --selftest
+      ->   CAUGHT  H1 tracked bytecode
+      ->   CAUGHT  H2 stale count
+      ->   CAUGHT  H2 unscoped count
+      ->   CAUGHT  H3 plugin description membership
+      -> 4/4 defect classes detected
+      ```
 
 ## 5. README
 
-- [ ] 5.1 Linha de `svg-animation` sai da tabela Game e entra na tabela Frontend (D5)
-- [ ] 5.2 Cabeçalho Game sem "10 topics"; o parágrafo nomeia o que `ai-skills-game` embarca (D5)
-- [ ] 5.3 `README.md:50-55` nomeia as skills de cada plugin (D5)
+- [x] 5.1 Linha de `svg-animation` sai da tabela Game e entra na tabela Frontend (D5)
+
+      ```
+      grep -nE '^### (Frontend|Game)|^\| \*\*svg-animation\*\*' README.md | cut -c1-60
+      -> 514:### Frontend
+      -> 520:| **svg-animation** | "a toucan flying", "a tree in a light
+      -> 548:### Game (React Three Fiber)
+      grep -c '^| \*\*svg-animation\*\*' README.md
+      -> 1      (uma linha só, entre 514 e 522 = tabela Frontend; nenhuma sob 548)
+      ```
+
+- [x] 5.2 Cabeçalho Game sem "10 topics"; o parágrafo nomeia o que `ai-skills-game` embarca (D5)
+
+      ```
+      sed -n '548p;555,556p' README.md
+      -> ### Game (React Three Fiber)
+      -> The `ai-skills-game` plugin bundles every skill in this table plus `assettoserver-plugin` and
+      -> `assettoserver-csp-lua` from the AssettoServer table above (`assettoserver-ops` ships with
+      grep -nE '[0-9]+ topics' README.md
+      -> 355:│   └── r3f-*/SKILL.md                        # React Three Fiber skills (10 topics)   (dentro de bloco de código, review-only; E.4)
+      ```
+
+- [x] 5.3 `README.md:50-55` nomeia as skills de cada plugin (D5)
+
+      ```
+      sed -n '54,64p' README.md | cut -c1-80
+      -> | Plugin | Ships |
+      -> |---|---|
+      -> | `ai-skills-workflow` | `backlog`, `code-locale`, `conventional-commit`, `execute-b
+      -> | `ai-skills-backend` | `backend-resilience`, `log-event-collector`, `observability`
+      -> [...]
+      -> | `ai-skills-tooling` | `claude-statusline` |
+      ```
+
+      A tabela é prosa e não é comparada com a árvore por H3 (limite declarado em
+      `scripts/validate-repo-hygiene.py:161-170`); medido em S.3.
 
 ## 6. Simulation & Field Proof (MANDATORY)
 
-- [ ] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
-      observed output are recorded (or: this change touches no runtime artifact)
-- [ ] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
-      silent and did, known escapes that stayed silent
-- [ ] S.3 What escaped or behaved differently than expected is named here — or it is stated
-      explicitly that nothing did
+- [x] S.1 O gerador, o script de versão e o gate foram exercitados pelo caminho real, com a saída
+      observada
+
+      No worktree (`5bff578`), duas gerações seguidas:
+
+      ```
+      bash generate.sh; echo rc=$?; bash generate.sh; echo rc=$?; git status --porcelain | wc -l
+      -> Generated wrappers for 35 skills:
+      -> Generated 10 category plugins in plugins/ (descriptions derived from the tree)
+      -> rc=0
+      -> [...]  (segunda run, mesma saída)
+      -> rc=0
+      -> 0
+      ```
+
+      Os dois steps do `ci.yml` que esta change alcança, rodados literalmente:
+
+      ```
+      bash generate.sh; git diff --exit-code --quiet; echo rc=$?
+      -> rc=0
+      VERSION="$(tr -d '[:space:]' < VERSION)"; for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json; do grep -q "\"version\": \"$VERSION\"" "$f" || exit 1; done; echo "Version $VERSION coherent across manifests."
+      -> Version 2.16.0 coherent across manifests.
+      ```
+
+      `VERSION` inválido, antes de qualquer escrita (3.1), e `set-version.sh` recusando o mesmo
+      valor (3.2): saídas acima. Gate com defeito injetado nos dois arquivos e nas duas formas de
+      contagem nua (4.1, 4.2): saídas acima.
+
+      Validador do vendor, na versão instalada e na pinada pelo `ci.yml:129`:
+
+      ```
+      claude plugin validate . --strict
+      -> ✔ Validation passed          (claude 2.1.260)
+      npx -y @anthropic-ai/claude-code@2.1.246 plugin validate . --strict
+      -> ✔ Validation passed
+      ```
+
+      **Ordem no release** (Risks de `design.md`), numa cópia do worktree em
+      `scratchpad/wt3-copy` com `.git` próprio (`git init` + commit base), nunca no worktree:
+
+      ```
+      bash scripts/set-version.sh 9.9.9; echo rc=$?
+      -> ✅ Version set: 2.16.0 → 9.9.9
+      -> rc=0
+      git status --porcelain
+      ->  M .claude-plugin/marketplace.json
+      ->  M .claude-plugin/plugin.json
+      ->  M VERSION
+      ->  M plugins/backend/.claude-plugin/plugin.json
+      -> [...]  (os 10 plugins/*/.claude-plugin/plugin.json; 13 linhas ao todo)
+      grep -l '"version": "9.9.9"' plugins/*/.claude-plugin/plugin.json .claude-plugin/plugin.json .claude-plugin/marketplace.json | wc -l
+      -> 12
+      git add -A; git commit -q -m v999; bash generate.sh >/dev/null; git status --porcelain | wc -l
+      -> 0        (sem segundo diff)
+      ```
+
+      E a versão não entra na derivação: as 11 `description` do `marketplace.json` em `9.9.9`
+      (cópia) são idênticas às de `2.16.0` (worktree):
+
+      ```
+      python3 -c "... da==db ..."
+      -> scratch version: 9.9.9 worktree version: 2.16.0
+      -> descriptions identical across versions: True 11
+      ```
+
+      Grupo novo sem tema, tema sem entrada, entrada sem grupo, `VERSION` ausente, pré-release e
+      mudança de categoria: saídas em 2.2, 2.3, 2.4 e 3.1, todas na mesma cópia.
+
+- [x] S.2 Matriz de casos, em contagens
+
+      | Expectativa | Casos | Resultado |
+      |---|---|---|
+      | Tinha de disparar e disparou | **11/11** | `VERSION` `1.2.3garbage` (gerador, exit 1, mtimes intactos); `VERSION` ausente (exit 1); `set-version.sh 1.2.3garbage` (exit 1, `VERSION` intacto); grupo sem tema (exit 1, nomeia `newcat`); tema sem entrada no marketplace (exit 1, nomeia `newcat`); entrada `ai-skills-ghost` sem grupo (exit 1); H3 `plugin.json` sem `log-event-collector` (2 findings, nomeia arquivo, grupo, faltando); H3 entrada `ai-skills-fivem` com `fivem-nui-react` (nomeia sobrando e faltando); H2 `(10 topics)` no `plugin.json` raiz; H2 `(… — 10 topics)` no cabeçalho `README.md:548`; `--selftest` 4/4 |
+      | Tinha de mudar e mudou | **1/1** | `svg-animation` `frontend → game`: `marketplace.json` (2 entradas), `plugins/frontend` e `plugins/game` reescritos com `1 skill`/`13 skills`, hygiene 0 findings sobre a árvore movida |
+      | Tinha de ficar mudo e ficou | **8/8** | segunda `generate.sh` (porcelain 0); `set-version.sh 9.9.9` + `generate.sh` (sem segundo diff, 12 arquivos em 9.9.9); pré-release `3.0.0-rc.1` aceito; hygiene no worktree (0 findings); `README.md:355` dentro de fence (0 findings); `claude plugin validate --strict` em 2.1.260 e em 2.1.246; `Wrappers in sync` e `Version coherence` do `ci.yml` literais |
+      | Escape conhecido ficou mudo | **2/2** | tema errado (`[fivem]="Kubernetes cluster tuning…"`): publicado e hygiene 0 findings; `README.md:63` tabela de plugins com `helm-migration` em `ai-skills-docs`: hygiene 0 findings |
+
+- [x] S.3 O que escapou ou se comportou diferente do esperado
+
+      Dois escapes, os dois declarados dentro do check (`scripts/validate-repo-hygiene.py:161-170`,
+      D4) e agora medidos:
+
+      ```
+      # cópia: tema do grupo fivem trocado para "Kubernetes cluster tuning"
+      bash generate.sh; python3 -c "...plugins/fivem...['description']"; python3 scripts/validate-repo-hygiene.py | tail -1
+      -> Kubernetes cluster tuning and Lua-side resilience patterns (2 skills: fivem-fallback, fivem-lua)
+      -> repo hygiene: 0 findings
+      # cópia: README.md tabela Plugin | Ships, ai-skills-docs com `helm-migration` a mais
+      python3 scripts/validate-repo-hygiene.py | tail -1
+      -> repo hygiene: 0 findings
+      ```
+
+      O tema (texto antes do parêntese) não é verificado semanticamente; a tabela
+      `README.md:54-64` é prosa review-only (follow-up em E.4: gerá-la da mesma fonte).
+
+      Um ponto **não medido**: como a UI do `/plugin` renderiza as descrições longas. Tamanhos
+      publicados: `game` 264 chars, `workflow` 236, raiz (`.claude-plugin/plugin.json`) 941.
+      `claude plugin validate --strict` (2.1.260 e 2.1.246) não impõe limite — os dois passaram
+      com esses tamanhos — mas nenhum comando local renderiza a listagem do marketplace sem
+      sessão interativa (E.3). Fica como limite conhecido.
+
+      Uma diferença de comportamento, medida e registrada como limite: um grupo sem tema derruba
+      o gerador **no meio do loop** de `plugins/`, não antes de gravar. `rm -rf plugins/`
+      (`generate.sh:160`) já rodou, os wrappers já foram gravados, e os `plugin.json` dos grupos
+      que vêm depois do grupo órfão na ordem alfabética ainda não foram recriados. Medido na
+      cópia, com `skills/zz-probe/` (`category: newcat`) commitado como base:
+
+      ```
+      bash generate.sh; echo rc=$?; git status --porcelain
+      -> ❌ generate.sh: no GROUP_THEME for plugin group 'newcat' — add its theme to GROUP_THEME in generate.sh.
+      -> rc=1
+      ->  M codex/AGENTS.md
+      ->  D plugins/nui/.claude-plugin/plugin.json
+      ->  D plugins/testing/.claude-plugin/plugin.json
+      ->  D plugins/tooling/.claude-plugin/plugin.json
+      ->  D plugins/workflow/.claude-plugin/plugin.json
+      -> ?? claude/skills/zz-probe/
+      -> [...]  (codex/, copilot/, cursor/ e plugins/newcat/ novos)
+      ```
+
+      `.claude-plugin/marketplace.json` e `.claude-plugin/plugin.json` ficam intactos (a reescrita
+      de D3 vem depois do loop). "Antes de gravar qualquer arquivo" (D2) vale para `VERSION` e foi
+      medido em 3.1; para o tema, a garantia é exit 1 com os manifestos da raiz intactos e uma
+      árvore `plugins/` visivelmente incompleta, que o step *Wrappers in sync* do `ci.yml` reprova
+      e que uma segunda run após declarar o tema recompõe. Mover a checagem de tema para antes do
+      `rm -rf` (ler as categorias de `skills/*/SKILL.md` primeiro) fecharia isso e fica como
+      follow-up em E.4. Nada mais escapou nem se comportou de forma diferente.
 
 ## 7. Quality Gates (MANDATORY)
 
-- [ ] Q.1 Frontmatter uniform on every touched SKILL.md: name == directory, folded description,
-      metadata.author solvelab, semver metadata.version, category in the controlled set, license MIT,
-      compatibility present
-- [ ] Q.2 All touched skill content in English (catalog locale)
-- [ ] Q.3 Description triggers testable: phrases a user would actually say route to this skill and
-      do NOT collide with a sibling skill's triggers; "Do NOT use for" boundary present where overlap exists
-- [ ] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
-      its canonical skill (see design.md Canonical Home table)
-- [ ] Q.5 Every code example in a touched skill uses English identifiers, routes, keys and event
-      names; a term kept in another language carries its reason inline (`code-locale`)
+- [x] Q.1 Frontmatter uniforme em todo `SKILL.md` tocado — **não se aplica**: esta change não toca
+      nenhuma skill (`git diff --name-only master...HEAD | grep -c SKILL.md` → `0`); o step
+      *Skill frontmatter checks* roda verde no runner de gates (`PASS frontmatter`)
+- [x] Q.2 Conteúdo de skill tocado em inglês — **não se aplica** pelo mesmo motivo; o delta de spec
+      desta change está em inglês, como o catálogo exige
+- [x] Q.3 Gatilhos de descrição testáveis — **não se aplica**: nenhuma descrição de skill muda; as
+      descrições que mudam são as dos plugins, e o que elas afirmam (nomes e contagem) é o que H3
+      verifica
+- [x] Q.4 Sem doutrina duplicada: a regra "um check declara o que não cobre" é aplicada dentro de H2
+      e H3 (`KNOWN LIMIT` em `scripts/validate-repo-hygiene.py:86,161`) e não reescrita; ver a
+      tabela de Canonical Home em `design.md`
+- [x] Q.5 Identificadores em inglês no que a change introduz — `GROUP_THEME`, `SEMVER_RE`,
+      `group_description`, `check_plugin_membership`, `UNSCOPED_COUNT_CLAIM`, `MEMBERSHIP_CLAIM` —
+      conforme o glossário da issue #114 e `code-locale`; `PASS locale-detector` no runner
 
 ## 8. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `openspec validate derive-plugin-descriptions --strict` green
-- [ ] V.2 Catalog discovery intact: `npx skills add <repo> --list` finds every skill, expected count,
-      no orphan/renamed leftovers
-- [ ] V.3 README / docs updated where the change alters catalog composition or usage
-- [ ] V.4 `openspec archive derive-plugin-descriptions --yes` after all groups above are `[x]`
+- [x] V.1 `openspec validate derive-plugin-descriptions --strict` verde
+
+      ```
+      openspec validate derive-plugin-descriptions --strict
+      -> Change 'derive-plugin-descriptions' is valid
+      ```
+
+- [x] V.2 Descoberta do catálogo intacta
+
+      ```
+      npx -y skills add <worktree> --list > skills-list.txt; grep -E '^│    [a-z0-9-]+$' skills-list.txt | sed 's/^│ *//' | sort > list-names.txt; wc -l < list-names.txt
+      -> 35
+      ls -1 skills | sort > tree-names.txt; diff list-names.txt tree-names.txt && echo "list == skills/ tree"
+      -> list == skills/ tree
+      ```
+
+- [x] V.3 README / docs atualizados onde a change altera composição ou uso do catálogo: a
+      composição não muda (35 skills, mesmos grupos); o que muda é o texto publicado por plugin, e o
+      README foi ajustado nas linhas da proposta (5.1-5.3)
+- [ ] V.4 `openspec archive derive-plugin-descriptions --yes` depois que todos os grupos acima estiverem `[x]`
