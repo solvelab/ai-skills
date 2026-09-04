@@ -853,18 +853,19 @@ This emits the Claude/Codex/Cursor/Copilot wrappers automatically. Commit them t
 ### 3. Release
 
 Commit with a [Conventional Commit](https://www.conventionalcommits.org) message on a branch and open a
-pull request — `master` takes no direct push (PR-only, by convention). CI reads that pull request:
-`scripts/validate-spec-rite.py` looks in the diff for the OpenSpec change (`openspec/changes/<id>/`,
-committed together with the skill per the rite above) and, when the diff carries none, in the PR
-body for a written waiver `Spec-rite: none — <reason>` — a PR with neither fails with S1. Write the
-body from a file: `gh pr create --fill` takes title and body from the commit message, so a `-m`-only
-commit opens a PR with an empty body. The release runs after the merge and does the rest (version
-bump, changelog, tag, GitHub Release):
+pull request — `master` takes no direct push (PR-only, by convention). CI reads the pull request
+body: `scripts/validate-spec-rite.py` passes when the checkout carries an active change under
+`openspec/changes/<id>/` (the one `/opsx:propose` scaffolded above, committed with the skill) or the
+diff archives one, and otherwise only when the body carries a written waiver
+`Spec-rite: none — <reason>` — a PR with neither fails with S1. Write the body from a file:
+`gh pr create --fill` takes title and body from the commit message, so a `-m`-only commit opens a
+PR with an empty body. The release runs after the merge and does the rest (version bump, changelog,
+tag, GitHub Release):
 
 ```bash
 git commit -m "skill: add my-skill"   # skill:/feat: → minor release once merged into master
 git push -u origin backlog/<n>-my-skill
-gh pr create --title "skill: add my-skill" --body-file pr.md   # pr.md names the change (`Spec-rite: <id>`)
+gh pr create --title "skill: add my-skill" --body-file pr.md   # pr.md: `Spec-rite: <id>`, or `Spec-rite: none — <reason>`
 ```
 
 ### 4. Key guidelines for writing skills
