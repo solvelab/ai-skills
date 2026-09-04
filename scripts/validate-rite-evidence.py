@@ -49,6 +49,12 @@ KNOWN LIMIT — what this gate does NOT do. A passing run is not proof the evide
   5. Only active changes are read; `openspec/changes/archive/` is history and is never re-litigated.
   6. It fires on nothing in the current corpus — every historical E box passes. That is calibration
      (no false positives on genuine boxes), not proof it works; `--selftest` is what proves that.
+  7. E.3, E.4 and S.3 accept any body longer than 120 characters as "names a gap / a follow-up /
+     an escape", with no negative word required. The length is a proxy for "says something", chosen
+     because a genuine gap statement is rarely short and a regex for "names a gap" would be limit 1
+     again. What it lets through: 121 characters of padding that name nothing. Measured on issue
+     #117 (2026-09-04) and kept, declared here and exercised by the ESCAPES case of `--selftest`,
+     whose expected result is silence.
 
 Exit 1 on any finding. Run from the repo root.
 Modes: (default) check active changes   |   --selftest inject one defect per rule and assert detection.
@@ -324,26 +330,60 @@ DEFECTS = (("R1 evidence shape: E.1", _break_e1),
            ("R2 simulation shape: S.3", _break_s3))
 
 
+# KNOWN LIMIT 7, kept measurable: 125 characters that name no gap and declare none absent. The
+# expected result is SILENCE — the case documents what escapes, it does not pretend to catch it.
+_PADDING = ("Reviewed the surrounding code paths and the documentation at length before "
+            "deciding that this looked fine to me overall today")
+
+
+def _pad_e3(tmp: Path) -> None:
+    p = _seed(tmp)
+    p.write_text(p.read_text(encoding="utf-8").replace(
+        "- [x] E.3 Nothing could not be probed: none outstanding",
+        f"- [x] E.3 {_PADDING}"), encoding="utf-8")
+
+
+ESCAPES = (("R1 evidence shape: E.3 padded past 120 characters names no gap", _pad_e3),)
+
+
+def _run_injected(inject) -> list[str]:
+    global findings
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td) / "repo"
+        shutil.copytree(ROOT, tmp, ignore=shutil.ignore_patterns(".git", "__pycache__"))
+        inject(tmp)
+        findings = []
+        for run in CHECKS:
+            run(tmp)
+        return findings
+
+
 def selftest() -> int:
-    global findings, annotate
+    global annotate
     annotate = False        # injected paths do not exist; see the note on `annotate`
+    assert len(_PADDING) > 120, "the ESCAPES case must exceed the length proxy it documents"
     caught = 0
     for label, inject in DEFECTS:
         check, box = label.split(": ")
-        with tempfile.TemporaryDirectory() as td:
-            tmp = Path(td) / "repo"
-            shutil.copytree(ROOT, tmp, ignore=shutil.ignore_patterns(".git", "__pycache__"))
-            inject(tmp)
-            findings = []
-            for run in CHECKS:
-                run(tmp)
-            if any(f.startswith(check) and box in f for f in findings):
-                print(f"  CAUGHT  {label}")
-                caught += 1
-            else:
-                print(f"  MISSED  {label}   <-- the rule cannot fire")
-    print(f"\n{caught}/{len(DEFECTS)} defect classes detected")
-    return 0 if caught == len(DEFECTS) else 1
+        found = _run_injected(inject)
+        if any(f.startswith(check) and box in f for f in found):
+            print(f"  CAUGHT  {label}")
+            caught += 1
+        else:
+            print(f"  MISSED  {label}   <-- the rule cannot fire")
+
+    silent = 0
+    for label, inject in ESCAPES:
+        found = _run_injected(inject)
+        if found:
+            print(f"  FIRED   {label}   <-- KNOWN LIMIT 7 no longer holds; update the docstring")
+        else:
+            print(f"  ESCAPED {label}   (silent, as KNOWN LIMIT 7 declares)")
+            silent += 1
+
+    print(f"\n{caught}/{len(DEFECTS)} defect classes detected, "
+          f"{silent}/{len(ESCAPES)} known escapes stayed silent")
+    return 0 if caught == len(DEFECTS) and silent == len(ESCAPES) else 1
 
 
 def main() -> int:
