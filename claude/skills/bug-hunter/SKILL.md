@@ -10,7 +10,7 @@ description: >-
   api-resilience-testing.
 metadata:
   author: solvelab
-  version: 2.2.1
+  version: 2.2.2
   category: testing
 license: MIT
 compatibility: Works in any environment with filesystem access.

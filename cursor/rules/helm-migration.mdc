@@ -137,7 +137,7 @@ component: api
 ##############################
 # Definition of the Deployment
 deployment:
-  # Reloader: reinicia o pod automaticamente quando ConfigMap ou Secret for alterado
+  # Reloader: restarts the pod automatically when a ConfigMap or Secret changes
   annotations:
     reloader.stakater.com/auto: "true"
 ```

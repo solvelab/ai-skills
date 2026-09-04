@@ -155,7 +155,7 @@ version: 1.0.0
 deployment:
   replicas: 1
   revisionHistoryLimit: 3
-  # Reloader: reinicia o pod automaticamente quando ConfigMap ou Secret for alterado
+  # Reloader: restarts the pod automatically when a ConfigMap or Secret changes
   annotations:
     reloader.stakater.com/auto: "true"
   strategy:

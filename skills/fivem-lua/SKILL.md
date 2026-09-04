@@ -4,7 +4,7 @@ description: >-
   Conventions for writing FiveM (CitizenFX) server/client Lua resources. Use when working on FiveM/FXServer Lua — RegisterNetEvent/RegisterNUICallback handlers, fxmanifest, exports, NUI (SendNUIMessage/SetNuiFocus), threads/CreateThread, StateBags, or natives. Enforces the client-is-never-trusted boundary (validate payload + derive actor from `source`), explicit fxmanifest order, no busy `while true` loops, module-per-global pattern, and NUI focus/disconnect cleanup. Do NOT use for react-three-fiber or non-FiveM Lua.
 metadata:
   author: solvelab
-  version: 1.3.0
+  version: 1.3.1
   category: fivem
 license: MIT
 compatibility: Works in any environment with filesystem access.
@@ -25,12 +25,15 @@ own CLAUDE.md, not here.
   check the relationship/permission and rate-limit it — otherwise it's an injection/DoS vector.
 - Server is authoritative for state and money/assets. The client only *requests*.
 - **Anti-forge merge** for telemetry the server can also read: treat the client report as a
-  *clamped hint* and let the server-side read of the live entity WIN when available:
+  *clamped hint* and let the server-side read of the live entity WIN when available. `clampNum` is
+  the `fivem-fallback` helper, `clampNum(v, lo, hi, default)`: the fourth argument is what a
+  missing or non-numeric client value becomes, and it is passed explicitly so a forged `nil` lands
+  on a safe number instead of propagating into the snapshot:
 
 ```lua
 local snap = {
-  body = clampNum(clientCond.body, 0.0, 1000.0),   -- client hint, clamped
-  fuel = clampNum(clientCond.fuel, 0.0, 100.0),
+  body = clampNum(clientCond.body, 0.0, 1000.0, 0.0),   -- client hint, clamped; nil -> 0.0
+  fuel = clampNum(clientCond.fuel, 0.0, 100.0, 0.0),
 }
 local live = exports["vehicle-owner-res"]:GetLiveCondition(src)
 if live and live.engine then snap.engine = live.engine end  -- server-read PREVAILS
