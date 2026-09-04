@@ -111,14 +111,15 @@
 
 ## 2. update.sh — guarda de entradas, falha visível, texto
 
-- [ ] 2.1 A regeneração roda só quando `git status --porcelain --untracked-files=no -- VERSION
+- [x] 2.1 A regeneração roda só quando `git status --porcelain --untracked-files=no -- VERSION
       skills/` está vazio; caso contrário imprime a lista, o comando que limpa, pula a regeneração e
-      não aborta o update (D1)
-- [ ] 2.2 `bash generate.sh` sai do `&&`: falha vira exit ≠ 0 com a saída capturada (D3)
-- [ ] 2.3 O `pull --ff-only` captura o stderr do git e o imprime indentado sob a mensagem própria e
-      a dica, com `advice.diverging=false` (D5)
-- [ ] 2.4 Cabeçalho e `--help` dizem "all tool wrappers" e o cabeçalho declara o que a guarda não
-      cobre (D2)
+      não aborta o update (D1) — `update.sh`, bloco `DIRTY_INPUTS`
+- [x] 2.2 `bash generate.sh` sai do `&&`: falha vira exit ≠ 0 com a saída capturada (D3) —
+      `update.sh`, `if GEN_OUT="$(bash generate.sh 2>&1)"` com `exit "$GEN_RC"` no `else`
+- [x] 2.3 O `pull --ff-only` captura o stderr do git e o imprime indentado sob a mensagem própria e
+      a dica, com `advice.diverging=false` (D5) — `update.sh`, bloco `PULL_ERR`
+- [x] 2.4 Cabeçalho e `--help` dizem "all tool wrappers" e o cabeçalho declara o que a guarda não
+      cobre (D2) — `update.sh` linhas 6, 16-20 e 33
 
 ## 3. install.sh — validação antes do clone, ff-only no re-run
 
@@ -140,7 +141,8 @@
       falhar (D7)
 - [ ] 4.3 Step novo em `.github/workflows/ci.yml`, logo após `Repo hygiene self-test`, rodando o
       teste de fumaça
-- [ ] 4.4 `README.md:141` diz "all tool wrappers"
+- [x] 4.4 `README.md:141` diz "all tool wrappers" — `sed -n 141p README.md` -> `Pull the latest
+      skills/rules into ~/ai-skills and regenerate all tool wrappers:`
 
 ## 5. Simulation & Field Proof (MANDATORY)
 
