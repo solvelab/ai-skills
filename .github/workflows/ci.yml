@@ -25,22 +25,47 @@ jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
+    # Least privilege. A job-level permissions block replaces the workflow-level one entirely, so
+    # every scope not listed here is `none`. No step in this job writes to the repository or reads
+    # GITHUB_TOKEN (each of them read on issue #117); the workflow-level `contents: write` exists
+    # for the release job and used to be inherited here.
+    permissions:
+      contents: read
+    # Measured 57s (run 33463864134) to 5m38s (run 33843366162). Without a ceiling a hung `npx`
+    # holds the serialized master queue for the 360-minute default.
+    timeout-minutes: 15
     steps:
       - name: Checkout
         # fetch-depth: 0 — the spec-rite gate diffs this branch against its base. The default
         # depth of 1 leaves no base revision, and a gate that cannot measure must not approve.
+        # persist-credentials: false — the token is needed for the fetch and for nothing after it.
+        # The default (`persist-credentials: true` in the run log) leaves it in .git/config for
+        # every later step, including the third-party tools this job runs through npx.
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Wrappers in sync with skills/
+        # `git diff --exit-code` compares the index with the working tree and never sees an
+        # untracked file: a new skills/<name>/references/*.md whose mirror under plugins/ was never
+        # added passed this step (issue #117, measured 2026-09-04). `git status --porcelain` sees
+        # both, and `--untracked-files=all` names the file rather than its directory.
         run: |
           bash generate.sh
+          fail=0
+          untracked="$(git status --porcelain --untracked-files=all | grep '^??' || true)"
+          if [ -n "$untracked" ]; then
+            echo "::error::generate.sh produced files that are not tracked. Add them and commit:"
+            echo "$untracked"
+            fail=1
+          fi
           if ! git diff --exit-code --quiet; then
             echo "::error::Generated wrappers are out of sync. Run ./generate.sh and commit the result."
             git diff --stat
-            exit 1
+            fail=1
           fi
+          exit $fail
 
       - name: Version coherence (VERSION == plugin.json == marketplace.json)
         run: |
@@ -54,22 +79,28 @@ jobs:
           echo "Version $VERSION coherent across manifests."
 
       - name: Skill frontmatter checks
+        # Every grep reads the FRONTMATTER BLOCK — the text between the two `---` delimiters,
+        # extracted with the same awk generate.sh:29-31 uses — never the whole file. A `name:`
+        # inside a ```yaml block in the body satisfied a whole-file grep (issue #117). The
+        # first-line check stays on the file itself: it is what guarantees the awk has a block to
+        # start from.
         run: |
           CATEGORIES="backend testing fivem game devops docs git process nui frontend tooling"
           fail=0
           for f in skills/*/SKILL.md; do
             dir="$(basename "$(dirname "$f")")"
             head -1 "$f" | grep -q '^---$' || { echo "::error file=$f::Missing frontmatter"; fail=1; }
-            grep -q '^name:' "$f" || { echo "::error file=$f::Missing name"; fail=1; }
-            grep -q '^description:' "$f" || { echo "::error file=$f::Missing description"; fail=1; }
-            grep -q '^description: >-' "$f" || { echo "::error file=$f::description must be a folded block scalar ('description: >-')"; fail=1; }
-            name="$(grep -m1 '^name:' "$f" | sed 's/^name: *//')"
+            fm="$(awk 'NR==1 && $0=="---"{inFM=1; print; next} inFM && $0=="---"{print; exit} inFM{print}' "$f")"
+            grep -q '^name:' <<<"$fm" || { echo "::error file=$f::Missing name"; fail=1; }
+            grep -q '^description:' <<<"$fm" || { echo "::error file=$f::Missing description"; fail=1; }
+            grep -q '^description: >-' <<<"$fm" || { echo "::error file=$f::description must be a folded block scalar ('description: >-')"; fail=1; }
+            name="$(grep -m1 '^name:' <<<"$fm" | sed 's/^name: *//')"
             [ "$name" = "$dir" ] || { echo "::error file=$f::name '$name' != directory '$dir'"; fail=1; }
-            grep -qE '^  version: [0-9]+\.[0-9]+\.[0-9]+' "$f" || { echo "::error file=$f::Missing metadata.version (semver)"; fail=1; }
-            grep -qx '  author: solvelab' "$f" || { echo "::error file=$f::metadata.author must be exactly 'solvelab'"; fail=1; }
-            grep -qx 'license: MIT' "$f" || { echo "::error file=$f::license must be exactly 'MIT'"; fail=1; }
-            grep -q '^compatibility:' "$f" || { echo "::error file=$f::Missing compatibility"; fail=1; }
-            cat="$(grep -m1 '^  category:' "$f" | sed 's/^  category: *//')"
+            grep -qE '^  version: [0-9]+\.[0-9]+\.[0-9]+' <<<"$fm" || { echo "::error file=$f::Missing metadata.version (semver)"; fail=1; }
+            grep -qx '  author: solvelab' <<<"$fm" || { echo "::error file=$f::metadata.author must be exactly 'solvelab'"; fail=1; }
+            grep -qx 'license: MIT' <<<"$fm" || { echo "::error file=$f::license must be exactly 'MIT'"; fail=1; }
+            grep -q '^compatibility:' <<<"$fm" || { echo "::error file=$f::Missing compatibility"; fail=1; }
+            cat="$(grep -m1 '^  category:' <<<"$fm" | sed 's/^  category: *//')"
             if [ -z "$cat" ]; then
               echo "::error file=$f::Missing metadata.category"; fail=1
             else
@@ -95,6 +126,9 @@ jobs:
 
       - name: Secret scan (working tree)
         run: python3 scripts/scan-secrets.py
+
+      - name: Secret scan self-test (the gate is itself gated)
+        run: python3 scripts/scan-secrets.py --selftest
 
       - name: Repo hygiene (compiled artifacts, published counts)
         run: python3 scripts/validate-repo-hygiene.py
@@ -134,9 +168,8 @@ jobs:
     needs: [validate]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    outputs:
-      new_release: ${{ steps.check_release.outputs.new_release }}
-      version: ${{ steps.check_release.outputs.version }}
+    # Measured 29s (run 33843366162); the ceiling exists for a hung npm install, not for the work.
+    timeout-minutes: 15
     steps:
       - name: Checkout
         # ref: master — NOT the triggering commit. On a push event checkout defaults to github.sha,
@@ -211,21 +244,4 @@ jobs:
           if grep -qF 'is behind the remote one' semantic-release.log; then
             echo "::error::semantic-release refused to publish: the checked-out branch is behind the remote one. The release job must run against the tip of master (see the 'ref: master' comment on this job's checkout step). Nothing was published by this run."
             exit 1
-          fi
-
-      - name: Check if new release was created
-        id: check_release
-        run: |
-          git fetch --tags --force 2>/dev/null || true
-          CURRENT=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
-          PREV="${{ steps.prev_tag.outputs.prev_tag }}"
-
-          if [ "$CURRENT" != "$PREV" ] && [ -n "$CURRENT" ]; then
-            echo "new_release=true" >> $GITHUB_OUTPUT
-            echo "version=$CURRENT" >> $GITHUB_OUTPUT
-            echo "New release detected: $CURRENT (was: $PREV)"
-          else
-            echo "new_release=false" >> $GITHUB_OUTPUT
-            echo "version=$CURRENT" >> $GITHUB_OUTPUT
-            echo "No new release (current: $CURRENT)"
           fi
