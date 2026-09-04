@@ -138,14 +138,19 @@
 
 ## 4. Teste de fumaça e gate
 
-- [ ] 4.1 `scripts/smoke-install-scripts.sh`: bare local a partir do HEAD, `HOME` temporário por
+- [x] 4.1 `scripts/smoke-install-scripts.sh`: bare local a partir do HEAD, `HOME` temporário por
       caso, cobrindo install padrão, re-run idempotente, `--legacy`, `--tool codex`, `--tool all`,
-      `--tool bogus`, `--tool` sem valor, update limpo, update com `VERSION` sujo, update com
-      `generate.sh` falhando, divergência sem `--force` (update e install) e com `--force` (D6)
-- [ ] 4.2 O resumo final imprime a matriz em contagens `n/n` e o script sai 1 se qualquer caso
-      falhar (D7)
-- [ ] 4.3 Step novo em `.github/workflows/ci.yml`, logo após `Repo hygiene self-test`, rodando o
-      teste de fumaça
+      `--tool bogus` (HOME vazio e clone existente), `--tool` sem valor, update limpo, update com
+      `VERSION` sujo, update com edição fora das entradas, update com `generate.sh` falhando,
+      divergência sem `--force` (update e install) e com `--force` (D6). Os transportes https/ssh
+      ficam desligados em cada invocação (`protocol.<name>.allow=never`), probado:
+      `git clone https://github.com/solvelab/ai-skills.git` -> `fatal: transport 'https' not
+      allowed`, `exit=128`; clone e pull por caminho local com o mesmo env -> `exit=0`
+- [x] 4.2 O resumo final imprime a matriz em contagens `n/n` e o script sai 1 se qualquer caso
+      falhar (D7) — `bash scripts/smoke-install-scripts.sh` -> `smoke: 15/15 cases passed —
+      refusals that had to fire: 6/6, paths that had to succeed: 9/9`
+- [x] 4.3 Step novo em `.github/workflows/ci.yml`, logo após `Repo hygiene self-test`, rodando o
+      teste de fumaça — `grep -n 'smoke-install' .github/workflows/ci.yml` -> linha 109
 - [x] 4.4 `README.md:141` diz "all tool wrappers" — `sed -n 141p README.md` -> `Pull the latest
       skills/rules into ~/ai-skills and regenerate all tool wrappers:`
 

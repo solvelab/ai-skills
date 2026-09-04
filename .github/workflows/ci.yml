@@ -102,6 +102,12 @@ jobs:
       - name: Repo hygiene self-test (the gate is itself gated)
         run: python3 scripts/validate-repo-hygiene.py --selftest
 
+      - name: Distribution scripts smoke test (install.sh + update.sh under a temporary HOME)
+        # Runs both scripts through their documented invocations against a local bare clone of this
+        # checkout's HEAD, never the network, and prints the case matrix as counts. Before this step
+        # nothing in CI executed either script (issue #113).
+        run: bash scripts/smoke-install-scripts.sh
+
       - name: OpenSpec rite gate (skills-rite schema)
         # The spec-rite gate reads the waiver line from the event payload the runner already wrote
         # (GITHUB_EVENT_PATH). Handing the pull request body over through this step's `env:` block
