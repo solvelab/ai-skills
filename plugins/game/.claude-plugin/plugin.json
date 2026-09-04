@@ -1,7 +1,7 @@
 {
   "name": "ai-skills-game",
   "displayName": "AI Skills — game",
-  "version": "2.18.0",
+  "version": "2.19.0",
   "description": "React Three Fiber and AssettoServer game-dev conventions (12 skills: assettoserver-csp-lua, assettoserver-plugin, r3f-animation, r3f-assets, r3f-fundamentals, r3f-geometry, r3f-interaction, r3f-lighting, r3f-materials, r3f-physics, r3f-postprocessing, r3f-shaders)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",

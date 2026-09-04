@@ -1,7 +1,7 @@
 {
   "name": "ai-skills-testing",
   "displayName": "AI Skills — testing",
-  "version": "2.18.0",
+  "version": "2.19.0",
   "description": "Adversarial testing rite and REST negative/fuzz/contract testing (2 skills: api-resilience-testing, bug-hunter)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
