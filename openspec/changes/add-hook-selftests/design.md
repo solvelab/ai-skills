@@ -70,8 +70,8 @@ Um `prompt` que existe mas não é string (`{"prompt": 42}`) é tratado como aus
 O mesmo vale para o outro campo que o backlog-rite lê: `{"cwd": 42}` (ou lista, ou objeto) estourava
 em `os.path.join` com `TypeError` e exit 1 — medido na revisão, depois da guarda do `prompt` ter
 entrado sozinha. `has_spec_rite()` passa a aceitar só string não-vazia e cai em `os.getcwd()` no
-resto. O caso do selftest afirma apenas "não estoura e dispara": com o fallback no cwd real, afirmar
-a frase do spec-rite leria o cwd de quem roda o teste, o que TR1 proíbe.
+resto. Os dois casos do selftest que cobrem esse fallback não leem o cwd de quem roda o teste (TR1):
+movem o cwd do processo para uma das fixtures durante a chamada e o restauram em seguida — ver D4.
 
 ### D3 — `--selftest` é lido de `sys.argv[1:]`, nunca de stdin
 
@@ -89,8 +89,21 @@ sai 2. O `locale-rite.py` carrega a fraqueza herdada e fica como follow-up, fora
 ### D4 — A fixture de `openspec/` vive em `tempfile.TemporaryDirectory()`
 
 `has_spec_rite()` lê `payload["cwd"]` com fallback em `os.getcwd()`. O selftest cria dois diretórios
-temporários — um com `openspec/` dentro, outro sem — e passa cada um como `cwd`. Nunca lê o cwd real,
-então o resultado é o mesmo rodando do repositório, de `/tmp` ou do runner do CI (TR1 da issue).
+temporários — um com `openspec/` dentro, outro sem — e passa cada um como `cwd`. Os dois casos que
+exercitam o fallback (`cwd: 42`) não podem passar a fixture pelo payload, então movem o cwd do
+processo para ela com `os.chdir` num `try/finally` que restaura o anterior, e afirmam a frase do
+spec-rite nos dois sentidos: presente com a fixture que tem `openspec/`, ausente com a outra. Um
+fallback que ignorasse o cwd do processo, ou que sempre omitisse a frase, derruba um dos dois. A
+revisão mediu a forma anterior desse caso (um só, sem `chdir`, `spec_sentence=None`) fazendo
+`os.path.isdir(<cwd real>/openspec)` — o que a issue, este D4 e o docstring diziam não acontecer.
+
+Alternativa rejeitada: um parâmetro `default_cwd` em `has_spec_rite()` só para o teste. Deixaria a
+linha `os.getcwd()` real sem cobertura — o selftest provaria o parâmetro, não o fallback.
+
+Assim o selftest nunca faz `stat` no cwd real, e o resultado é o mesmo rodando do repositório, de
+`/tmp` ou do runner do CI (TR1 da issue). O que ele ainda lê do cwd real é só o **caminho** — a
+string devolvida por `os.getcwd()` para restaurar depois, e a que `tempfile` consulta ao escolher o
+diretório temporário — nunca o que existe dentro dele.
 
 ### D5 — O falso positivo aceito é um caso que **dispara**, com a decisão citada no comentário
 

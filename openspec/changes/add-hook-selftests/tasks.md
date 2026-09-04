@@ -157,8 +157,8 @@
 - [x] 2.3 `backlog-rite.py --selftest`: casos que disparam, casos mudos, payloads malformados via
       `read_payload`, asserção de forma, uma linha OK/FAILED por caso, resumo, exit code (D4, D5)
 
-      Saída em `c86a9ce` (15 decisões: as 12 originais mais o cwd não-string, "failing" e
-      "failover"), linhas de decisão completas, bloco dos malformados elidido:
+      Saída depois da rodada 2 da revisão (16 decisões: as 12 originais, "failing", "failover" e os
+      dois casos do fallback de `cwd`), linhas de decisão completas, bloco dos malformados elidido:
 
       ```
       python3 claude/global/hooks/backlog-rite.py --selftest; echo "rc=$?"
@@ -176,15 +176,34 @@
       ->   OK      empty prompt is silent
       ->   OK      payload without prompt is silent
       ->   OK      prompt that is not a string is silent
-      ->   OK      cwd that is not a string falls back and still fires
+      ->   OK      cwd that is not a string falls back to the process cwd (with openspec/)
+      ->   OK      cwd that is not a string falls back to the process cwd (without openspec/)
       ->   OK      output shape is the reminder the harness reads
       ->   OK      malformed payload is ignored: json array
       ->   [...]                       (json string, empty stdin, json null, json number, not json)
       ->   OK      well-formed payload is read
       ->
-      -> selftest OK: 15 decisions, 6 malformed payloads, plus the output shape
+      -> selftest OK: 16 decisions, 6 malformed payloads, plus the output shape
       -> rc=0
       ```
+
+      Hermético de verdade (TR1), medido com `os.path.isdir` e `os.getcwd` instrumentados no módulo
+      carregado por `importlib`, rodando `selftest()` do repositório. Antes desta rodada, o caso
+      único `cwd: 42` (`spec_sentence=None`) fazia `isdir('<repo>/openspec')`; depois, nenhum
+      `isdir` cai no cwd real, o `getcwd()` que o fallback vê é a fixture, e o cwd é restaurado:
+
+      ```
+      antes  -> rc 0 isdir on real cwd: ['<worktree>/openspec'] getcwd calls: 2
+      depois -> rc 0 | isdir calls on real cwd: [] | isdir calls total: 10
+      -> getcwd returned: ['REAL', 'REAL', 'fixture:with-rite', 'REAL', 'fixture:without-rite']
+      -> cwd restored after selftest: True
+      cd /tmp && python3 <worktree>/claude/global/hooks/backlog-rite.py --selftest | tail -1; echo "rc=$?"
+      -> selftest OK: 16 decisions, 6 malformed payloads, plus the output shape
+      -> rc=0
+      ```
+
+      (Os `REAL` são só o caminho: `previous = os.getcwd()` antes de cada `chdir`, e a consulta que
+      `tempfile` faz ao escolher o diretório temporário — nada é lido dentro dele.)
 
       O selftest fica vermelho quando uma decisão regride — provado em cópias, cada uma com um
       defeito injetado:
@@ -205,9 +224,16 @@
       -> noslash rc=1
       ```
 
-      Sem a guarda de `cwd` (cópia com o `payload.get("cwd") or os.getcwd()` de `7804e62`), o caso
-      novo não imprime FAILED: estoura com `TypeError: expected str, bytes or os.PathLike object,
-      not int` e rc=1 — vermelho do mesmo jeito, mas por traceback, não por asserção.
+      Sem a guarda de `cwd` (cópia com o `payload.get("cwd") or os.getcwd()` de `7804e62`), os casos
+      do fallback não imprimem FAILED: estouram com `TypeError: expected str, bytes or os.PathLike
+      object, not int` e rc=1 — vermelho do mesmo jeito, mas por traceback, não por asserção. Com um
+      fallback que ignora o cwd do processo (cópia com `cwd = "/"` no lugar de `os.getcwd()`):
+
+      ```
+      python3 $SCR/backlog-rite-nofallback.py --selftest | grep FAILED; echo "nofallback rc=$?"
+      ->   FAILED  cwd that is not a string falls back to the process cwd (with openspec/)
+      -> nofallback rc=1
+      ```
 
 - [x] 2.4 `verify-rite.py`: mesma extração — `evaluate`, `read_payload`, `--selftest` explícito,
       docstring com o limite do selftest (D1-D3). Commit `7804e62`.
@@ -351,8 +377,9 @@
       | backlog-rite (stdin) | payload malformado mudo, exit 0 | 4/4 | `[]`, `"x"`, vazio, `null` (antes: 2/4 estouravam) |
       | backlog-rite (stdin) | `cwd` não-string não estoura | 2/2 | `42`, `["/tmp"]` (antes: 2/2 estouravam) |
       | os dois hooks (argv) | argumento desconhecido sai 2 com usage | 4/4 | `--self-test`, `--selftest extra` × 2 hooks (antes: 4/4 saíam 0) |
-      | backlog-rite `--selftest` | decisões OK | 15/15 + forma da saída + 6/6 malformados | rc=0 |
-      | backlog-rite `--selftest` (cópias com defeito injetado) | tinha de ficar vermelho e ficou | 4/4 | sem `fail`, `fail\w*` de volta, slash SKIP apagado, sem guarda de cwd — rc=1 cada |
+      | backlog-rite `--selftest` | decisões OK | 16/16 + forma da saída + 6/6 malformados | rc=0 |
+      | backlog-rite `--selftest` (cópias com defeito injetado) | tinha de ficar vermelho e ficou | 5/5 | sem `fail`, `fail\w*` de volta, slash SKIP apagado, sem guarda de cwd, fallback que ignora o cwd — rc=1 cada |
+| backlog-rite `--selftest` (hermético, TR1) | nenhum `isdir` no cwd real; cwd restaurado; mesmo resultado de `/tmp` | 3/3 | instrumentado por `importlib` (2.3) |
       | verify-rite (stdin, 5 prompts) | tinha de disparar e disparou | 3/3 | inclui slash command com correção |
       | verify-rite (stdin, 5 prompts) | tinha de ficar mudo e ficou | 2/2 | dispensa, pedido de implementação |
       | verify-rite (stdin) | payload malformado mudo, exit 0 | 4/4 | `[]`, `"x"`, vazio, `null` (antes: 2/4 estouravam) |
@@ -373,6 +400,10 @@
       - O caso "slash command is silent" original usava "/backlog nova ideia", sem palavra de mudança,
         e ficava verde com a regra de slash command apagada; o prompt agora carrega um sinal
         (`0ebe63e`), e a cópia sem a regra fica vermelha.
+      - O caso `cwd: 42` da rodada 1 afirmava só "não estoura e dispara" e, medido com `isdir`
+        instrumentado, lia `<repo>/openspec` pelo fallback — o docstring, D4 e TR1 diziam o
+        contrário. Virou dois casos que movem o cwd do processo para cada fixture (`try/finally`) e
+        afirmam a frase do spec-rite nos dois sentidos (2.3, D4).
 
       Um escape conhecido e mantido de propósito: "por que não implementa o endpoint de login?" é
       um pedido real com forma de pergunta, e dispara — por isso a exclusão por forma de pergunta

@@ -44,9 +44,13 @@ WHAT THE SELFTEST DOES NOT COVER: the harness's real payload is not reproduced â
 two fields this hook reads (`prompt`, `cwd`) are fed to `evaluate()`. That the harness still
 sends those fields under those names is a premise of the pinned docs
 (code.claude.com/docs/en/hooks), not something the selftest measures. The `openspec/`
-fixture lives in a temporary directory, so the selftest never reads the real cwd.
+fixture lives in a temporary directory and every case passes it as `cwd`; the two cases that
+exercise the os.getcwd() fallback move the process cwd into that fixture for the duration of the
+call and restore it afterwards, so the selftest never stats the real cwd and its result does not
+depend on where it runs.
 """
 
+import contextlib
 import io
 import json
 import os
@@ -138,6 +142,20 @@ def evaluate(payload: dict) -> "str | None":
     return reminder
 
 
+@contextlib.contextmanager
+def process_cwd(path: "str | None"):
+    """Run the block with the process cwd moved to `path` (no-op for None), always restoring it."""
+    if path is None:
+        yield
+        return
+    previous = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(previous)
+
+
 def selftest() -> int:
     failed = []
     with tempfile.TemporaryDirectory() as td:
@@ -184,14 +202,18 @@ def selftest() -> int:
             ("empty prompt is silent", False, {"prompt": "", "cwd": with_rite}, None),
             ("payload without prompt is silent", False, {"cwd": with_rite}, None),
             ("prompt that is not a string is silent", False, {"prompt": 42, "cwd": with_rite}, None),
-            # The fallback for a malformed cwd is os.getcwd(), so this case cannot assert the spec
-            # sentence either way without reading the real cwd (TR1): it asserts only "no crash,
-            # still fires".
-            ("cwd that is not a string falls back and still fires", True,
-             {"prompt": "implementa o endpoint", "cwd": 42}, None),
+            # The fallback for a malformed cwd is os.getcwd(). A fifth field moves the process cwd
+            # into the named fixture for the call (restored right after), so the fallback is measured
+            # against both fixtures instead of the real cwd (TR1) â€” and a fallback that ignored the
+            # process cwd, or always omitted the sentence, would fail one of the two.
+            ("cwd that is not a string falls back to the process cwd (with openspec/)", True,
+             {"prompt": "implementa o endpoint", "cwd": 42}, True, with_rite),
+            ("cwd that is not a string falls back to the process cwd (without openspec/)", True,
+             {"prompt": "implementa o endpoint", "cwd": 42}, False, without_rite),
         ]
-        for name, should_fire, payload, spec_sentence in cases:
-            got = evaluate(payload)
+        for name, should_fire, payload, spec_sentence, *rest in cases:
+            with process_cwd(rest[0] if rest else None):
+                got = evaluate(payload)
             ok = bool(got) == should_fire
             if ok and got and spec_sentence is not None:
                 ok = (SPEC_RITE in got) == spec_sentence
