@@ -93,6 +93,12 @@ jobs:
       - name: Locale write-gate hook self-test (the shipped hook is itself gated)
         run: python3 claude/global/hooks/locale-rite.py --selftest
 
+      - name: Backlog rite hook self-test (the shipped hook is itself gated)
+        run: python3 claude/global/hooks/backlog-rite.py --selftest
+
+      - name: Grounding rite hook self-test (the shipped hook is itself gated)
+        run: python3 claude/global/hooks/verify-rite.py --selftest
+
       - name: Secret scan (working tree)
         run: python3 scripts/scan-secrets.py
 
