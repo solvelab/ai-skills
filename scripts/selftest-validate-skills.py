@@ -1,5 +1,9 @@
 """Adversarial self-test: inject one known defect per check into a copy of the catalog
-and assert the validator fires. A checker that never fails is not a checker."""
+and assert the validator fires. A checker that never fails is not a checker.
+
+Each entry is  label: (relpath, mutate, expect)  — `expect` is the check name the validator must
+print for that label, plus an optional fragment its finding must carry. It exists because one
+check can own more than one defect class (C8 has five headings) and a dict cannot repeat a key."""
 import shutil, subprocess, sys, tempfile, pathlib, re, os
 
 SRC = pathlib.Path(__file__).resolve().parent.parent
@@ -30,15 +34,26 @@ MUTATIONS = {
  "C7 orphan wrapper": (None, None),
  "C8 meta section": ("skills/openspec/SKILL.md",
      lambda s: s + "\n## Trigger Test Cases\n\nShould trigger on:\n- \"do the thing\"\n"),
+ # The heading that escaped C8 for months: same content as the description, read after routing.
+ "C8 meta section (when-to-use heading)": ("skills/openspec/SKILL.md",
+     lambda s: s + "\n## When to use this skill\n\nUse when the user asks for a proposal.\n",
+     ("C8 meta section", "When to use this skill")),
  # Valid Python so C3 stays silent. The dict *value* 'endereco' is a string literal and must NOT
  # be flagged — this mutation therefore also asserts that literal stripping still works.
  "C9 identifier locale": ("skills/python-rest-api/SKILL.md",
      lambda s: s + "\n```python\ndef criar_pedido(id_usuario):\n"
                    "    return {'x': 'endereco'}\n```\n"),
+ # 1100 characters of PARSED value on top of a short description: the folded scalar keeps the
+ # indentation out of the count, so the padding is what the reference validator would measure too.
+ "C10 frontmatter limits": ("skills/r3f-geometry/SKILL.md",
+     lambda s: s.replace("description: >-", "description: >-\n  " + "Use when the user says so. " * 44, 1),
+     ("C10 frontmatter limits", "description is")),
 }
 
 fails = []
-for check, (relpath, mutate) in MUTATIONS.items():
+for check, entry in MUTATIONS.items():
+    relpath, mutate = entry[0], entry[1]
+    expect, fragment = (entry[2] if len(entry) > 2 else (check, ""))
     with tempfile.TemporaryDirectory() as td:
         dst = pathlib.Path(td) / "repo"
         shutil.copytree(SRC, dst, ignore=shutil.ignore_patterns(".git", "node_modules"))
@@ -49,7 +64,7 @@ for check, (relpath, mutate) in MUTATIONS.items():
             p = dst / relpath
             p.write_text(mutate(p.read_text()))
         out = subprocess.run([sys.executable, str(dst / "scripts" / "validate-skills.py")], cwd=dst, capture_output=True, text=True).stdout
-        caught = check.split()[0] in out and check in out
+        caught = expect.split()[0] in out and expect in out and fragment in out
         print(f"  {'CAUGHT ' if caught else 'MISSED '} {check}")
         if not caught:
             fails.append(check)
