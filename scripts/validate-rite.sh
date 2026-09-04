@@ -75,10 +75,16 @@ python3 scripts/validate-rite-evidence.py || fail=1
 # them all vacuously. This one reads the diff instead of the changes directory.
 python3 scripts/validate-spec-rite.py || fail=1
 
+# The CLI is pinned on purpose, the same rule as the claude-code pin in ci.yml: a blocking gate on
+# @latest fails this repository's builds on someone else's release schedule (1.12.0 was already
+# published when this pin was written, 2026-09-04). Bump it deliberately: run
+# `npx -y @fission-ai/openspec@<new> validate --all --strict` locally, then change the version here
+# and the `(v1.6.0)` note in the header together. A local `openspec` on PATH is used as-is, so a
+# contributor's binary can differ from CI's — that is why CI is the version of record.
 if command -v openspec >/dev/null 2>&1; then
   openspec validate --all --strict || fail=1
 else
-  npx -y @fission-ai/openspec@latest validate --all --strict || fail=1
+  npx -y @fission-ai/openspec@1.6.0 validate --all --strict || fail=1
 fi
 
 if [ "$fail" -ne 0 ]; then
