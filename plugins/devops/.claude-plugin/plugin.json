@@ -1,7 +1,7 @@
 {
   "name": "ai-skills-devops",
   "displayName": "AI Skills — devops",
-  "version": "2.20.1",
+  "version": "2.21.0",
   "description": "Kubernetes/Helm migration, cluster resource tuning and AssettoServer operations (3 skills: assettoserver-ops, helm-migration, k8s-tune-resources)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
