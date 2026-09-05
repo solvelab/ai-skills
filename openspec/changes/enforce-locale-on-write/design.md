@@ -119,6 +119,51 @@ entrada em `.identifier-locale-allow` (a única saída para caminho), e
 `export LOCALE_RITE_MODE=inform`. O modelo que lê o motivo tem de conseguir agir sem abrir a skill;
 um motivo que só diz "há saídas" gera a segunda tentativa cega que a issue lista como risco.
 
+### D8 — Um caminho só nega em `PreToolUse` quando a escrita o **cria**
+
+Achado de revisão (2026-09-05, dois dos três findings): com o hook em `17fc01f`, um `Edit` com
+`new_string` inteiramente em inglês sobre um arquivo **já existente** de nome português era negado —
+`printf 'total = 0\n' > $X/servico_pedido.py` e depois `{PreToolUse, Edit, old_string:"total = 0",
+new_string:"total = 1"}` -> `permissionDecision: "deny"`, motivo `servico_pedido.py: servico_pedido
+[path-pt-noun: 'servico']`. O achado vinha de `check.scan_path()`, chamado sem distinguir se o
+caminho existe, e era gating. Isso bloqueava a manutenção de qualquer arquivo legado em todo projeto
+com o hook wired, contradizendo `personal-rules.md` ("Existing code is not renamed for its own sake
+... changes only through a deprecation window") e o próprio `written_text()` do hook ("never the
+file's existing content, which the rite does not judge"). E a justificativa do delta — "so that the
+name never reaches the file" — já era falsa para um arquivo no disco. As únicas saídas eram a
+allowlist por caminho ou `inform` para a sessão inteira.
+
+Decisão: em `PreToolUse`, `findings_for()` só inclui os achados de caminho quando
+`Path(file_path).exists()` é falso — a escrita **cria** o nome. A regra é por existência, não por
+ferramenta: um `Write` que sobrescreve um arquivo legado também não cria o nome; um `Edit`,
+`MultiEdit` ou `NotebookEdit` só existe sobre arquivo existente e nunca é negado pelo caminho. Os
+achados de caminho não entram no motivo nem quando a escrita é negada por um identificador — um
+motivo que nomeia um arquivo que o modelo não nomeou não tem saída além da allowlist. Em
+`PostToolUse` nada muda: o caminho legado continua reportado depois que a escrita cai, então o nome
+fica visível sem travar a manutenção. O teste de existência acontece dentro de `findings_for()`, sob
+o `try` de `evaluate()`, então um caminho que o sistema de arquivos recusa cai em silêncio como
+qualquer outro erro do check.
+
+### D9 — O `locale-ok:` que já está no arquivo, na linha acima do fragmento, vale
+
+Achado de revisão (2026-09-05, o terceiro): a negação instrui "`# locale-ok: <reason>` on the line
+above the name", mas em `PreToolUse` com `Edit` só o `new_string` é escaneado e `scan_text()` só
+olha `lines[offset-1]` dentro do fragmento que recebe. Um waiver que já está no arquivo na linha
+acima do `old_string` — inclusive um que o modelo acabou de acrescentar num `Edit` anterior,
+exatamente como instruído — era invisível: arquivo `a = 1\n# locale-ok: wire name from the legacy
+adapter\nb = 2\n`, `{PreToolUse, Edit, old_string:"b = 2", new_string:"usuario = 2"}` -> `deny`,
+`orders/two.py:3: usuario`. É o loop de segunda tentativa cega que a issue lista como risco,
+produzido por seguir a instrução do próprio hook.
+
+Decisão: `findings_for()` calcula `first_line = first_line_of(path, anchor)` uma vez; se
+`first_line > 1` (o fragmento foi localizado no arquivo) e a linha `first_line - 1` do arquivo casa
+`check.WAIVER_RE`, os achados do fragmento com `line == first_line` são descartados. Só a primeira
+linha do fragmento: as linhas seguintes têm a anterior dentro do próprio fragmento, que `scan_text()`
+já cobre. A regra vale nos dois eventos — em `PostToolUse` a âncora é o `new_string` já gravado e a
+linha acima dele é a mesma —, então o `PostToolUse` deixa de reportar um nome que o check, rodando
+sobre o arquivo inteiro em CI, já aceitaria. Os 13 casos de `PostToolUse` do selftest não mudam:
+nenhum deles tem waiver fora do fragmento. O regex vem do check (`WAIVER_RE`), não é duplicado.
+
 ## Canonical Home & Cross-Links (MANDATORY)
 
 | Rule / doctrine touched | Canonical skill | Action (link / move / already canonical) |
@@ -144,6 +189,14 @@ Nenhuma skill do catálogo é editada por esta change, então não há doutrina 
 - **Wired só o bloco `PreToolUse`** -> `en-unknown` nunca chega e `inform` fica mudo, porque os dois
   dependem do `PostToolUse` (D4, D5). O docstring mostra os dois blocos juntos e diz por quê.
 - **Bash continua passando** -> KNOWN LIMIT declarado; fechado pela issue #138, não por esta.
+- **Negar a manutenção de arquivo legado pelo nome** -> era o comportamento em `17fc01f`, achado
+  em revisão e corrigido por D8: o caminho só nega quando a escrita o cria. O custo aceito: um
+  `Write` que sobrescreve um arquivo legado inteiro não é negado pelo nome — o nome já estava lá e
+  o `PostToolUse` o reporta.
+- **O primeiro exit do motivo não funciona quando seguido** -> era o comportamento em `17fc01f`
+  para `Edit` (waiver acima do `old_string` invisível), corrigido por D9. O que D9 não cobre: um
+  `new_string` cujo identificador está na segunda linha ou depois, com o waiver no arquivo acima do
+  fragmento — o check também não aceitaria isso (o waiver vale para a linha imediatamente abaixo).
 
 ## Open Questions
 

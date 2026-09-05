@@ -13,13 +13,23 @@ that harness reads for each event — established against the installed version,
 plain standard output is not carried into context for those events and an envelope naming the wrong
 event is dropped by the harness.
 
-On the event that **precedes** the write, a gating finding — a Portuguese identifier or a Portuguese
-path segment — SHALL deny the tool call, so that the name never reaches the file. The denial reason
-SHALL list each finding and SHALL end with the three legitimate exits: the inline waiver with a
-stated reason, the allowlist file, and an explicit informative mode for the whole session. The reason
-SHALL fit the caps the installed harness applies to that field, in characters and in lines, so that
-the exits are never the part that is cut. The same event SHALL NOT deny on an advisory finding alone,
-because a word the English list does not know is a question and not a verdict.
+On the event that **precedes** the write, a gating finding — a Portuguese identifier in the added
+content, or a Portuguese path segment in a path the write **creates** — SHALL deny the tool call, so
+that the name never reaches the disk. A Portuguese segment in the path of a file that already exists
+SHALL NOT deny on that event: the name is already on disk, existing names change through a
+deprecation window and not through a blocked edit, and a denial that names a file the model did not
+name has no exit but the allowlist. That path is still reported on the event that follows the write.
+The denial reason SHALL list each finding and SHALL end with the three legitimate exits: the inline
+waiver with a stated reason, the allowlist file, and an explicit informative mode for the whole
+session. The reason SHALL fit the caps the installed harness applies to that field, in characters
+and in lines, so that the exits are never the part that is cut. The same event SHALL NOT deny on an
+advisory finding alone, because a word the English list does not know is a question and not a
+verdict.
+
+The inline waiver SHALL be honoured wherever the check itself honours it — on the line above the
+name — whether that line is part of the added content or already sits in the file immediately above
+the fragment the edit replaces. A denial whose first exit cannot be satisfied by following it
+produces the blind second attempt the item lists as a risk.
 
 On the event that **follows** the write, the artifact SHALL keep its informative behaviour: findings,
 gating and advisory, reach the assistant as context and the tool call stands. The informative mode
@@ -46,6 +56,22 @@ write is not read as proof that no Portuguese name can land.
 - **WHEN** the added content carries the inline waiver with a reason on the line above the name, or
   the name or path is listed in the allowlist file found from the working directory
 - **THEN** the artifact produces no output on either event, and the write lands in silence
+
+#### Scenario: An edit to a file that already carries a Portuguese name is not denied for the name
+
+- **WHEN** the event that precedes an edit names a file that already exists and whose path carries a
+  Portuguese segment, and the added content is English
+- **THEN** the artifact produces no output on that event and the edit lands
+- **AND** the event that follows the write still reports the path, so the legacy name stays visible
+  without blocking its maintenance
+
+#### Scenario: A waiver already on the line above the edited fragment is honoured
+
+- **WHEN** the event that precedes an edit carries added content with a Portuguese identifier on its
+  first line, and the file line immediately above the fragment being replaced carries the inline
+  waiver with a reason
+- **THEN** the artifact denies nothing, exactly as it would had the waiver been part of the added
+  content
 
 #### Scenario: The informative mode restores the advisory
 

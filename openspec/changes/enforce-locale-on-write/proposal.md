@@ -34,6 +34,11 @@ o que `evaluate()` mede hoje. É medição, não proxy.
   caminho em `.identifier-locale-allow`, e `LOCALE_RITE_MODE=inform` para a sessão inteira.
 - `LOCALE_RITE_MODE=inform` (novo): o hook nunca nega; o aviso continua vindo do `PostToolUse`,
   como hoje.
+- Um caminho português só nega quando a escrita o **cria** (o arquivo não existe antes); um `Edit`
+  limpo num arquivo legado de nome português é gravado em silêncio e o nome continua reportado pelo
+  `PostToolUse` (design, D8 — achado de revisão).
+- O `# locale-ok: <motivo>` que já está no arquivo, na linha acima do trecho que o `Edit` substitui,
+  vale como se estivesse no `new_string` (design, D9 — achado de revisão).
 - Selftest: casos de `PreToolUse` (negação por identificador, por caminho, silêncio com
   `locale-ok:`, silêncio com allowlist num cwd temporário, `inform`, só `en-unknown`, payload
   malformado), a forma e o cap do envelope de negação, a variável de ambiente lida pelo caminho real,
