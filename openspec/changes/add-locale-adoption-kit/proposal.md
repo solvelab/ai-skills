@@ -19,13 +19,16 @@ palavras `en-unknown` consultivas. O gate existe por ferramenta, não por reposi
   Localiza o detector — `$LOCALE_CHECK`, depois `$AI_SKILLS_HOME` ou `~/ai-skills`, depois download
   pinado por tag (`v2.21.0`, o `VERSION` atual) com sha256 conferido em python3 e cache em
   `$(git rev-parse --git-dir)/locale-check/` — e roda
-  `git diff --cached --no-color | python3 <detector> --diff -`. Sai 1 com os achados e nomeia as três
+  `git diff --cached --no-color --no-ext-diff --no-renames --src-prefix=a/ --dst-prefix=b/ |
+  PYTHONIOENCODING=utf-8:surrogateescape python3 <detector> --diff -` (a forma do diff fixada contra
+  a configuração git do usuário; bash 3.2+). Sai 1 com os achados e nomeia as três
   saídas: `# locale-ok: <motivo>`, `.identifier-locale-allow`, `git commit --no-verify`. O cabeçalho
   declara instalação (`cp` para `.git/hooks/pre-commit` ou `core.hooksPath`) e o que **não** cobre.
 - `skills/code-locale/references/ci-step.md`, novo: um job de GitHub Actions copiável — `checkout`
-  com `fetch-depth: 0`, `curl -fsSL` do detector na tag com `sha256sum -c`,
-  `git diff origin/${{ github.base_ref }}...HEAD | python3 check-identifier-locale.py --diff -` —
-  com o pin, o `fetch-depth` e o gatilho `pull_request` explicados.
+  com `fetch-depth: 0`, `curl -fsSL` do detector na tag com `sha256sum -c`, e um `run:` com
+  `set -o pipefail` e `git diff <os mesmos flags> origin/${{ github.base_ref }}...HEAD | python3
+  check-identifier-locale.py --diff -` — com o pin, o `fetch-depth`, o `pipefail` e o gatilho
+  `pull_request` explicados.
 - `skills/code-locale/SKILL.md`: seção *Wire it in one minute* apontando os dois arquivos e uma
   tabela de três camadas (hook de sessão, pre-commit, CI) dizendo o que cada uma pega e o que deixa
   passar. `metadata.version` `1.3.1 → 1.4.0`; wrappers regenerados por `./generate.sh`.

@@ -17,12 +17,18 @@ that text and link to the canonical skill for the language rule rather than rest
 The canonical skill SHALL ship the means of adopting the rule **per repository**, not only the
 detector: a git pre-commit hook and a continuous-integration step, each copyable into a target
 repository without cloning the catalog and without an assistant in the loop. Both SHALL invoke the
-shipped detector rather than reimplement any of its tiers, SHALL measure only the lines the change
-adds, and SHALL obtain the detector from a tagged release of the catalog — never from its default
-branch — with the pin and its bump rule stated beside it. Each SHALL declare, in its own header, what
-it does not cover, and SHALL name the exits the doctrine already defines — the inline waiver, the
-allowlist file, and the deliberate bypass — so that a refused commit or a failed pull request tells
-its author what to do next. The skill SHALL state which layer catches what: a session hook measures
+shipped detector rather than reimplement any of its tiers, and SHALL measure only the lines the
+change adds. Whenever either artifact downloads the detector it SHALL do so from a tagged release of
+the catalog — never from its default branch — and SHALL verify the file's digest before running it,
+with the pin and its bump rule stated beside it; the hook MAY instead run a detector the machine
+already holds (an explicit path, or the catalog's local clone) and SHALL state in its header that
+those sources carry no pin. Both SHALL fix the shape of the diff they read so that a repository's or
+a user's git configuration cannot empty it or alter its paths, and neither SHALL approve when it
+could not measure — a diff command that fails, or a detector that exits without completing its scan,
+fails the commit or the step. Each SHALL declare, in its own header, what it does not cover, and
+SHALL name the exits the doctrine already defines — the inline waiver, the allowlist file, and the
+deliberate bypass — so that a refused commit or a failed pull request tells its author what to do
+next. The skill SHALL state which layer catches what: a session hook measures
 the assistant's write, the pre-commit hook measures the human's commit, and the CI step measures the
 pull request regardless of how it was produced.
 
@@ -75,3 +81,11 @@ pull request regardless of how it was produced.
 - **AND** the shipped CI step, pasted into that repository's workflow, fails a pull request whose
   added lines carry such an identifier and passes one whose added lines are English, downloading the
   detector from a tagged release and verifying its digest before running it
+
+#### Scenario: A gate that cannot measure does not approve
+
+- **WHEN** the CI step's base revision is absent from the clone, or the hook's detector exits without
+  printing its findings line, or a git configuration would replace or empty the diff the detector reads
+- **THEN** the step or the commit fails, naming the cause, instead of reporting zero findings
+- **AND** a commit whose staged diff renames a file to a name in another language is refused on the
+  new path, and a staged hunk carrying non-UTF-8 bytes is measured rather than aborting the detector

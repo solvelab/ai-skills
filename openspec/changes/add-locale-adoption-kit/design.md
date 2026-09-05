@@ -42,8 +42,9 @@ nenhuma roda para um humano digitando `git commit`.
 
 ### D1 — O hook invoca o detector, não o reimplementa
 
-`git diff --cached --no-color | python3 <detector> --diff -` é o comando inteiro. O que o hook
-acrescenta é **onde encontrar** o detector e **como explicar** o exit 1. Alternativa rejeitada:
+`git diff --cached --no-color --no-ext-diff --no-renames --src-prefix=a/ --dst-prefix=b/ |
+PYTHONIOENCODING=utf-8:surrogateescape python3 <detector> --diff -` é o comando inteiro (os flags e a
+variável: D7). O que o hook acrescenta é **onde encontrar** o detector e **como explicar** o exit 1. Alternativa rejeitada:
 embutir um subconjunto das regras em bash/awk — o requisito *A shipped enforcement script declares
 what escapes it* exige que o que roda seja o script embarcado, e o CI deste catálogo prova
 exatamente ele (`ci.yml`, step *Identifier-locale detector self-test*).
@@ -66,6 +67,16 @@ exatamente ele (`ci.yml`, step *Identifier-locale detector self-test*).
 `LOCALE_CHECK_TAG` / `LOCALE_CHECK_SHA256`. Trocar a tag sem trocar o hash **falha alto** de
 propósito: um pin que aceita qualquer conteúdo não é um pin. `LOCALE_CHECK_SHA256=skip` desliga a
 conferência, por escrito, para quem quer só o pin por tag.
+
+O pin vale **só para a fonte 3**. As fontes 1 e 2 rodam o arquivo que está naquele caminho, sem
+digest: `LOCALE_CHECK` é a cópia vendorizada de quem a definiu, e `~/ai-skills` é o clone que
+`install.sh` cria com `git clone` sem `--branch` (`install.sh:186`), no commit em que o dono deu o
+último `pull`. Um commit aceito localmente e o step de CI (sempre pinado) podem rodar versões
+diferentes do detector — o cabeçalho do hook diz isso em *THE PIN*, e o delta da spec exige o pin e o
+digest **quando o artefato baixa**, não em toda fonte. Alternativa rejeitada (review de 2026-09-05):
+conferir o sha256 do arquivo local e cair para download quando divergir — quebraria o caminho do
+mantenedor sempre que o clone estivesse à frente da tag (o detector mudou em `master`), e o modo
+download perde o tier consultivo (listas ausentes). O trade-off fica declarado, não escondido.
 
 Alternativa rejeitada: baixar também as três listas de palavras (`english-words.txt.gz`, 1,0 MB,
 `programming-words.txt`, `not-english.txt`). São quatro URLs e quatro hashes para copiar; o ganho é
@@ -93,9 +104,58 @@ O que o `ci.yml` deste repositório já faz (issue #117): job com permissão mí
 `persist-credentials: false`, `fetch-depth: 0` porque `git diff origin/<base>...HEAD` precisa da
 merge-base, e `pull_request` como único gatilho — em `push` não há `github.base_ref` e o comando
 não tem o que medir. O pin é a tag na URL do `curl` mais `sha256sum -c` (no runner Ubuntu o
-coreutils está garantido; no hook, que roda em qualquer máquina, é python3 — D2). O shell padrão de
-um `run:` é `bash -e {0}` **sem** `pipefail`; aqui isso é o que se quer: o exit code do pipe é o do
-`python3`, o do `git diff` não importa.
+coreutils está garantido; no hook, que roda em qualquer máquina, é python3 — D2).
+
+O bloco `run:` começa com `set -o pipefail`. O shell padrão de um `run:` é `bash -e {0}` **sem**
+`pipefail` (página *workflow syntax* do GitHub; não probado num runner), e a primeira versão deste
+design tomou isso como desejável — "o exit code do pipe é o do `python3`". Medido no review de
+2026-09-05 com o bloco verbatim sob `bash -e`: base ausente do clone → `fatal: ambiguous argument
+'origin/release/9...HEAD'`, o detector lê um stream vazio, imprime `findings: 0` e o step fica
+**verde** (rc=0). Isso viola a regra que o próprio `ci-step.md` enuncia ("a gate that cannot measure
+must not approve") e que D3 aplica ao hook. Com `pipefail` o mesmo caso sai 128 e o step falha. O
+`fetch-depth: 0` continua necessário — ele é o que faz a medição possível; o `pipefail` é o que
+impede a aprovação quando ela não aconteceu. `shell: bash` daria o mesmo efeito (a mesma página o
+documenta como `bash --noprofile --norc -eo pipefail {0}`); a linha explícita viaja para outro CI.
+
+### D7 — O diff tem a forma fixada, e um exit 1 sem `findings:` não é uma medição
+
+Quatro flags em `git diff`, nos dois artefatos, cada um contra um caso medido no review de
+2026-09-05 em que a configuração git do repositório ou do usuário mudava o que o detector lê:
+
+| Flag | Sem ele (medido) |
+|---|---|
+| `--no-ext-diff` | `diff.external` troca o unified diff pela saída do driver: `wc -c` → 0, `findings: 0`, commit com `buscar_cliente` aprovado (rc=0) |
+| `--no-renames` | `git mv orders.py relatorio.py` vira `rename to` sem `--- /dev/null`; o detector só mede o caminho nesse header (`check-identifier-locale.py:632-646`) → rc=0. Com o flag o rename é delete + add e `relatorio.py` é reportado pelo caminho |
+| `--src-prefix=a/ --dst-prefix=b/` | `diff.mnemonicPrefix=true` escreve `+++ i/relatorio.txt`; o detector tira só `b/` e o allowlist `relatorio.txt` deixa de casar → recusa de um caminho legitimamente grandfathered |
+
+`PYTHONIOENCODING=utf-8:surrogateescape` no `python3`: um hunk com bytes fora de UTF-8 (arquivo
+legado latin-1, comum nas bases que a skill mira) abortava o detector com `UnicodeDecodeError` na
+leitura do stdin — exit 1 — e o hook explicava esse exit 1 como "the staged diff adds a non-English
+name", com três saídas que não consertam nada. Com o handler os bytes passam e só os nomes são
+julgados (`legacy.py` latin-1 + linha inglesa → rc=0; + `buscar_cliente` → achado, rc=1).
+
+E o hook só trata exit 1 como recusa por achado quando a saída traz a linha `findings:` que o
+detector imprime ao terminar o scan; qualquer outro exit 1 (traceback, `LOCALE_CHECK` apontando para
+um script errado) vira `rc=70` e cai no ramo "the detector itself failed" — ainda recusa, porque nada
+foi medido, mas com a causa certa.
+
+Trade-off aceito do `--no-renames`: renomear um arquivo legado cujo conteúdo ainda tem nomes em
+português relê o conteúdo inteiro como adicionado e encontra o gate naquele momento (medido:
+`relatorio.py` com `calcular_total` → `report.py` recusado no conteúdo). É o mesmo caso que o
+`ci-step.md` já declarava para "mover um nome legado de um arquivo para outro": a hora da migração
+é a hora do waiver ou do rename de tier 2. Um rename puro de arquivo limpo fica mudo; um rename
+**para** nome em português é reportado pelo caminho — a razão do flag. Alternativa rejeitada:
+ensinar o detector a ler `rename to` — edição no detector, fora do escopo desta issue e desta
+ownership; fica em `tasks.md` E.4 como follow-up.
+
+### D8 — bash 3.2 é o piso, porque o macOS de fábrica é bash 3.2
+
+Sob `set -u`, `"${EXTRA_ARGS[@]}"` com array vazio é *unbound variable* em todo bash < 4.4 — o
+`/bin/bash` de qualquer macOS. Medido em `docker run bash:3.2` e `bash:4.3`: o hook original recusava
+**100 %** dos commits (`line 154: EXTRA_ARGS[@]: unbound variable`, rc=1, 0 commits), inclusive os
+em inglês, e a primeira simulação só tinha rodado em bash 5.2. A expansão `${arr[@]+"${arr[@]}"}`
+é a forma que sobrevive nos dois; o cabeçalho declara `bash 3.2+` em *Dependencies* e a simulação
+tem os dois containers como casos.
 
 ### D6 — A seção do `SKILL.md` cabe numa tela e não repete a doutrina
 
@@ -132,9 +192,15 @@ inteira — as duas formas resolvem.
   nunca é reportado, e isso está na lista de escapes.
 - **`shellcheck` e `act` não estão nesta máquina** → `bash -n` roda; o step é validado com o
   mesmo comando do `run:` sobre um clone com `origin/main`, e a simulação declara qual foi.
+- **O hook roda em bash antigo (macOS)** → piso declarado 3.2 e probado em container (D8).
+- **`--no-renames` relê o conteúdo de um arquivo renomeado** → trade-off declarado nos dois
+  cabeçalhos e em D7; a alternativa (detector lendo `rename to`) é follow-up.
+- **Fontes 1 e 2 do hook não têm pin** → declarado em *THE PIN* e em D2; o CI é a camada pinada.
 
 ## Open Questions
 
-Nenhuma. As três lacunas que poderiam virar achismo — se a raw URL na tag responde 200, qual é o
+Nenhuma. As nove observações do review de 2026-09-05 foram reproduzidas antes de qualquer edição
+(`$SCR/repro139.py`, `before`: 7 de 10 casos fora do esperado; `after`: 10/10) e estão em D2, D5,
+D7 e D8. As três lacunas que poderiam virar achismo — se a raw URL na tag responde 200, qual é o
 sha256 do detector na tag, e o que o detector faz sem as listas de palavras ao lado — foram medidas
 antes de escrever e estão em `tasks.md` E.2 com comando e saída.
