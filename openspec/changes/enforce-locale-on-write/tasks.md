@@ -110,53 +110,222 @@
 
 ## 2. Envelope de negação em PreToolUse, modo inform, selftest e docstring
 
-- [ ] 2.1 `locale-rite.py`: `evaluate()` lê `hook_event_name`; em `PreToolUse` um achado gating
-      devolve `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
-      "permissionDecisionReason": ...}}`; só advisory ou evento ausente/outro caem no envelope
-      consultivo de hoje (D1, D4)
-- [ ] 2.2 `deny_reason()`: cabeçalho, uma linha por achado deduplicado por `(path, token)`, `+N more`,
-      contagem de advisory, as três saídas literais no fim; `REASON_CAP = 2000` e `REASON_LINE_CAP =
-      20` medidos, com corte no hook preservando o rabo (D3, D7)
-- [ ] 2.3 `LOCALE_RITE_MODE=inform`: `evaluate(payload, check, mode=None)` com default do ambiente;
-      `inform` nunca nega; qualquer outro valor é o modo padrão (D5)
-- [ ] 2.4 `first_line_of()` ancora no `old_string` em `PreToolUse` para `Edit` (D6)
-- [ ] 2.5 Selftest: casos de `PreToolUse` (nega por identificador, nega por caminho, `locale-ok:`
-      silencia, allowlist num cwd temporário silencia, `inform` não nega e o `PostToolUse` do mesmo
-      payload informa, só `en-unknown` não nega, payload malformado mudo), forma e caps do envelope de
-      negação com 30 achados, variável de ambiente pelo caminho real (subprocess), os 12 casos de
-      `PostToolUse` inalterados
-- [ ] 2.6 Docstring: modos, probe do `permissionDecision` ao lado do do `additionalContext` (versão,
-      comando, fragmento, os dois caps), bloco de wiring com os **dois** eventos, KNOWN LIMIT das
-      escritas via Bash (issue #138)
-- [ ] 2.7 `personal-rules.md`, seção *Code Locale*: uma ou duas frases dizendo que a escrita é negada
-      pelo hook e onde estão as saídas; estrutura da seção mantida
+- [x] 2.1 `locale-rite.py`: `evaluate()` (linha 312) lê `hook_event_name`; em `PreToolUse` um achado
+      gating devolve o envelope de `deny()` (300) com `hookEventName: "PreToolUse"`; só advisory, ou
+      evento ausente/outro, cai em `report()` (244), intocado (D1, D4). Commit `bcfbc30`.
+
+      ```
+      printf '{"session_id":"sim","transcript_path":"/tmp/t.jsonl","cwd":"<X>","hook_event_name":"PreToolUse","tool_name":"Write","tool_use_id":"toolu_sim","tool_input":{"file_path":"<X>/servico_pedido.py","content":"def calcular_total(preco):\n    return preco\n"}}' | python3 claude/global/hooks/locale-rite.py
+      -> {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "CODE-LOCALE: write denied — 3 non-English names [...]"}}
+      -> rc=0        (o mesmo payload com "hook_event_name":"PostToolUse" -> additionalContext, "code-locale: 4 non-English names in the last write")
+      ```
+
+- [x] 2.2 `deny_reason()` (270): `DENY_HEADER` (153), uma linha por `(path, token)` via
+      `finding_line()` (263), `+N more`, contagem de advisory, `EXITS` (161) no fim; `REASON_CAP =
+      2000` e `REASON_LINE_CAP = 20` (127-128), `REASON_MAX_FINDINGS = 12` (130) (D3, D7)
+
+      Motivo observado no exemplo da issue — `preco` em duas linhas do conteúdo vira uma:
+
+      ```
+      CODE-LOCALE: write denied — 3 non-English names in the machine layer. Identifiers, file and directory names are English (code-locale skill); comments, docstrings and strings keep the repository's language. Rename, or waive with a reason:
+        servico_pedido.py: servico_pedido  [path-pt-noun: 'servico']
+        servico_pedido.py:1: calcular_total  [pt-verb: 'calcular']
+        servico_pedido.py:1: preco  [pt-noun: 'preco']
+      Exits: (1) `# locale-ok: <reason>` on the line above the name (identifiers only — a file name has nowhere to carry it);
+        (2) list the name or the path in .identifier-locale-allow (the only waiver for a file name);
+        (3) export LOCALE_RITE_MODE=inform to make this hook advisory for the whole session.
+      -> lines=7 chars=712
+      ```
+
+      Com 30 achados gating + 1 advisory (caso do selftest): `<= 2000` chars, `<= 20` linhas,
+      `preco_0` uma vez, `(+18 more`, `(+1 unrecognised word, advisory`, termina em `EXITS[-1]`
+      -> `OK      denial envelope: PreToolUse shape, <= 2000 chars, <= 20 lines, three exits last`.
+
+- [x] 2.3 `LOCALE_RITE_MODE=inform`: `MODE_ENV`/`MODE_INFORM` (135-136), `current_mode()` (182),
+      `evaluate(payload, check, mode=None)` com default do ambiente; `inform` nunca nega; qualquer
+      outro valor é o modo padrão (D5)
+
+      ```
+      (mesmo payload de 2.1) | LOCALE_RITE_MODE=inform python3 claude/global/hooks/locale-rite.py     -> rc=0 chars=0   (mudo; o PostToolUse do mesmo payload -> ADVISORY chars=1608)
+      (mesmo payload de 2.1) | LOCALE_RITE_MODE=informar python3 claude/global/hooks/locale-rite.py   -> rc=0 DENY chars=846   (grafia errada = modo padrão)
+      ```
+
+- [x] 2.4 `first_line_of(path, anchor)` (200): em `PreToolUse` com `Edit` a âncora é o `old_string`
+      (D6); `Write` e `PostToolUse` como antes
+
+      ```
+      printf 'a = 1\nb = 2\n' > <X>/edit_target.py
+      PreToolUse Edit {"old_string":"b = 2","new_string":"usuario_count = 2"} | python3 claude/global/hooks/locale-rite.py
+      -> "  edit_target.py:2: usuario_count  [pt-noun: 'usuario']"      (linha 2, onde o old_string está; antes seria 1)
+      ```
+
+- [x] 2.5 Selftest (353): 13 decisões de `PostToolUse` (as 12 originais sem `hook_event_name` +
+      uma nomeada), 12 de `PreToolUse`, `inform` nos dois eventos, `en-unknown` sozinho (o token é
+      afirmado advisory-only antes, para o caso não passar numa escrita limpa), allowlist em
+      `tempfile.TemporaryDirectory()`, envelope de negação com 30 achados, deduplicação, variável de
+      ambiente por subprocess com `env`, argv
+
+      ```
+      python3 claude/global/hooks/locale-rite.py --selftest; echo "rc=$?"
+      ->   OK      portuguese path reported
+      ->   [...]                       (as 12 decisões originais, inalteradas)
+      ->   OK      PostToolUse by name is the advisory envelope
+      ->   OK      output shape is the field the harness reads (PostToolUse)
+      ->   OK      PreToolUse denies a portuguese identifier
+      ->   OK      PreToolUse denies a portuguese path
+      ->   OK      PreToolUse denies an Edit whose new_string is portuguese
+      ->   OK      PreToolUse allows the same name with locale-ok on the line above
+      ->   OK      PreToolUse allows a clean write
+      ->   OK      PreToolUse in inform mode never denies
+      ->   OK      PreToolUse with a misspelt mode still denies
+      ->   OK      PreToolUse ignores another tool
+      ->   OK      PreToolUse ignores a payload without file_path
+      ->   OK      PreToolUse ignores a tool_input that is not an object
+      ->   OK      PreToolUse ignores a file_path that is not a string
+      ->   OK      PreToolUse with a cwd that is not a string still denies
+      ->   OK      inform mode: PostToolUse still carries the advisory
+      ->   OK      en-unknown alone: PreToolUse silent, PostToolUse advisory
+      ->   OK      PreToolUse allows a name listed in .identifier-locale-allow of the cwd
+      ->   OK      denial envelope: PreToolUse shape, <= 2000 chars, <= 20 lines, three exits last
+      ->   OK      denial reason names each distinct token once
+      ->   OK      LOCALE_RITE_MODE=inform read from the environment through stdin
+      ->   OK      unknown flag prints usage and exits 2
+      ->
+      -> selftest OK: 13 PostToolUse decisions, 12 PreToolUse decisions, inform mode, en-unknown, the allowlist, both envelopes, the environment and the argv contract
+      -> rc=0
+      ```
+
+- [x] 2.6 Docstring (`locale-rite.py:1-106`): modos, o bloco "WHY `hookSpecificOutput.permissionDecision`
+      AND NOT `exit 2`" com versão (2.1.261), comando (`re.finditer` sobre o ELF) e fragmentos
+      (schema, normalização, `AKr`/`RKr`, mismatch), ao lado do probe do `additionalContext`; wiring
+      com os **dois** eventos; KNOWN LIMIT das escritas via Bash (issue #138)
+
+      ```
+      grep -c -E "PreToolUse|PostToolUse" claude/global/hooks/locale-rite.py   -> 52
+      grep -n "KNOWN LIMIT" claude/global/hooks/locale-rite.py                  -> 73:KNOWN LIMIT
+      ```
+
+- [x] 2.7 `personal-rules.md`, seção *Code Locale*: um bullet novo (`claude/global/personal-rules.md:55-59`,
+      commit `cbeec33`) dizendo que o hook **nega** a escrita em `PreToolUse`, nomeando as três saídas
+      e o limite (Bash, #138); a estrutura da seção (bullets + link final para `code-locale`) mantida
+
+      ```
+      git diff -U0 80ee53c...HEAD -- claude/global/personal-rules.md | grep -E '^@@'   -> @@ -54,0 +55,5 @@ field keys.
+      ```
 
 ## 3. Simulation & Field Proof (MANDATORY)
 
-- [ ] S.1 O artefato exercitado pelo caminho real (`python3 claude/global/hooks/locale-rite.py` lendo
-      stdin) com payloads na forma do bundle, para os dois eventos; comando e fragmento observado
-      registrados; a corrida na sessão com o hook wired é o passo de aceite do mantenedor
-- [ ] S.2 Matriz de casos em contagens: o que tinha de negar e negou, o que tinha de ficar mudo e
-      ficou, o que tinha de informar e informou, escapes conhecidos que ficaram mudos
-- [ ] S.3 O que escapou ou se comportou diferente do esperado — ou a declaração de que nada escapou
+- [x] S.1 O artefato exercitado pelo caminho real — `python3 claude/global/hooks/locale-rite.py` lendo
+      um payload por stdin, na forma que o bundle 2.1.261 declara (`session_id`, `transcript_path`,
+      `cwd`, `hook_event_name`, `tool_name`, `tool_use_id`, `tool_input`, e `tool_response` no
+      PostToolUse), 23 payloads, cada um num processo próprio (`scratchpad/sim.py`, 2026-09-05):
+
+      ```
+      python3 scratchpad/sim.py
+      -> OK     1 Pre Write pt path+identifiers (issue example)            rc=0 DENY     chars=846 stderr=0
+      -> OK     2 Pre Write pt identifier only                             rc=0 DENY     chars=727 stderr=0
+      -> OK     3 Pre Write pt path only                                   rc=0 DENY     chars=745 stderr=0
+      -> OK     4 Pre Edit pt new_string (anchor old_string, line 2)       rc=0 DENY     chars=726 stderr=0
+      -> OK     5 Pre Write locale-ok on the line above                    rc=0 silent   chars=0 stderr=0
+      -> OK     6 Pre Write name in .identifier-locale-allow of cwd        rc=0 silent   chars=0 stderr=0
+      -> OK     7 Pre Write pt, LOCALE_RITE_MODE=inform                    rc=0 silent   chars=0 stderr=0
+      -> OK     8 Post Write pt (advisory, as before)                      rc=0 ADVISORY chars=1608 stderr=0
+      -> OK     9 Post Write pt, LOCALE_RITE_MODE=inform                   rc=0 ADVISORY chars=1608 stderr=0
+      -> OK     10 Pre Write en-unknown only                               rc=0 silent   chars=0 stderr=0
+      -> OK     11 Post Write en-unknown only                              rc=0 ADVISORY chars=726 stderr=0
+      -> OK     12 Pre Write clean                                         rc=0 silent   chars=0 stderr=0
+      -> OK     13 Post Write clean                                        rc=0 silent   chars=0 stderr=0
+      -> OK     14 Pre MultiEdit pt                                        rc=0 DENY     chars=719 stderr=0
+      -> OK     15 Pre NotebookEdit pt notebook_path                       rc=0 DENY     chars=728 stderr=0
+      -> OK     16 Pre Bash writing pt (KNOWN LIMIT, must stay silent)     rc=0 silent   chars=0 stderr=0
+      -> OK     17 Pre Write without file_path                             rc=0 silent   chars=0 stderr=0
+      -> OK     18 malformed: json array                                   rc=0 silent   chars=0 stderr=0
+      -> OK     19 malformed: json string                                  rc=0 silent   chars=0 stderr=0
+      -> OK     20 malformed: empty stdin                                  rc=0 silent   chars=0 stderr=0
+      -> OK     21 Pre tool_input not an object                            rc=0 silent   chars=0 stderr=0
+      -> OK     22 Pre Write pt, LOCALE_RITE_MODE=informar (typo)          rc=0 DENY     chars=846 stderr=0
+      -> OK     23 no hook_event_name, pt (pre-#137 payload)               rc=0 ADVISORY chars=1608 stderr=0
+      -> mismatches: 0/23
+      -> files in the write target after all runs: ['edit_target.py']        (só a fixture do caso 4: o hook não grava nada)
+      ```
+
+      O envelope do caso 1 e a linha do caso 4 estão em 2.1, 2.2 e 2.4. O que esta simulação **não**
+      prova: o hook disparado pelo harness numa sessão com o bloco `PreToolUse` wired — um subagente
+      não dispara o hook da sessão. A corrida na sessão do mantenedor (Write de `servico_pedido.py`
+      negado, arquivo ausente, depois com `locale-ok:` e com `LOCALE_RITE_MODE=inform`, contando as
+      tentativas até a saída) é o passo de aceite; o snippet de `settings.json` vai no resultado.
+
+- [x] S.2 Matriz de casos em contagens, medida em S.1 e no selftest:
+
+      | Grupo | O que tinha de acontecer | Contagem | Nota |
+      |---|---|---|---|
+      | stdin, PreToolUse | tinha de negar e negou | 7/7 | casos 1-4, 14, 15, 22: caminho, identificador, Edit, MultiEdit, NotebookEdit, grafia errada do modo |
+      | stdin, PreToolUse | tinha de ficar mudo e ficou | 8/8 | casos 5-7, 10, 12, 17, 21 e 16: locale-ok, allowlist, inform, en-unknown, limpo, sem file_path, tool_input inválido, Bash |
+      | stdin, PostToolUse | tinha de informar e informou | 4/4 | casos 8, 9, 11, 23 (o caso 9 com inform é idêntico ao 8: 1608 chars) |
+      | stdin, PostToolUse | tinha de ficar mudo e ficou | 1/1 | caso 13 |
+      | stdin, malformado | mudo, exit 0, sem stderr | 3/3 | casos 18-20 |
+      | stdin, escape conhecido | ficou mudo | 1/1 | caso 16: Bash escrevendo `preco` (KNOWN LIMIT, issue #138) — contado também na linha dos mudos |
+      | `--selftest` | decisões OK | 13/13 PostToolUse + 12/12 PreToolUse + 7/7 asserções (forma Post, inform Post, en-unknown, allowlist, envelope, deduplicação, ambiente) + 1/1 argv | rc=0 |
+      | runner de gates | steps PASS | 19/19 PASS | ver V.1 |
+
+- [x] S.3 O que escapou ou se comportou diferente do esperado
+
+      Nada escapou na matriz: 0/23 desvios em S.1. Duas coisas foram diferentes do planejado antes de
+      medir, e estão registradas:
+
+      - O bundle honra `additionalContext` em `PreToolUse` (E.2). A opção de emitir o `en-unknown`
+        antes da escrita existe e **não** foi usada (D4): com os dois blocos wired o aviso chegaria
+        duas vezes por escrita. A decisão é por duplicação, não por limite do harness.
+      - O cap de `permissionDecisionReason` é duplo — 2000 caracteres **e** 20 linhas — e o
+        `additionalContext` também tem cap de 200 linhas, não registrado antes. O motivo da negação
+        foi desenhado para 18 linhas por construção (D3); o `render()` do check (5 linhas por achado)
+        estouraria o cap de linhas com 4 achados e o harness cortaria justamente as saídas.
+
+      O escape conhecido e mantido: um arquivo escrito por Bash (caso 16) passa em silêncio — issue
+      #138. E o que continua fora do alcance da simulação por stdin é o disparo pelo harness real,
+      declarado em E.3 e S.1 como passo de aceite do mantenedor.
 
 ## 4. Quality Gates (MANDATORY)
 
-- [ ] Q.1 Frontmatter uniforme em todo `SKILL.md` tocado — não se aplica se nenhuma skill for tocada;
-      o step do CI é rodado mesmo assim e o resultado registrado
-- [ ] Q.2 Conteúdo de skill tocado em inglês — idem; docstring, nomes de caso e delta de spec em
-      inglês, proposal/design/tasks em português como as changes da casa
-- [ ] Q.3 Gatilhos de descrição testáveis — não se aplica se nenhuma descrição de skill muda
-- [ ] Q.4 Sem doutrina duplicada: o motivo da negação **nomeia** as dispensas e aponta para
-      `code-locale`; ver a tabela de Canonical Home em `design.md`
-- [ ] Q.5 Identificadores em inglês no que a change introduz, medidos com o check do repositório
+- [x] Q.1 Frontmatter uniforme em todo `SKILL.md` tocado — **não se aplica**: esta change não toca
+      nenhuma skill (`git diff --stat 80ee53c...HEAD` -> `locale-rite.py`, `personal-rules.md`,
+      `openspec/changes/enforce-locale-on-write/**`). O step de frontmatter do CI foi rodado mesmo
+      assim pelo runner de gates: `PASS frontmatter`; `PASS validate-skills :: skills checked: 35
+      findings: 0`
+- [x] Q.2 Conteúdo de skill tocado em inglês — **não se aplica** pelo mesmo motivo; o docstring, os
+      nomes dos casos do selftest, o motivo da negação e o delta de spec estão em inglês, como o
+      catálogo exige; proposal/design/tasks em português, como as changes da casa; o bullet novo de
+      `personal-rules.md` em inglês, como o resto do arquivo
+- [x] Q.3 Gatilhos de descrição testáveis — **não se aplica**: nenhuma descrição de skill muda
+- [x] Q.4 Sem doutrina duplicada: o motivo da negação **nomeia** as dispensas (`locale-ok:`,
+      `.identifier-locale-allow`, `LOCALE_RITE_MODE=inform`) e aponta para `code-locale`; o bullet de
+      `personal-rules.md` aponta para o hook e para a issue #138 sem reescrever o check; ver a tabela
+      de Canonical Home em `design.md`
+- [x] Q.5 Identificadores em inglês no que a change introduz — `REASON_CAP`, `REASON_LINE_CAP`,
+      `REASON_MAX_FINDINGS`, `MODE_ENV`, `MODE_INFORM`, `PRE_EVENT`, `POST_EVENT`, `current_mode`,
+      `split_findings`, `finding_line`, `deny_reason`, `deny`, `distinct_ok` — e o glossário da issue
+      (`LOCALE_RITE_MODE`, `permissionDecision`):
+
+      ```
+      python3 skills/code-locale/references/check-identifier-locale.py claude/global/hooks/locale-rite.py
+      -> findings: 0
+      -> rc=0
+      ```
+
+      O próprio hook, wired em PostToolUse nesta sessão, apontou `dedup_ok  [en-unknown: 'dedup']`
+      na primeira escrita do selftest; renomeado para `distinct_ok` antes do commit.
 
 ## 5. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `openspec validate enforce-locale-on-write --strict` verde
-- [ ] V.2 Descoberta do catálogo intacta: `npx skills add . --list` acha todas as skills, contagem
-      esperada, sem órfão ou renomeado
-- [ ] V.3 README / docs atualizados onde a change altera composição ou uso do catálogo — a composição
-      não muda; `personal-rules.md` ganha a frase (2.7); o `README.md` é de outro item
+- [x] V.1 `openspec validate enforce-locale-on-write --strict` -> `Change 'enforce-locale-on-write' is valid`;
+      `bash scripts/validate-rite.sh` (com `GITHUB_EVENT_PATH` apontando para um body com
+      `Spec-rite: enforce-locale-on-write`) -> `rite evidence gate: 0 findings` [...] `rite gate OK`;
+      `python3 scripts/validate-skill-version.py` (mesmo event, `SKILL_VERSION_BASE=master`) ->
+      `skill-version gate: 0 findings (base origin/master, 0 skill(s) changed, 0 with content changes)`
+- [x] V.2 Descoberta do catálogo intacta: `npx -y skills add . --list` -> `Found 35 skills`;
+      `ls -d skills/*/ | wc -l` -> `35`; sem órfão ou renomeado
+- [x] V.3 README / docs atualizados: a composição do catálogo não muda; `personal-rules.md` ganha o
+      bullet (2.7); a seção dos hooks do `README.md:306-335` é de outro item, que documenta o wiring
+      de todos os hooks, e não foi tocada aqui por decisão da issue
 - [ ] V.4 `openspec archive enforce-locale-on-write --yes` depois que todos os grupos acima estiverem
       `[x]` — PR separado, como o repositório já faz
