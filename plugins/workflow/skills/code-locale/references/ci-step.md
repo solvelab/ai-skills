@@ -35,8 +35,12 @@ jobs:
           echo "${CHECK_SHA256}  check-identifier-locale.py" | sha256sum -c -
 
       - name: Identifier locale on the lines this pull request adds
+        env:
+          PYTHONIOENCODING: utf-8:surrogateescape
         run: |
-          git diff origin/${{ github.base_ref }}...HEAD | python3 check-identifier-locale.py --diff - --no-english
+          set -o pipefail
+          git diff --no-ext-diff --no-renames --src-prefix=a/ --dst-prefix=b/ origin/${{ github.base_ref }}...HEAD \
+            | python3 check-identifier-locale.py --diff - --no-english
 ```
 
 ## Why each line is there
@@ -46,8 +50,9 @@ jobs:
   nothing to measure. A gate that cannot measure must not approve, so it is not wired where it
   cannot run.
 - **`fetch-depth: 0`.** `git diff A...HEAD` measures from the merge base. The default depth of 1
-  leaves no base revision in the clone and the diff fails or measures the wrong thing; the
-  catalog's own `ci.yml` carries the same setting for the same reason.
+  leaves no base revision in the clone and `git diff` fails — which, with `pipefail` below, fails the
+  step instead of approving an empty diff; the catalog's own `ci.yml` carries the same setting for
+  the same reason.
 - **`persist-credentials: false`.** Nothing after the checkout needs the token; the default leaves
   it in `.git/config` for every later step.
 - **`permissions: contents: read`.** The job reads the repository and nothing else.
@@ -73,10 +78,29 @@ jobs:
   assumed. The gating tiers (`pt-verb`, `pt-noun`, `pt-morphology`, path) do not depend on those
   lists, so the exit code is identical with or without this flag. Want the advisory tier in CI?
   Download the three files beside the detector (same URL shape, same tag) and drop the flag.
-- **The pipe's exit code.** A `run:` block on Linux runs `bash -e {0}` **without** `pipefail`, so
-  the step's status is `python3`'s — exactly what is wanted: exit 1 on a gating finding, 0
-  otherwise. A `git diff` failure (no base revision) prints its error and the detector, reading an
-  empty diff, reports `findings: 0`; that is why `fetch-depth: 0` is not optional here.
+- **`set -o pipefail`.** The default shell of a `run:` block on Linux is `bash -e {0}` (GitHub's
+  workflow-syntax page; not probed on a runner here), and `-e` alone takes the pipe's status from its
+  **last** command. Without `pipefail` a failed `git diff` — a base ref that was not fetched, an empty
+  `github.base_ref`, a `fetch-depth` left at 1 — prints its error, the detector reads an empty
+  stream, prints `findings: 0`, and the step is green: measured on 2026-09-05 with the block verbatim
+  (`fatal: ambiguous argument 'origin/release/9...HEAD'` then `findings: 0`, exit 0). With `pipefail`
+  the same case exits 128. A gate that cannot measure must not approve, and this is the line that
+  makes the step obey its own rule. The same effect comes from declaring `shell: bash`, which the same
+  page documents as `bash --noprofile --norc -eo pipefail {0}`; the explicit line travels to other CI
+  systems unchanged.
+- **The four `git diff` flags.** They pin the diff's *shape*, so a runner's or a repository's git
+  config cannot change what the detector reads — the pre-commit hook passes the same four, for the
+  same measured reasons (its header, *WHAT IT DOES*): `--no-ext-diff` (a `diff.external` driver
+  replaces the unified diff with its own output — an empty stream and `findings: 0`), `--no-renames`
+  (with rename detection, git's default, `git mv orders.py relatorio.py` is a `rename to` header with
+  no `--- /dev/null`, and the detector never measures the new name; without it a rename is a delete
+  plus an add and the new path is measured), `--src-prefix=a/ --dst-prefix=b/` (`diff.mnemonicPrefix`
+  writes `+++ i/…`, and a path grandfathered in `.identifier-locale-allow` stops matching). A fresh
+  `ubuntu-latest` runner carries none of these settings; a self-hosted runner may.
+- **`PYTHONIOENCODING: utf-8:surrogateescape`.** A hunk carrying non-UTF-8 bytes — a latin-1 legacy
+  file, common in the codebases this skill targets — otherwise aborts the detector with
+  `UnicodeDecodeError` before any name is judged, and the step fails for the wrong reason. With the
+  handler the undecodable bytes pass through and only the names are measured.
 
 ## Reading a failure
 
@@ -95,7 +119,11 @@ guide: the skill's *Reviewing a diff* section.
   skipped, never as passing.
 - **Existing content.** Only added lines. A pull request that moves a legacy Portuguese name from
   one file to another adds it, and is reported — that is the migration policy meeting the gate, and
-  the waiver line is the answer when the move is deliberate.
+  the waiver line is the answer when the move is deliberate. With `--no-renames` a **renamed file** is
+  the same case: every line of the moved file is read as added, so renaming a legacy file whose
+  content still carries Portuguese names turns the pull request red at that moment (fix the names,
+  waive them, or grandfather the path). A pure rename of an English-clean file is silent; a rename
+  **to** a Portuguese name is reported on the path, which is why the flag is there.
 - **The advisory tier**, unless you ship the word lists and drop `--no-english`.
 - **Everything the detector's own `KNOWN LIMIT` list names** — words that are both English and
   Portuguese, abbreviations under the minimum segment length, identifiers built at runtime, Spanish
