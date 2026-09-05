@@ -11,7 +11,7 @@ must be lifted when the pin moves.
 The pin moved and the row stayed. Measured on 2026-09-05 (issue #131, PR #144): the DriveZone image
 `drivezone/assettoserver:local` reports `AssettoServer 0.0.55+51d8d8a6e0`, built from commit
 `51d8d8a6` = tag `v0.0.55-pre25` of `~/works/AssettoServer`, whose `AssettoServer.csproj` targets
-`net9.0`; the image's binary embeds `System.Private.CoreLib, Version=9.0.0.0`. On that host the
+`net9.0`; the image's binary embeds `System.Private.CoreLib 9.0`. On that host the
 banned type exists, the `net8.0` example is one major behind, and seven plugin-facing files changed
 between the two tags (`Server/Plugin/{ACPluginLoader,AssettoServerModule,AvailablePlugin,
 LoadedPlugin,PluginConfiguration}.cs`, `Server/CSPServerScriptProvider.cs`,
