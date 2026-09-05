@@ -1,7 +1,7 @@
 {
   "name": "ai-skills-fivem",
   "displayName": "AI Skills — fivem",
-  "version": "2.24.0",
+  "version": "2.25.0",
   "description": "FiveM/CitizenFX Lua conventions and Lua-side resilience patterns (2 skills: fivem-fallback, fivem-lua)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
