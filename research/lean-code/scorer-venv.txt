@@ -1,0 +1,11 @@
+# Scorer venv for tasks/fastapi-create-item — versions ACTUALLY installed on 2026-09-05 with
+#   uv venv <scratch>/lean-dev/venv --python 3.12
+#   uv pip install --python <scratch>/lean-dev/venv/bin/python fastapi httpx pydantic
+# and read back with `python -c "import fastapi, httpx, pydantic, starlette; print(...)"`.
+# The venv lives in the scratch directory and is NEVER committed; point run.py at it with
+# --scorer-venv <dir> or LEAN_SCORER_VENV=<dir>. Recreate it with:
+#   python3 -m venv <dir> && <dir>/bin/pip install -r research/lean-code/scorer-venv.txt
+fastapi==0.141.1
+httpx==0.28.1
+pydantic==2.13.5
+starlette==1.6.0
