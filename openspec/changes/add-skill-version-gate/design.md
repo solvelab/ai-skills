@@ -52,6 +52,16 @@ selftest de cada uma dependente da outra. O novo script copia a **forma** — as
 plumbing com os mesmos nomes, o mesmo leitor do corpo, o mesmo skip, o mesmo `annotate` — para que
 quem já leu um leia o outro sem custo.
 
+Uma divergência deliberada, apontada na revisão do PR: `changed_paths()` aqui roda `git diff
+--name-only -z` e separa por NUL, e não por linha como o irmão. Sem `-z`, o git envolve em aspas e
+escapa em octal qualquer caminho com byte não-ASCII, de controle ou aspas (`core.quotePath`, padrão
+`true` num checkout limpo e nos runners ubuntu); `"skills/x/caf\303\251.md"` não começa com `skills/`,
+`skills_in()` descarta o caminho e a skill some da medição — o gate aprovou exatamente esse fixture.
+No irmão a mesma entrada continua sendo ofensora (a regra é "existe caminho fora de `openspec/`"), por
+isso ele falha fechado por acidente e não precisa da flag para decidir certo; aqui a regra é por skill
+e a flag é o que a mantém fechada. O selftest comita um caminho assim num repositório descartável com
+`core.quotePath=true` forçado e exige o nome de volta intacto.
+
 ### D2 — "Conteúdo mudou" é qualquer caminho sob `skills/<x>/`, exceto a linha `  version:`
 
 Para cada skill com caminho alterado no diff `<merge-base>...HEAD`: se algum caminho alterado não é o

@@ -99,18 +99,26 @@
         mesmo no irmão é higiene, não deste item.
       - `gates.sh` (runner local do orquestrador, fora do repositório) não roda o gate novo; foi rodado
         à parte em S.1.
+      - `validate-spec-rite.py` lê o diff sem `-z` e recebe caminhos com aspas e escapes octais quando
+        `core.quotePath` está ativo (padrão); como a regra dele é "existe caminho fora de `openspec/`",
+        o caminho quotado continua ofensor e o gate falha fechado — mas a mensagem nomeia o caminho
+        escapado. Trocar para `-z` lá é higiene do irmão, não deste item.
 
 ## 2. O gate `scripts/validate-skill-version.py` (D1–D6)
 
 - [x] 2.1 `resolve_base`, `changed_paths`, `read_pr_body` e o skip fora de `pull_request` no idioma
-      exato de `validate-spec-rite.py`; `MIN_REASON` importado do irmão
+      de `validate-spec-rite.py`; `MIN_REASON` importado do irmão. Única divergência (revisão do PR,
+      D1): `changed_paths` roda `git diff --name-only -z` e separa por NUL — sem a flag um caminho
+      com byte não-ASCII chega quotado (`"skills/x/caf\303\251.md"`) e `skills_in()` o descarta
 
       ```
-      grep -n "def resolve_base\|def read_pr_body\|def changed_paths\|MIN_REASON = \|not pull_request" scripts/validate-skill-version.py
-      -> 94:MIN_REASON = _sibling_min_reason()
-      -> 113:def resolve_base(root: Path) -> str | None:
-      -> 129:def read_pr_body() -> str:
-      -> 155:def changed_paths(root: Path, base: str, head: str = "HEAD") -> list[str]:
+      grep -n "def resolve_base\|def read_pr_body\|def split_nul_paths\|def changed_paths\|MIN_REASON = \|not pull_request\|\"-z\"" scripts/validate-skill-version.py
+      -> 102:MIN_REASON = _sibling_min_reason()
+      -> 121:def resolve_base(root: Path) -> str | None:
+      -> 137:def read_pr_body() -> str:
+      -> 162:def split_nul_paths(out: str) -> list[str]:
+      -> 168:def changed_paths(root: Path, base: str, head: str = "HEAD") -> list[str]:
+      -> [...] "diff", "--name-only", "-z", f"{base}...{head}"],
       -> [...] print(f"  skill-version gate: skipped (event {event}, not pull_request)")
       python3 scripts/validate-skill-version.py --selftest | grep MIN_REASON
       -> HELPER  MIN_REASON agrees with the spec-rite gate
@@ -130,6 +138,19 @@
       -> HELPER  semver orders numerically, not lexically
       -> HELPER  generated trees are dropped
       -> HELPER  references group under their skill
+      -> HELPER  NUL-separated names are read verbatim, quotes and newlines included
+      -> HELPER  a non-ASCII name still groups under its skill
+      -> HELPER  changed_paths() survives core.quotePath on a real repository
+      ```
+
+      O último helper é a única sonda de plumbing do selftest (`_probe_quoted_path()` em `:347`):
+      `git init` num diretório temporário, dois commits, `skills/probe/references/café.md` no segundo,
+      `core.quotePath=true` forçado. Mutação (mesmo script com `-z` removido e `splitlines()` de volta):
+
+      ```
+      sed 's/"--name-only", "-z",/"--name-only",/; s/return split_nul_paths(out)/return [l for l in out.splitlines() if l]/' [...] | python3 - --selftest
+      -> HELPER FAIL  changed_paths() survives core.quotePath on a real repository
+      -> 7/7 defect classes detected, 11/11 false-positive cases stayed silent, 10/11 helper cases correct
       ```
 
 - [x] 2.3 `evaluate()` pura: `V1` skill editada sem bump e sem dispensa; `V2` versão que desce;
@@ -161,7 +182,7 @@
       -> SILENT  new skill
       -> SILENT  version-only edit
       -> SILENT  wrapper-only diff
-      -> 7/7 defect classes detected, 11/11 false-positive cases stayed silent, 8/8 helper cases correct
+      -> 7/7 defect classes detected, 11/11 false-positive cases stayed silent, 11/11 helper cases correct
       -> exit=0
       ```
 
@@ -269,6 +290,25 @@
       -> skill-version gate: 0 findings (base origin/master, 2 skill(s) changed, 2 with content changes)   exit=0
       ```
 
+      **Fixture da revisão — caminho que o git quota.** Clone descartável do worktree, commit de
+      `skills/backlog/references/café.md` (conteúdo `x`) sem bump, `core.quotePath` não definido
+      (`git config --get core.quotePath` -> vazio; padrão `true`), `SKILL_VERSION_BASE=<commit anterior>`:
+
+      ```
+      git diff --name-only BASE...HEAD
+      -> "skills/backlog/references/caf\303\251.md"
+      python3 scripts/validate-skill-version.py            (script em 3c91f54, antes da correção)
+      -> skill-version gate: 0 findings (base 3c91f54[...], 0 skill(s) changed, 0 with content changes)   exit=0
+      python3 scripts/validate-skill-version.py            (script corrigido, --name-only -z)
+      -> ::error::V1 unbumped skill — skills/backlog/ changed 1 path(s) — skills/backlog/references/café.md — with metadata.version 1.5.0 on the base and 1.5.0 on HEAD. [...]
+      -> skill-version gate: 1 findings (base 3c91f54[...], 1 skill(s) changed, 1 with content changes)   exit=1
+      mesmo diff, PR_BODY="Skill-version: none — probe: quoted-path fixture"
+      -> skill-version gate: 0 findings (base 3c91f54[...], 1 skill(s) changed, 1 with content changes)   exit=0
+      mesmo diff, git config core.quotePath false (caixa que não quota)
+      -> skill-version gate: 1 findings (base 3c91f54[...], 1 skill(s) changed, 1 with content changes)
+      git ls-files skills | grep -cP '[^\x00-\x7F]'   -> 0   (nenhum caminho assim no catálogo hoje)
+      ```
+
       No próprio worktree, sem ambiente de CI:
 
       ```
@@ -277,18 +317,19 @@
       GITHUB_ACTIONS=true GITHUB_EVENT_NAME=push python3 scripts/validate-skill-version.py
       -> skill-version gate: skipped (event push, not pull_request)   exit=0
       python3 scripts/validate-skill-version.py --selftest
-      -> 7/7 defect classes detected, 11/11 false-positive cases stayed silent, 8/8 helper cases correct   exit=0
+      -> 7/7 defect classes detected, 11/11 false-positive cases stayed silent, 11/11 helper cases correct   exit=0
       ```
 
 - [x] S.2 Matriz de casos medida, em contagens
 
       | Expectativa | Casos | Resultado |
       |---|---|---|
-      | Tinha de disparar e disparou | 5/5 | histórico `cf767ee` sem dispensa (12 achados V1, contado como 1); entry point: edição sem bump sem dispensa (1), dispensa sem motivo (1), sem payload (1), versão abaixo da base com dispensa (1) |
-      | Tinha de ficar mudo e ficou | 8/8 | histórico: `cf767ee` com dispensa PR-wide (1), PR #122 com 6 bumps (1), este branch (1); entry point: branch commitado (1), bump patch (1), dispensa com motivo (1), wrapper-only (1), skill nova (1) |
+      | Tinha de disparar e disparou | 7/7 | histórico `cf767ee` sem dispensa (12 achados V1, contado como 1); entry point: edição sem bump sem dispensa (1), dispensa sem motivo (1), sem payload (1), versão abaixo da base com dispensa (1); fixture da revisão: caminho quotado sem bump, `quotePath` padrão (1) e `false` (1) |
+      | Tinha de ficar mudo e ficou | 9/9 | histórico: `cf767ee` com dispensa PR-wide (1), PR #122 com 6 bumps (1), este branch (1); entry point: branch commitado (1), bump patch (1), dispensa com motivo (1), wrapper-only (1), skill nova (1); fixture da revisão com dispensa (1) |
       | Skip declarado | 2/2 | `GITHUB_EVENT_NAME=push` no clone e no worktree — `skipped (event push, not pull_request)` |
-      | Selftest | 3/3 | 7/7 defeitos, 11/11 mudos, 8/8 helpers |
-      | Escape conhecido ficou mudo | 0/0 | nenhum caso de escape foi construído (pré-release não existe no catálogo; ver E.3) |
+      | Selftest | 3/3 | 7/7 defeitos, 11/11 mudos, 11/11 helpers |
+      | Mutação detectada | 1/1 | `-z` removido → `HELPER FAIL changed_paths() survives core.quotePath [...]`, 10/11, exit 1 |
+      | Escape conhecido ficou mudo | 1/1 | caminho quotado com o script de `3c91f54`: `0 skill(s) changed`, exit 0 — o escape que a revisão apontou, fechado nesta rodada (S.3) |
 
 - [x] S.3 O que escapou ou se comportou diferente do esperado
 
@@ -306,6 +347,15 @@
       - `README.md` cita `:180`/`:824` na issue; hoje as frases estão em `:194`/`:864`. Editadas as
         duas, nenhuma outra.
       - `V0 base revision` (CI sem `fetch-depth: 0`) não exercitado (E.3).
+      - **Escape apontado na revisão do PR, reproduzido e fechado**: com o script de `3c91f54`, um
+        caminho que o git quota (`skills/backlog/references/café.md`, `core.quotePath` padrão) saía de
+        `git diff --name-only` como `"skills/backlog/references/caf\303\251.md"`, `skills_in()` o
+        descartava e o gate aprovava com `0 skill(s) changed` — falha aberta, o oposto do irmão. A
+        simulação original não construiu esse caso porque nenhum caminho do catálogo tem byte não-ASCII
+        (`git ls-files skills | grep -cP '[^\x00-\x7F]'` -> 0; `code-locale` proíbe) — buraco na
+        medição, não regressão presente. Corrigido com `--name-only -z` + `split_nul_paths()`, três
+        helpers novos no selftest (um deles comita o caminho num repositório temporário), mutação
+        confirmada. Registrado no docstring do script e em D1.
 
 ## 5. Quality Gates (MANDATORY)
 
