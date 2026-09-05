@@ -4,3 +4,8 @@
 # release 2.6.0 via an ordinary `git add -A`.
 __pycache__/
 *.py[cod]
+
+# Local tool output. `openspec init --tools claude` writes six helper skills and six /opsx commands
+# into .claude/; they are not part of the catalog, and a clean clone has no global excludes file to
+# keep `git add -A` from committing them — the same path __pycache__ took above.
+.claude/
