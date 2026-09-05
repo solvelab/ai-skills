@@ -11,7 +11,7 @@ description: >-
   backend receiving events (python-rest-api), or for FiveM servers.
 metadata:
   author: solvelab
-  version: 1.3.1
+  version: 1.3.2
   category: devops
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -26,8 +26,11 @@ compatibility: Works in Claude Code, Claude.ai, and any environment with filesys
 > resolve to the sample `Assets/server_cfg.ini` or to an `[IniField]` under
 > `Server/Configuration/Kunos/` — `CARS` is a stock acServer key this source never reads; the
 > density function quoted below is `Server/Ai/AiBehavior.cs:455-466` at that tag. Not probed: no
-> server was started against a client, and the CSP build the DriveZone servers require is not
-> recorded on this machine.
+> server was started against a client. The server's own floor at `v0.0.55-pre25` is CSP 0.1.77
+> (build 1937) once `EnableClientMessages` is on — `Server/ACServer.cs:87-90` throws "Client
+> messages need a minimum required CSP version of 0.1.77 (1937)" below it, and the log line `Using
+> minimum required CSP Version 1937` was observed on 2026-09-05 with a default `extra_cfg.yml`; the
+> `MinimumCSPVersion` the DriveZone servers configure is still not recorded on this machine.
 
 Distilled from a production freeroam deployment (DriveZone on SRP/Shutoko). The runtime is
 `compujuckel/AssettoServer` — a CSP-aware replacement for stock `acServer` that adds

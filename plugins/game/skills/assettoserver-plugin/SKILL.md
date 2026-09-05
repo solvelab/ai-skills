@@ -6,13 +6,14 @@ description: >-
   when creating or reviewing an AssettoServer plugin — AssettoServerModule entrypoint, plugin YAML
   config, Qmmands chat commands (ACModuleBase), ChatMessage packets, IHostedService lifecycle,
   calling an external backend from inside the runtime, or publishing for the plugin
-  AssemblyLoadContext. Covers the runtime's forbidden constructs (command-module DI,
-  System.Threading.Lock) and the bug-hunter gate that enforces them. Do NOT use for stock acServer
+  AssemblyLoadContext. Covers the runtime's forbidden constructs (command-module DI), the
+  host-scoped ones (System.Threading.Lock on net8.0 hosts only) and the bug-hunter gate that
+  enforces them. Do NOT use for stock acServer
   configuration or server operation (that is assettoserver-ops), FiveM/CitizenFX resources (that is
   fivem-lua), or general .NET services.
 metadata:
   author: solvelab
-  version: 1.4.0
+  version: 1.4.1
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
