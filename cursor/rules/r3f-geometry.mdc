@@ -1,6 +1,6 @@
 ---
 description: >-
-  React Three Fiber geometry — built-in and custom BufferGeometry, Drei Instances/Merged instancing, Points, Lines, Text3D and Bounds. Use when creating or optimizing 3D shapes and meshes.
+  React Three Fiber geometry — built-in and custom BufferGeometry, Drei Instances/Merged instancing, Points, Lines, Text3D and Bounds. Use when creating or optimizing 3D shapes and meshes. Do NOT use for styling the mesh (that is `r3f-materials`) or for physics colliders on it (that is `r3f-physics`).
 alwaysApply: false
 ---
 
