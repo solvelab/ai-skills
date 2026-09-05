@@ -81,4 +81,5 @@
       Evidence: No skill added, removed or renamed; `npx -y skills add solvelab/ai-skills --list` counted 35 earlier the same day and the tree still holds 35 (`ls skills | wc -l`).
 - [x] V.3 README / docs updated where the change alters catalog composition or usage
       Evidence: No catalog composition or usage change; README untouched on purpose.
-- [ ] V.4 `openspec archive update-assettoserver-plugin-runtime --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive update-assettoserver-plugin-runtime --yes` after all groups above are `[x]`
+      Evidence: `openspec archive update-assettoserver-plugin-runtime --yes` on 2026-09-05 after PR merge -> archived as `2026-09-05-update-assettoserver-plugin-runtime`, specs updated; `openspec list` -> `No active changes found`.
