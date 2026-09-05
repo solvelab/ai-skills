@@ -4,6 +4,8 @@ description: >-
 alwaysApply: false
 ---
 
+Reference files (`references/…` below) live at https://github.com/solvelab/ai-skills/tree/master/skills/code-locale/references/
+
 
 # Code locale — prose follows the repo, the machine layer is English
 
@@ -155,7 +157,9 @@ English one. High confidence is what the reader sees first.
 ## Catching it at the write, not at the review
 
 A review-time check catches the name after it is written, spread across a diff, when renaming costs
-the most. `claude/global/hooks/locale-rite.py` closes that distance: it runs on the harness event
+the most. The hook [`locale-rite.py`, in the catalog repository under
+`claude/global/hooks/`](https://github.com/solvelab/ai-skills/blob/master/claude/global/hooks/locale-rite.py),
+closes that distance: it runs on the harness event
 that follows a file write, feeds the written path and the written content to the same check, and
 returns the findings to the assistant before the next turn. Silent when the write is clean, never
 blocking — the rite informs, and the author decides.

@@ -48,6 +48,34 @@ MUTATIONS = {
  "C10 frontmatter limits": ("skills/r3f-geometry/SKILL.md",
      lambda s: s.replace("description: >-", "description: >-\n  " + "Use when the user says so. " * 44, 1),
      ("C10 frontmatter limits", "description is")),
+ # A reference file nobody links. The path does not exist in the catalog, so the loop below starts
+ # from an empty string — this is the one mutation that CREATES a file instead of editing one.
+ "C11 orphan reference": ("skills/r3f-geometry/references/orphan-probe.md",
+     lambda s: "# Orphan probe\n\nNo SKILL.md and no reachable reference links this file.\n",
+     ("C11 orphan reference", "orphan-probe.md")),
+ # The form that shipped in six skills (issue #117): a sibling's reference path without `skills/`.
+ # C1 stays silent on it by design (it only judges `references/` and `skills/` prefixes), which is
+ # exactly why C12 exists.
+ "C12 out-of-skill path": ("skills/fivem-lua/SKILL.md",
+     lambda s: s + "\n\nThe track lives in `bug-hunter/references/track-fivem-lua.md`.\n",
+     ("C12 out-of-skill path", "bug-hunter/references/track-fivem-lua.md")),
+ # The same defect planted in a NESTED reference file: the per-reference loop once walked only
+ # references/*.md at depth 1, and the 19 files under svg-animation/references/{objects,regimes}/
+ # were judged by no path check. The fragment is the nested label, so a loop that goes back to a
+ # non-recursive glob is caught even if some other file trips C12.
+ "C12 out-of-skill path (nested reference)": ("skills/svg-animation/references/regimes/mechanism-linkage.md",
+     lambda s: s + "\n\nThe probe lives in `research/svg-animation/probe.md`.\n",
+     ("C12 out-of-skill path", "svg-animation/regimes/mechanism-linkage.md")),
+ # Rule (c) in its inline form: a `..` traversal in backticks that leaves the skill. Once judged only
+ # as a link target; C1 never judges `..` inline paths, so nothing else fires on it.
+ "C12 out-of-skill path (inline traversal)": ("skills/r3f-geometry/SKILL.md",
+     lambda s: s + "\n\nThe bindings live in `../r3f-physics/references/rapier.md`.\n",
+     ("C12 out-of-skill path", "inline -> ../r3f-physics/references/rapier.md: resolves outside skills/r3f-geometry/")),
+ # A description with a trigger and nothing else: no "Do NOT use", no redirect naming a sibling.
+ "C13 anti-trigger clause": ("skills/r3f-physics/SKILL.md",
+     lambda s: re.sub(r"description: >-\n(?:  .*\n)+",
+                      "description: >-\n  React Three Fiber physics. Use when adding physics simulation.\n", s, count=1),
+     ("C13 anti-trigger clause", "names no boundary")),
 }
 
 fails = []
@@ -62,7 +90,7 @@ for check, entry in MUTATIONS.items():
             (dst / "claude" / "skills" / "ghost-skill" / "SKILL.md").write_text("---\nname: ghost-skill\n---\n")
         else:
             p = dst / relpath
-            p.write_text(mutate(p.read_text()))
+            p.write_text(mutate(p.read_text() if p.exists() else ""))   # C11 creates its file
         out = subprocess.run([sys.executable, str(dst / "scripts" / "validate-skills.py")], cwd=dst, capture_output=True, text=True).stdout
         caught = expect.split()[0] in out and expect in out and fragment in out
         print(f"  {'CAUGHT ' if caught else 'MISSED '} {check}")

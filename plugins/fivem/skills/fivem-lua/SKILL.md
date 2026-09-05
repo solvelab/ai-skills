@@ -1,10 +1,10 @@
 ---
 name: fivem-lua
 description: >-
-  Conventions for writing FiveM (CitizenFX) server/client Lua resources. Use when working on FiveM/FXServer Lua — RegisterNetEvent/RegisterNUICallback handlers, fxmanifest, exports, NUI (SendNUIMessage/SetNuiFocus), threads/CreateThread, StateBags, or natives. Enforces the client-is-never-trusted boundary (validate payload + derive actor from `source`), explicit fxmanifest order, no busy `while true` loops, module-per-global pattern, and NUI focus/disconnect cleanup. Do NOT use for react-three-fiber or non-FiveM Lua.
+  Conventions for writing FiveM (CitizenFX) server/client Lua resources. Use when working on FiveM/FXServer Lua — RegisterNetEvent/RegisterNUICallback handlers, fxmanifest, exports, NUI (SendNUIMessage/SetNuiFocus), threads/CreateThread, StateBags, or natives. Enforces the client-is-never-trusted boundary (validate payload + derive actor from `source`), explicit fxmanifest order, no busy `while true` loops, module-per-global pattern, and NUI focus/disconnect cleanup. Do NOT use for react-three-fiber, for CSP Lua scripts on an Assetto Corsa server (that is `assettoserver-csp-lua`), or for other non-FiveM Lua.
 metadata:
   author: solvelab
-  version: 1.3.1
+  version: 1.3.2
   category: fivem
 license: MIT
 compatibility: Works in any environment with filesystem access.
@@ -151,7 +151,8 @@ local function stopLoop() active = false end
 
 - `code-locale` — event names, export names and StateBag keys are English even when the repo's prose is not; a domain term with no faithful translation is kept only when the item's glossary lists it.
 - `fivem-fallback` — resilience when calling an external backend from Lua.
-- `bug-hunter` — adversarial testing; its `bug-hunter/references/track-fivem-lua.md` exercises the trust-boundary
-  and lifecycle rules defined here.
+- `bug-hunter` — adversarial testing; its FiveM track, the file
+  `skills/bug-hunter/references/track-fivem-lua.md` in the `bug-hunter` skill, exercises the
+  trust-boundary and lifecycle rules defined here.
 - `backend-resilience` — the stack-agnostic doctrine behind `fivem-fallback`.
 - `fivem-nui-react` — the React/CEF side of NUI (bridge hooks, uiReady handshake, rendering quirks).

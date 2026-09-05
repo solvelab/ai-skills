@@ -10,10 +10,11 @@ description: >-
   testcontainers integration marker, adversarial test naming, OpenAPI golden snapshot, Schemathesis
   fuzz gate). Also machine-to-machine service auth (named token catalog), domain-state idempotency
   with partial unique indexes, JSONB dialect variants, request size/depth limits, and out-of-process
-  ingestion workers (UDP). The baseline that api-resilience-testing and bug-hunter assume.
+  ingestion workers (UDP). The baseline that api-resilience-testing and bug-hunter assume. Do NOT
+  use to test, break or audit an existing endpoint (that is `api-resilience-testing`).
 metadata:
   author: solvelab
-  version: 1.4.1
+  version: 1.4.2
   category: backend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

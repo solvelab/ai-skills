@@ -2,4 +2,4 @@
 
 Follow the instructions in [SKILL.md](../../skills/backend-resilience/SKILL.md)
 
-Reference files: [references/](../../skills/backend-resilience/references/)
+Reference files: [references/](https://github.com/solvelab/ai-skills/tree/master/skills/backend-resilience/references/)

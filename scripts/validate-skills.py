@@ -12,6 +12,9 @@ Implements the mechanically checkable half of openspec/specs/skills-authoring:
   C8 no meta sections in SKILL.md           (triggers belong in the description, not the body)
   C9 identifier locale                      (English identifiers in code examples)
   C10 frontmatter limits                    (parsed description <= 1024 chars, compatibility <= 500)
+  C11 orphan reference                      (every references/**/*.md is reachable from SKILL.md)
+  C12 out-of-skill path                     (a path that resolves only in a full checkout of this repo)
+  C13 anti-trigger clause                   (the description says where the skill does NOT apply)
 
 Exit 1 on any finding. Run from the repo root.
 """
@@ -80,8 +83,12 @@ def check_refs(skill: str, path: Path, text: str) -> None:
     # Two conventions coexist and both are correct:
     #   - "../SKILL.md" from a reference file  -> resolve relative to the FILE
     #   - "references/x.md" cited anywhere      -> resolve relative to the SKILL directory
-    # Accept either; a path is a defect only when neither resolves.
-    bases = [path.parent] if path.name == "SKILL.md" else [path.parent, path.parent.parent]
+    # Accept either; a path is a defect only when neither resolves. The skill directory is derived
+    # from the label, not from path.parent.parent, so a file in references/<subdir>/ gets the same
+    # two bases as one at references/ depth 1 (svg-animation/references/regimes/*.md cite
+    # `references/platform.md` and mean the skill root).
+    skill_dir = ROOT / "skills" / skill.split("/")[0]
+    bases = [path.parent] if path.name == "SKILL.md" else [path.parent, skill_dir]
     for m in LINK.finditer(text):
         t = m.group(1).split("#")[0]
         if not t or t.startswith(("http", "mailto:", "#")) or PLACEHOLDER.search(t):
@@ -348,6 +355,193 @@ def check_limits(skill: str, text: str) -> None:
                 f"{field} is {n} chars, limit {limit} (parsed value; {n - limit} over)")
 
 
+# ── C11: orphan reference ─────────────────────────────────────────────────
+def _cited_files(skill_dir: Path, path: Path, text: str) -> set[Path]:
+    """Files under skill_dir/references/ that `path` cites by link or inline path, resolved."""
+    text = FENCE.sub("", text)
+    refs = skill_dir / "references"
+    out: set[Path] = set()
+    targets = [m.group(1) for m in LINK.finditer(text)]
+    targets += [m.group(1).strip() for m in INLINE.finditer(text)]
+    for t in targets:
+        t = t.split("#")[0].strip()
+        if not t or " " in t or t.startswith(("http", "mailto:", "#")) or PLACEHOLDER.search(t):
+            continue
+        # the same two bases C1 accepts, plus the repo-root form skills/<self>/references/<file>
+        prefix = f"skills/{skill_dir.name}/"
+        if t.startswith(prefix):
+            t = t[len(prefix):]
+        for b in (path.parent, skill_dir):
+            cand = b / t
+            if cand.is_file():
+                try:
+                    cand.resolve().relative_to(refs.resolve())
+                except ValueError:
+                    continue
+                out.add(cand.resolve())
+    return out
+
+
+def check_orphan_refs(skill: str, skill_dir: Path) -> None:
+    """Every `*.md` under references/ (recursively) is reachable from SKILL.md — directly, or through
+    a reference file that is itself reachable (a README.md inside a references subdirectory counts as
+    an index once it is linked). A file nobody points at is loaded by nobody: measured on
+    svg-animation, whose references/objects/ sat unlinked for a release (issue #117, fixed in #128).
+
+    KNOWN LIMIT — what this check does NOT cover:
+      - Only `*.md` files are judged. Scripts and data under references/ (`.py`, `.sh`, `.lua`,
+        `.txt`, `.gz`) are loaded by the markdown that names them or by a tool, and are not walked.
+      - A mention inside a fenced block does not count as a link (fences are example content, the
+        same rule C1 applies), and neither does a directory link (`references/regimes/`): only a link
+        or inline path that resolves to the FILE, from the citing file's directory or from the skill
+        root, reaches it. A path with a placeholder (`references/<track>.md`) reaches nothing.
+      - Reachability is measured, not relevance: a file linked from an unrelated sentence passes.
+    """
+    refs = skill_dir / "references"
+    if not refs.is_dir():
+        return
+    all_md = {p.resolve() for p in refs.rglob("*.md")}
+    entry = skill_dir / "SKILL.md"
+    reached = _cited_files(skill_dir, entry, entry.read_text(encoding="utf-8")) & all_md
+    frontier = set(reached)
+    while frontier:
+        nxt: set[Path] = set()
+        for f in frontier:
+            nxt |= _cited_files(skill_dir, f, f.read_text(encoding="utf-8")) & all_md
+        frontier = nxt - reached
+        reached |= nxt
+    for orphan in sorted(all_md - reached):
+        add(skill, "C11 orphan reference",
+            f"{orphan.relative_to(skill_dir.resolve()).as_posix()} is linked from neither SKILL.md "
+            "nor a reachable reference")
+
+
+# ── C12: out-of-skill path ────────────────────────────────────────────────
+# Top-level entries that exist ONLY in a full checkout of this repository. A target repository never
+# carries them, so a path under one of them is dead in every install form except the clone.
+CATALOG_ONLY_ROOTS = ("research/", "claude/", "codex/", "cursor/", "copilot/", "plugins/")
+REPO_URL_PREFIX = "https://github.com/solvelab/ai-skills/"
+
+
+def check_out_of_skill(skill: str, path: Path, text: str) -> None:
+    """A skill is installed alone more often than not — symlinked, copied by `npx skills`, grouped in
+    a plugin, or copied as a single Cursor rule — and the only paths that resolve in every one of
+    those forms are the ones under its own directory. Three forms are a finding:
+
+      (a) a link target or inline path that starts with a CATALOG_ONLY_ROOTS entry (`research/…`,
+          `claude/global/hooks/…`): only a clone has it. Write the repository URL instead.
+      (b) `<other-skill>/references/<file>` with no `skills/` prefix: the form that shipped in six
+          skills (issue #117) and resolves nowhere, not even in the clone. The canonical form is
+          `skills/<other-skill>/references/<file>` plus a sentence naming the skill; C1 then checks
+          the file exists.
+      (c) a relative path (`../…`) — a link target or an inline-code path alike — that resolves
+          outside `skills/<this-skill>/` and is not a URL. The inline form is the one prose uses
+          most (`../../claude/global/hooks/locale-rite.py`), so it is judged like the link.
+
+    Accepted: URLs (the repository's own included), `skills/<other>/…` (C1 owns the existence
+    check), `../SKILL.md` and anything else that stays inside the skill.
+
+    Runs over `SKILL.md` and every `*.md` under `references/`, recursively — a finding in a nested
+    file is labelled `<skill>/<subdir>/<file>` (the path relative to `references/`).
+
+    KNOWN LIMIT — what this check does NOT cover:
+      - Paths under `openspec/`, `scripts/`, `docs/`, `.github/` and other roots a TARGET repository
+        may also carry are not judged: a skill that says `docs/SETUP.md` or `openspec/config.yaml` is
+        usually describing the repository it operates on, and the check cannot tell that apart from a
+        reference to this catalog's own file. Those are reviewed by hand.
+      - A path inside a fenced block is example content and is not judged (same rule as C1).
+      - The sentence that has to name the skill next to a `skills/<other>/references/` path (rule R1
+        of issue #121) is prose and is not measured; a bare skill name in backticks is C2's job.
+      - Inline code with a space, a placeholder or a leading `~`, `/`, `$` is a command or a
+        template, not a path claim, and is skipped like C1 skips it.
+    """
+    text = FENCE.sub("", text)
+    skill_dir = (ROOT / "skills" / skill.split("/")[0]).resolve()
+
+    def judge(target: str, kind: str) -> None:
+        t = target.split("#")[0].strip()
+        if not t or t.startswith(("http", "mailto:", "#")) or PLACEHOLDER.search(t):
+            return
+        if t.startswith(CATALOG_ONLY_ROOTS):
+            add(skill, "C12 out-of-skill path",
+                f"{kind} -> {t}: exists only in a clone of this repository — use "
+                f"{REPO_URL_PREFIX}blob/master/{t}")
+            return
+        head = t.split("/")[0]
+        if head in NAMES and head != skill_dir.name and "/references/" in t:
+            add(skill, "C12 out-of-skill path",
+                f"{kind} -> {t}: cross-skill path without the skills/ prefix — write "
+                f"skills/{t} and name the `{head}` skill in the sentence")
+            return
+        if t.startswith(".."):
+            try:
+                (path.parent / t).resolve().relative_to(skill_dir)
+            except ValueError:
+                add(skill, "C12 out-of-skill path",
+                    f"{kind} -> {t}: resolves outside skills/{skill_dir.name}/")
+
+    for m in LINK.finditer(text):
+        judge(m.group(1), "link")
+    text = LINK.sub("", text)                        # link text is prose; only the target was a path
+    for m in INLINE.finditer(text):
+        s = m.group(1).strip()
+        if " " in s or s.startswith(("~", "/", "$")):
+            continue
+        judge(s, "inline")
+
+
+# ── C13: anti-trigger clause ──────────────────────────────────────────────
+# The exact phrase list. A description passes when it carries one of these literals, or a redirect —
+# one of REDIRECT_WORDS followed by the name of another skill in the catalog (backticks optional).
+ANTI_TRIGGER_PHRASES = ("Do NOT use", "do not use", "Not for", "that is `")
+REDIRECT_WORDS = ("that is", "use", "see", "in", "to", "instead of")
+
+
+def check_anti_trigger(skill: str, text: str) -> None:
+    """Every description says where the skill does NOT apply — an explicit "Do NOT use for …" clause
+    or a redirect ("for X use `<sibling>`") — so two skills do not compete for the same prompt. The
+    rule is *Every skill states where it does not apply* in the skills-authoring spec; it was written
+    and never measured, and four descriptions shipped without any clause (issue #117).
+
+    What passes, exactly: the parsed description contains one of ANTI_TRIGGER_PHRASES, or one of
+    REDIRECT_WORDS followed (optionally by "the") by the exact name of ANOTHER catalog skill, with or
+    without backticks — "that is fivem-nui-react", "see `fivem-lua`", "live in r3f-fundamentals".
+
+    KNOWN LIMIT — what this check does NOT cover:
+      - It proves a phrase is present, not that the boundary is the right one or that it names the
+        sibling the skill actually competes with. Measured overlaps (issue #121: python-rest-api vs
+        api-resilience-testing on "review an endpoint") are decided by a human and recorded in the
+        change that adds the clause.
+      - The redirect form accepts a trigger sentence that happens to say "in <sibling>" — "Use when
+        working in fivem-lua projects" would pass. Only the literal phrases are unambiguous.
+      - A redirect to a family (`the r3f-* skills`) names no skill and does not pass; name one.
+      - Skipped without PyYAML, like C10, and reported as skipped rather than counted as a pass.
+    """
+    if _yaml is None:
+        return
+    fm = text.split("---", 2)
+    if len(fm) < 3:
+        return                                       # C4 already reports the missing frontmatter
+    try:
+        data = _yaml.safe_load(fm[1])
+    except _yaml.YAMLError:
+        return                                       # C10 already reports the parse failure
+    desc = data.get("description") if isinstance(data, dict) else None
+    if not isinstance(desc, str):
+        return
+    if any(p in desc for p in ANTI_TRIGGER_PHRASES):
+        return
+    siblings = sorted(NAMES - {skill}, key=len, reverse=True)
+    if siblings:
+        words = "|".join(re.escape(w) for w in REDIRECT_WORDS)
+        names = "|".join(re.escape(n) for n in siblings)
+        if re.search(rf"\b(?:{words})\s+(?:the\s+)?`?(?:{names})`?(?![\w-])", desc):
+            return
+    add(skill, "C13 anti-trigger clause",
+        "description names no boundary: add a \"Do NOT use for … (that is `<skill>`)\" clause or a "
+        "redirect to the sibling it competes with")
+
+
 # ── C7: no orphan wrapper skills ──────────────────────────────────────────
 def check_orphans() -> None:
     """A skill living only in a generated tree is outside generate.sh, outside the
@@ -375,10 +569,18 @@ def main() -> int:
         check_tags(skill, text)
         check_meta(skill, text)
         check_limits(skill, text)
-        for ref in (p.parent / "references").glob("*.md"):
+        check_anti_trigger(skill, text)
+        check_out_of_skill(skill, p, text)
+        check_orphan_refs(skill, p.parent)
+        # recursive: references/<subdir>/*.md are judged too (19 such files live in svg-animation);
+        # the label keeps the path relative to references/, so depth-1 files keep their old label
+        refs_dir = p.parent / "references"
+        for ref in sorted(refs_dir.rglob("*.md")):
+            label = f"{skill}/{ref.relative_to(refs_dir).as_posix()}"
             rtext = ref.read_text(encoding="utf-8")
-            check_refs(f"{skill}/{ref.name}", ref, rtext)
-            check_blocks(f"{skill}/{ref.name}", rtext)
+            check_refs(label, ref, rtext)
+            check_blocks(label, rtext)
+            check_out_of_skill(label, ref, rtext)
 
     by_check: dict[str, int] = {}
     for _, c, _ in findings:
@@ -393,6 +595,7 @@ def main() -> int:
     except ImportError:
         skipped.append("yaml parse (PyYAML not installed)")
         skipped.append("frontmatter limits (PyYAML not installed)")
+        skipped.append("anti-trigger clause (PyYAML not installed)")
     print(f"skills checked: {len(SKILLS)}   findings: {len(findings)}")
     if skipped:
         print("  checks skipped: " + "; ".join(skipped))

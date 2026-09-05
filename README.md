@@ -142,9 +142,12 @@ Each skill has an AGENTS.md file with instructions for specific tasks.
 ' >> ~/.codex/AGENTS.md
 
 # Cursor — copy inline rules into your project
+# (each .mdc is self-contained; its references/ links resolve through the repository URL,
+#  https://github.com/solvelab/ai-skills/tree/master/skills/<name>/references/, so no clone is needed next to it)
 cp ~/ai-skills/cursor/rules/*.mdc /path/to/project/.cursor/rules/
 
 # GitHub Copilot — copy instruction files
+# (references/ resolve through the same repository URL; the SKILL.md link still expects the clone)
 cp ~/ai-skills/copilot/instructions/*.instructions.md /path/to/project/.github/instructions/
 ```
 
@@ -792,13 +795,17 @@ runs at `fetch-depth: 0` because a gate with no base revision cannot measure, an
 measure must not approve.
 
 A second gate checks the **content** of the skills themselves.
-[`scripts/validate-skills.py`](scripts/validate-skills.py) runs nine checks over every
-`skills/*/SKILL.md` and its references — referenced paths exist (C1), cross-skill references name a
+[`scripts/validate-skills.py`](scripts/validate-skills.py) runs thirteen checks over every
+`skills/*/SKILL.md` and every `*.md` under its `references/`, recursively — referenced paths exist (C1), cross-skill references name a
 real skill (C2), code blocks parse (C3, bash/yaml/json/lua/python), the description states no policy
 the body contradicts (C4), versioned external APIs are pinned (C5), fence tags match their content
 (C6), no generated wrapper is orphaned from a canonical source (C7), no meta section sits in a
-`SKILL.md` body where it cannot affect routing (C8), and code examples use English identifiers
-(C9). The list is the script's own docstring — run
+`SKILL.md` body where it cannot affect routing (C8), code examples use English identifiers (C9),
+the parsed `description` and `compatibility` stay within the Agent Skills limits (C10), every
+`references/**/*.md` is reachable from its `SKILL.md` (C11), no path resolves only in a full checkout
+of this repository — a sibling's file is cited as `skills/<skill>/references/<file>` and anything
+outside `skills/` as a repository URL (C12), and every description says where the skill does *not*
+apply (C13). The list is the script's own docstring — run
 `grep -E '^  C[0-9]' scripts/validate-skills.py` rather than trusting this paragraph. It reports any
 check skipped for want of a tool rather than counting it as a pass.
 

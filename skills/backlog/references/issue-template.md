@@ -61,8 +61,8 @@ never a translation invented in the draft. Protocol: `code-locale`.
 
 The verdict is a decision recorded here, not one made at implementation time. `execute-backlog`
 re-checks it against the real change surface, raises it on its own when the work outgrew the item,
-and stops for the user before ever lowering it. Protocol:
-`execute-backlog/references/spec-rite.md`.
+and stops for the user before ever lowering it. Protocol: the file
+`skills/execute-backlog/references/spec-rite.md` in the `execute-backlog` skill.
 
 ## Technical requirements
 

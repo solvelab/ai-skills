@@ -13,7 +13,7 @@ description: >-
   Do NOT use for vanilla OpenSpec on non-DriveZone projects — that is the openspec skill.
 metadata:
   author: solvelab
-  version: 2.1.2
+  version: 2.1.3
   category: process
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -81,9 +81,10 @@ Dependencies to cover per track:
 **2. `tasks.md` → group `## 3. Testes & Bug-Hunter (OBRIGATÓRIO — <track>)`** (literal heading as
 scaffolded; the English alias is *Tests & Bug-Hunter*)
 
-Adversarial QA, not happy-path. → Methodology and per-stack scenarios: **[bug-hunter]**
-(`bug-hunter/references/track-fivem-lua.md` for the resource, `bug-hunter/references/track-python-pytest.md` for the
-backend — pytest E2E runs **before** any in-game validation). For API-surface depth: **[api-resilience-testing]**.
+Adversarial QA, not happy-path. → Methodology and per-stack scenarios: **[bug-hunter]**; its
+tracks live in that skill as `skills/bug-hunter/references/track-fivem-lua.md` for the resource and
+`skills/bug-hunter/references/track-python-pytest.md` for the backend — pytest E2E runs **before**
+any in-game validation. For API-surface depth: **[api-resilience-testing]**.
 Trust-boundary rules exercised by the Lua track: **[fivem-lua]**.
 
 **3. `tasks.md` → group `## 4. Validação & Fechamento (OBRIGATÓRIO)`** (last; literal heading as

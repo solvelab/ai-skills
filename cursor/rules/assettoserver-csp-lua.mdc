@@ -4,6 +4,8 @@ description: >-
 alwaysApply: false
 ---
 
+Reference files (`references/…` below) live at https://github.com/solvelab/ai-skills/tree/master/skills/assettoserver-csp-lua/references/
+
 
 # CSP Lua online scripts (AssettoServer-served overlays)
 
@@ -105,8 +107,8 @@ Copy-paste helpers for all of these: `references/snippets.lua`.
 ## OnlineEvent packets
 
 - The Lua layout (`ac.StructItem.key(...)` + named/sized fields) must match the C# `OnlineEvent<T>`
-  **byte-for-byte** — enforce it with a static parity gate over the published DLL (see
-  `bug-hunter` → `bug-hunter/references/track-dotnet-plugin.md`), not by review.
+  **byte-for-byte** — enforce it with a static parity gate over the published DLL (the .NET track
+  of the `bug-hunter` skill, `skills/bug-hunter/references/track-dotnet-plugin.md`), not by review.
 - **Never name a field `key`.** It collides with the `ac.StructItem.key` mechanism and the packet
   is silently never delivered — while every static gate passes, because the layouts do match.
 - Two scripts that register the **exact same layout both receive the event**. Reuse an existing
@@ -183,6 +185,6 @@ Copy-paste helpers for all of these: `references/snippets.lua`.
   decimals), packet classes and handlers, chat commands, the publish rite.
 - `assettoserver-ops` — operating the server that hosts these scripts; static assets under
   `wwwroot/` are baked into the image (rebuild + recreate, not restart).
-- `bug-hunter` — `bug-hunter/references/track-dotnet-plugin.md`: the published-DLL inspection that enforces
-  Lua↔C# packet parity.
+- `bug-hunter` — its .NET track, the file `skills/bug-hunter/references/track-dotnet-plugin.md` in
+  the `bug-hunter` skill: the published-DLL inspection that enforces Lua↔C# packet parity.
 - `conventional-commit` — commit format used by these repos.

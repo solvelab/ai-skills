@@ -12,7 +12,7 @@ description: >-
   fivem-lua), or general .NET services.
 metadata:
   author: solvelab
-  version: 1.3.1
+  version: 1.3.2
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -274,7 +274,8 @@ commit) next to the DLL — the deploy side refuses to sync a DLL without a rite
   doctrine, DirectWrite traps, packet layout mirroring, remote assets/audio by URL.
 - `assettoserver-ops` — operating the server that loads this plugin; the deploy/sync gate that
   consumes `plugin-rite-status.json`.
-- `bug-hunter` — the adversarial rite; `bug-hunter/references/track-dotnet-plugin.md` is the generalized
+- `bug-hunter` — the adversarial rite; its .NET track, the file
+  `skills/bug-hunter/references/track-dotnet-plugin.md` in the `bug-hunter` skill, is the generalized
   version of the Mono.Cecil published-artifact inspection.
 - `backend-resilience` — the fallback doctrine the backend-call section adapts to this runtime.
 - `conventional-commit` — commit format used by this repo.

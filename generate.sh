@@ -5,8 +5,10 @@
 # Generated outputs (committed for backward compatibility):
 #   claude/skills/<name>/SKILL.md          thin wrapper → ~/ai-skills/skills/<name>/SKILL.md
 #   codex/skills/<name>/AGENTS.md          @-include of the canonical SKILL.md
-#   cursor/rules/<name>.mdc                content inlined (Cursor has no file includes)
-#   copilot/instructions/<name>.instructions.md  markdown link to the canonical SKILL.md
+#   cursor/rules/<name>.mdc                content inlined (Cursor has no file includes);
+#                                          references/ linked by repository URL
+#   copilot/instructions/<name>.instructions.md  markdown link to the canonical SKILL.md;
+#                                          references/ linked by repository URL
 #   plugins/<group>/                       category-grouped Claude Code plugins (skills copied;
 #                                          group = metadata.category, git+process -> workflow)
 #
@@ -78,6 +80,14 @@ for skill_md in "$SKILLS"/*/SKILL.md; do
 done
 
 mkdir -p "$CURSOR_OUT" "$COPILOT_OUT"
+
+# The Cursor and Copilot wrappers are the two outputs the README tells users to COPY into a project
+# (`cp cursor/rules/*.mdc .cursor/rules/`), so a path relative to this tree (`../../skills/<name>/`)
+# dangles the moment the file leaves the checkout — measured on 30 of 35 rules (issue #121). Their
+# references/ links therefore point at the repository, not at the tree. claude/ (symlink into the
+# clone), codex/ (@-include, read in place) and plugins/ (the skill copied whole) keep their paths.
+REPO_BLOB_URL="https://github.com/solvelab/ai-skills/blob/master"
+REPO_TREE_URL="https://github.com/solvelab/ai-skills/tree/master"
 
 # Extract the YAML frontmatter block (including delimiters) from a SKILL.md
 frontmatter() {
@@ -168,9 +178,15 @@ alwaysApply: false
 ---
 
 HEADER
-        # Cursor has no file includes, so a relative "references/x.md" link would dangle
-        # inside cursor/rules/. Rewrite it to the canonical path, the way copilot does.
-        body "$skill_md" | sed -E "s#\\]\\(references/#](../../skills/${name}/references/#g"
+        # Cursor has no file includes, and the .mdc is copied out of this tree, so a relative
+        # "references/x.md" link would dangle twice over. Links are rewritten to the repository URL;
+        # the sed touches only markdown links — inline `references/x.md` mentions in the prose stay
+        # as written, which is why the line below tells the reader where that directory lives.
+        if [ "$has_refs" -eq 1 ]; then
+            echo "Reference files (\`references/…\` below) live at ${REPO_TREE_URL}/skills/${name}/references/"
+            echo ""
+        fi
+        body "$skill_md" | sed -E "s#\\]\\(references/#](${REPO_BLOB_URL}/skills/${name}/references/#g"
     } > "$CURSOR_OUT/${name}.mdc"
 
     # --- GitHub Copilot ---
@@ -180,7 +196,7 @@ HEADER
         echo "Follow the instructions in [SKILL.md](../../skills/${name}/SKILL.md)"
         if [ "$has_refs" -eq 1 ]; then
             echo ""
-            echo "Reference files: [references/](../../skills/${name}/references/)"
+            echo "Reference files: [references/](${REPO_TREE_URL}/skills/${name}/references/)"
         fi
     } > "$COPILOT_OUT/${name}.instructions.md"
 

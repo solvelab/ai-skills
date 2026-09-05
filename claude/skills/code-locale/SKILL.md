@@ -14,7 +14,7 @@ description: >-
   naming (each stack's skill), or for i18n and user-facing translation.
 metadata:
   author: solvelab
-  version: 1.3.0
+  version: 1.3.1
   category: process
 license: MIT
 compatibility: >-
@@ -22,7 +22,7 @@ compatibility: >-
   `references/check-identifier-locale.py` needs Python 3.9+ and no third-party package (its word
   list is read with the standard library's gzip module); it tokenizes Python, Lua, JavaScript,
   TypeScript, C#, SQL, YAML, JSON and Bash and reports any other file type as skipped. The
-  optional hook `claude/global/hooks/locale-rite.py` was built against Claude Code 2.1.246 and
+  optional hook `locale-rite.py` (linked from the body) was built against Claude Code 2.1.246 and
   exits silently anywhere else.
 ---
 

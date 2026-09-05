@@ -29,7 +29,8 @@ defaults:
 
 # Optional — read by `execute-backlog` when it advances the card. Absent keys fall back to
 # name heuristics; a name that is not among the board's Status options is warned about and
-# skipped, never fatal. Canonical definition: execute-backlog/references/board-sync.md
+# skipped, never fatal. Canonical definition: skills/execute-backlog/references/board-sync.md
+# (in the execute-backlog skill)
 columns:
   ready: Ready
   in_progress: In progress
@@ -87,8 +88,8 @@ spec_rite:
 decision, not permission to skip. No workflow present ⇒ the whole gate is a no-op and the drafted
 item carries no spec section.
 
-The verdict this key produces is consumed by `execute-backlog`
-(`execute-backlog/references/spec-rite.md`), which re-checks it and may raise it.
+The verdict this key produces is consumed by the `execute-backlog` skill (its protocol is the file
+`skills/execute-backlog/references/spec-rite.md` in that skill), which re-checks it and may raise it.
 
 ## Mirroring an item onto a second board (`extra_projects`)
 

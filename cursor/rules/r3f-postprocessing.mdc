@@ -1,8 +1,10 @@
 ---
 description: >-
-  React Three Fiber post-processing with @react-three/postprocessing — EffectComposer, Bloom, DOF, SSAO/N8AO, GodRays, LUT, Outline and selection highlighting, custom Effect classes and mobile performance. Use when adding screen-space visual effects or selection outlines.
+  React Three Fiber post-processing with @react-three/postprocessing — EffectComposer, Bloom, DOF, SSAO/N8AO, GodRays, LUT, Outline and selection highlighting, custom Effect classes and mobile performance. Use when adding screen-space visual effects or selection outlines. Do NOT use for material-level looks such as transmission or emissive glow (that is `r3f-materials`) or for the selection input itself (that is `r3f-interaction`).
 alwaysApply: false
 ---
+
+Reference files (`references/…` below) live at https://github.com/solvelab/ai-skills/tree/master/skills/r3f-postprocessing/references/
 
 
 
@@ -18,10 +20,10 @@ Each topic is a reference file — read the one the task needs, not the whole se
 
 | Reference | Covers |
 |---|---|
-| [Common Effects: Depth of Field](../../skills/r3f-postprocessing/references/common-effects-depth-of-field.md) | Quick Start, Installation, EffectComposer, Common Effects: Bloom (Glow), Common Effects: Selective Bloom, Common Effects: Depth of Field, Common Effects: Vignette, Common Effects: Noise, Common Effects: Chromatic Aberration |
-| [Common Effects: Outline](../../skills/r3f-postprocessing/references/common-effects-outline.md) | Common Effects: SSAO (Screen Space Ambient Occlusion), Common Effects: Outline, Common Effects: Color Grading, Common Effects: Tone Mapping, Common Effects: Glitch, Common Effects: Pixelation, Common Effects: Scanline, Common Effects: Grid, Common Effects: DotScreen, Common Effects: SMAA (Anti-Aliasing), Common Effects: FXAA (Anti-Aliasing) |
-| [Custom Effects](../../skills/r3f-postprocessing/references/custom-effects.md) | Combining Multiple Effects, Custom Effects, Conditional Effects, Animated Effects, N8AO (High Quality AO) |
-| [Blend Functions](../../skills/r3f-postprocessing/references/blend-functions.md) | God Rays, LUT (Color Lookup Table), Blend Functions, Performance Tips |
+| [Common Effects: Depth of Field](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-postprocessing/references/common-effects-depth-of-field.md) | Quick Start, Installation, EffectComposer, Common Effects: Bloom (Glow), Common Effects: Selective Bloom, Common Effects: Depth of Field, Common Effects: Vignette, Common Effects: Noise, Common Effects: Chromatic Aberration |
+| [Common Effects: Outline](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-postprocessing/references/common-effects-outline.md) | Common Effects: SSAO (Screen Space Ambient Occlusion), Common Effects: Outline, Common Effects: Color Grading, Common Effects: Tone Mapping, Common Effects: Glitch, Common Effects: Pixelation, Common Effects: Scanline, Common Effects: Grid, Common Effects: DotScreen, Common Effects: SMAA (Anti-Aliasing), Common Effects: FXAA (Anti-Aliasing) |
+| [Custom Effects](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-postprocessing/references/custom-effects.md) | Combining Multiple Effects, Custom Effects, Conditional Effects, Animated Effects, N8AO (High Quality AO) |
+| [Blend Functions](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-postprocessing/references/blend-functions.md) | God Rays, LUT (Color Lookup Table), Blend Functions, Performance Tips |
 
 ## See Also
 

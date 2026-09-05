@@ -4,6 +4,8 @@ description: >-
 alwaysApply: false
 ---
 
+Reference files (`references/…` below) live at https://github.com/solvelab/ai-skills/tree/master/skills/fivem-fallback/references/
+
 
 # FiveM fallback & resilience (Lua adaptation)
 

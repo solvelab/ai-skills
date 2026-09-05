@@ -9,12 +9,12 @@ description: >-
   dispersive wave field, ballistic ensemble, growth structure, advected field, threshold discharge,
   orbital bodies, radiant point set, mechanism and linkage), loads each regime's schema of what must
   be known before drawing, then CHOOSES THE TECHNOLOGY from what the regime implies — SVG, Canvas,
-  WebGL, a playback or orchestration tool, or a hand-off to the r3f-* skills for 3D — and only then
+  WebGL, a playback or orchestration tool, or a hand-off to `r3f-animation` for 3D — and only then
   fixes viewpoint, geometry, appearance and motion. Carries measured costs for SVG/CSS/Canvas and
   the traps that break silently.
 metadata:
   author: solvelab
-  version: 1.1.1
+  version: 1.1.2
   category: frontend
 license: MIT
 compatibility: Works in any environment with filesystem access; verification steps need a Chrome binary.

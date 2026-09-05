@@ -10,10 +10,11 @@ description: >-
   testcontainers integration marker, adversarial test naming, OpenAPI golden snapshot, Schemathesis
   fuzz gate). Also machine-to-machine service auth (named token catalog), domain-state idempotency
   with partial unique indexes, JSONB dialect variants, request size/depth limits, and out-of-process
-  ingestion workers (UDP). The baseline that api-resilience-testing and bug-hunter assume.
+  ingestion workers (UDP). The baseline that api-resilience-testing and bug-hunter assume. Do NOT
+  use to test, break or audit an existing endpoint (that is `api-resilience-testing`).
 metadata:
   author: solvelab
-  version: 1.4.1
+  version: 1.4.2
   category: backend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -326,7 +327,8 @@ Ruff: `target-version` matching the runtime, `line-length = 100`, `select = ["E"
 
 - `code-locale` — route paths, query params, envelope field names, DB tables and columns, and error-code constants are English even when the repo's prose is not; a domain term with no faithful translation is kept only when the item's glossary lists it.
 - `api-resilience-testing` — the negative/fuzz/contract methodology this baseline is tested against.
-- `bug-hunter` — per-change adversarial rite (`bug-hunter/references/track-python-pytest.md` assumes this stack).
+- `bug-hunter` — per-change adversarial rite; its pytest track, the file
+  `skills/bug-hunter/references/track-python-pytest.md` in the `bug-hunter` skill, assumes this stack.
 - `backend-resilience` — fallback/negative-cache doctrine for calls this service makes to others.
 - `conventional-commit` — commit format used by these services' semantic-release pipelines.
 - `react-api-client` — the frontend counterpart consuming this envelope/code registry.
