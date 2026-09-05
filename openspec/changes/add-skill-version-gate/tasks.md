@@ -7,12 +7,98 @@
        E.3  names the gap, or states explicitly that there is none
        E.4  lists a follow-up, or states explicitly that there is none -->
 
-- [ ] E.1 Caminhos locais abertos e lidos, com o commit em que foram lidos
-- [ ] E.2 Ferramentas e comportamentos probados contra a versão instalada; comando e fragmento da
+- [x] E.1 Caminhos locais abertos e lidos, com o commit em que foram lidos
+
+      Lidos em `bfc400d` (topo de `master`, 2026-09-05):
+
+      - `scripts/validate-spec-rite.py` — 338 linhas; `resolve_base()` (`SPEC_RITE_BASE`,
+        `GITHUB_BASE_REF`, `origin/master`, `origin/main`), `read_pr_body()` com `PR_BODY` acima de
+        `GITHUB_EVENT_PATH`, `changed_paths()` com `git diff --name-only <base>...HEAD`, `WAIVER` e
+        `WAIVER_NO_REASON` ancorados no começo da linha, `MIN_REASON = 8`, `evaluate()` pura,
+        `DEFECTS`/`SILENT`, skip impresso fora de `pull_request`, `S0` sem base em CI.
+      - `.github/workflows/ci.yml` — 20 steps em `jobs.validate`; step *Skill frontmatter checks*
+        com `grep -qE '^  version: [0-9]+\.[0-9]+\.[0-9]+'` sobre o bloco de frontmatter; step
+        *Spec-rite self-test* em `:184-185`, seguido de *Claude plugin validation*.
+      - `README.md:194` e `:864` — as duas frases da regra do bump (a issue cita `:180`/`:824`;
+        o arquivo cresceu). `README.md:876-889` descreve o spec-rite no corpo do PR — não está entre os
+        dois lugares deste item (ver E.4).
+      - `skills/execute-backlog/SKILL.md` — `metadata.version: 1.8.0`;
+        `skills/execute-backlog/references/spec-rite.md:78-88` — seção *In the PR body*.
+      - `generate.sh:1-31` — copia o `SKILL.md` inteiro para `claude/skills/<x>/` e
+        `plugins/<grupo>/skills/<x>/`; a linha `  version:` aparece portanto nas árvores geradas.
+      - `openspec/specs/skills-authoring/spec.md` — *Uniform frontmatter metadata* exige o campo,
+        não o movimento; *Authoring rules are machine-enforced* pede selftest com um defeito por regra.
+      - `openspec/changes/archive/2026-09-04-close-ci-gate-holes/{proposal,design,tasks}.md` e
+        `specs/**` — modelo de estilo.
+      - `openspec/schemas/skills-rite/templates/{proposal,design,tasks,spec}.md` e `schema.yaml`.
+      - `scripts/validate-rite.sh` e `scripts/validate-rite-evidence.py:1-60,157-200` — a forma que
+        cada caixa marcada deve ter.
+      - Histórico: `cf767ee` (issue #76) e `e13c16a` (squash do PR #122 sobre `d2918ed`) via
+        `git show --stat` — os dois pontos usados como fixture em S.1.
+
+- [x] E.2 Ferramentas e comportamentos probados contra a versão instalada; comando e fragmento da
       saída registrados
-- [ ] E.3 O que não pôde ser probado, escrito como questão aberta — nunca como fato
-- [ ] E.4 Checagem de escopo: a change faz só o que a proposta pediu; melhorias adjacentes ficam
-      listadas como follow-up
+
+      ```
+      openspec --version                                          -> 1.6.0
+      python3 --version                                           -> Python 3.14.5
+      ls skills | wc -l                                           -> 35
+      openspec new change add-skill-version-gate --schema skills-rite
+      -> Created change 'add-skill-version-gate' at openspec/changes/add-skill-version-gate/
+      openspec validate add-skill-version-gate --strict           -> Change 'add-skill-version-gate' is valid
+      ```
+
+      Versões por skill nos dois pontos do histórico (script de probe com `git diff --name-only` +
+      `git show <rev>:skills/<x>/SKILL.md | grep '^  version:'`):
+
+      ```
+      cf767ee^..cf767ee: 20 skill paths, 13 skills
+      -> api-resilience-testing: base=['  version: 1.2.1'] head=['  version: 1.2.1']
+      -> backlog: base=['  version: 1.3.0'] head=['  version: 1.3.0']
+      -> code-locale: base=[] head=['  version: 1.0.0']
+      -> execute-backlog: base=['  version: 1.5.0'] head=['  version: 1.5.0']
+      -> [...] 12 skills com base == head, 1 sem SKILL.md na base
+      d2918ed..e13c16a: 6 skill paths, 6 skills
+      -> api-resilience-testing: base=['  version: 1.2.1'] head=['  version: 1.3.0']
+      -> execute-backlog: base=['  version: 1.7.0'] head=['  version: 1.8.0']
+      -> [...] 6 de 6 com head > base
+      ```
+
+      ```
+      grep -rln "version: 1.8.0" claude codex cursor copilot plugins | grep execute-backlog
+      -> claude/skills/execute-backlog/SKILL.md
+      -> plugins/workflow/skills/execute-backlog/SKILL.md
+      python3 -c "import importlib.util; ..." (módulo carregado por spec_from_file_location sem registrar em sys.modules)
+      -> AttributeError: 'NoneType' object has no attribute '__dict__'   (dataclasses.py:814, Python 3.14.5)
+      ```
+
+- [x] E.3 O que não pôde ser probado
+
+      - O comportamento do gate **na run real do GitHub Actions** (payload `GITHUB_EVENT_PATH` escrito
+        pelo runner, `GITHUB_BASE_REF` real, `fetch-depth: 0`) não é medível localmente; foi
+        reproduzido com payload fabricado e ambiente `GITHUB_ACTIONS=true` num clone descartável
+        (S.1). A prova final é a run do PR desta change.
+      - `V0 base revision` (checkout raso em CI) não foi exercitado end-to-end: exigiria um clone com
+        `--depth 1` sem `origin/master`; a regra é cópia literal do `S0` do irmão, que também só a
+        declara.
+      - Semver com pré-release: nenhuma skill do catálogo usa (`grep -E '^  version: .*-' skills/*/SKILL.md`
+        -> vazio), então o comportamento "sufixo mudou, tupla igual → não moveu" é lido do código, não
+        observado num caso real; declarado no KNOWN LIMIT.
+
+- [x] E.4 Checagem de escopo
+
+      A change faz o que a issue #119 e a decisão da Opção A pediram e nada além. Notados pelo caminho
+      e **não** feitos, como follow-up:
+
+      - `README.md:876-889` (seção *3. Release*) descreve o que o CI lê no corpo do PR e cita só a
+        linha `Spec-rite`; não é um dos dois lugares da regra do bump que este item possui. Adicionar
+        ali a linha `Skill-version` é follow-up.
+      - Bumps retroativos nas 20 skills medidas na issue — fora de escopo pela própria issue.
+      - `validate-spec-rite.py` importado por `spec_from_file_location` sem `sys.modules` funciona
+        porque não tem `@dataclass`; este gate registra o módulo antes do `exec_module`. Fazer o
+        mesmo no irmão é higiene, não deste item.
+      - `gates.sh` (runner local do orquestrador, fora do repositório) não roda o gate novo; foi rodado
+        à parte em S.1.
 
 ## 2. O gate `scripts/validate-skill-version.py` (D1–D6)
 
@@ -99,10 +185,28 @@
       -> 22 ['Spec-rite self-test (the gate is itself gated)', 'Skill version gate (an edited skill moves its metadata.version, or the body waives it)', 'Skill version self-test (the gate is itself gated)', 'Claude plugin validation (vendor validator, blocking)']
       -> run: python3 scripts/validate-skill-version.py | python3 scripts/validate-skill-version.py --selftest
       ```
-- [ ] 3.2 `README.md`: as duas frases da regra dizem que o bump é medido pelo gate e nomeiam a linha
+- [x] 3.2 `README.md`: as duas frases da regra dizem que o bump é medido pelo gate e nomeiam a linha
       `Skill-version: none — <motivo>`
-- [ ] 3.3 `skills/execute-backlog/references/spec-rite.md`, *In the PR body*: parágrafo com a linha
+
+      ```
+      grep -n "validate-skill-version" README.md
+      -> 194:Each skill also carries its own `metadata.version` [...] The bump is measured, not trusted: [`scripts/validate-skill-version.py`](scripts/validate-skill-version.py) diffs every pull request against its base [...] `Skill-version: none — <reason>` covering the whole diff. [...]
+      -> 864:- Bump `metadata.version` whenever the skill changes. CI measures it (`scripts/validate-skill-version.py`): [...] unless its body carries `Skill-version: none — <reason>`.
+      ```
+
+- [x] 3.3 `skills/execute-backlog/references/spec-rite.md`, *In the PR body*: parágrafo com a linha
       `Skill-version`; `metadata.version` de `execute-backlog` 1.8.0 → 1.8.1; `bash generate.sh`
+
+      ```
+      grep -n "Skill-version" skills/execute-backlog/references/spec-rite.md
+      -> 92:skill without moving its version: `Skill-version: none — <the reason these edits deserve no bump>`.
+      grep -n "^  version:" skills/execute-backlog/SKILL.md claude/skills/execute-backlog/SKILL.md plugins/workflow/skills/execute-backlog/SKILL.md
+      -> skills/execute-backlog/SKILL.md:17:  version: 1.8.1
+      -> claude/skills/execute-backlog/SKILL.md:17:  version: 1.8.1
+      -> plugins/workflow/skills/execute-backlog/SKILL.md:17:  version: 1.8.1
+      bash generate.sh -> Generated 10 category plugins in plugins/ (descriptions derived from the tree)
+      git status --porcelain (depois do commit 1f9b27b) -> (vazio)
+      ```
 
 ## 4. Simulation & Field Proof (MANDATORY)
 
@@ -111,25 +215,142 @@
        S.2  the case matrix as counts (n/n)
        S.3  names what escaped or misbehaved, or states explicitly that nothing did -->
 
-- [ ] S.1 O gate exercitado pelo caminho real: `evaluate()` contra o histórico (`cf767ee` tem de
+- [x] S.1 O gate exercitado pelo caminho real: `evaluate()` contra o histórico (`cf767ee` tem de
       produzir achados; o branch do PR #122 tem de ficar mudo) e o script pelo entry point com
       `GITHUB_EVENT_PATH` fabricado, com e sem a dispensa
-- [ ] S.2 Matriz de casos medida, em contagens
-- [ ] S.3 O que escapou ou se comportou diferente do esperado
+
+      **Histórico real** — `collect(root, base, head)` + `evaluate()` importados de
+      `scripts/validate-skill-version.py` (`f787d65`, 2026-09-05), apontados para os dois commits:
+
+      ```
+      collect(W, 'cf767ee^', 'cf767ee'); evaluate(skills, '')
+      -> 13 skill(s), 13 with content, 12 finding(s)
+      -> code-locale: None -> 1.0.0 content=True paths=5          (skill nova: sem achado)
+      -> FINDING V1 unbumped skill: skills/backlog/ changed 2 path(s) — skills/backlog/SKILL.md, skills/backlog/references/issue-template.md — with metadata.version 1.3.0 on the base and 1.3.0 on HEAD. [...]
+      -> FINDING V1 unbumped skill: skills/execute-backlog/ changed 3 path(s) [...] 1.5.0 on the base and 1.5.0 on HEAD. [...]
+      -> [...] 12 achados V1, um por skill existente
+      collect(W, 'cf767ee^', 'cf767ee'); evaluate(skills, 'Closes #76\n\nSkill-version: none — cross-reference line to code-locale in nine skills; the rest is the new skill\n')
+      -> 13 skill(s), 13 with content, 0 finding(s)
+      collect(W, 'd2918ed', 'e13c16a'); evaluate(skills, '')          (PR #122)
+      -> 6 skill(s), 6 with content, 0 finding(s)
+      -> execute-backlog: 1.7.0 -> 1.8.0 content=True paths=1  [...]
+      collect(W, 'origin/master', 'HEAD'); evaluate(skills, '')        (este branch)
+      -> 1 skill(s), 1 with content, 0 finding(s)
+      -> execute-backlog: 1.8.0 -> 1.8.1 content=True paths=2
+      ```
+
+      **Entry point real** — `python3 scripts/validate-skill-version.py` como subprocesso a partir da
+      raiz, com `GITHUB_ACTIONS=true GITHUB_EVENT_NAME=pull_request GITHUB_BASE_REF=master` e o corpo
+      só no arquivo apontado por `GITHUB_EVENT_PATH` (`{"pull_request":{"body":...}}`), num clone
+      descartável do worktree (`git clone <worktree> scratch/e2e-clone`, branch `probe` a partir de
+      `f787d65`); o worktree ficou limpo (`git status --porcelain` -> vazio antes e depois):
+
+      ```
+      branch como commitado, corpo "Closes #119\n\nSpec-rite: add-skill-version-gate\n"
+      -> skill-version gate: 0 findings (base origin/master, 1 skill(s) changed, 1 with content changes)   exit=0
+      + linha no fim de skills/backlog/SKILL.md, commit, mesmo corpo (sem Skill-version)
+      -> ::error::V1 unbumped skill — skills/backlog/ changed 1 path(s) — skills/backlog/SKILL.md — with metadata.version 1.5.0 on the base and 1.5.0 on HEAD. [...]
+      -> skill-version gate: 1 findings (base origin/master, 2 skill(s) changed, 2 with content changes)   exit=1
+      mesmo diff, corpo com "Skill-version: none — probe: one trailing line added, no rule changed"
+      -> skill-version gate: 0 findings (base origin/master, 2 skill(s) changed, 2 with content changes)   exit=0
+      mesmo diff, corpo "Skill-version: none\n"
+      -> ::error::V3 waiver reason — the pull request body carries `Skill-version: none` with no reason — [...]   exit=1
+      mesmo diff, sem GITHUB_EVENT_PATH (corpo degrada para vazio)
+      -> ::error::V1 unbumped skill — [...]   exit=1
+      mesmo diff, GITHUB_EVENT_NAME=push
+      -> skill-version gate: skipped (event push, not pull_request)   exit=0
+      mesmo diff + `  version: 1.5.0` -> `1.5.1`, corpo vazio
+      -> skill-version gate: 0 findings (base origin/master, 2 skill(s) changed, 2 with content changes)   exit=0
+      mesmo diff + `  version:` -> `1.4.0` (abaixo da base 1.5.0), corpo "Skill-version: none — probe: pretend this is fine"
+      -> ::error::V2 version moved backwards — skills/backlog/SKILL.md metadata.version went from 1.5.0 (base) to 1.4.0 (HEAD). A version never goes down; restore it above 1.5.0. A `Skill-version: none` line d[...]   exit=1
+      branch limpo + linha só em claude/skills/backlog/SKILL.md, corpo vazio
+      -> skill-version gate: 0 findings (base origin/master, 1 skill(s) changed, 1 with content changes)   exit=0
+      branch limpo + skills/zz-probe/SKILL.md novo, corpo vazio
+      -> skill-version gate: 0 findings (base origin/master, 2 skill(s) changed, 2 with content changes)   exit=0
+      ```
+
+      No próprio worktree, sem ambiente de CI:
+
+      ```
+      python3 scripts/validate-skill-version.py
+      -> skill-version gate: 0 findings (base origin/master, 1 skill(s) changed, 1 with content changes)   exit=0
+      GITHUB_ACTIONS=true GITHUB_EVENT_NAME=push python3 scripts/validate-skill-version.py
+      -> skill-version gate: skipped (event push, not pull_request)   exit=0
+      python3 scripts/validate-skill-version.py --selftest
+      -> 7/7 defect classes detected, 11/11 false-positive cases stayed silent, 8/8 helper cases correct   exit=0
+      ```
+
+- [x] S.2 Matriz de casos medida, em contagens
+
+      | Expectativa | Casos | Resultado |
+      |---|---|---|
+      | Tinha de disparar e disparou | 5/5 | histórico `cf767ee` sem dispensa (12 achados V1, contado como 1); entry point: edição sem bump sem dispensa (1), dispensa sem motivo (1), sem payload (1), versão abaixo da base com dispensa (1) |
+      | Tinha de ficar mudo e ficou | 8/8 | histórico: `cf767ee` com dispensa PR-wide (1), PR #122 com 6 bumps (1), este branch (1); entry point: branch commitado (1), bump patch (1), dispensa com motivo (1), wrapper-only (1), skill nova (1) |
+      | Skip declarado | 2/2 | `GITHUB_EVENT_NAME=push` no clone e no worktree — `skipped (event push, not pull_request)` |
+      | Selftest | 3/3 | 7/7 defeitos, 11/11 mudos, 8/8 helpers |
+      | Escape conhecido ficou mudo | 0/0 | nenhum caso de escape foi construído (pré-release não existe no catálogo; ver E.3) |
+
+- [x] S.3 O que escapou ou se comportou diferente do esperado
+
+      - **Importação do gate quebrou na primeira tentativa**: carregar `validate-skill-version.py` com
+        `importlib.util.spec_from_file_location` sem registrar em `sys.modules` falha em Python 3.14.5
+        na criação do `@dataclass SkillDiff` (`dataclasses.py:814`, `AttributeError: 'NoneType' object
+        has no attribute '__dict__'`). O script passou a registrar o módulo irmão antes do
+        `exec_module`, e o comentário em `_sibling_min_reason()` avisa quem importar este arquivo do
+        mesmo jeito. Não afeta o caminho do CI (o script roda como programa).
+      - **A primeira versão do probe de "versão que desce" não desceu**: baixou `1.5.1 → 1.5.0`, que é
+        igual à base, e o gate ficou (corretamente) mudo com a dispensa presente. Corrigido para
+        `1.4.0`; o `V2` disparou. Defeito do probe, não do gate — registrado porque um caso de
+        simulação mal construído passa em silêncio.
+      - O PR #122 tocou **6** skills, não 5 como a issue estimou; todas bumpadas, resultado mudo.
+      - `README.md` cita `:180`/`:824` na issue; hoje as frases estão em `:194`/`:864`. Editadas as
+        duas, nenhuma outra.
+      - `V0 base revision` (CI sem `fetch-depth: 0`) não exercitado (E.3).
 
 ## 5. Quality Gates (MANDATORY)
 
-- [ ] Q.1 Frontmatter uniforme em todo `SKILL.md` tocado: name == directory, description dobrada,
+- [x] Q.1 Frontmatter uniforme em todo `SKILL.md` tocado: name == directory, description dobrada,
       author solvelab, version semver, category no conjunto, license MIT, compatibility presente
-- [ ] Q.2 Conteúdo de skill tocado em inglês
-- [ ] Q.3 Gatilhos de descrição testáveis, sem colisão com skill irmã
-- [ ] Q.4 Sem doutrina duplicada: cada regra transversal restada inline virou link (tabela Canonical
-      Home em `design.md`)
-- [ ] Q.5 Identificadores em inglês em todo exemplo de código tocado (`code-locale`)
+
+      Única skill tocada: `execute-backlog` (só a linha `  version:` no `SKILL.md`).
+
+      ```
+      awk '<frontmatter() de generate.sh>' skills/execute-backlog/SKILL.md | grep -E '^name:|^  version:|^  author:|^  category:|^license:|^compatibility:|^description: >-'
+      -> name: execute-backlog / description: >- / author: solvelab / version: 1.8.1 / category: process / license: MIT / compatibility: >-
+      gates.sh -> PASS frontmatter   (o shell do step, sobre as 35 skills)
+      ```
+
+- [x] Q.2 Conteúdo de skill tocado em inglês — o parágrafo novo em `references/spec-rite.md:90-97`
+      está em inglês; `validate-skills.py` -> `skills checked: 35   findings: 0`
+- [x] Q.3 Gatilhos de descrição testáveis — não se aplica: nenhuma `description` muda
+- [x] Q.4 Sem doutrina duplicada: tabela Canonical Home em `design.md` (seis linhas); o README nomeia o
+      gate e a linha sem restatar o protocolo, que mora em `execute-backlog/references/spec-rite.md`
+- [x] Q.5 Identificadores em inglês no que a change introduz — nomes de função (`collect`, `moved_up`,
+      `skills_in`), `SkillDiff`, labels de selftest, nome dos steps (`code-locale`)
+
+      ```
+      git diff origin/master...HEAD -- .github scripts | python3 skills/code-locale/references/check-identifier-locale.py --diff -
+      -> findings: 0   exit=0
+      ```
 
 ## 6. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `openspec validate add-skill-version-gate --strict` verde
-- [ ] V.2 Descoberta do catálogo intacta: 35 skills, sem órfão
-- [ ] V.3 README / docs atualizados onde a change altera o uso (regra do bump e linha de dispensa)
+- [x] V.1 `openspec validate add-skill-version-gate --strict` verde
+
+      ```
+      openspec validate add-skill-version-gate --strict -> Change 'add-skill-version-gate' is valid   (openspec 1.6.0)
+      bash scripts/validate-rite.sh -> rite evidence gate: 0 findings [...] rite gate OK
+      ```
+
+- [x] V.2 Descoberta do catálogo intacta: 35 skills, sem órfão
+
+      ```
+      ls skills | wc -l                       -> 35
+      python3 scripts/validate-skills.py      -> skills checked: 35   findings: 0   (C7: nenhum wrapper órfão)
+      python3 scripts/validate-repo-hygiene.py -> repo hygiene: 0 findings   (H2: contagens publicadas == 35)
+      ```
+
+- [x] V.3 README / docs atualizados onde a change altera o uso — `README.md:194` e `:864` (3.2),
+      `skills/execute-backlog/references/spec-rite.md` (3.3); o parágrafo *3. Release* do README fica
+      como follow-up (E.4)
 - [ ] V.4 `openspec archive add-skill-version-gate --yes` depois de todos os grupos acima `[x]`
