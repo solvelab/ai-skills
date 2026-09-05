@@ -113,9 +113,9 @@
 
       ```
       grep -n "def resolve_base\|def read_pr_body\|def split_nul_paths\|def changed_paths\|MIN_REASON = \|not pull_request\|\"-z\"" scripts/validate-skill-version.py
-      -> 102:MIN_REASON = _sibling_min_reason()
-      -> 121:def resolve_base(root: Path) -> str | None:
-      -> 137:def read_pr_body() -> str:
+      -> 101:MIN_REASON = _sibling_min_reason()
+      -> 120:def resolve_base(root: Path) -> str | None:
+      -> 136:def read_pr_body() -> str:
       -> 162:def split_nul_paths(out: str) -> list[str]:
       -> 168:def changed_paths(root: Path, base: str, head: str = "HEAD") -> list[str]:
       -> [...] "diff", "--name-only", "-z", f"{base}...{head}"],
