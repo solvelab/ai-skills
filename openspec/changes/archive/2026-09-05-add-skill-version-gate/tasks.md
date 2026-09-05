@@ -403,4 +403,11 @@
 - [x] V.3 README / docs atualizados onde a change altera o uso — `README.md:194` e `:864` (3.2),
       `skills/execute-backlog/references/spec-rite.md` (3.3); o parágrafo *3. Release* do README fica
       como follow-up (E.4)
-- [ ] V.4 `openspec archive add-skill-version-gate --yes` depois de todos os grupos acima `[x]`
+- [x] V.4 `openspec archive add-skill-version-gate --yes` depois de todos os grupos acima `[x]`
+
+
+      ```
+      openspec archive add-skill-version-gate --yes
+      -> Specs updated successfully.
+      -> Change 'add-skill-version-gate' archived as '2026-09-05-add-skill-version-gate'.
+      ```

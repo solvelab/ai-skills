@@ -292,6 +292,11 @@ reference validator, pinned to an exact version and run over every skill in CI. 
 the reason it exists next to it, because a blocking gate on an unpinned upstream fails the build on
 someone else's release schedule.
 
+The cross-reference rules — every reference file reachable from `SKILL.md`, no path that resolves
+only in a full checkout, every description carrying a boundary clause — SHALL be among the checks
+the script enforces, each with its own injected defect in the self-test and its uncovered part
+declared in the check.
+
 #### Scenario: A violation fails the build
 
 - **WHEN** a change introduces a broken reference, an unparseable code block, a mistagged fence, a
@@ -330,6 +335,16 @@ someone else's release schedule.
 - **THEN** the standard's reference validator, installed at an exact pinned version, is executed
   once per `skills/<name>/` directory and any finding fails the job, and the step states what the
   reference validator covers and what it leaves to the catalog's own checks
+
+#### Scenario: The cross-reference checks are themselves gated
+
+- **WHEN** the self-test injects, into a copy of the catalog, a `*.md` under `references/` that no
+  file links, a `<other-skill>/references/<file>` path without the `skills/` prefix, and a
+  description with neither a "Do NOT use" clause nor a redirect naming a sibling skill
+- **THEN** the validator reports the orphan-reference (C11), out-of-skill-path (C12) and
+  anti-trigger-clause (C13) checks respectively, each check states in its own text the exact phrase
+  list or path forms it judges and what it leaves to review, and a validator silent on any of the
+  three fails the self-test
 
 ### Requirement: Checklists are scored against field defects
 
@@ -475,4 +490,131 @@ tokens (`github_pat_`) and `sk-`-prefixed API keys in addition to the classic cl
 - **WHEN** a change to the scanner silently stops one of its patterns from matching its sample
 - **THEN** `--selftest` fails naming the pattern, because a clean tree and a pattern that cannot fire
   are otherwise indistinguishable
+
+### Requirement: A skill's version moves with its content
+
+A pull request that changes any path under `skills/<name>/` — the `SKILL.md` body, a file under
+`references/`, anything the skill owns — SHALL raise that skill's `metadata.version` above the value
+on the base revision, or SHALL carry one pull-request-wide line `Skill-version: none — <reason>` in
+its body, with a reason at least as long as the spec-rite waiver requires. The rule SHALL be measured
+by a script wired into CI that diffs the branch against its base, so that the promise `README.md`
+makes to contributors — "bump it when that skill's behavior changes" — is enforced and not merely
+stated.
+
+The gate SHALL read the diff, not the working tree: a skill whose only change is the `  version:`
+line itself is not a content change; a skill with no `SKILL.md` on the base is new and has nothing to
+move from; a diff confined to the generated trees (`claude/`, `codex/`, `cursor/`, `copilot/`,
+`plugins/`) is not a skill edit. A version that moves **backwards** SHALL be a finding regardless of
+any waiver, because no reason makes a lower number correct.
+
+The waiver is authored by whoever opened the pull request and SHALL be matched as text at the start
+of a line, never executed or interpolated, and read from the event payload the runner writes rather
+than through a step's environment, the same way the spec-rite waiver is read.
+
+The gate SHALL carry a self-test that injects one defect per rule and asserts detection, and SHALL
+state in its own header what it does not cover: it proves the number moved, not that the movement
+was the right magnitude or that the waiver's reason is honest.
+
+#### Scenario: An edited skill without a bump fails
+
+- **WHEN** a pull request changes `skills/backlog/SKILL.md` and `metadata.version` reads `1.5.0` on
+  both the base and the head, and the body carries no `Skill-version:` line
+- **THEN** the CI validate job fails naming the skill, the base version, the head version, and the
+  two exits — bump the version above `1.5.0`, or add `Skill-version: none — <reason>` to the body
+
+#### Scenario: A pull-request-wide waiver covers every edited skill
+
+- **WHEN** a pull request edits twelve skills without moving any `metadata.version` and its body
+  carries one line `Skill-version: none — cross-reference line added to each skill, no rule changed`
+- **THEN** the gate stays silent for all twelve, because the waiver is read once for the whole diff
+
+#### Scenario: A waiver without a usable reason fails
+
+- **WHEN** the body carries `Skill-version: none` alone, or with a reason shorter than the shared
+  minimum
+- **THEN** the gate fails naming the missing reason, not the missing bump
+
+#### Scenario: A new skill passes
+
+- **WHEN** a pull request adds `skills/new-skill/SKILL.md` and no `SKILL.md` exists for it on the base
+- **THEN** the gate stays silent for that skill, because there is no previous version to move from
+
+#### Scenario: A wrapper-only diff passes
+
+- **WHEN** a pull request changes only files under `claude/skills/<name>/` or
+  `plugins/<group>/skills/<name>/` and nothing under `skills/<name>/`
+- **THEN** the gate stays silent, because generated trees are never counted as skill edits
+
+#### Scenario: A version that moves backwards fails even with a waiver
+
+- **WHEN** a pull request changes `skills/x/SKILL.md` and `metadata.version` goes from `1.8.0` to
+  `1.7.0`, with or without a `Skill-version: none — <reason>` line in the body
+- **THEN** the gate fails naming the regression
+
+#### Scenario: The gate skips on push events and says so
+
+- **WHEN** the CI job runs on an event that is not `pull_request` (a push to `master`)
+- **THEN** the gate prints that it skipped and why, and exits successfully, because there is no
+  pull request body to read and no base to diff against
+
+### Requirement: Cross-skill references resolve in every install form
+
+A skill SHALL be written so that every path it cites resolves, or is recognisable as belonging to
+another skill, in every form the catalog is installed in: a full clone with symlinks, `npx skills
+add` (which copies one `skills/<name>/` directory), a category plugin group (which copies the skills
+of one group), and the Cursor and Copilot wrappers the README instructs users to copy alone.
+
+- A reference to another skill SHALL name that skill in prose and, when it points at a file, SHALL
+  use the repository-root form `skills/<skill>/references/<file>` and say that the file lives in that
+  skill. The form `<skill>/references/<file>` with no `skills/` prefix SHALL NOT be used: it
+  resolves in no install form, the clone included.
+- A path outside `skills/` — `research/`, `claude/global/hooks/`, any entry only a clone carries —
+  SHALL be written as the repository URL.
+- Every `*.md` under a skill's `references/` directory, recursively, SHALL be reachable from that
+  skill's `SKILL.md`: linked directly, or linked from a reference file that is itself reachable. A
+  `README.md` inside a `references/` subdirectory counts as an index once it is linked.
+- The generated Cursor and Copilot wrappers SHALL point at `references/` through the repository URL,
+  never through a path relative to the catalog tree.
+
+#### Scenario: Clone or symlink install
+
+- **WHEN** a skill installed from a clone (directly or through `~/.claude/skills/<name>` symlinks)
+  cites `skills/<other>/references/<file>`
+- **THEN** the path resolves from the repository root, because the symlink target lives inside the
+  clone, and the validator's path check (C1) verifies the file exists
+
+#### Scenario: npx skills install
+
+- **WHEN** `npx skills add` has copied only `skills/<name>/` and the skill cites a file of another
+  skill
+- **THEN** every path under the skill's own directory resolves, and the cross-skill path is
+  recognisable by its `skills/<other>/` prefix and by the sentence naming `<other>`, so the reader
+  installs that skill instead of following a dead relative path
+
+#### Scenario: Plugin group install
+
+- **WHEN** a skill in one plugin group cites a reference file of a skill that lives in another group
+- **THEN** the sentence names the skill to install and the path is written in the canonical form;
+  the path is not read as a promise that the file is present in this group
+
+#### Scenario: Cursor or Copilot copy
+
+- **WHEN** a `cursor/rules/<name>.mdc` or `copilot/instructions/<name>.instructions.md` is copied
+  alone into a project, as the README instructs
+- **THEN** every `references/` link inside it is a repository URL that resolves without the catalog
+  tree, and `generate.sh` produces that URL from the canonical `references/` link
+
+#### Scenario: A path only a clone carries is written as a URL
+
+- **WHEN** a skill needs to point at something outside `skills/` — a research directory, a hook
+  shipped under `claude/global/`
+- **THEN** it writes the repository URL, and the validator reports a bare `research/…` or
+  `claude/…` path as an out-of-skill path (C12)
+
+#### Scenario: A reference file nobody links is caught
+
+- **WHEN** a `*.md` is added under `references/` and neither `SKILL.md` nor any reachable reference
+  links it
+- **THEN** the validator reports it as an orphan reference (C11), because a file nobody points at is
+  a file nobody loads
 

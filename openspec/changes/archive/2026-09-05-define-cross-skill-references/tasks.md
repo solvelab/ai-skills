@@ -539,4 +539,11 @@
       ```
 
 - [x] V.3 README / docs atualizados (grupo 5) — bloco de instalação e parágrafo do validador
-- [ ] V.4 `openspec archive define-cross-skill-references --yes` em PR separado, depois do merge
+- [x] V.4 `openspec archive define-cross-skill-references --yes` em PR separado, depois do merge
+
+
+      ```
+      openspec archive define-cross-skill-references --yes
+      -> Specs updated successfully.
+      -> Change 'define-cross-skill-references' archived as '2026-09-05-define-cross-skill-references'.
+      ```
