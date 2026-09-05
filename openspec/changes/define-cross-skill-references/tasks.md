@@ -8,7 +8,9 @@
         com o filtro `s.startswith("references/") or s.startswith("skills/")` em `:97` (um caminho
         `bug-hunter/references/x.md` nunca é julgado); `check_limits` em `:309` parseando a
         description com PyYAML; `main()` em 365-407, `references/*.md` percorrido com `glob` (sem
-        recursão); `INLINE`, `LINK`, `FENCE`, `PLACEHOLDER` em 36-49.
+        recursão — os 19 `*.md` de `svg-animation/references/{objects,regimes}/`, `find skills -path
+        "*/references/*/*.md" | wc -l -> 19`, ficavam fora de C1, C3 e C12); `INLINE`, `LINK`, `FENCE`,
+        `PLACEHOLDER` em 36-49; `bases` de `check_refs` em `:87` como `[path.parent, path.parent.parent]`.
       - `scripts/selftest-validate-skills.py` — 72 linhas; `MUTATIONS` em 13-59 como
         `label: (relpath, mutate[, (expect, fragment)])`; `p.write_text(mutate(p.read_text()))` em
         `:65` (exige arquivo existente); `relpath is None` reservado ao caso C7.
@@ -128,14 +130,28 @@
       python3 scripts/validate-skills.py | grep -c "C11"      -> 0     (29 skills com references/, 0 órfãos)
       ```
 
-- [x] 2.2 `check_out_of_skill` (C12): `CATALOG_ONLY_ROOTS`, `<skill>/references/` sem prefixo, link
-      `..` que sai de `skills/<x>/`; texto de link não é julgado; docstring declara as raízes não
-      julgadas
+- [x] 2.2 `check_out_of_skill` (C12): `CATALOG_ONLY_ROOTS`, `<skill>/references/` sem prefixo, caminho
+      `..` (link **ou** crase) que sai de `skills/<x>/`; texto de link não é julgado; docstring declara
+      as raízes não julgadas e o alcance (recursivo sob `references/`)
 
       ```
       grep -n "^CATALOG_ONLY_ROOTS\|^def check_out_of_skill" scripts/validate-skills.py
-      -> 418:CATALOG_ONLY_ROOTS = ("research/", "claude/", "codex/", "cursor/", "copilot/", "plugins/")
-      -> 422:def check_out_of_skill(skill: str, path: Path, text: str) -> None:
+      -> 422:CATALOG_ONLY_ROOTS = ("research/", "claude/", "codex/", "cursor/", "copilot/", "plugins/")
+      -> 426:def check_out_of_skill(skill: str, path: Path, text: str) -> None:
+      grep -n 'if t.startswith("..")' scripts/validate-skills.py     -> 476   (sem o guard `kind == "link"`)
+      ```
+
+      Revisão (2026-09-05): a primeira versão julgava `..` só em alvo de link. Probado numa cópia do
+      branch anexando a `skills/r3f-geometry/SKILL.md` a frase
+      `` `../../claude/global/hooks/locale-rite.py` and `../../research/svg/x.md` and `../r3f-physics/references/rapier.md` ``:
+
+      ```
+      antes  -> python3 scripts/validate-skills.py | grep -c r3f-geometry   -> 0
+      depois -> r3f-geometry
+                 [C12 out-of-skill path] inline -> ../../claude/global/hooks/locale-rite.py: resolves outside skills/r3f-geometry/
+                 [C12 out-of-skill path] inline -> ../../research/svg/x.md: resolves outside skills/r3f-geometry/
+                 [C12 out-of-skill path] inline -> ../r3f-physics/references/rapier.md: resolves outside skills/r3f-geometry/
+      grep -rnoE '`\.\.[^`]*`' skills --include='*.md' | grep -v '\.\.\.'   -> 5 ocorrências, todas `../SKILL.md` (code-locale/references), dentro da skill: 0 falso positivo
       ```
 
       Em `master` (cópia via `git archive bfc400d`), pelo caminho do CI:
@@ -156,7 +172,8 @@
       redirecionam sem crase ("see fivem-lua", "live in r3f-fundamentals", "use openspec-drivezone",
       "that is fivem-nui-react") ficaram mudas.
 
-- [x] 2.4 Docstring C1..C13; `main()` chama os três (C12 também em `references/*.md`)
+- [x] 2.4 Docstring C1..C13; `main()` chama os três; C1, C3 e C12 correm sobre todo `*.md` sob
+      `references/`, recursivamente, com rótulo relativo a `references/`
 
       ```
       grep -n "^  C1[0-3]" scripts/validate-skills.py
@@ -164,20 +181,55 @@
       -> 15:  C11 orphan reference                      (every references/**/*.md is reachable from SKILL.md)
       -> 16:  C12 out-of-skill path                     (a path that resolves only in a full checkout of this repo)
       -> 17:  C13 anti-trigger clause                   (the description says where the skill does NOT apply)
+      grep -n 'refs_dir.rglob("\*.md")' scripts/validate-skills.py   -> 578
       ```
 
+      Revisão (2026-09-05): o laço usava `glob("*.md")` e os 19 arquivos aninhados de `svg-animation`
+      não eram julgados. Probado numa cópia anexando a `references/regimes/mechanism-linkage.md`
+      `` `research/svg/x.md` and `bug-hunter/references/track-fivem-lua.md` and [dead](references/nope-missing.md) ``:
+
+      ```
+      antes  -> python3 scripts/validate-skills.py | grep -c svg-animation   -> 0
+      depois -> svg-animation/regimes/mechanism-linkage.md
+                 [C1 missing path] link -> references/nope-missing.md
+                 [C12 out-of-skill path] inline -> bug-hunter/references/track-fivem-lua.md: cross-skill path without the skills/ prefix [...]
+                 [C12 out-of-skill path] inline -> research/svg/x.md: exists only in a clone of this repository [...]
+      ```
+
+      Medição de C1/C3 nos 19 arquivos aninhados com `rglob` e as bases antigas: **2 achados C1
+      falsos** — `svg-animation/ballistic-ensemble.md inline -> references/platform.md` e
+      `mechanism-linkage.md inline -> references/technology.md` (os dois arquivos existem em
+      `skills/svg-animation/references/`; `path.parent.parent` de um arquivo aninhado é `references/`,
+      não a raiz da skill). Corrigido: `bases = [path.parent, skill_dir]` com `skill_dir` derivado do
+      rótulo (`:87-88`). Depois: `python3 scripts/validate-skills.py -> findings: 2` (só
+      `execute-backlog`), C3 nos 19 arquivos: 0. Marcador `` `research/probe.md` `` anexado aos 19
+      arquivos numa cópia -> `grep -c "research/probe.md"` -> `19` (todos julgados).
+
 - [x] 2.5 Selftest: mutação por check (`C11` cria `references/orphan-probe.md`; `C12` anexa
-      `bug-hunter/references/track-fivem-lua.md` em crase; `C13` substitui a description de
-      `r3f-physics` por uma sem cláusula); o laço aceita mutação que cria arquivo
+      `bug-hunter/references/track-fivem-lua.md` em crase, mais uma em arquivo **aninhado**
+      (`research/svg-animation/probe.md` em `svg-animation/references/regimes/mechanism-linkage.md`,
+      fragmento = rótulo aninhado) e uma em forma inline de `..` (`../r3f-physics/references/rapier.md`
+      em `r3f-geometry`); `C13` substitui a description de `r3f-physics` por uma sem cláusula); o laço
+      aceita mutação que cria arquivo
 
       ```
       python3 scripts/selftest-validate-skills.py
       -> [...]
       ->   CAUGHT  C11 orphan reference
       ->   CAUGHT  C12 out-of-skill path
+      ->   CAUGHT  C12 out-of-skill path (nested reference)
+      ->   CAUGHT  C12 out-of-skill path (inline traversal)
       ->   CAUGHT  C13 anti-trigger clause
-      -> 18/18 defect classes detected
+      -> 20/20 defect classes detected
       exit=0
+      ```
+
+      As duas mutações novas pegam a regressão que motivou cada uma (cópia do branch com a correção
+      revertida por `sed`):
+
+      ```
+      rglob -> glob no laço de main()           -> MISSED  C12 out-of-skill path (nested reference)   / 19/20 defect classes detected
+      guard `kind == "link"` de volta em (c)    -> MISSED  C12 out-of-skill path (inline traversal)   / 19/20 defect classes detected
       ```
 
 ## 3. Conteúdo do catálogo (R1, R2, R4)
@@ -318,7 +370,8 @@
 
       Por check em `master`: C11 0, C12 12, C13 6.
 
-      **Branch** (`e116c18`), pelo mesmo comando:
+      **Branch** (`e116c18`, e de novo depois da revisão com `rglob` + `..` inline + bases de C1),
+      pelo mesmo comando:
 
       ```
       python3 scripts/validate-skills.py
@@ -330,7 +383,8 @@
       exit=1
       ```
 
-      Os dois restantes são o diretório do outro item (E.4, S.3). Nas skills deste item: 0.
+      Os dois restantes são o diretório do outro item (E.4, S.3). Nas skills deste item: 0 — agora
+      com os 19 arquivos aninhados de `svg-animation` julgados por C1, C3 e C12 (2.4).
 
       **Cópias com uma mutação cada** (`simulate_mutations.py`: `copytree` do branch para um
       diretório temporário, uma edição, `python3 scripts/validate-skills.py` com `cwd` na cópia; as
@@ -348,6 +402,11 @@
       -> findings: 4  [C12 out-of-skill path] link -> ../../research/notes.md: resolves outside skills/backlog/   (+ C1 missing path, o arquivo não existe)
       C12 controle: `skills/bug-hunter/references/track-fivem-lua.md` (forma canônica)   -> findings: 2  (mudo)
       C12 controle: `docs/SETUP.md` (raiz não julgada, declarada)                       -> findings: 2  (mudo)
+      C12 (revisão) `research/svg/x.md` + `bug-hunter/references/…` em references/regimes/mechanism-linkage.md
+      -> findings: 5  svg-animation/regimes/mechanism-linkage.md [C12] inline -> research/svg/x.md [...]; [C12] inline -> bug-hunter/references/track-fivem-lua.md [...]; [C1] link -> references/nope-missing.md
+      C12 (revisão) `../../claude/global/hooks/locale-rite.py`, `../../research/svg/x.md`, `../r3f-physics/references/rapier.md` em crase em r3f-geometry
+      -> findings: 5  r3f-geometry [C12] inline -> ../../claude/global/hooks/locale-rite.py: resolves outside skills/r3f-geometry/ (x3, um por caminho)
+      C12 controle (revisão): `../SKILL.md` em crase nas 5 referências de code-locale (baseline)      -> findings: 2  (mudo, resolve dentro da skill)
       C13 description de r3f-physics sem cláusula
       -> findings: 3  [C13 anti-trigger clause] description names no boundary: add a "Do NOT use for … (that is `<skill>`)" clause or a redirect [...]
       C13 controle: "For tweens see r3f-animation" (sem crase)                          -> findings: 2  (mudo)
@@ -387,11 +446,13 @@
 
       | Expectativa | Casos | Resultado |
       |---|---|---|
-      | Tinha de disparar e disparou | 5/5 | C11 órfão (1); C12 caminho cruzado sem prefixo (1), raiz `research/` (1), link `..` fora da skill (1); C13 description sem cláusula (1) |
-      | Tinha de ficar mudo e ficou | 5/5 | C11 arquivo linkado (1); C12 forma canônica `skills/<outra>/references/` (1), raiz não julgada `docs/` (1); C13 redirecionamento sem crase (1); URLs `https://…/research/…` já presentes em `svg-animation` (1, no baseline) |
+      | Tinha de disparar e disparou | 7/7 | C11 órfão (1); C12 caminho cruzado sem prefixo (1), raiz `research/` (1), link `..` fora da skill (1), defeito em referência **aninhada** (1), `..` em crase fora da skill (1); C13 description sem cláusula (1) |
+      | Tinha de ficar mudo e ficou | 7/7 | C11 arquivo linkado (1); C12 forma canônica `skills/<outra>/references/` (1), raiz não julgada `docs/` (1), `../SKILL.md` em crase (1), `references/platform.md` citado de arquivo aninhado (1, era falso positivo com as bases antigas); C13 redirecionamento sem crase (1); URLs `https://…/research/…` já presentes em `svg-animation` (1, no baseline) |
       | Escape conhecido ficou mudo | 1/1 | C13 "working in fivem-lua" numa frase-gatilho (KNOWN LIMIT do check) |
       | Achados de `master` corrigidos | 16/18 | 10 C12 + 6 C13 nas skills deste item; 2 C12 restantes em `execute-backlog` (outro item) |
-      | Selftest do CI | 18/18 | 15 classes anteriores + C11, C12, C13 |
+      | Selftest do CI | 20/20 | 15 classes anteriores + C11, C12 (3 mutações: sem prefixo, aninhada, `..` inline), C13 |
+      | Regressão pega pelo selftest | 2/2 | `glob` de volta -> MISSED (nested reference); guard `kind == "link"` de volta -> MISSED (inline traversal) |
+      | Arquivos aninhados julgados | 19/19 | marcador `research/probe.md` em cada um -> 19 achados rotulados `svg-animation/<subdir>/<arquivo>` |
       | Wrappers | 29/29 + 29/29 | `.mdc` com linha de URL e links reescritos; `.instructions.md` com `references/` por URL; 0 caminhos `../../skills` restantes em `cursor/` |
       | `generate.sh` idempotente | 2/2 | segunda execução sem diff; `dirty-after: 0` |
 
@@ -404,6 +465,15 @@
         (`skills/backlog/references/…` + a frase nomeando `backlog`) e bump patch de `execute-backlog`.
       - A mutação "link `../../research/notes.md`" disparou **dois** achados, não um: C12 (resolve
         fora da skill) e C1 (o arquivo não existe). Esperado era C12; o C1 é correto e independente.
+      - **Revisão (2026-09-05) pegou dois escapes que a primeira entrega não declarava**: (1) o laço de
+        `main()` percorria `references/*.md` sem recursão, e os 19 arquivos de
+        `svg-animation/references/{objects,regimes}/` não passavam por C1, C3 nem C12 — um
+        `research/…` ali passava mudo; (2) a regra (c) de C12 julgava `..` só em alvo de link, e
+        `` `../../claude/global/hooks/locale-rite.py` `` em crase passava mudo. Os dois foram
+        corrigidos (2.2, 2.4) e cada um ganhou mutação no selftest (2.5). Ao ligar a recursão, C1 deu
+        2 falsos positivos nos arquivos aninhados (`references/platform.md`, `references/technology.md`
+        citados a partir de `regimes/`): a base "raiz da skill" era `path.parent.parent`, que num
+        arquivo aninhado é `references/`; passou a ser derivada do rótulo.
       - Primeira versão da correção em `code-locale` levou `compatibility` a 621 caracteres e C10
         reprovou; a URL foi movida para o corpo (`:179`) e `compatibility` ficou em 490.
       - Escape declarado e medido: uma frase-gatilho "in <irmã>" passa C13 (KNOWN LIMIT); caminhos
@@ -463,7 +533,8 @@
 
       ```
       ls skills | wc -l                        -> 35
-      python3 scripts/validate-skills.py       -> skills checked: 35   findings: 2   (ambos em execute-backlog/board-sync.md, S.3)
+      python3 scripts/validate-skills.py       -> skills checked: 35   findings: 2   (ambos em execute-backlog/board-sync.md, S.3; re-medido depois da revisão com rglob)
+      python3 scripts/selftest-validate-skills.py | tail -1   -> 20/20 defect classes detected
       claude plugin validate . --strict        -> ✔ Validation passed
       ```
 

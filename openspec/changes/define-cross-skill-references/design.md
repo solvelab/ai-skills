@@ -67,8 +67,14 @@ requisição de rede em cada consulta; inlining duplica doutrina. Fora de `skill
 
 (a) prefixo em `CATALOG_ONLY_ROOTS = (research/, claude/, codex/, cursor/, copilot/, plugins/)` —
 entradas de topo que só um clone tem; (b) `<skill-do-catálogo>/references/…` sem `skills/` —
-resolve em lugar nenhum; (c) link relativo com `..` que resolve fora de `skills/<x>/`. Tudo o mais
-que C1 já aceita continua aceito. Caminhos sob `openspec/`, `scripts/`, `docs/`, `.github/` **não**
+resolve em lugar nenhum; (c) caminho relativo com `..` — alvo de link **ou** crase — que resolve fora
+de `skills/<x>/` (a revisão mostrou que a forma em crase, a que a prosa mais usa, passava muda
+quando só o link era julgado). Tudo o mais que C1 já aceita continua aceito. C12, como C1 e C3,
+corre sobre `SKILL.md` e sobre **todo** `*.md` sob `references/`, recursivamente: o laço de
+`main()` usava `glob` e deixava os 19 arquivos de `svg-animation/references/{objects,regimes}/`
+fora de qualquer check de caminho; com `rglob`, as duas bases de C1 passam a ser o diretório do
+arquivo e a raiz da skill (não `path.parent.parent`, que num arquivo aninhado é `references/`), e
+o rótulo do achado leva o caminho relativo a `references/` (`svg-animation/regimes/x.md`). Caminhos sob `openspec/`, `scripts/`, `docs/`, `.github/` **não**
 são julgados: `documentation` cita `docs/SETUP.md` (o repositório-alvo), `execute-backlog` cita
 `openspec/config.yaml` (idem), e `verify-before-claiming/references/failure-catalog.md` cita
 `scripts/validate-rite.sh` deste repositório — o check não distingue e a decisão foi declarar, não
@@ -118,7 +124,12 @@ comando que o fecha (`sed` das duas linhas + bump patch de `execute-backlog`).
 O laço passa a ler `p.read_text()` só quando o arquivo existe (`""` caso contrário), para que a
 mutação de C11 possa escrever `skills/r3f-geometry/references/orphan-probe.md`. As de C12 e C13
 seguem a forma de sempre: anexar `bug-hunter/references/track-fivem-lua.md` em crase a `fivem-lua`;
-substituir a description de `r3f-physics` por uma sem cláusula.
+substituir a description de `r3f-physics` por uma sem cláusula. Depois da revisão, C12 ganhou duas
+mutações a mais, uma por regressão possível: `research/svg-animation/probe.md` em crase num arquivo
+**aninhado** (`svg-animation/references/regimes/mechanism-linkage.md`, fragmento esperado = o rótulo
+aninhado, para que um `glob` não recursivo volte a ser pego) e `../r3f-physics/references/rapier.md`
+em crase em `r3f-geometry` (forma inline da regra (c)). Provado revertendo cada correção numa cópia:
+o selftest passa a 19/20 com o `MISSED` correspondente.
 
 ## Canonical Home & Cross-Links (MANDATORY)
 

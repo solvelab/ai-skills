@@ -776,7 +776,7 @@ because a gate with no base revision cannot measure, and a gate that cannot meas
 
 A second gate checks the **content** of the skills themselves.
 [`scripts/validate-skills.py`](scripts/validate-skills.py) runs thirteen checks over every
-`skills/*/SKILL.md` and its references — referenced paths exist (C1), cross-skill references name a
+`skills/*/SKILL.md` and every `*.md` under its `references/`, recursively — referenced paths exist (C1), cross-skill references name a
 real skill (C2), code blocks parse (C3, bash/yaml/json/lua/python), the description states no policy
 the body contradicts (C4), versioned external APIs are pinned (C5), fence tags match their content
 (C6), no generated wrapper is orphaned from a canonical source (C7), no meta section sits in a
