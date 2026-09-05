@@ -118,4 +118,5 @@
       Evidence: `npx -y skills add solvelab/ai-skills --list | grep -c -E '^│    [a-z0-9-]+$'` -> `35`, the tree count; no skill added, removed or renamed.
 - [x] V.3 README / docs updated where the change alters catalog composition or usage
       Evidence: `README.md:878-879` C5 wording and `:913` selftest count updated; catalog composition unchanged, so no other doc moves.
-- [ ] V.4 `openspec archive require-verified-against --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive require-verified-against --yes` after all groups above are `[x]`
+      Evidence: `openspec archive require-verified-against --yes` on 2026-09-05 after PR merge -> archived as `2026-09-05-require-verified-against`, specs updated; `openspec list` -> `No active changes found`.

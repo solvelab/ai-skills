@@ -255,6 +255,15 @@ state the exact versions it was verified against, and SHALL name any known upcom
 that will invalidate it. For a skill that instructs the agent to run a CLI, the commands and flags it
 prescribes SHALL be probed against that tool before publication.
 
+Every `SKILL.md` SHALL carry exactly one of two literal declarations, placed where a reader meets it
+before the first rule: a `Verified against` block naming each tool and the version it was probed
+against, what was run, and the date; or the sentence `does not depend on a tool version` followed by
+the reason. A `Verified against` block SHALL name only versions the claims were actually probed
+against, and SHALL name the part of the skill that was not probed rather than cover it by implication.
+A version written for a run nobody made is a defect, not a pin. The declaration is an exit for
+process skills: a skill carrying 40 or more fenced lines against a versioned API SHALL carry the
+block unless it defers to a local source of truth it instructs the reader to open first.
+
 #### Scenario: Reader can tell which era the code targets
 
 - **WHEN** a skill documents a library API
@@ -277,6 +286,31 @@ prescribes SHALL be probed against that tool before publication.
 - **WHEN** a tool's own output advertises behaviour its implementation does not deliver
 - **THEN** the skill states the probed behaviour and the version it holds for, rather than repeating
   the tool's claim
+
+#### Scenario: Every skill declares its relationship to versions
+
+- **WHEN** a `SKILL.md` carries neither the literal `Verified against` nor the literal
+  `does not depend on a tool version`
+- **THEN** the validator reports it under C5, whatever amount of fenced code the skill carries
+
+#### Scenario: A loose version mention is not a pin
+
+- **WHEN** a skill names a version only in passing (`Probed on CLI 1.6.0`, `targets v0.0.54`,
+  `needs CSP >= 0.1.78`) and carries no literal `Verified against`
+- **THEN** the validator reports it under C5, because a reader cannot tell a pin from a mention
+
+#### Scenario: A code-heavy skill does not exit by declaration
+
+- **WHEN** a skill carries 40 or more fenced lines, names a versioned API, declares that it does not
+  depend on a tool version, and does not defer to a local source of truth
+- **THEN** the validator reports the declaration as contradicted by the skill's own code
+
+#### Scenario: A partial probe names its boundary
+
+- **WHEN** only part of a skill's surface could be probed — public API stubs or source, but not the
+  runtime that executes them
+- **THEN** the `Verified against` block names what was probed, against which artifact and version,
+  and states what was not probed, instead of letting the pin cover the whole skill
 
 ### Requirement: Authoring rules are machine-enforced
 
@@ -617,4 +651,31 @@ of one group), and the Cursor and Copilot wrappers the README instructs users to
   links it
 - **THEN** the validator reports it as an orphan reference (C11), because a file nobody points at is
   a file nobody loads
+
+### Requirement: Version-scoped rules move with the pin
+
+A rule in a skill that holds only for a range of versions of the tool or runtime the skill targets
+SHALL state that range next to the rule, and SHALL be lifted or re-scoped in the same change that
+moves the skill's `Verified against` pin out of that range. A rule written as timeless whose premise
+is a version fact is a defect once the pin moves.
+
+#### Scenario: A ban that depends on the runtime names the runtime
+
+- **WHEN** a skill forbids a construct because the pinned runtime lacks a type, API or behaviour
+- **THEN** the rule names the runtime range in which that premise holds, rather than presenting the
+  ban as unconditional
+
+#### Scenario: Moving the pin re-derives the scoped rules
+
+- **WHEN** a change moves a skill's `Verified against` pin to a version where a scoped rule's premise
+  no longer holds
+- **THEN** that change lifts or re-scopes the rule and records the probe that decided it, instead of
+  carrying the rule forward unchanged
+
+#### Scenario: A replicated rule moves everywhere it lives
+
+- **WHEN** the scoped rule is also cited as an example in another skill (a bug-hunter track, a
+  checklist)
+- **THEN** the same change scopes the example there, so the two skills do not disagree about the
+  same runtime
 
