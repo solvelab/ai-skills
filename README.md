@@ -191,7 +191,7 @@ Each release automatically: bumps `VERSION`, propagates it to `.claude-plugin/pl
 | Claude Code plugin | **Version-pinned** — updates only when `plugin.json` version is bumped by a release |
 | `npx skills` / `install.sh` / `update.sh` | Latest `master` |
 
-Each skill also carries its own `metadata.version` in its `SKILL.md` frontmatter — bump it when that skill's behavior changes. Repo version = the collection; skill version = the individual contract. The CI/CD pipeline (`.github/workflows/ci.yml`) validates every pull request and every push to `master` (wrapper sync, version coherence, frontmatter) and cuts releases on `master`.
+Each skill also carries its own `metadata.version` in its `SKILL.md` frontmatter — bump it when that skill changes. Repo version = the collection; skill version = the individual contract. The bump is measured, not trusted: [`scripts/validate-skill-version.py`](scripts/validate-skill-version.py) diffs every pull request against its base and fails when anything under `skills/<name>/` changed without that skill's version moving up, unless the PR body carries one line `Skill-version: none — <reason>` covering the whole diff. The CI/CD pipeline (`.github/workflows/ci.yml`) validates every pull request and every push to `master` (wrapper sync, version coherence, frontmatter) and cuts releases on `master`.
 
 ---
 
@@ -861,7 +861,7 @@ license: MIT
 
 - `name` must match the directory name (CI enforces this).
 - Put supporting material in `skills/<skill-name>/references/` and point to it with **relative paths** (`references/examples.md`) — never absolute paths, so the skill stays portable.
-- Bump `metadata.version` whenever the skill's behavior changes.
+- Bump `metadata.version` whenever the skill changes. CI measures it (`scripts/validate-skill-version.py`): a pull request that edits `skills/<name>/` without raising that skill's version fails unless its body carries `Skill-version: none — <reason>`.
 
 ### 2. Generate the tool wrappers
 
@@ -878,7 +878,9 @@ pull request — `master` takes no direct push (PR-only, by convention). CI read
 body: `scripts/validate-spec-rite.py` passes when the checkout carries an active change under
 `openspec/changes/<id>/` (the one `/opsx:propose` scaffolded above, committed with the skill) or the
 diff archives one, and otherwise only when the body carries a written waiver
-`Spec-rite: none — <reason>` — a PR with neither fails with S1. Write the body from a file:
+`Spec-rite: none — <reason>` — a PR with neither fails with S1. When the diff edits a skill,
+`scripts/validate-skill-version.py` also asks for the bump of that skill's `metadata.version`, or a
+PR-wide `Skill-version: none — <reason>` line. Write the body from a file:
 `gh pr create --fill` takes title and body from the commit message, so a `-m`-only commit opens a
 PR with an empty body. The release runs after the merge and does the rest (version bump, changelog,
 tag, GitHub Release):
@@ -886,7 +888,7 @@ tag, GitHub Release):
 ```bash
 git commit -m "skill: add my-skill"   # skill:/feat: → minor release once merged into master
 git push -u origin backlog/<n>-my-skill
-gh pr create --title "skill: add my-skill" --body-file pr.md   # pr.md: `Spec-rite: <id>`, or `Spec-rite: none — <reason>`
+gh pr create --title "skill: add my-skill" --body-file pr.md   # pr.md: `Spec-rite: <id>` (or the waiver); `Skill-version: none — <reason>` only when a skill edit carries no bump
 ```
 
 ### 4. Key guidelines for writing skills

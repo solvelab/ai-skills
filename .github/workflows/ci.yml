@@ -184,6 +184,18 @@ jobs:
       - name: Spec-rite self-test (the gate is itself gated)
         run: python3 scripts/validate-spec-rite.py --selftest
 
+      - name: Skill version gate (an edited skill moves its metadata.version, or the body waives it)
+        # README.md promises that a skill's metadata.version moves when the skill changes; until
+        # issue #119 nothing measured it (49 of 165 edited (commit, skill) pairs left it alone). This
+        # reads the diff against the base per skills/<name>/ and reads the waiver line
+        # `Skill-version: none — <reason>` from GITHUB_EVENT_PATH, exactly as the spec-rite gate
+        # does and for the same reason: an `env:` block would print the body into the log. It skips
+        # itself on push events and says so.
+        run: python3 scripts/validate-skill-version.py
+
+      - name: Skill version self-test (the gate is itself gated)
+        run: python3 scripts/validate-skill-version.py --selftest
+
       - name: Claude plugin validation (vendor validator, blocking)
         # Was `continue-on-error: true` AND `|| true` — disabled twice over, so it never failed a
         # build. Measured on 2026-08-26 with claude 2.1.246: `plugin validate . --strict` passes on

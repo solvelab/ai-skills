@@ -86,6 +86,14 @@ Spec-rite: none — <the reason the work registers nothing>
 
 A waiver with no reason is worse than no waiver: it looks decided and says nothing.
 
+A repo that also gates each skill's `metadata.version` (this catalog does, with
+`scripts/validate-skill-version.py`) reads a second line from the same body when the diff edits a
+skill without moving its version: `Skill-version: none — <the reason these edits deserve no bump>`.
+One line covers every skill in the PR; the reason has the same minimum length as the `Spec-rite`
+waiver; a version that goes **down** is never waived. The default is to bump — the line exists for
+the sweep that adds one cross-reference to twelve skills, not for the PR that changes what one of
+them does.
+
 ## Archive is not part of this run
 
 `openspec archive` syncs the delta into the main specs. Doing it in the implementation PR would move
