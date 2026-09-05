@@ -670,5 +670,12 @@
 - [x] V.3 README / docs atualizados: `README.md:235-425` reescrita com o snippet completo (bloco
       `PreToolUse` comentado até a #137), o parágrafo do gate de Stop com a forma fixada e o teto, e a
       tabela em dois tempos (2.8, `71e9a66`); a composição do catálogo não muda
-- [ ] V.4 `openspec archive add-locale-stop-gate --yes` depois que todos os grupos acima estiverem
+- [x] V.4 `openspec archive add-locale-stop-gate --yes` depois que todos os grupos acima estiverem
       `[x]` — PR separado, como o repositório já faz
+
+
+      ```
+      openspec archive add-locale-stop-gate --yes
+      -> Specs updated successfully.
+      -> Change 'add-locale-stop-gate' archived as '2026-09-05-add-locale-stop-gate'.
+      ```

@@ -494,5 +494,12 @@
 - [x] V.3 README / docs atualizados onde a composição ou o uso mudam — a composição não muda; o uso
       novo está documentado na própria skill (seção *Wire it in one minute*); `README.md` fora do
       escopo por decisão da issue #139 e não tocado
-- [ ] V.4 `openspec archive add-locale-adoption-kit --yes` after all groups above are `[x]` — PR
+- [x] V.4 `openspec archive add-locale-adoption-kit --yes` after all groups above are `[x]` — PR
       separado, como o repositório já faz
+
+
+      ```
+      openspec archive add-locale-adoption-kit --yes
+      -> Specs updated successfully.
+      -> Change 'add-locale-adoption-kit' archived as '2026-09-05-add-locale-adoption-kit'.
+      ```
