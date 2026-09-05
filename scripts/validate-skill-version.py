@@ -33,7 +33,14 @@ pre-release suffix reads as "did not move" — no skill in the catalog carries o
 whitespace-only edit is a content change here, accepted on issue #119: the written waiver is the exit,
 and the finding names it. The selftest exercises the decision rules against synthetic inputs, not the
 git plumbing that feeds them: a misconfigured checkout is caught by the CI-only base-resolution
-failure below, not by the selftest.
+failure below, not by the selftest. The one plumbing probe it does run is the path reader, below.
+
+Paths are read with `git diff --name-only -z` and split on NUL. Without `-z`, git wraps any path that
+carries a non-ASCII, control or quote character in double quotes with octal escapes (core.quotePath,
+default true on a fresh checkout and on the ubuntu runners), `"skills/x/caf\303\251.md"` no longer
+starts with `skills/` and the skill vanishes from the measurement — the gate approved a fixture like
+that in the review of issue #119. The selftest commits such a path in a throwaway repository and
+asserts the reader hands it back verbatim, so the flag cannot be dropped silently.
 
 The pull request body is read from the event payload the runner already writes (GITHUB_EVENT_PATH),
 never from a step's `env:` block, for the reason validate-spec-rite.py records: Actions prints that
@@ -152,10 +159,18 @@ def read_pr_body() -> str:
     return body if isinstance(body, str) else ""
 
 
+def split_nul_paths(out: str) -> list[str]:
+    """`git diff --name-only -z` output -> paths, verbatim. NUL is the one byte a path cannot contain,
+    so nothing here is quoted, escaped or split on a newline inside a name."""
+    return [p for p in out.split("\0") if p]
+
+
 def changed_paths(root: Path, base: str, head: str = "HEAD") -> list[str]:
-    out = subprocess.run(["git", "-C", str(root), "diff", "--name-only", f"{base}...{head}"],
+    # -z: raw names separated by NUL. The default line mode quotes and octal-escapes any name with a
+    # non-ASCII, control or quote character, which skills_in() would then fail to recognise.
+    out = subprocess.run(["git", "-C", str(root), "diff", "--name-only", "-z", f"{base}...{head}"],
                          capture_output=True, text=True, check=True).stdout
-    return [line for line in out.splitlines() if line]
+    return split_nul_paths(out)
 
 
 def merge_base(root: Path, base: str, head: str = "HEAD") -> str:
@@ -329,6 +344,34 @@ SILENT = [
 ]
 
 
+def _probe_quoted_path() -> bool:
+    """The one git-plumbing probe of the selftest: commit a path git would quote in line mode and
+    check changed_paths() hands it back unquoted. core.quotePath is forced on so the probe measures
+    the worst case whatever the box's config says. Same input the review of issue #119 used."""
+    import tempfile
+    name = "skills/probe/references/caf\u00e9.md"
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        env = {**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1",
+               "GIT_AUTHOR_NAME": "probe", "GIT_AUTHOR_EMAIL": "probe@localhost",
+               "GIT_COMMITTER_NAME": "probe", "GIT_COMMITTER_EMAIL": "probe@localhost"}
+
+        def git(*args: str) -> None:
+            subprocess.run(["git", "-C", tmp, "-c", "core.quotePath=true", *args],
+                           capture_output=True, text=True, check=True, env=env)
+
+        git("init", "-q", "-b", "main")
+        (root / "skills/probe").mkdir(parents=True)
+        (root / "skills/probe/SKILL.md").write_text("---\n  version: 1.0.0\n---\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-q", "-m", "base")
+        (root / "skills/probe/references").mkdir()
+        (root / name).write_text("x\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-q", "-m", "edit")
+        return changed_paths(root, "HEAD^") == [name] and list(skills_in(changed_paths(root, "HEAD^"))) == ["probe"]
+
+
 def selftest_collect_helpers() -> tuple[int, int]:
     """The parsers collect() relies on, exercised on literal text: a wrong VERSION_LINE regex would
     make every skill read as new, and evaluate() would stay silent on everything."""
@@ -346,6 +389,12 @@ def selftest_collect_helpers() -> tuple[int, int]:
         ("references group under their skill",
          skills_in(["skills/y/references/a.md", "skills/y/SKILL.md"]) == {"y": ["skills/y/references/a.md", "skills/y/SKILL.md"]}),
         ("MIN_REASON agrees with the spec-rite gate", MIN_REASON == _sibling_min_reason()),
+        ("NUL-separated names are read verbatim, quotes and newlines included",
+         split_nul_paths('skills/y/SKILL.md\0skills/y/references/caf\u00e9 "x"\n.md\0')
+         == ["skills/y/SKILL.md", 'skills/y/references/caf\u00e9 "x"\n.md']),
+        ("a non-ASCII name still groups under its skill",
+         skills_in(["skills/y/references/caf\u00e9.md"]) == {"y": ["skills/y/references/caf\u00e9.md"]}),
+        ("changed_paths() survives core.quotePath on a real repository", _probe_quoted_path()),
     ]
     ok = 0
     for label, passed in cases:
