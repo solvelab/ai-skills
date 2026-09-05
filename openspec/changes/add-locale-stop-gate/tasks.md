@@ -37,6 +37,26 @@
         `memory-autopush.sh` (`async: true`); `PostToolUse` com matcher
         `Write|Edit|MultiEdit|NotebookEdit`; nenhum `PreToolUse` para as ferramentas de escrita.
 
+      Relidos em `11c416d` (topo do branch antes da rodada de revisão, 2026-09-05):
+
+      - `claude/global/hooks/locale-stop-gate.py` — `run_git()` 151-158 sem flag de forma;
+        `uncommitted_diff()` 169-217 (`diff <base> --no-color` em 198, `diff --no-index --no-color`
+        em 212; `is_binary` antes do git, vendored só depois do scan); `evaluate()` 253-286 — o
+        `if not findings: return None` em 282 descartava `truncated`; `_fixture_env()` 295-304 com
+        `GIT_CONFIG_GLOBAL=os.devnull` (toda decisão provada só sob config em branco).
+      - `skills/code-locale/references/check-identifier-locale.py:638-643` — `scan_diff` guarda o
+        caminho do `+++` com as aspas que o git imprime; `EXT_LANG.get(Path(path).suffix.lower())`
+        com sufixo `.py"` → `None`, e as linhas `+` não são lidas.
+      - `claude/global/hooks/locale-rite.py` neste branch —
+        `grep -n 'LOCALE_RITE_MODE\|PreToolUse\|permissionDecision'` → nada, rc=1: não há caminho de
+        PreToolUse aqui.
+      - Worktree irmão da issue #137 (`.claude/worktrees/wf_3d89aff2-ea2-1`, `17fc01f`, não mergeado,
+        só leitura) — `locale-rite.py:84,90` `"matcher": "Write|Edit|MultiEdit|NotebookEdit"`; `:135`
+        `MODE_ENV = "LOCALE_RITE_MODE"`; `:306` `"permissionDecision": "deny"`. O wiring que o README
+        descreve bate com o código da #137, lido e não presumido.
+      - `README.md:352-354, 362-363, 402` (em `11c416d`) — afirmavam a negação em PreToolUse como
+        fato presente.
+
 - [x] E.2 Ferramentas e comportamentos probados contra a versão instalada
 
       ```
@@ -117,6 +137,57 @@
       ->    ('servico_cliente.py', 1, 'id_usuario', 'pt-noun', False), ('servico_cliente.py', 2, 'id_usuario', 'pt-noun', False)]
       ```
 
+      Rodada de revisão — o `~/.gitconfig` do usuário e a forma do diff (git 2.47.3; repositório de
+      sondagem `scratchpad/repro138`, `shipping.py` rastreado editado por
+      `sed -i 's/order_id/id_pedido/g'`; hook em `11c416d`, antes da correção):
+
+      ```
+      GIT_CONFIG_GLOBAL=<[diff] external = /bin/true>   git diff HEAD --no-color | wc -l     -> 0
+      mesmo gitconfig, payload de Stop | locale-stop-gate.py                                -> rc=0 chars=0
+      GIT_CONFIG_GLOBAL=/dev/null (controle, mesma árvore)                                  -> rc=0 chars=856 keys=decision,reason
+      GIT_CONFIG_GLOBAL=<[diff] mnemonicPrefix = true>  git diff HEAD --no-color | sed -n 3,4p -> --- c/shipping.py / +++ w/shipping.py
+      mesmo gitconfig, hook                        -> reason: `w/shipping.py:1: id_pedido  [pt-noun: 'pedido']`
+      git diff --no-index --no-color /dev/null 'serviço.py'   (core.quotePath padrão)
+      -> diff --git "a/servi\303\247o.py" "b/servi\303\247o.py"             hook -> rc=0 chars=0
+      git -c core.quotePath=false diff --no-index --no-color /dev/null 'serviço.py'
+      -> diff --git a/serviço.py b/serviço.py
+      rastreado relatório.py editado: git diff HEAD --no-color | sed -n 3,4p
+      -> --- "a/relat\303\263rio.py" / +++ "b/relat\303\263rio.py"           hook -> rc=0 chars=0
+      GIT_CONFIG_GLOBAL=<noprefix + external + mnemonicPrefix + relative + color.ui=always>:
+        git diff HEAD | sed -n 1,4p                                                         -> (vazio)
+        git -c core.quotePath=false diff --no-ext-diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ HEAD | sed -n 1,4p
+        -> diff --git a/shipping.py b/shipping.py / index 0c0b18e..fa663ce 100644 / --- a/shipping.py / +++ b/shipping.py
+      GIT_EXTERNAL_DIFF=true git diff --no-color HEAD | wc -l -> 0;   com --no-ext-diff -> 8
+      .gitattributes `*.py diff=pyx` + -c diff.pyx.command=true: | wc -l -> 0;   com --no-ext-diff -> 8
+      .gitattributes + -c 'diff.pyx.textconv=tr a-z A-Z <'  -> -DEF COMPUTE_SHIPPING(ORDER_ID): / +DEF COMPUTE_SHIPPING(ID_PEDIDO):
+        com --no-textconv                                    -> -def compute_shipping(order_id): / +def compute_shipping(id_pedido):
+      git -c diff.relative=true diff --no-relative --no-color HEAD | wc -l -> 8      (flag aceita no 2.47.3)
+      git -c core.quotePath=false diff --no-index /dev/null 'we"ird.py' | sed -n 4p -> --- /dev/null  (o `+++` segue citado: limite)
+      ```
+
+      O teto (`scratchpad/repro138b`, hook em `11c416d`; `servico_cliente.py` em português em todos os
+      casos, ordenando depois do conteúdo limpo):
+
+      ```
+      controle: só servico_cliente.py                               -> rc=0 ms=43   chars=1742 (bloqueia)
+      A: aaa_generated.py, 5000 linhas `value_i = i`, não rastreado  -> rc=0 ms=121  chars=0
+      B: 5000 linhas anexadas ao shipping.py rastreado               -> rc=0 ms=124  chars=0
+      C: build/gen.py 5000 linhas, não ignorado                      -> rc=0 ms=135  chars=0
+      H: 1500 arquivos vazios em build/                              -> rc=0 ms=1721 chars=0
+      git diff --no-index --no-color /dev/null build/f1.py (vazio)   -> diff --git / new file mode / index 0000000..e69de29   rc=1  (3 linhas, sem +++)
+      detector em memória, scan_diff: 4000 linhas limpas -> 83 ms; 20000 -> 442 ms
+      ```
+
+      O `locale-rite.py` deste branch num payload de PreToolUse, e o que o bundle faz com a resposta:
+
+      ```
+      printf '{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"/tmp/servico.py","content":"def buscar_cliente(id_usuario):..."}}' | python3 claude/global/hooks/locale-rite.py
+      -> {"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": "CODE-LOCALE: the write that just landed [...]   rc=0
+      grep -a -o -E 'function PKr\(e,t,r\)\{.{80}' $B
+      -> function PKr(e,t,r){if(t.hookEventName!==r){Ik(e,"hookSpecificOutput_event_mismatch",!0);return}swit
+      grep -a -c hookSpecificOutput_event_mismatch $B   -> 2
+      ```
+
       Scaffold da change com o schema do repositório:
 
       ```
@@ -153,7 +224,22 @@
         completo, por ser o que a issue pede para o snippet; nenhuma outra seção do README é tocada.
       - Um caminho não rastreado com nome em português mas conteúdo vazio (`touch relatorio.py`):
         `git diff --no-index /dev/null` de um arquivo vazio não emite `+++` (medido: só `diff --git` e
-        `index`, rc=1); o tier de caminho não dispara. Declarado como limite; não corrigido aqui.
+        `index`, rc=1); o tier de caminho não dispara. Declarado como limite; agora o arquivo vazio é
+        pulado antes do git (não consome teto nem processo), com o mesmo efeito no nome.
+      - O detector guarda as aspas do `+++` (`scan_diff`, 638-643): com `core.quotePath` padrão um
+        caminho não ASCII vira `"b/relat\303\263rio.py"` e o sufixo `.py"` não casa linguagem. O hook
+        contorna com `-c core.quotePath=false`; desfazer as aspas e o octal dentro do detector é
+        edição em `skills/**` — anotado para a issue #139, cujo kit lê diffs de outros produtores.
+      - Um caminho com aspas duplas, barra invertida ou caractere de controle continua citado pelo
+        git mesmo com `quotePath=false` (medido: `'we"ird.py'` → `+++` citado) e não é medido.
+        Declarado no docstring; não corrigido aqui.
+      - Falso positivo do modo `--diff` do detector, observado no próprio hook: rodado contra este
+        worktree com o docstring editado e ainda não commitado, o gate bloqueou por `relatório` e
+        `relatorio` nas linhas 59, 92 e 96 do docstring (`rc=0 chars=1548 keys=decision,reason`) —
+        o run de linhas `+` começa dentro do docstring, não carrega o `"""` de abertura e é lido como
+        código; no arquivo inteiro o mesmo detector devolve `findings: 0`. Mesma família da issue
+        #85; o bloqueio dura enquanto a edição está não commitada. Detector-side (`skills/**`):
+        follow-up, não corrigido aqui.
 
 ## 2. Hook `locale-stop-gate.py`
 
@@ -176,37 +262,71 @@
 
 - [x] 2.2 Diff não commitado do topo do work tree: `rev-parse --show-toplevel` decide se há repo e de
       onde medir; base `HEAD` se `rev-parse --verify -q HEAD` responde, senão `hash-object -t tree
-      /dev/null`; `git diff <base> --no-color`; não rastreados por `ls-files --others
-      --exclude-standard -z` + `diff --no-index --no-color /dev/null <path>`; NUL nos primeiros 8 KiB
-      pula o arquivo; `timeout=5` por chamada; `MAX_DIFF_LINES = 4000` e o teto dito no motivo
-      (D2-D4). Commit `a3d56fd`. Provado pelo selftest (2.5): "cwd in a subdirectory still measures
-      the whole work tree", "repository without a commit measures staged files", "binary untracked
-      file is skipped", "ignored path never enters the diff", "diff over the cap still blocks" +
-      "truncation is stated in the reason" — todos `OK`.
+      /dev/null`; toda chamada como `git --no-pager -c core.quotePath=false`, e os dois diffs com
+      `--no-ext-diff --no-textconv --no-color --no-relative --src-prefix=a/ --dst-prefix=b/`
+      (D10); não rastreados por `ls-files --others --exclude-standard -z` + `diff --no-index
+      /dev/null <path>`, pulando ANTES do git o que o detector chama de vendored, o arquivo vazio e o
+      binário (NUL nos primeiros 8 KiB); `timeout=5` por chamada; `MAX_DIFF_LINES = 4000` e o teto
+      dito sempre (D2-D4). Commits `a3d56fd` e `e8c1f1d`:
+
+      ```
+      grep -n 'GIT_PIN = \|DIFF_FLAGS = \|\*GIT_PIN\|\*DIFF_FLAGS\|vendored(Path(rel))\|st_size == 0' claude/global/hooks/locale-stop-gate.py
+      -> 153:GIT_PIN = ["--no-pager", "-c", "core.quotePath=false"]
+      -> 154:DIFF_FLAGS = ["--no-ext-diff", "--no-textconv", "--no-color", "--no-relative",
+      -> 214:        run = subprocess.run(["git", *GIT_PIN, *args], cwd=cwd, env=env, capture_output=True,
+      -> 225:        if path.stat().st_size == 0:
+      -> 267:    tracked = run_git(["diff", *DIFF_FLAGS, base], root, env)
+      -> 279:        if vendored is not None and vendored(Path(rel)):
+      -> 283:        added = run_git(["diff", *DIFF_FLAGS, "--no-index", "/dev/null", rel], root, env)
+      ```
+
+      Provado pelo selftest (2.5): "cwd in a subdirectory still measures the whole work tree",
+      "repository without a commit measures staged files", "binary untracked file is skipped",
+      "ignored path never enters the diff", "diff over the cap still blocks" + "truncation is stated
+      in the reason", "diff.external, mnemonicPrefix, relative and color.ui do not silence the gate",
+      "untracked file with a non-ASCII name is measured", "tracked file with a non-ASCII name edited
+      in place is measured", "unignored vendored and empty files do not eat the cap" — todos `OK`; e
+      pelo entry point real em S.1 (gitconfig ligado, `GIT_EXTERNAL_DIFF`, `serviço.py`,
+      `relatório.py`).
 
 - [x] 2.3 Decisão: `scan_diff` com `load_allowlist(<topo>)` e `english=None`; achados `advisory` e
       `is_vendored` filtrados; gating + `stop_hook_active` falso + modo ≠ `inform` →
       `{"decision": "block", "reason": …}` no topo, ≤ 2000; `stop_hook_active` verdadeiro →
-      `{"systemMessage": …}` ≤ 4000; senão `None` (D1, D5-D8). Commit `a3d56fd`; `1627bf8` não toca o
-      hook. Forma medida pelo entry point real (S.1):
+      `{"systemMessage": …}` ≤ 4000; sem achado e teto atingido → bloqueio único com
+      `UNMEASURED_REASON` (a cauda NÃO foi medida, como medir) e `UNMEASURED_MESSAGE` no Stop
+      seguinte (D4, revisado); senão `None` (D1, D5-D8). Commits `a3d56fd` e `e8c1f1d`. Forma medida
+      pelo entry point real (S.1):
 
       ```
-      heredoc pt, stop_hook_active=false -> rc=0 chars=1742 keys=decision,reason
-      mesmo tree, stop_hook_active=true  -> rc=0 chars=371  keys=systemMessage
-      500 linhas pt                       -> rc=0 chars=2084 keys=decision,reason   (reason no cap de 2000; JSON escapa o resto)
+      heredoc pt, stop_hook_active=false                 -> rc=0 chars=1742 keys=decision,reason
+      mesmo tree, stop_hook_active=true                  -> rc=0 chars=371  keys=systemMessage
+      500 linhas pt                                       -> rc=0 chars=2084 keys=decision,reason   (reason no cap de 2000; JSON escapa o resto)
+      5000 linhas limpas antes de servico_cliente.py     -> rc=0 chars=770  keys=decision,reason   "the uncommitted diff is longer than 4000 lines [...] NOT measured"
+      mesmo tree, stop_hook_active=true                  -> rc=0 chars=358  keys=systemMessage     "longer than 4000 lines; the part past the cap was NOT measured"
       ```
 
 - [x] 2.4 Docstring: por que Stop; a forma da saída com versão (`2.1.261`) e os trechos do bundle
-      (`eg`, `PMe`, `LU`, `AKr`, `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`); KNOWN LIMIT (commit no mesmo
-      turno, repo fora do cwd, `SubagentStop`, rename puro, binário, arquivo vazio, git lento,
-      consultivo); wiring; sem atribuição a IA:
+      (`eg`, `PMe`, `LU`, `AKr`, `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`); por que a forma do diff é fixada
+      contra o gitconfig (com as medições da revisão); por que o teto nunca passa mudo; KNOWN LIMIT
+      (commit no mesmo turno, repo fora do cwd, `SubagentStop`, rename puro, binário e vazio pulados,
+      nome com aspas/controle, git lento, consultivo); `LOCALE_RITE_MODE` como a variável que a #137
+      dá ao gate de escrita — este hook é o único leitor até ela entrar; wiring; sem atribuição a IA.
+      Commits `a3d56fd` e `e8c1f1d`:
 
       ```
-      grep -c 'KNOWN LIMIT\|2.1.261\|stop_hook_active' claude/global/hooks/locale-stop-gate.py   -> 12
+      grep -n '^WHY \|^KNOWN LIMIT' claude/global/hooks/locale-stop-gate.py
+      -> 10:WHY A STOP HOOK WHEN A WRITE HOOK ALREADY EXISTS
+      -> 19:WHY `{"decision": "block", "reason": ...}` AT THE TOP LEVEL AND NOTHING NESTED
+      -> 45:WHY THE DIFF SHAPE IS PINNED AGAINST THE USER'S GIT CONFIG
+      -> 64:WHY A TRUNCATED DIFF IS NEVER A SILENT PASS
+      -> 77:WHY `stop_hook_active` NEVER BLOCKS TWICE
+      -> 83:KNOWN LIMIT — what this hook does NOT see
+      grep -c 'KNOWN LIMIT\|2.1.261\|stop_hook_active' claude/global/hooks/locale-stop-gate.py   -> 14
       grep -i -c 'co-authored\|generated with\|claude fable\|anthropic' claude/global/hooks/locale-stop-gate.py   -> 0
       ```
 
-- [x] 2.5 `--selftest` em repositórios git criados em `tempfile` (D9). Commit `a3d56fd`:
+- [x] 2.5 `--selftest` em repositórios git criados em `tempfile` (D9), com a fixture de gitconfig
+      de D10. Commits `a3d56fd` e `e8c1f1d`:
 
       ```
       python3 claude/global/hooks/locale-stop-gate.py --selftest; echo "rc=$?"
@@ -230,6 +350,16 @@
       ->   OK      repository without a commit measures staged files  ->  block
       ->   OK      diff over the cap still blocks  ->  block
       ->   OK      truncation is stated in the reason
+      ->   OK      clean diff over the cap blocks once and says the tail was not measured
+      ->   OK      clean diff over the cap on the second stop reports and does not block  ->  message
+      ->   OK      clean lines ahead of a portuguese file never make it a silent pass  ->  block
+      ->   OK      unignored vendored and empty files do not eat the cap ahead of a portuguese file  ->  block
+      ->   OK      the portuguese file is measured with no truncation note (cap untouched)
+      ->   OK      diff.external, mnemonicPrefix, relative and color.ui do not silence the gate  ->  block
+      ->   OK      the finding names the repository path, not w/ or a bare one
+      ->   OK      untracked file with a non-ASCII name is measured, name and content  ->  block
+      ->   OK      the non-ASCII path is reported unquoted, with its identifiers
+      ->   OK      tracked file with a non-ASCII name edited in place is measured  ->  block
       ->   OK      cwd outside a git work tree is silent  ->  silent
       ->   OK      block shape is top-level decision/reason within the cap, findings and exits named
       ->   OK      second-stop shape is systemMessage only, within the cap
@@ -237,9 +367,16 @@
       ->   [...]                       (json string, empty stdin, json null, not json)
       ->   OK      unknown flag prints usage and exits 2
       ->   OK      --selftest with an extra argument exits 2
-      -> selftest OK: 20 decisions in temporary git repositories, 2 output shapes, 5 malformed payloads, plus the argv contract
+      -> selftest OK: 26 decisions in temporary git repositories, 2 output shapes, 5 malformed payloads, plus the argv contract
       -> rc=0
       ```
+
+      Duas fixtures da rodada de revisão também não mediam nada na primeira escrita e foram corrigidas
+      antes de `e8c1f1d`: o repositório da fixture de gitconfig chamava-se `gitconfig`, o mesmo nome
+      do arquivo (`NotADirectoryError`); e os 60 arquivos vazios estavam em `build/`, onde o pulo de
+      vendored os engolia antes do pulo de tamanho — o mutante "vazio não pulado" ficava verde. Foram
+      para `orders/`. `diff.noprefix` saiu da fixture de propósito: sobrepõe o `mnemonicPrefix` e
+      deixava verde o mutante sem `--src-prefix/--dst-prefix` (D10).
 
       Duas fixtures da primeira rodada não mediam nada e foram corrigidas antes do commit: `valor_{i}`
       (o caso do teto) — `valor` está em `ENGLISH_COLLISIONS`, o caso saía `silent`; e `boleto_id` (o
@@ -259,6 +396,19 @@
       control (só CHECK_PATH reescrito)                                  -> selftest OK: 20 decisions [...]            rc=0
       ```
 
+      Mutantes da rodada de revisão (`scratchpad/negative-138b.py`, um fix removido por cópia, hook
+      em `e8c1f1d`):
+
+      ```
+      control                    rc=0 FAILED=0
+      no-ext-diff                rc=1 FAILED=5 :: diff.external, mnemonicPrefix, relative and color.ui do not silence the gate -> silent | the finding names the repository path [...]
+      no-prefix-pin              rc=1 FAILED=1 :: the finding names the repository path, not w/ or a bare one
+      no-quotepath               rc=1 FAILED=2 :: the non-ASCII path is reported unquoted [...] | tracked file with a non-ASCII name edited in place is measured -> silent
+      vendored-after-scan        rc=1 FAILED=1 :: the portuguese file is measured with no truncation note (cap untouched)
+      empty-not-skipped          rc=1 FAILED=1 :: the portuguese file is measured with no truncation note (cap untouched)
+      silent-clean-truncation    rc=1 FAILED=3 :: clean diff over the cap blocks once and says the tail was not measured | [...] second stop [...] -> silent
+      ```
+
 - [x] 2.6 Tempo medido pelo entry point real (`date +%s%N` em volta do `python3`, payload por stdin),
       commit `a3d56fd`:
 
@@ -268,6 +418,20 @@
       repo de rascunho, heredoc pt (bloqueia)          -> rc=0 ms=47 chars=1742
       repo de rascunho, 500 linhas pt (bloqueia)       -> rc=0 ms=55 chars=2084
       este repositório (worktree), tree limpa, 3 runs  -> rc=0 ms=67 / 63 / 64 chars=0
+      ```
+
+      Depois de `e8c1f1d` (`scratchpad/sim138b`, mesmo método):
+
+      ```
+      heredoc pt (bloqueia)                                         -> rc=0 ms=46  chars=1742
+      renomeado+traduzido                                           -> rc=0 ms=42  chars=0
+      gitconfig external+mnemonic+quotePath+color, sed no rastreado -> rc=0 ms=44  chars=856
+      untracked serviço.py                                          -> rc=0 ms=50  chars=1731
+      5000 linhas limpas antes do arquivo pt (bloqueio "not measured") -> rc=0 ms=125 chars=770
+      build/gen.py 5000 linhas não ignorado + arquivo pt            -> rc=0 ms=43  chars=1742   (antes: 135 ms e mudo)
+      1500 arquivos vazios em gen/ + arquivo pt                     -> rc=0 ms=60  chars=1742   (antes, em build/: 1721 ms e mudo)
+      tree limpa / cwd fora de git                                  -> rc=0 ms=42 / 45 chars=0
+      este worktree, 3 runs                                         -> rc=0 ms=60 / 60 / 67
       ```
 
       Todos abaixo de 1 s (FR4); `load_english` (109 ms medido em E.2) fica de fora por D5.
@@ -281,26 +445,45 @@
       -> +        run: python3 claude/global/hooks/locale-stop-gate.py --selftest
       ```
 
-- [x] 2.8 `README.md`, seção dos hooks (235-410 depois da edição), commit `1627bf8`: snippet completo
-      com `UserPromptSubmit` (backlog-rite, verify-rite), `PreToolUse` e `PostToolUse` com matcher
-      `Write|Edit|MultiEdit|NotebookEdit` e a menção a `LOCALE_RITE_MODE=inform`, `Stop`
-      (locale-stop-gate); parágrafo do gate de Stop com a forma probada no bundle e o
-      `stop_hook_active`; tabela "Which layer catches what":
+      `9dd5e83` só muda o comentário do step, para nomear o que o selftest passou a cobrir:
+
+      ```
+      git diff 11c416d...HEAD -- .github/workflows/ci.yml | grep '^[+-] '
+      -> -        # Stop (stop_hook_active) reports without blocking. Needs only python3 and git.
+      -> +        # Stop (stop_hook_active) reports without blocking, a ~/.gitconfig with diff.external or
+      -> +        # mnemonicPrefix does not silence it, a non-ASCII file name is measured, and a diff over the
+      -> +        # cap is never a silent pass. Needs only python3 and git.
+      ```
+
+- [x] 2.8 `README.md`, seção dos hooks (235-425 depois da edição), commits `1627bf8` e `71e9a66`:
+      snippet completo com `UserPromptSubmit` (backlog-rite, verify-rite), `PostToolUse` com matcher
+      `Write|Edit|MultiEdit|NotebookEdit`, o bloco `PreToolUse` **comentado** com a razão (chega com a
+      #137; neste branch `locale-rite.py` responde a um payload de PreToolUse com o envelope de
+      PostToolUse, que o bundle descarta como `hookSpecificOutput_event_mismatch` — E.2), a menção a
+      `LOCALE_RITE_MODE=inform`, `Stop` (locale-stop-gate); parágrafo do gate de escrita dizendo "hoje
+      PostToolUse informa; com a #137 PreToolUse nega"; parágrafo do gate de Stop com a forma probada
+      no bundle, o `stop_hook_active`, a forma fixada contra o `~/.gitconfig` e o teto que bloqueia
+      uma vez quando a parte medida está limpa; tabela "Which layer catches what" com a primeira
+      linha em dois tempos:
 
       ```
       grep -n '^### \|^| ' README.md | grep -i 'enforcing\|grounding\|locale rite\|What wrote\|Write. /\|Bash —\|another assistant'
       -> 235:### Enforcing the rite (optional hooks)
-      -> 321:### The grounding rite (anti-achismo)
-      -> 344:### The locale rite, at the write (English machine layer, measured on the tool call)
-      -> 366:### The locale rite, at the end of the turn (the Stop gate)
-      -> 400:| What wrote the name | Layer that catches it | Effect |
-      -> 402:| `Write` / `Edit` / `MultiEdit` / `NotebookEdit` | `locale-rite.py` on `PreToolUse` (#137) | the write is **denied**; nothing reaches the disk |
-      -> 403:| Bash — heredoc, `sed -i`, a script, a generator | `locale-stop-gate.py` on `Stop` | the **turn does not end** until the diff is clean or waived |
-      -> 404:| another assistant (Codex, Cursor, Copilot), or a human commit | the per-repository kit of the [`code-locale`](skills/code-locale/) skill — pre-commit hook and CI step (issue #139) | the **commit or the pull request** fails |
+      -> 324:### The grounding rite (anti-achismo)
+      -> 347:### The locale rite, at the write (English machine layer, measured on the tool call)
+      -> 372:### The locale rite, at the end of the turn (the Stop gate)
+      -> 415:| What wrote the name | Layer that catches it | Effect |
+      -> 417:| `Write` / `Edit` / `MultiEdit` / `NotebookEdit` | `locale-rite.py` — on `PostToolUse` today; on `PreToolUse` once #137 merges | today the finding is **context** after the write; with #137 the write is **denied** and nothing reaches the disk |
+      -> 418:| Bash — heredoc, `sed -i`, a script, a generator | `locale-stop-gate.py` on `Stop` | the **turn does not end** until the diff is clean or waived |
+      -> 419:| another assistant (Codex, Cursor, Copilot), or a human commit | the per-repository kit of the [`code-locale`](skills/code-locale/) skill — pre-commit hook and CI step (issue #139) | the **commit or the pull request** fails |
+      grep -n 'Arrives with issue #137\|// "PreToolUse"' README.md
+      -> 265:    // Arrives with issue #137 (locale-rite.py learns PreToolUse and LOCALE_RITE_MODE there). Wire
+      -> 268:    // "PreToolUse": [
       ```
 
-      O `PreToolUse` que nega é entregue pela issue #137 em paralelo; o README descreve o wiring e
-      aponta para a issue em vez de descrever a implementação dela (Q.4).
+      O `PreToolUse` que nega é entregue pela issue #137 em paralelo; o README descreve o wiring, diz
+      quando ele passa a valer e aponta para a issue em vez de descrever a implementação dela (Q.4).
+      O matcher e o nome da variável foram conferidos no código da #137 (E.1), não presumidos.
 
 ## 3. Simulation & Field Proof (MANDATORY)
 
@@ -344,6 +527,28 @@
       este worktree, tree limpa, 3 runs                           -> rc=0 ms=67 / 63 / 64 chars=0
       ```
 
+      Rodada de revisão, hook em `e8c1f1d` (`scratchpad/sim138b`, mesmo payload, mesmo método):
+
+      ```
+      heredoc pt                                                  -> rc=0 ms=46 chars=1742 keys=decision,reason  servico_cliente.py: servico_cliente [path-pt-noun] | :1: buscar_cliente [pt-verb] | :1: id_usuario [pt-noun]
+      mesmo tree, stop_hook_active=true                           -> rc=0 ms=43 chars=371  keys=systemMessage
+      mv + sed (renomeado e traduzido)                            -> rc=0 ms=42 chars=0
+      sed -i 's/order_id/id_pedido/g' shipping.py                 -> rc=0 ms=44 chars=856  shipping.py:1: id_pedido  [pt-noun: 'pedido']
+      mesma árvore, GIT_CONFIG_GLOBAL=<external+mnemonicPrefix+relative+quotePath+color.ui=always>
+                                                                  -> rc=0 ms=44 chars=856  shipping.py:1: id_pedido      (antes: chars=0 / w/shipping.py)
+      mesma árvore, + GIT_EXTERNAL_DIFF=true no ambiente          -> rc=0 ms=46 chars=856  shipping.py:1: id_pedido
+      untracked serviço.py com PT_SOURCE                          -> rc=0 ms=50 chars=1731 serviço.py: serviço [path-non-ascii: 'serviço'] | serviço.py:1: buscar_cliente   (antes: chars=0)
+      rastreado relatório.py editado com id_pedido                -> rc=0 ms=50 chars=862  relatório.py:1: id_pedido  [pt-noun: 'pedido']            (antes: chars=0)
+      5000 linhas limpas não rastreadas antes de servico_cliente.py -> rc=0 ms=125 chars=770 keys=decision,reason  "the uncommitted diff is longer than 4000 lines [...] NOT measured"   (antes: chars=0)
+      mesmo tree, stop_hook_active=true                           -> rc=0 ms=128 chars=358 keys=systemMessage  "longer than 4000 lines; the part past the cap was NOT measured"
+      5000 linhas anexadas ao shipping.py rastreado + arquivo pt  -> rc=0 ms=128 chars=770  (bloqueio "not measured"; antes: chars=0)
+      build/gen.py 5000 linhas não ignorado + arquivo pt          -> rc=0 ms=43  chars=1742 servico_cliente.py [...]   (vendored pulado antes do git; antes: chars=0)
+      1500 arquivos vazios em gen/ (não vendored) + arquivo pt    -> rc=0 ms=60  chars=1742 servico_cliente.py [...]   (vazios pulados; antes, em build/: 1721 ms e chars=0)
+      5000 linhas limpas e nada em pt                             -> rc=0 ms=146 chars=770  (bloqueio único "not measured"; depois systemMessage)
+      tree limpa / cwd fora de git                                -> rc=0 ms=42 / 45 chars=0
+      este worktree com o docstring do hook editado e não commitado, 3 runs -> rc=0 ms=60 / 60 / 67 chars=1548  relatório [non-ascii] ×2, relatorio [pt-noun] — o falso positivo de E.4 (S.3)
+      ```
+
 - [x] S.2 Matriz de casos medida, em contagens
 
       | Artefato | Expectativa | Casos | Resultado |
@@ -351,13 +556,19 @@
       | entry point real (stdin, repo de rascunho) | tinha de bloquear e bloqueou | 3/3 | heredoc pt, rastreado editado por sed, 500 linhas pt |
       | entry point real (stdin) | tinha de ficar mudo e ficou | 4/4 | renomeado+traduzido, modo inform, fora de git, tree limpa |
       | entry point real (stdin) | `stop_hook_active` → mensagem sem bloqueio | 1/1 | keys=systemMessage |
+      | entry point real (stdin), rodada de revisão | os cinco achados da revisão reproduzidos no hook de `11c416d` | 5/5 | diff.external mudo; mnemonicPrefix → `w/`; quotePath esconde `serviço.py`/`relatório.py`; teto mudo em A/B/C/H; README afirmava PreToolUse presente |
+      | entry point real (stdin), hook em `e8c1f1d` | tinha de bloquear e bloqueou | 9/9 | gitconfig ligado, `GIT_EXTERNAL_DIFF`, `serviço.py`, `relatório.py`, 5000 limpas + pt (×2), `build/` + pt, 1500 vazios + pt, 5000 limpas sem pt |
+      | entry point real (stdin), hook em `e8c1f1d` | `stop_hook_active` no teto limpo → mensagem sem bloqueio | 2/2 | keys=systemMessage, "NOT measured" |
+      | entry point real (stdin), hook em `e8c1f1d` | tinha de ficar mudo e ficou | 3/3 | renomeado+traduzido, tree limpa, fora de git |
       | entry point real (stdin) | payload malformado mudo, exit 0 | 5/5 | `[]`, `"x"`, vazio, `null`, `{oops` |
       | entry point real (argv) | argumento desconhecido sai 2 com usage | 1/1 | `--bogus` |
       | entry point real (tempo) | abaixo de 1 s | 10/10 | 41-75 ms, inclusive neste repositório |
-      | `--selftest` | decisões OK | 20/20 + 2/2 formas + 5/5 malformados + 2/2 argv | rc=0 |
-      | `--selftest` (cópias com defeito injetado) | tinha de ficar vermelho e ficou | 5/5 | nested-output, blocks-twice, ignores-inform, silent-truncation, skips-untracked — rc=1 cada |
-      | `--selftest` (cópia de controle) | tinha de ficar verde e ficou | 1/1 | rc=0 |
+      | `--selftest` | decisões OK | 26/26 + 2/2 formas + 6/6 asserções de conteúdo + 5/5 malformados + 2/2 argv | rc=0 (`selftest OK: 26 decisions [...]`) |
+      | `--selftest` (cópias com defeito injetado, 1ª rodada) | tinha de ficar vermelho e ficou | 5/5 | nested-output, blocks-twice, ignores-inform, silent-truncation, skips-untracked — rc=1 cada |
+      | `--selftest` (cópias com defeito injetado, revisão) | tinha de ficar vermelho e ficou | 6/6 | no-ext-diff, no-prefix-pin, no-quotepath, vendored-after-scan, empty-not-skipped, silent-clean-truncation — rc=1 cada |
+      | `--selftest` (cópia de controle) | tinha de ficar verde e ficou | 2/2 | rc=0 nas duas rodadas |
       | escapes conhecidos | ficaram mudos, como declarado | 2/2 | binário em pt pulado; vendored em pt filtrado (ver S.3) |
+      | escape observado e não corrigido aqui | detector lê run `+` iniciado dentro de docstring como código | 1/1 | o próprio hook, editado e não commitado, bloqueia por `relatório` no docstring (E.4, S.3) |
 
 - [x] S.3 O que escapou ou se comportou diferente do esperado
 
@@ -373,6 +584,35 @@
       - A `systemMessage` do segundo Stop imprimia `servico_cliente.py:0` para o achado de caminho
         (`PathFinding` carrega `line=0`); passou a imprimir só o caminho. Cosmético, dentro de
         `a3d56fd`.
+
+      Rodada de revisão — cinco achados, todos reproduzidos antes de tocar o código (E.2) e nenhum
+      disputado:
+
+      - `diff.external` no `~/.gitconfig` deixava o hook mudo; `diff.mnemonicPrefix` reportava
+        `w/shipping.py`; `core.quotePath` (padrão) escondia `serviço.py` e `relatório.py` atrás das
+        aspas — nome e conteúdo não medidos. Causa comum: o diff era montado na forma que o config do
+        usuário quisesse. Corrigido fixando a forma por flag em toda chamada (D10); a fixture padrão do
+        selftest (`GIT_CONFIG_GLOBAL=/dev/null`) provava as decisões só sob config em branco, e agora
+        há uma fixture com as opções ligadas.
+      - O teto passava mudo quando conteúdo limpo/vendored/vazio ordenava antes do arquivo em
+        português (A/B/C/H em E.2): a nota de truncamento só existia colada a um motivo, e
+        `if not findings: return None` descartava `truncated`. Corrigido em dois pontos (D4): vendored
+        e vazios pulados antes do git; sem achado e teto atingido → bloqueio único dizendo que a cauda
+        não foi medida, `systemMessage` no Stop seguinte.
+      - O README afirmava a negação em PreToolUse como fato presente, e neste branch `locale-rite.py`
+        não tem esse caminho (E.1/E.2). Corrigido no texto: bloco comentado no snippet, parágrafo e
+        tabela em dois tempos, docstring reconciliado (linha do `LOCALE_RITE_MODE`).
+
+      Duas fixtures da revisão precisaram de segunda escrita (2.5): nome do repositório colidindo com o
+      arquivo de gitconfig, e vazios dentro de `build/` (engolidos pelo pulo de vendored antes de
+      testar o pulo de tamanho). O critério continua o mesmo da primeira rodada: um caso que passa com
+      o mecanismo desligado não prova o mecanismo — por isso cada fix novo tem um mutante vermelho.
+
+      Escape novo, observado e **não** corrigido aqui: com o docstring do hook editado e não commitado,
+      o gate rodado contra este worktree bloqueia por `relatório`/`relatorio` (linhas 59, 92 e 96 do
+      docstring) — o run de linhas `+` começa dentro do docstring e o detector o lê como código; no
+      arquivo inteiro devolve `findings: 0`. É limite do modo `--diff` do detector (família da #85),
+      dura enquanto a edição está não commitada, e é `skills/**` — anotado em E.4.
 
       Escapes conhecidos e mantidos de propósito, todos declarados no docstring: um binário com nome em
       português (`relatorio.bin`) é pulado e o nome não é medido; um arquivo **vazio** não rastreado
@@ -397,11 +637,12 @@
       vez de descrever o kit; tabela de Canonical Home em `design.md`
 - [x] Q.5 Identificadores em inglês no que a change introduz — `evaluate`, `run_git`, `is_binary`,
       `uncommitted_diff`, `gating_findings`, `capped`, `block_reason`, `remaining_message`,
-      `MAX_DIFF_LINES`, `GIT_TIMEOUT`, `REASON_CAP`, `SYSTEM_MESSAGE_CAP`, `STOP_EVENTS`, `MODE_VAR`;
+      `MAX_DIFF_LINES`, `GIT_TIMEOUT`, `REASON_CAP`, `SYSTEM_MESSAGE_CAP`, `STOP_EVENTS`, `MODE_VAR`,
+      e da revisão `GIT_PIN`, `DIFF_FLAGS`, `is_measurable`, `UNMEASURED_REASON`, `UNMEASURED_MESSAGE`;
       o nome do arquivo vem do glossário da issue (`locale-stop-gate.py`):
 
       ```
-      python3 skills/code-locale/references/check-identifier-locale.py claude/global/hooks/locale-stop-gate.py
+      python3 skills/code-locale/references/check-identifier-locale.py claude/global/hooks/locale-stop-gate.py   (em e8c1f1d)
       -> findings: 0
       ```
 
@@ -409,15 +650,25 @@
 
 - [x] V.1 `openspec validate add-locale-stop-gate --strict` -> `Change 'add-locale-stop-gate' is valid`;
       `bash scripts/validate-rite.sh` -> `rite evidence gate: 0 findings` / `spec-rite gate: 0
-      findings` / `Totals: 3 passed, 0 failed (3 items)` / `rite gate OK`
+      findings` / `Totals: 3 passed, 0 failed (3 items)` / `rite gate OK`. Rerodados depois da rodada
+      de revisão (`71e9a66` + este tasks.md): `Change 'add-locale-stop-gate' is valid`; `Totals: 3
+      passed, 0 failed (3 items)` / `rite gate OK`; runner dos gates (`scratchpad/gates.sh`, os steps
+      de Validate do `ci.yml`) só `PASS` — `locale-detector`, `locale-rite`, `backlog-rite-selftest`,
+      `verify-rite-selftest`, `scan-secrets`, `hygiene`, `rite`, `rite-evidence-selftest`,
+      `spec-rite-selftest`, `smoke: 17/17`, `plugin-validate`, `openspec-strict add-locale-stop-gate`;
+      `GITHUB_EVENT_PATH=<body com "Spec-rite: add-locale-stop-gate"> python3 scripts/validate-skill-version.py`
+      -> `skill-version gate: 0 findings (base origin/master, 0 skill(s) changed, 0 with content changes)`
+      rc=0
 - [x] V.2 Descoberta do catálogo intacta: `ls -d skills/*/ | wc -l` -> `35` antes e depois (nenhum
-      `skills/**` tocado — `git diff --stat 80ee53c...HEAD` lista 8 arquivos, nenhum sob `skills/`);
+      `skills/**` tocado — `git diff --stat 80ee53c...HEAD` lista 8 arquivos, nenhum sob `skills/`;
+      depois da revisão: `git diff --name-only 80ee53c...HEAD | grep -c '^skills/'` -> `0`);
       `python3 scripts/validate-repo-hygiene.py` -> `repo hygiene: 0 findings`;
       `claude plugin validate . --strict` -> `✔ Validation passed`; `bash generate.sh` deixa a árvore
       limpa (`PASS tree-clean-after-generate`). `npx skills add . --list` não foi rodado nesta execução
       (subagente isolado, sem rede garantida); a contagem local e o validador de hygiene, que mede as
       contagens publicadas, cobrem o que ele mediria.
-- [x] V.3 README / docs atualizados: `README.md:235-410` reescrita com o snippet completo, o parágrafo
-      do gate de Stop e a tabela (2.8); a composição do catálogo não muda
+- [x] V.3 README / docs atualizados: `README.md:235-425` reescrita com o snippet completo (bloco
+      `PreToolUse` comentado até a #137), o parágrafo do gate de Stop com a forma fixada e o teto, e a
+      tabela em dois tempos (2.8, `71e9a66`); a composição do catálogo não muda
 - [ ] V.4 `openspec archive add-locale-stop-gate --yes` depois que todos os grupos acima estiverem
       `[x]` — PR separado, como o repositório já faz
