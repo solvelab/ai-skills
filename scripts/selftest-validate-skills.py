@@ -48,6 +48,22 @@ MUTATIONS = {
  "C10 frontmatter limits": ("skills/r3f-geometry/SKILL.md",
      lambda s: s.replace("description: >-", "description: >-\n  " + "Use when the user says so. " * 44, 1),
      ("C10 frontmatter limits", "description is")),
+ # A reference file nobody links. The path does not exist in the catalog, so the loop below starts
+ # from an empty string — this is the one mutation that CREATES a file instead of editing one.
+ "C11 orphan reference": ("skills/r3f-geometry/references/orphan-probe.md",
+     lambda s: "# Orphan probe\n\nNo SKILL.md and no reachable reference links this file.\n",
+     ("C11 orphan reference", "orphan-probe.md")),
+ # The form that shipped in six skills (issue #117): a sibling's reference path without `skills/`.
+ # C1 stays silent on it by design (it only judges `references/` and `skills/` prefixes), which is
+ # exactly why C12 exists.
+ "C12 out-of-skill path": ("skills/fivem-lua/SKILL.md",
+     lambda s: s + "\n\nThe track lives in `bug-hunter/references/track-fivem-lua.md`.\n",
+     ("C12 out-of-skill path", "bug-hunter/references/track-fivem-lua.md")),
+ # A description with a trigger and nothing else: no "Do NOT use", no redirect naming a sibling.
+ "C13 anti-trigger clause": ("skills/r3f-physics/SKILL.md",
+     lambda s: re.sub(r"description: >-\n(?:  .*\n)+",
+                      "description: >-\n  React Three Fiber physics. Use when adding physics simulation.\n", s, count=1),
+     ("C13 anti-trigger clause", "names no boundary")),
 }
 
 fails = []
@@ -62,7 +78,7 @@ for check, entry in MUTATIONS.items():
             (dst / "claude" / "skills" / "ghost-skill" / "SKILL.md").write_text("---\nname: ghost-skill\n---\n")
         else:
             p = dst / relpath
-            p.write_text(mutate(p.read_text()))
+            p.write_text(mutate(p.read_text() if p.exists() else ""))   # C11 creates its file
         out = subprocess.run([sys.executable, str(dst / "scripts" / "validate-skills.py")], cwd=dst, capture_output=True, text=True).stdout
         caught = expect.split()[0] in out and expect in out and fragment in out
         print(f"  {'CAUGHT ' if caught else 'MISSED '} {check}")
