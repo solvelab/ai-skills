@@ -9,15 +9,18 @@ Reference files (`references/…` below) live at https://github.com/solvelab/ai-
 
 # AssettoServer plugin conventions
 
-> **Verified against**: `AssettoServer v0.0.54` source — `git show
-> v0.0.54:AssettoServer/AssettoServer.csproj` gives `net8.0`, `Qmmands 5.0.2`, `Autofac 7.1.0`,
-> `Serilog 3.1.1`; `AssettoServerModule`, `ACModuleBase`, the
-> `RequireConnectedPlayer`/`RequireAdmin` attributes and `CSPServerScriptProvider.AddScript(string,
-> string?, Dictionary<string, object>?)` are declared at that tag. Probed on 2026-09-05 by reading
-> the tree: no plugin was compiled or loaded here. **Disclosed**: the DriveZone runtime measured
-> the same day reports `AssettoServer 0.0.55+51d8d8a6e0`, built from a tree whose csproj targets
-> `net9.0` — on that host `System.Threading.Lock` exists and the `net8.0` fallback below is one
-> major behind. The doctrine is re-derived for `0.0.55` in a follow-up, not silently here.
+> **Verified against**: `AssettoServer v0.0.55-pre25` — the tag the DriveZone image
+> `drivezone/assettoserver:local` runs (`./AssettoServer --version` → `AssettoServer
+> 0.0.55+51d8d8a6e0`, commit `51d8d8a6`; the binary embeds `System.Private.CoreLib 9.0`). `git show v0.0.55-pre25:AssettoServer/AssettoServer.csproj` → `net9.0`,
+> `Autofac 8.2.0`, `Serilog 4.2.0`, `Qmmands 5.0.2`. Probed on 2026-09-05: a minimal plugin
+> (Autofac module + `ACModuleBase` command + `lock` on `System.Threading.Lock`) published against
+> that tree in `mcr.microsoft.com/dotnet/sdk:9.0` (SDK 9.0.315) in 29 s — `.dll` + `.deps.json` +
+> `.runtimeconfig.json` (`tfm net9.0`), no host assembly copied, type references include
+> `System.Threading.Lock` and `AssettoServer.Commands.ACModuleBase` — and the DriveZone image
+> loaded it: `[INF] Loaded plugin ProbePlugin` before the server stopped on missing game content.
+> Not probed: a chat command executed in game; the plugin-facing diff below is read from the
+> source, not exercised. Pinned to `v0.0.54` (`net8.0`) until this date — the
+> `System.Threading.Lock` row below carries that host range.
 
 Distilled from a production plugin (DriveZone.AssettoServer.Plugin) that survived real
 AssettoServer runtime incompatibilities. Prescriptive: follow these unless the project documents a
@@ -31,15 +34,18 @@ installed version wins: `verify-before-claiming`.
 
 The plugin is loaded by AssettoServer's `AssemblyLoadContext` into a specific runtime release. It
 MUST be compiled against the upstream **source checkout at the exact tag matching that runtime**
-(runtime 0.0.54 ↔ upstream tag v0.0.54). Anything else is undefined behavior at load time.
+(runtime `0.0.55+51d8d8a6e0` ↔ upstream tag `v0.0.55-pre25`; the DriveZone image reports the
+former, the clone's `git describe` the latter). Anything else is undefined behavior at load time.
 
 Encode this in the build, don't rely on discipline:
 
 - Do NOT hardcode the TFM — inherit it from upstream. **A fallback default here is a trap**: it is
   used exactly when detection failed, which is when you can least afford a guess. Pin it to the
   runtime you actually target and treat a mismatch as an error, not a default:
-  `<TargetFramework Condition="'$(TargetFramework)' == ''">net8.0</TargetFramework>` — upstream
-  **v0.0.54 targets `net8.0`** (verified against its `AssettoServer.csproj` at that tag). In the
+  `<TargetFramework Condition="'$(TargetFramework)' == ''">net9.0</TargetFramework>` — upstream
+  **v0.0.55-pre25 targets `net9.0`** (read from its `AssettoServer.csproj` at that tag; `v0.0.54`
+  targeted `net8.0`, which is why a fallback frozen at one release goes stale). Upstream's own
+  plugins (`SamplePlugin.csproj`) hardcode `net9.0`; this rule is stricter on purpose. In the
   publish script detect the real one:
   `awk -F'[><]' '/<TargetFramework>/{print $3; exit}' "$ASSETTOSERVER_SOURCE_DIR/AssettoServer/AssettoServer.csproj"`,
   then pass `-p:TargetFramework="$target_framework"` to `dotnet publish`.
@@ -128,23 +134,46 @@ public class MyPluginCommandModule : ACModuleBase
 Qmmands instantiates command modules by reflection, without DI. These three constructs compile
 fine and fail only inside the real runtime — enforce them with the bug-hunter gate below.
 
-**The third row is version-scoped.** It holds while the pinned runtime targets `net8.0`. When the pin
-moves to a runtime on .NET 9 or later the type exists and the ban must be lifted rather than carried
-forward — re-read the detected TFM at that point, and scope the Cecil assert to it instead of
-asserting it unconditionally.
+Every row names the host range it holds for. A row whose reason is a version fact expires with the
+pin: the `System.Threading.Lock` ban held for `v0.0.54` (`net8.0`) and was lifted on 2026-09-05, when
+the pin moved to `v0.0.55-pre25` (`net9.0`) and a plugin using the type published and loaded there
+(block above). Scope the matching Cecil assert to the detected TFM instead of asserting it
+unconditionally (`bug-hunter`, dotnet track).
 
-| Forbidden | Why | Do instead |
-|---|---|---|
-| `CommandContext.Services` (`get_Services()`) | crashes at command execution | static accessor bridge (below) |
-| Command-module constructor with parameters | Qmmands reflects a parameterless ctor; DI never runs | parameterless ctor + accessor |
-| `System.Threading.Lock` (C# 13 `lock` on `Lock`) | the type ships in **.NET 9**; the pinned runtime is **net8.0**, so it is absent at load time | `private readonly object _lock = new();` |
+| Forbidden | Why | Host range | Do instead |
+|---|---|---|---|
+| `CommandContext.Services` (`get_Services()`) | crashes at command execution | every tag so far (`ACModuleBase` unchanged between `v0.0.54` and `v0.0.55-pre25`) | static accessor bridge (below) |
+| Command-module constructor with parameters | Qmmands reflects a parameterless ctor; DI never runs | every tag so far (`Qmmands 5.0.2` on both) | parameterless ctor + accessor |
+| `System.Threading.Lock` (C# 13 `lock` on `Lock`) | the type ships in **.NET 9**; a `net8.0` host has no such type at load time | **only** hosts on `v0.0.54` / `net8.0`; allowed on `v0.0.55-pre25` / `net9.0` | on a `net8.0` host: `private readonly object _lock = new();` |
 
 **Static accessor bridge** — the sanctioned way to get services into command modules: the
 `IHostedService` publishes DI-built singletons into static accessors at `StartAsync`
 (`MyServiceAccessor.Set(_service)`); the command calls
 `MyServiceAccessor.GetOrCreateFromLocalConfiguration()`, which returns the DI instance or — if DI
-never ran — builds one from the fallback YAML loader. All accessor state behind a `lock` on a
-plain `object`.
+never ran — builds one from the fallback YAML loader. All accessor state behind a `lock` — on a
+`System.Threading.Lock` on the `net9.0` host, on a plain `object` only where a `net8.0` host must
+still load the plugin.
+
+## What moved between v0.0.54 and v0.0.55-pre25 (plugin-facing)
+
+Read from `git diff v0.0.54 v0.0.55-pre25 -- AssettoServer/Server/Plugin AssettoServer/Commands
+AssettoServer/Server/CSPServerScriptProvider.cs` on 2026-09-05 (7 files, +118/−42). Only what a plugin
+author hits:
+
+- `AssettoServerModule` gained `virtual object? ReferenceConfiguration` and
+  `virtual void Configure(IApplicationBuilder app, IWebHostEnvironment env)`; the generic form is
+  now `AssettoServerModule<TConfig> where TConfig : new()` and returns `new TConfig()` as the
+  reference configuration — your YAML POCO needs a parameterless constructor.
+- `LoadedPlugin` is built with `required init` properties and carries `Directory` plus the derived
+  file names `plugin_<snake_case>_cfg.yml`, `plugin_<snake_case>_cfg.schema.json` and
+  `plugin_<snake_case>_cfg.reference.yml` (`Configuration` in the type name is shortened to `Cfg`).
+  `ACPluginLoader.LoadPlugins` and `ScanDirectory` are no longer public — do not call the loader.
+- `RequireAdminAttribute` now checks `BaseCommandContext { IsAdministrator: true }` instead of
+  matching `RconCommandContext` / `ChatCommandContext`; a fake context in command-runtime tests
+  sets `IsAdministrator`.
+- `CSPServerScriptProvider` gained a constructor parameter and `OnExtraOptionsSending`; the three
+  `AddScript` overloads and `AddScriptFile` kept their signatures.
+- `ACModuleBase` did not change.
 
 ## Calling an external backend from inside the runtime
 
