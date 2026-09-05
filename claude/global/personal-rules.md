@@ -58,7 +58,7 @@ field keys.
   carries a Portuguese name is edited freely and its name is only reported afterwards — the previous
   bullet applies. The exits are named in the denial itself — `# locale-ok: <reason>` on the line
   above (already in the file counts), the name or path in `.identifier-locale-allow`, or
-  `LOCALE_RITE_MODE=inform` for the session. Files written through Bash are not seen (issue #138).
+  `LOCALE_RITE_MODE=inform` for the session. Files written through Bash are caught at the end of the turn by `locale-stop-gate.py`, which blocks the stop until the uncommitted diff is clean or waived.
 - Full doctrine, exception protocol, migration policy and the detector: the `code-locale` skill.
 
 ## Commits & Pull Requests

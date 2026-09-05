@@ -85,12 +85,19 @@ write is not read as proof that no Portuguese name can land.
 - **THEN** the event that precedes the write denies nothing, and the event that follows it reports
   them as advisory, so the write is never blocked on a question the check cannot answer
 
-#### Scenario: A write that introduces a Portuguese name is reported after it lands
+#### Scenario: A write that introduces a Portuguese name is reported
 
 - **WHEN** a file is written whose path or added content carries a Portuguese identifier and the
   event that follows the write fires
 - **THEN** the findings reach the assistant as context for the next turn, naming the offending
   segments and the waiver that silences them
+
+#### Scenario: The gate informs and never blocks
+
+- **WHEN** the artifact reports findings on the event that follows the write
+- **THEN** the tool call stands and the findings reach the assistant as context, as before: the
+  denial belongs to the event that precedes the write, and the informative mode restores this
+  behaviour for both events
 
 #### Scenario: A clean write is silent
 

@@ -394,5 +394,12 @@
 - [x] V.3 README / docs atualizados: a composição do catálogo não muda; `personal-rules.md` ganha o
       bullet (2.7); a seção dos hooks do `README.md:306-335` é de outro item, que documenta o wiring
       de todos os hooks, e não foi tocada aqui por decisão da issue
-- [ ] V.4 `openspec archive enforce-locale-on-write --yes` depois que todos os grupos acima estiverem
+- [x] V.4 `openspec archive enforce-locale-on-write --yes` depois que todos os grupos acima estiverem
       `[x]` — PR separado, como o repositório já faz
+
+
+      ```
+      openspec archive enforce-locale-on-write --yes
+      -> Specs updated successfully.
+      -> Change 'enforce-locale-on-write' archived as '2026-09-05-enforce-locale-on-write'.
+      ```

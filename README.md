@@ -262,21 +262,18 @@ be measured. This is the complete wiring; every block is optional, and each hook
         ]
       }
     ],
-    // Arrives with issue #137 (locale-rite.py learns PreToolUse and LOCALE_RITE_MODE there). Wire
-    // this block only once #137 has merged: before that the hook answers a PreToolUse payload with
-    // its PostToolUse envelope, which the harness drops as an event mismatch — no deny happens.
-    // "PreToolUse": [
-    //   {
-    //     "matcher": "Write|Edit|MultiEdit|NotebookEdit",
-    //     "hooks": [
-    //       {
-    //         "type": "command",
-    //         "command": "python3 /home/YOUR_USER/ai-skills/claude/global/hooks/locale-rite.py",
-    //         "timeout": 10
-    //       }
-    //     ]
-    //   }
-    // ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/YOUR_USER/ai-skills/claude/global/hooks/locale-rite.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit|MultiEdit|NotebookEdit",
@@ -356,11 +353,10 @@ instead of matching a prompt. It runs for `Write|Edit|MultiEdit|NotebookEdit` an
   not on plain stdout — `PostToolUse` is not one of the events that turn stdout into context
   (`UserPromptSubmit`, `UserPromptExpansion`, `SessionStart` are), so a hook that printed would be
   silently useless. The file is already on disk when it speaks.
-- Issue #137, in flight beside this one, gives it `PreToolUse` with the same matcher: there a gating
+- Since #137 (v2.22.0) the same hook also runs on `PreToolUse` with the same matcher: there a gating
   finding (`pt-*`, `path-pt-*`) **denies the write** through
   `hookSpecificOutput.permissionDecision: "deny"`, with every finding and the exits in the reason, and
-  the file is never written. The `PreToolUse` block in the snippet above is commented out until that
-  lands; the event decides the envelope, not the measurement.
+  the file is never written. The event decides the envelope, not the measurement.
 
 Silent when the write is clean. The exits are the ones the `code-locale` skill defines: an inline
 `# locale-ok: <reason>` on the line or the line above, the token or path in the repository's
@@ -414,7 +410,7 @@ cannot see.
 
 | What wrote the name | Layer that catches it | Effect |
 |---|---|---|
-| `Write` / `Edit` / `MultiEdit` / `NotebookEdit` | `locale-rite.py` — on `PostToolUse` today; on `PreToolUse` once #137 merges | today the finding is **context** after the write; with #137 the write is **denied** and nothing reaches the disk |
+| `Write` / `Edit` / `MultiEdit` / `NotebookEdit` | `locale-rite.py` — on `PreToolUse` (denies) and `PostToolUse` (advisory) | today the finding is **context** after the write; with #137 the write is **denied** and nothing reaches the disk |
 | Bash — heredoc, `sed -i`, a script, a generator | `locale-stop-gate.py` on `Stop` | the **turn does not end** until the diff is clean or waived |
 | another assistant (Codex, Cursor, Copilot), or a human commit | the per-repository kit of the [`code-locale`](skills/code-locale/) skill — pre-commit hook and CI step (issue #139) | the **commit or the pull request** fails |
 
