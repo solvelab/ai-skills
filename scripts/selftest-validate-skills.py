@@ -59,6 +59,18 @@ MUTATIONS = {
  "C12 out-of-skill path": ("skills/fivem-lua/SKILL.md",
      lambda s: s + "\n\nThe track lives in `bug-hunter/references/track-fivem-lua.md`.\n",
      ("C12 out-of-skill path", "bug-hunter/references/track-fivem-lua.md")),
+ # The same defect planted in a NESTED reference file: the per-reference loop once walked only
+ # references/*.md at depth 1, and the 19 files under svg-animation/references/{objects,regimes}/
+ # were judged by no path check. The fragment is the nested label, so a loop that goes back to a
+ # non-recursive glob is caught even if some other file trips C12.
+ "C12 out-of-skill path (nested reference)": ("skills/svg-animation/references/regimes/mechanism-linkage.md",
+     lambda s: s + "\n\nThe probe lives in `research/svg-animation/probe.md`.\n",
+     ("C12 out-of-skill path", "svg-animation/regimes/mechanism-linkage.md")),
+ # Rule (c) in its inline form: a `..` traversal in backticks that leaves the skill. Once judged only
+ # as a link target; C1 never judges `..` inline paths, so nothing else fires on it.
+ "C12 out-of-skill path (inline traversal)": ("skills/r3f-geometry/SKILL.md",
+     lambda s: s + "\n\nThe bindings live in `../r3f-physics/references/rapier.md`.\n",
+     ("C12 out-of-skill path", "inline -> ../r3f-physics/references/rapier.md: resolves outside skills/r3f-geometry/")),
  # A description with a trigger and nothing else: no "Do NOT use", no redirect naming a sibling.
  "C13 anti-trigger clause": ("skills/r3f-physics/SKILL.md",
      lambda s: re.sub(r"description: >-\n(?:  .*\n)+",

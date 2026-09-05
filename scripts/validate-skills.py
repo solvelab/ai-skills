@@ -83,8 +83,12 @@ def check_refs(skill: str, path: Path, text: str) -> None:
     # Two conventions coexist and both are correct:
     #   - "../SKILL.md" from a reference file  -> resolve relative to the FILE
     #   - "references/x.md" cited anywhere      -> resolve relative to the SKILL directory
-    # Accept either; a path is a defect only when neither resolves.
-    bases = [path.parent] if path.name == "SKILL.md" else [path.parent, path.parent.parent]
+    # Accept either; a path is a defect only when neither resolves. The skill directory is derived
+    # from the label, not from path.parent.parent, so a file in references/<subdir>/ gets the same
+    # two bases as one at references/ depth 1 (svg-animation/references/regimes/*.md cite
+    # `references/platform.md` and mean the skill root).
+    skill_dir = ROOT / "skills" / skill.split("/")[0]
+    bases = [path.parent] if path.name == "SKILL.md" else [path.parent, skill_dir]
     for m in LINK.finditer(text):
         t = m.group(1).split("#")[0]
         if not t or t.startswith(("http", "mailto:", "#")) or PLACEHOLDER.search(t):
@@ -430,10 +434,15 @@ def check_out_of_skill(skill: str, path: Path, text: str) -> None:
           skills (issue #117) and resolves nowhere, not even in the clone. The canonical form is
           `skills/<other-skill>/references/<file>` plus a sentence naming the skill; C1 then checks
           the file exists.
-      (c) a relative link (`../…`) that resolves outside `skills/<this-skill>/` and is not a URL.
+      (c) a relative path (`../…`) — a link target or an inline-code path alike — that resolves
+          outside `skills/<this-skill>/` and is not a URL. The inline form is the one prose uses
+          most (`../../claude/global/hooks/locale-rite.py`), so it is judged like the link.
 
     Accepted: URLs (the repository's own included), `skills/<other>/…` (C1 owns the existence
     check), `../SKILL.md` and anything else that stays inside the skill.
+
+    Runs over `SKILL.md` and every `*.md` under `references/`, recursively — a finding in a nested
+    file is labelled `<skill>/<subdir>/<file>` (the path relative to `references/`).
 
     KNOWN LIMIT — what this check does NOT cover:
       - Paths under `openspec/`, `scripts/`, `docs/`, `.github/` and other roots a TARGET repository
@@ -464,12 +473,12 @@ def check_out_of_skill(skill: str, path: Path, text: str) -> None:
                 f"{kind} -> {t}: cross-skill path without the skills/ prefix — write "
                 f"skills/{t} and name the `{head}` skill in the sentence")
             return
-        if kind == "link" and t.startswith(".."):
+        if t.startswith(".."):
             try:
                 (path.parent / t).resolve().relative_to(skill_dir)
             except ValueError:
                 add(skill, "C12 out-of-skill path",
-                    f"link -> {t}: resolves outside skills/{skill_dir.name}/")
+                    f"{kind} -> {t}: resolves outside skills/{skill_dir.name}/")
 
     for m in LINK.finditer(text):
         judge(m.group(1), "link")
@@ -563,11 +572,15 @@ def main() -> int:
         check_anti_trigger(skill, text)
         check_out_of_skill(skill, p, text)
         check_orphan_refs(skill, p.parent)
-        for ref in (p.parent / "references").glob("*.md"):
+        # recursive: references/<subdir>/*.md are judged too (19 such files live in svg-animation);
+        # the label keeps the path relative to references/, so depth-1 files keep their old label
+        refs_dir = p.parent / "references"
+        for ref in sorted(refs_dir.rglob("*.md")):
+            label = f"{skill}/{ref.relative_to(refs_dir).as_posix()}"
             rtext = ref.read_text(encoding="utf-8")
-            check_refs(f"{skill}/{ref.name}", ref, rtext)
-            check_blocks(f"{skill}/{ref.name}", rtext)
-            check_out_of_skill(f"{skill}/{ref.name}", ref, rtext)
+            check_refs(label, ref, rtext)
+            check_blocks(label, rtext)
+            check_out_of_skill(label, ref, rtext)
 
     by_check: dict[str, int] = {}
     for _, c, _ in findings:
