@@ -98,6 +98,24 @@
       -> (vazio) diff-rc=0
       ```
 
+      Probado no review de 2026-09-05, antes de editar (a hipótese "roda em qualquer bash" tinha sido
+      testada só em 5.2). Imagens `bash:3.2` e `bash:4.3` estão nesta máquina (`docker images`):
+
+      ```
+      docker run --rm bash:3.2 bash -c 'set -u; EXTRA_ARGS=(); args=("${EXTRA_ARGS[@]}"); echo ok'
+      -> bash: EXTRA_ARGS[@]: unbound variable          rc=127
+      docker run --rm bash:3.2 bash -c 'set -u; EXTRA_ARGS=(); args=(${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}); echo "fixed ok n=${#args[@]}"'
+      -> fixed ok n=0                                   rc=0
+      docker run --rm bash:3.2 sh -c 'apk add --no-cache git python3 >/dev/null && git --version && python3 --version'
+      -> git version 2.49.1 / Python 3.12.14            (o container consegue rodar o hook inteiro)
+      git -c diff.external=<sh que sai 0> diff --cached --no-color | wc -c   -> 0
+      git diff --cached --no-color   (após git mv orders.py relatorio.py)
+      -> diff --git a/orders.py b/relatorio.py / similarity index 100% / rename from orders.py / rename to relatorio.py
+      git -c diff.mnemonicPrefix=true diff --cached --no-color | grep '^+++'   -> +++ i/relatorio.txt
+      git diff --cached --no-color --src-prefix=a/ --dst-prefix=b/ | grep '^+++'   -> +++ b/relatorio.txt
+      PYTHONIOENCODING=utf-8:surrogateescape python3 <detector> --diff - < latin1.diff   -> findings: 1  (sem a variável: UnicodeDecodeError)
+      ```
+
       Scaffold da change com o schema do repositório:
 
       ```
@@ -121,6 +139,11 @@
       A versão do bash foi lida do pacote (`dpkg -s bash`), não de `bash --version`: o sandbox desta
       sessão recusa invocar `bash` com argumentos computados. Mesmo pacote, mesma versão.
 
+      Terceiro item, do review: o shell padrão de um `run:` (`bash -e {0}`) e o de `shell: bash`
+      (`bash --noprofile --norc -eo pipefail {0}`) vêm da página *workflow syntax* do GitHub, não de
+      um runner probado — por isso o `set -o pipefail` é explícito no bloco, e o efeito foi medido
+      localmente com `bash -e -c` (S.1).
+
 - [x] E.4 Checagem de escopo
 
       A change faz só o que a issue #139 pediu. Notados pelo caminho e **não** feitos, ficam como
@@ -136,21 +159,37 @@
       - `README.md:558` (linha do índice de `code-locale`) diz "any project can wire into pre-commit"
         e continuaria verdadeiro; a issue exclui `README.md` do escopo e nada foi tocado lá.
       - Uma opção `--git-hooks <repo>` no `install.sh` — rejeitada na própria issue.
+      - Ensinar o detector a medir o caminho num header `rename to` (hoje só em `--- /dev/null`,
+        `check-identifier-locale.py:632-646`; o KNOWN LIMIT 12 diz "a rename appears as an add", o
+        que só é verdade com `--no-renames`). O kit contorna com o flag nos dois artefatos (D7);
+        a edição no detector fica fora desta issue.
+      - `PYTHONIOENCODING` aparece como `en-unknown` consultivo quando o detector lê o próprio hook
+        e o `ci-step.md` — é o nome da variável do Python; uma linha em `programming-words.txt`
+        resolveria, fora desta issue.
 
 ## 2. Hook de pre-commit
 
-- [x] 2.1 `skills/code-locale/references/pre-commit-locale.sh` (183 linhas, commit `79a171b`):
-      cabeçalho com instalação (`cp` para `.git/hooks/pre-commit` ou `core.hooksPath`), ordem de
-      localização do detector (D2), pin `v2.21.0` + sha256 e a frase de bump, a lista do que não
-      cobre (`--no-verify`, extensões fora de `EXT_LANG`, conteúdo existente, tier consultivo no
-      modo download); corpo que roda `git diff --cached --no-color | python3 <detector> --diff -` e
-      sai 1 com os achados mais o rodapé das três saídas (D4); `python3` ausente recusa (D3)
+- [x] 2.1 `skills/code-locale/references/pre-commit-locale.sh` (217 linhas; commit `79a171b`, corrigido
+      no review em `4c82e0a`): cabeçalho com instalação (`cp` para `.git/hooks/pre-commit` ou
+      `core.hooksPath`), ordem de localização do detector (D2) com *THE PIN* restrito ao modo
+      download, pin `v2.21.0` + sha256 e a frase de bump, a lista do que não cobre (`--no-verify`,
+      extensões fora de `EXT_LANG`, conteúdo existente, renames relidos como add, exit 1 sem
+      `findings:`, tier consultivo no modo download); corpo que roda `git diff --cached --no-color
+      --no-ext-diff --no-renames --src-prefix=a/ --dst-prefix=b/ | PYTHONIOENCODING=utf-8:surrogateescape
+      python3 <detector> --diff -` (D7) com expansões seguras para bash 3.2 (D8) e sai 1 com os
+      achados mais o rodapé das três saídas (D4); `python3` ausente recusa (D3)
 
       ```
-      grep -c "" skills/code-locale/references/pre-commit-locale.sh   -> 183
-      grep -n "^LOCALE_CHECK_TAG=\|^LOCALE_CHECK_SHA256=" skills/code-locale/references/pre-commit-locale.sh
-      -> 81:LOCALE_CHECK_TAG="${LOCALE_CHECK_TAG:-v2.21.0}"
-      -> 82:LOCALE_CHECK_SHA256="${LOCALE_CHECK_SHA256:-4e72af47225d6259f6b69db638af6db6c586c7ee6800e401941e08c223413ff2}"
+      grep -c "" skills/code-locale/references/pre-commit-locale.sh   -> 217
+      grep -n "^LOCALE_CHECK_TAG=\|^LOCALE_CHECK_SHA256=\|^args=\|rc=70" skills/code-locale/references/pre-commit-locale.sh
+      -> 106:LOCALE_CHECK_TAG="${LOCALE_CHECK_TAG:-v2.21.0}"
+      -> 107:LOCALE_CHECK_SHA256="${LOCALE_CHECK_SHA256:-4e72af47225d6259f6b69db638af6db6c586c7ee6800e401941e08c223413ff2}"
+      -> 181:args=(${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"})
+      -> 194:  rc=70
+      grep -n "no-renames --src-prefix" skills/code-locale/references/pre-commit-locale.sh
+      -> 6:#   git diff --cached --no-color --no-ext-diff --no-renames --src-prefix=a/ --dst-prefix=b/ \
+      -> 187:output="$(git diff --cached --no-color --no-ext-diff --no-renames --src-prefix=a/ --dst-prefix=b/ \
+      grep -n "^# Dependencies" skills/code-locale/references/pre-commit-locale.sh   -> 99:# Dependencies: bash 3.2+ [...]
       ```
 
 - [x] 2.2 `bash -n` limpo; o detector sobre o próprio hook (`.sh` está em `EXT_LANG`) reporta
@@ -160,24 +199,30 @@
       bash -n skills/code-locale/references/pre-commit-locale.sh; echo "bash-n rc=$?"
       -> bash-n rc=0
       python3 skills/code-locale/references/check-identifier-locale.py skills/code-locale/references/pre-commit-locale.sh
+      -> pre-commit-locale.sh:188: PYTHONIOENCODING  [en-unknown: 'PYTHONIOENCODING']   advisory (nome da variável do Python, E.4)
       -> findings: 0
       -> rc=0
       ```
 
 ## 3. Step de CI
 
-- [x] 3.1 `skills/code-locale/references/ci-step.md` (108 linhas, commit `f4b8bd0`): job copiável
-      (`pull_request`, `permissions: contents: read`, `checkout@v5` com `fetch-depth: 0` e
-      `persist-credentials: false`, `curl -fsSL` na tag `v2.21.0` + `sha256sum -c`,
-      `git diff origin/${{ github.base_ref }}...HEAD | python3 check-identifier-locale.py --diff -`);
-      o pin, o `fetch-depth`, o gatilho e o `pipefail` explicados (D5); o que o step não cobre
+- [x] 3.1 `skills/code-locale/references/ci-step.md` (136 linhas; commit `f4b8bd0`, corrigido no review):
+      job copiável (`pull_request`, `permissions: contents: read`, `checkout@v5` com `fetch-depth: 0`
+      e `persist-credentials: false`, `curl -fsSL` na tag `v2.21.0` + `sha256sum -c`, `run:` com
+      `set -o pipefail` e `git diff --no-ext-diff --no-renames --src-prefix=a/ --dst-prefix=b/
+      origin/${{ github.base_ref }}...HEAD | python3 check-identifier-locale.py --diff -` sob
+      `PYTHONIOENCODING=utf-8:surrogateescape`); o pin, o `fetch-depth`, o gatilho, o `pipefail`, os
+      quatro flags e o handler explicados (D5, D7); o que o step não cobre, com o trade-off do
+      `--no-renames`
 
       ```
-      grep -n "fetch-depth\|sha256sum -c\|github.base_ref\|AI_SKILLS_TAG: " skills/code-locale/references/ci-step.md
+      grep -n "fetch-depth\|sha256sum -c\|github.base_ref\|AI_SKILLS_TAG: \|pipefail$\|PYTHONIOENCODING:" skills/code-locale/references/ci-step.md
       -> 25:          fetch-depth: 0
       -> 30:          AI_SKILLS_TAG: v2.21.0
       -> 35:          echo "${CHECK_SHA256}  check-identifier-locale.py" | sha256sum -c -
-      -> 39:          git diff origin/${{ github.base_ref }}...HEAD | python3 check-identifier-locale.py --diff - --no-english
+      -> 39:          PYTHONIOENCODING: utf-8:surrogateescape
+      -> 41:          set -o pipefail
+      -> 42:          git diff --no-ext-diff --no-renames --src-prefix=a/ --dst-prefix=b/ origin/${{ github.base_ref }}...HEAD \
       ```
 
 - [x] 3.2 O bloco `yaml` parseia (C3 via `validate-skills.py`, e à parte)
@@ -185,6 +230,7 @@
       ```
       python3 -c "import re,yaml; ... yaml.safe_load_all(block)"   (sobre o fence yaml de ci-step.md)
       -> yaml ok; jobs: ['identifier-locale'] steps: 3 on: {'pull_request': None}
+      (após o review) steps[2]['env'] -> {'PYTHONIOENCODING': 'utf-8:surrogateescape'}; steps[2]['run'] começa com "set -o pipefail"
       python3 scripts/validate-skills.py
       -> skills checked: 35   findings: 0
       ```
@@ -222,6 +268,8 @@
       -> plugins hook mirror identical
       grep -c "blob/master/skills/code-locale/references/pre-commit-locale.sh" cursor/rules/code-locale.mdc
       -> 1            (o Cursor reescreve o link relativo para a URL do repositório)
+      (após o review) bash generate.sh; cmp skills/.../pre-commit-locale.sh plugins/workflow/skills/code-locale/references/pre-commit-locale.sh
+      -> plugins hook mirror identical; plugins ci-step mirror identical
       ```
 
 ## 5. Simulation & Field Proof (MANDATORY)
@@ -298,8 +346,67 @@
 
       `bash -n` e o detector sobre o hook: 2.2. `shellcheck`: ausente nesta máquina, não rodado.
 
-- [x] S.2 Matriz de casos medida, em contagens (`sim_cases.py` -> `cases: 16  as expected: 16
-      unexpected: 0`, mais os dois casos manuais de S.1)
+      **Após o review (2026-09-05)** — os nove achados foram reproduzidos contra o hook original e
+      re-medidos contra o corrigido, todos pelo `git commit` real com o hook em `.git/hooks/pre-commit`
+      e `LOCALE_CHECK` apontando para o detector do worktree (`$SCR/repro139.py <hook> <detector>
+      before|after`; saída em `$SCR/repro139-{before,after}.txt`). Antes: `cases: 10  as expected: 3
+      unexpected: 7`. Depois:
+
+      ```
+      [F3] git -c diff.external=<sh que sai 0> commit   (customers.py: def buscar_cliente)
+      -> antes: rc=0, commits=1 (aprovado sem medir)        depois: buscar_cliente [pt-verb] / refused  rc=1
+      [F4a] git mv orders.py relatorio.py; git commit
+      -> antes: rc=0, commits=2                             depois: relatorio.py: relatorio [path-pt-noun] / refused  rc=1
+      [F4b] git mv base.py cadastro.py + uma linha; git commit
+      -> antes: rc=0                                         depois: cadastro.py: cadastro [path-pt-noun]  rc=1
+      [F4c] relatorio.py (def calcular_total) -> git mv report.py; git commit   (o trade-off de D7)
+      -> antes: rc=0 (mudo)                                  depois: report.py:1: calcular_total [pt-verb]  rc=1
+      [F5a] legacy.py latin-1 já commitado + "count = 1"; git commit
+      -> antes: UnicodeDecodeError [...] refused: the staged diff adds a non-English name  rc=1
+      -> depois: rc=0, commits=2, sem saída
+      [F5b] legacy.py latin-1 + "def buscar_cliente(x):"; git commit
+      -> depois: legacy.py:3: buscar_cliente [pt-verb] / findings: 1 / refused  rc=1  (sem traceback)
+      [F5c] LOCALE_CHECK=crash.py (raise RuntimeError) sobre código inglês
+      -> antes: RuntimeError: boom / refused: the staged diff adds a non-English name [...]  rc=1
+      -> depois: RuntimeError: boom / the detector itself failed (exit 70, no findings: line); nothing was measured  rc=1
+      [F6] diff.mnemonicPrefix=true + .identifier-locale-allow com relatorio.txt; git commit
+      -> antes: i/relatorio.txt: relatorio [path-pt-noun] / refused  rc=1     depois: rc=0, commits=1
+      cases: 10  as expected: 10  unexpected: 0
+      ```
+
+      **Entry point 3** — o hook inteiro em bash 3.2 e 4.3 (`docker run --rm -v $SCR/b32-kit:/kit:ro
+      -v $SCR/b32-run.sh:/run.sh:ro bash:3.2 sh /run.sh`: `apk add git python3`, `git init`, `cp` do
+      hook para `.git/hooks/pre-commit`, dois `git commit`; saída em `$SCR/b32-{before,after}.txt`):
+
+      ```
+      [B-3.2 antes]  .git/hooks/pre-commit: line 154: EXTRA_ARGS[@]: unbound variable / english commit rc=1  commits=0 / pt commit rc=1  commits=0
+      [B-3.2 depois] GNU bash, version 3.2.57(1)-release / english commit rc=0  commits=1 / customers.py:1: buscar_cliente [pt-verb] / refused / pt commit rc=1  commits=1
+      [B-4.3 depois] GNU bash, version 4.3.48(1)-release / english commit rc=0  commits=1 / [...] refused / pt commit rc=1  commits=1
+      ```
+
+      A matriz original de 16 casos foi re-rodada num repositório novo contra o hook corrigido
+      (`$SCR/sim139_full.py`, saída em `$SCR/sim139_full_output.txt`): `cases: 18  as expected: 18
+      unexpected: 0` (os 16 mais os dois manuais de S.1, agora no driver). E o bloco `run:` do
+      `ci-step.md` foi relido do próprio arquivo (fence `yaml` parseado, `origin/main` no lugar de
+      `origin/${{ github.base_ref }}`, `env` do step aplicado) e rodado sob `bash -e -c` num clone com
+      quatro branches (`$SCR/ci139.py`, saída em `$SCR/ci139-out.txt`):
+
+      ```
+      [CI-pt]      feature/pt  (def calcular_frete)          -> shipping.py:1: calcular_frete [pt-verb] / findings: 1   rc=1
+      [CI-en]      feature/en  (def compute_shipping)        -> findings: 0   rc=0
+      [CI-rename]  feature/rename-pt (git mv orders.py relatorio.py) -> relatorio.py: relatorio [path-pt-noun] / findings: 1   rc=1
+      [CI-latin1]  feature/latin1 (linha inglesa num .py latin-1)    -> findings: 0   rc=0
+      [CI-nobase]  origin/release/9...HEAD (base ausente)    -> fatal: ambiguous argument [...] / findings: 0   rc=128  (antes do pipefail: rc=0, verde)
+      [CI-depth1]  clone --depth 1                           -> fatal: ambiguous argument 'origin/main...HEAD' / findings: 0   rc=128
+      cases: 8  as expected: 8  unexpected: 0     (com CI-1 fetch OK e CI-4 digest errado FAILED)
+      ```
+
+- [x] S.2 Matriz de casos medida, em contagens. Primeira entrega: `sim_cases.py` -> `cases: 16  as
+      expected: 16  unexpected: 0`, mais os dois casos manuais de S.1. Após o review, sobre o hook
+      corrigido: `sim139_full.py` -> `cases: 18  as expected: 18  unexpected: 0`; `repro139.py after`
+      -> `cases: 10  as expected: 10  unexpected: 0`; `ci139.py` -> `cases: 8  as expected: 8
+      unexpected: 0`; bash 3.2 e 4.3 -> 2/2 commits ingleses aceitos, 2/2 commits `buscar_cliente`
+      recusados
 
       | Artefato | Expectativa | Casos | Resultado |
       |---|---|---|---|
@@ -313,6 +420,13 @@
       | hook (fora de `EXT_LANG`) | caminho medido, conteúdo pulado | 1/1 | [11] `relatorio.txt` recusado pelo nome |
       | hook | escape conhecido ficou mudo | 1/1 | [8] `--no-verify`, rc=0 — ver S.3 |
       | step de CI (`run:` verbatim, `origin/main`) | fetch + digest OK; PR com achado falha; PR limpo passa; digest errado falha | 4/4 | CI-1 rc=0; CI-2 rc=1; CI-3 rc=0; CI-4 rc=1 |
+      | hook (config git do repo/usuário) — review | `diff.external`, rename puro, rename+edit tinham de recusar | 3/3 | F3, F4a, F4b rc=1 (antes: 3/3 aprovados, rc=0) |
+      | hook (allowlist sob `mnemonicPrefix`) — review | tinha de aceitar | 1/1 | F6 rc=0 (antes: recusado) |
+      | hook (latin-1) — review | linha inglesa aceita; `buscar_cliente` recusado como achado | 2/2 | F5a rc=0; F5b rc=1 sem traceback |
+      | hook (detector que crasha) — review | recusa como falha do detector, não como achado | 1/1 | F5c "detector itself failed (exit 70 [...])" |
+      | hook (trade-off `--no-renames`) — review | rename de legado com conteúdo PT encontra o gate | 1/1 | F4c rc=1, `calcular_total` no conteúdo — declarado em D7 |
+      | hook em bash 3.2 / 4.3 (container) — review | inglês aceito, PT recusado | 4/4 | 2 imagens × 2 commits (antes: 0/4 — `unbound variable`) |
+      | step de CI — review | rename para PT falha; latin-1 passa; base ausente e `--depth 1` falham em vez de aprovar | 4/4 | rc=1; rc=0; rc=128; rc=128 (antes: base ausente rc=0, verde) |
       | `bash -n` | limpo | 1/1 | rc=0 |
       | `shellcheck` | — | 0/0 | não instalado; declarado |
 
@@ -332,7 +446,16 @@
         está três linhas acima. Aceito: a mensagem específica vem primeiro.
       - O que a simulação **não** prova: que o runner do Actions resolve `github.base_ref` e faz o
         checkout do merge commit com `fetch-depth: 0` — `origin/main` foi o substituto (E.3), e a
-        premissa vem do `ci.yml` deste repositório, que já depende dos dois.
+        premissa vem do `ci.yml` deste repositório, que já depende dos dois. Nem que o shell padrão
+        do runner é `bash -e {0}` sem `pipefail` — vem da doc (E.3); por isso o `set -o pipefail`
+        está escrito no bloco, e não confiado ao `shell:`.
+
+      O que o review de 2026-09-05 mostrou que **tinha** escapado da primeira simulação, e que agora
+      está medido acima (S.1, F3-F6, B-3.2, CI-nobase): sete comportamentos fora do desenhado,
+      todos reproduzidos antes da edição e re-medidos depois. Um comportamento novo, deliberado e
+      declarado (D7, cabeçalhos): com `--no-renames`, renomear um arquivo legado cujo conteúdo ainda
+      tem nomes em português encontra o gate (F4c) — antes passava mudo. O escape `--no-verify`
+      permanece e continua nomeado.
 
 ## 6. Quality Gates (MANDATORY)
 
