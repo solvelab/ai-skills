@@ -262,18 +262,21 @@ be measured. This is the complete wiring; every block is optional, and each hook
         ]
       }
     ],
-    "PreToolUse": [
-      {
-        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 /home/YOUR_USER/ai-skills/claude/global/hooks/locale-rite.py",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
+    // Arrives with issue #137 (locale-rite.py learns PreToolUse and LOCALE_RITE_MODE there). Wire
+    // this block only once #137 has merged: before that the hook answers a PreToolUse payload with
+    // its PostToolUse envelope, which the harness drops as an event mismatch — no deny happens.
+    // "PreToolUse": [
+    //   {
+    //     "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+    //     "hooks": [
+    //       {
+    //         "type": "command",
+    //         "command": "python3 /home/YOUR_USER/ai-skills/claude/global/hooks/locale-rite.py",
+    //         "timeout": 10
+    //       }
+    //     ]
+    //   }
+    // ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit|MultiEdit|NotebookEdit",
@@ -344,24 +347,27 @@ missing evidence visible.
 ### The locale rite, at the write (English machine layer, measured on the tool call)
 
 `claude/global/hooks/locale-rite.py` is the third hook, and the first that measures an artifact
-instead of matching a prompt. It runs for `Write|Edit|MultiEdit|NotebookEdit` on two events, and the
-event decides the envelope, not the measurement: it feeds the written **path** and the written
-**content** to [`check-identifier-locale.py`](skills/code-locale/references/check-identifier-locale.py)
-either way.
+instead of matching a prompt. It runs for `Write|Edit|MultiEdit|NotebookEdit` and feeds the written
+**path** and the written **content** to
+[`check-identifier-locale.py`](skills/code-locale/references/check-identifier-locale.py).
 
-- On `PreToolUse` a gating finding (`pt-*`, `path-pt-*`) **denies the write** through
-  `hookSpecificOutput.permissionDecision: "deny"`, with every finding and the exits in the reason —
-  the file is never written (issue #137).
-- On `PostToolUse` it **informs**: the findings, including the advisory `en-unknown` question ("is
-  this word English?"), travel in `hookSpecificOutput.additionalContext`, not on plain stdout —
-  `PostToolUse` is not one of the events that turn stdout into context (`UserPromptSubmit`,
-  `UserPromptExpansion`, `SessionStart` are), so a hook that printed would be silently useless.
+- On `PostToolUse` — the event it has today — it **informs**: the findings, including the advisory
+  `en-unknown` question ("is this word English?"), travel in `hookSpecificOutput.additionalContext`,
+  not on plain stdout — `PostToolUse` is not one of the events that turn stdout into context
+  (`UserPromptSubmit`, `UserPromptExpansion`, `SessionStart` are), so a hook that printed would be
+  silently useless. The file is already on disk when it speaks.
+- Issue #137, in flight beside this one, gives it `PreToolUse` with the same matcher: there a gating
+  finding (`pt-*`, `path-pt-*`) **denies the write** through
+  `hookSpecificOutput.permissionDecision: "deny"`, with every finding and the exits in the reason, and
+  the file is never written. The `PreToolUse` block in the snippet above is commented out until that
+  lands; the event decides the envelope, not the measurement.
 
 Silent when the write is clean. The exits are the ones the `code-locale` skill defines: an inline
 `# locale-ok: <reason>` on the line or the line above, the token or path in the repository's
-`.identifier-locale-allow`, and `LOCALE_RITE_MODE=inform` in the session's environment, which turns
-the deny back into the advisory for the whole session. Where the check itself is missing it exits
-silently instead of failing, because an absent gate must not present itself as an error.
+`.identifier-locale-allow`, and `LOCALE_RITE_MODE=inform` in the session's environment (introduced by
+#137 for the write gate, read today by the Stop gate below), which turns a deny back into the advisory
+for the whole session. Where the check itself is missing it exits silently instead of failing,
+because an absent gate must not present itself as an error.
 
 ### The locale rite, at the end of the turn (the Stop gate)
 
@@ -374,8 +380,14 @@ with `def buscar_cliente(id_usuario)` and no hook fired (issue #138).
 finds the git work tree the working directory is in, builds the **uncommitted diff** — tracked files
 against `HEAD` (or the empty tree in a repository with no commit yet), plus every untracked file the
 repository does not ignore, each as an added file — and runs the same check over it in `--diff` mode,
-honouring the repository's `.identifier-locale-allow` and the check's vendored-path exclusions. A
-gating finding **blocks the end of the turn**: the hook answers `{"decision": "block", "reason": …}`
+honouring the repository's `.identifier-locale-allow` and the check's vendored-path exclusions
+(vendored, empty and binary untracked files are skipped before git is asked). The diff's shape is
+pinned against `~/.gitconfig`: every call runs with `core.quotePath=false`, `--no-ext-diff`,
+`--no-textconv`, `--no-relative` and explicit `a/`/`b/` prefixes, because measured `diff.external`
+(difftastic, delta) left the hook silent, `diff.mnemonicPrefix` reported every finding under a
+non-existent `w/` path, and the default `core.quotePath` hid a `relatório.py` behind
+`"relat\303\263rio.py"` — the very non-ASCII tier the check exists for. A gating finding **blocks the
+end of the turn**: the hook answers `{"decision": "block", "reason": …}`
 and the reason lists every finding and the three exits. The shape was probed against the installed
 bundle (`claude 2.1.261`) rather than read from the docs, whose pages disagree: the bundle reads
 `decision`, `reason` and `systemMessage` at the **top level**, and for `Stop` the nested
@@ -387,8 +399,11 @@ returns only a `systemMessage` naming what is still in Portuguese and lets the t
 turn is the last chance, not a loop — whoever read the reason and did not rename has decided. It
 measures only what the turn left uncommitted, so a legacy repository is not judged for what it
 already had; a Portuguese file **moved** without an edit is a rename to git and does not fire. Over
-`MAX_DIFF_LINES` (4000) the rest is not measured and the reason **says so**; a git call that exceeds
-its timeout makes the hook silent rather than holding the turn forever. Silent — no output, exit 0,
+`MAX_DIFF_LINES` (4000) the rest is not measured and the hook **says so** — in the reason when it has
+findings, and as a block of its own when the measured part is clean, because an unmeasured tail is
+not a clean result (measured before the fix: 5000 clean lines sorting ahead of `servico_cliente.py`
+left the hook silent). A git call that exceeds its timeout makes the hook silent rather than holding
+the turn forever. Silent — no output, exit 0,
 under a second — outside a git work tree, on an empty diff, on advisory-only findings, with
 `LOCALE_RITE_MODE=inform`, and on a payload it cannot read. What it does not see is declared in its
 docstring: a file committed inside the same turn, a repository other than the one `cwd` is in, and
@@ -399,7 +414,7 @@ cannot see.
 
 | What wrote the name | Layer that catches it | Effect |
 |---|---|---|
-| `Write` / `Edit` / `MultiEdit` / `NotebookEdit` | `locale-rite.py` on `PreToolUse` (#137) | the write is **denied**; nothing reaches the disk |
+| `Write` / `Edit` / `MultiEdit` / `NotebookEdit` | `locale-rite.py` — on `PostToolUse` today; on `PreToolUse` once #137 merges | today the finding is **context** after the write; with #137 the write is **denied** and nothing reaches the disk |
 | Bash — heredoc, `sed -i`, a script, a generator | `locale-stop-gate.py` on `Stop` | the **turn does not end** until the diff is clean or waived |
 | another assistant (Codex, Cursor, Copilot), or a human commit | the per-repository kit of the [`code-locale`](skills/code-locale/) skill — pre-commit hook and CI step (issue #139) | the **commit or the pull request** fails |
 
