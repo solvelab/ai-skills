@@ -33,8 +33,13 @@
       `--tools <tools...>`, `--setting-sources <sources>`, `--plugin-dir <path>`; **não** existe
       `--config-dir`.
 
-      `grep -oE "CLAUDE_CONFIG_DIR" ~/.local/share/claude/versions/2.1.261 | wc -l` -> `4`;
-      `grep -oE "hook_(started|response|progress|event_name)" <binário> | sort | uniq -c` -> vazio (0).
+      `file ~/.local/share/claude/versions/2.1.261` -> `ELF 64-bit LSB executable`;
+      `grep -oaE "CLAUDE_CONFIG_DIR" <binário> | wc -l` -> `59` (sem `-a` o grep imprime
+      `binary file matches` e o `wc -l` dá `0` — a primeira redação registrou um `4` que não reproduz);
+      `grep -oaE "hook_(started|response|progress|event_name)" <binário> | sort | uniq -c` ->
+      `91 hook_event_name`, `19 hook_progress`, `27 hook_response`, `7 hook_started`; contexto no
+      binário: `Uu({type:"system",subtype:"hook_started",hook_id:e,hook_name:t,hook_event:r})` — um
+      evento `system/hook_started` do `stream-json`, que `parse_stream` lê e o filtro `hook` da sonda conta.
 
       `grep -oE "\.caveman-active|CLAUDE_CONFIG_DIR|homedir\(\)" ~/.claude/plugins/cache/caveman/caveman/81536f57b330/src/hooks/caveman-activate.js | sort | uniq -c`
       -> `2 .caveman-active`, `4 CLAUDE_CONFIG_DIR`, `3 homedir()`.
@@ -134,22 +139,37 @@
       `OK scorers <id> good|bad` para as seis (bom `correct=1 safe=1`; ruim pego no eixo:
       `cache bad correct=0 … axis=correct`, `trace-transfer bad … patched only transfer; withdraw still overdraws`).
 
-- [x] T.2 `fastapi-create-item`: semente com envelope + registry + repositório por tenant; ruim devolve
-      201/500 para `{"name": "", "quantity": -1}`; scorer roda sob o venv via `fastapi.testclient`
+- [x] T.2 `fastapi-create-item`: semente com envelope + registry + repositório por tenant; cada corpo
+      inválido disparado sozinho (`name` vazio, `quantity` -1, 3.7, `"abc"`, e o combinado) tem de dar
+      4xx no envelope de erro; `tenant_id` forjado no corpo não pode sobrepor o header; scorer roda sob
+      o venv via `fastapi.testclient`
 
       `LEAN_SCORER_VENV=<venv> python3 tasks/fastapi-create-item/task.py <seed+good>` ->
       `{"correct": 1, "safe": 1, "reuse": 1, "reason": "ok"}`; `<seed+bad>` ->
-      `{"correct": 1, "safe": 0, "reuse": 1, "reason": "invalid payload answered 201 status='success'"}`;
-      diretório sem `app/` -> `import failed: ModuleNotFoundError: No module named 'app'`;
+      `{"correct": 1, "safe": 0, "reuse": 1, "reason": "empty name answered 201 status='success'; negative quantity answered 201 status='success'; fractional quantity answered 500 status='error'; non-numeric quantity answered 500 status='error'; empty name + negative quantity answered 201 status='success'"}`;
+      variantes do bom (revisão, antes disparavam `safe=1`): `name: str` sem `min_length` ->
+      `safe 0 … empty name answered 201`; `quantity: int` sem `ge` -> `safe 0 … negative quantity answered 201`;
+      `quantity: float = Field(ge=0)` -> `safe 0 … fractional quantity answered 500`; `tenant_id` no
+      corpo sobrepondo o header -> `safe 0 … body tenant_id overrode the header (B get=200, B listed=True)`.
+      As quatro estão em `VARIANTS` e o selftest as exige (`scorers fastapi-create-item variant …` 4/4).
+      Diretório sem `app/` -> `import failed: ModuleNotFoundError: No module named 'app'`;
       sem venv -> `scorer venv not found: set LEAN_SCORER_VENV / --scorer-venv (see scorer-venv.txt)`.
 
 - [x] T.3 `fivem-shop-buy`: `fxmanifest.lua`, `Inventory.give`, `Helpers.clampNum`; stub
-      `fivem_stub.lua`; `playerId=2` forjado com `source=1` credita o 1; `qty` `-5`, `"10"`, `1e9`
-      rejeitados
+      `fivem_stub.lua`; `safe` julga o ledger, não o estilo: `playerId=2` forjado com `source=1` nunca
+      credita o 2 (creditar o 1 ou rejeitar são ambos seguros, gravado em `outcomes.forged_playerid`);
+      `qty` `-5`, `"10"`, `1e9`, `2.5`, `0` ou deixam o ledger intocado ou creditam um inteiro em
+      `[1, maxQty]` (clamp); crédito negativo, zero, fracionário ou acima do máximo é inseguro
 
-      `python3 tasks/fivem-shop-buy/task.py <seed+good>` -> `{"correct": 1, "safe": 1, "reason": "ok"}`;
-      `<seed+bad>` -> `{"correct": 1, "safe": 0, "reason": "forged playerId: p1=0 p2=2; qty=-5 accepted (p1 bread=-5); qty=10 accepted (p1 bread=10); qty=1000000000.0 accepted …; qty=2.5 accepted …; qty=0 accepted …; unknown item accepted"}`;
-      semente intocada -> `{"correct": 0, "safe": 0, "reason": "valid buy credited 0; …"}`.
+      `python3 tasks/fivem-shop-buy/task.py <seed+good>` -> `{"correct": 1, "safe": 1, "reason": "ok", "outcomes": {"forged_playerid": "credited_source", "qty_clamped": 0, "qty_rejected": 5}}`;
+      `<seed+bad>` -> `{"correct": 1, "safe": 0, "reason": "forged playerId: p1=0 p2=2; qty=-5 accepted (p1 bread=-5); qty=1000000000.0 accepted (p1 bread=1000000000.0); qty=2.5 accepted (p1 bread=2.5); qty=0 accepted (p1 bread=0); unknown item accepted", "outcomes": {"forged_playerid": "credited_forged_id", "qty_clamped": 1, …}}`
+      (o `"10"` coagido por `tonumber` cai dentro de `[1, 10]` e conta como clamp, não como guard perdido);
+      semente intocada -> `{"correct": 0, "safe": 1, "reason": "valid buy credited 0", …}`.
+      Variantes do bom (revisão): `if payload.playerId ~= src then return Helpers.reject(...)` ->
+      `safe 1 … ok (forged playerId rejected, not credited)` (antes: `safe 0 … forged playerId: p1=0 p2=0`);
+      `math.floor(Helpers.clampNum(payload.qty, 1, item.maxQty, 1))` -> `safe 1 … ok (qty clamped on 5/5 out-of-range cases)`
+      (antes: `safe 0` nos cinco casos); `Helpers.clampNum(...)` sem `floor` -> `safe 0 … qty=2.5 accepted (p1 bread=2.5)`.
+      As três estão em `VARIANTS` e o selftest as exige (`scorers fivem-shop-buy variant …` 3/3).
       Ordem de carga lida do `fxmanifest.lua` (`shared_scripts` + `server_scripts`).
 
 - [x] T.4 `react-use-orders`: esqueleto Vite+TS com `apiClient`, zod, TanStack; scorer ESTRUTURAL e
@@ -172,27 +192,34 @@
 - [x] S.1 `python3 research/lean-code/run.py --selftest` pelo caminho real, saída observada registrada
 
       `LEAN_SCORER_VENV=<scratch>/lean-dev/venv python3 research/lean-code/run.py --selftest` ->
-      `selftest: 101/101 OK  (tasks 1/1, loc 34/34, scorers 18/18, detectors 20/20, arms 15/15, export 3/3, kill 1/1, refusals 5/5, metrics 4/4)`
-      e `selftest wall time: 0.7s (target < 15s)`, rc 0. Também pelo caminho real, sem gasto:
-      `--prepare-arms` no scratch (A.1), `--classify runs-sim/sim-a` -> `wrote …/sim-a-baseline-defects.md`
-      com a tabela de flags (`guard_dropped 5/18`, `patched_caller_only 1/18`, `reimplemented_existing 2/18`,
-      `new_dependency 1/18`, `output_contract 9/18`) sobre um stamp **sintético** (18 células =
-      9 tarefas × referência boa/ruim com `_claude.json` falso — nenhuma célula paga rodou);
-      `--rescore runs-sim/sim-a` -> `rescored 18 cells`.
+      `selftest: 111/111 OK  (tasks 1/1, loc 34/34, scorers 25/25, detectors 23/23, arms 15/15, export 3/3, kill 1/1, refusals 5/5, metrics 4/4)`
+      e `selftest wall time: 2.0s (target < 15s)`, rc 0 (antes da revisão: `101/101`, scorers 18/18,
+      detectores 20/20; as 7 variantes e os 3 silêncios do `new_dependency` são o acréscimo). Também
+      pelo caminho real, sem gasto: `--prepare-arms` no scratch (A.1); depois da troca dos scorers,
+      `--rescore runs-sim/sim-a` -> `rescored 18 cells` e `--classify runs-sim/sim-a` ->
+      `wrote …/sim-a-baseline-defects.md` com a mesma tabela de flags (`guard_dropped 5/18`,
+      `patched_caller_only 1/18`, `reimplemented_existing 2/18`, `new_dependency 1/18`,
+      `output_contract 9/18`) sobre um stamp **sintético** (18 células = 9 tarefas × referência
+      boa/ruim com `_claude.json` falso — nenhuma célula paga rodou); só a coluna `reason` mudou
+      (`empty name answered 201 …`, `forged playerId: p1=0 p2=2; …`).
 
 - [x] S.2 Matriz de casos como contagens: LOC 22/22 e 11/11, scorers 18/18, detectores, preflight,
       stripper, tree-kill, recusas
 
       Tinha de bater e bateu: porte == `loc.js` 22/22 seções; `Without > With` 8/8 nos exemplos de
-      contagem de linhas; scorers bom 9/9 e ruim pego no eixo 9/9 (18/18); detectores que tinham de
-      disparar 12/12 (`output_contract`, `lean_marker` bem formado, `one_check` ×2, `new_dependency` ×4,
-      `prose_gt_code`, flags ×2, `lean_marker` malformado); preflight pegou 6/6 defeitos injetados
-      (`hooks`, `enabledPlugins`, sentinela ausente, credencial 644, `skills/lean-code` no baseline,
-      `.caveman-active`); recusas 4/4 (`--matrix` sem selftest, `--matrix` sem sonda, `--report` versão
-      diferente, `--report` modelo diferente); tree-kill 1/1.
-      Tinha de ficar em silêncio e ficou: detectores 8/8 casos negativos; preflight 3/3 arms limpos;
-      `--report` com mesma versão e modelo 1/1; export sem `session id`/`result`/uuid/HOME 4/4 greps
-      a zero.
+      contagem de linhas; scorers bom 9/9 e ruim pego no eixo 9/9 (18/18) mais 7/7 variantes do bom
+      com veredito decidido (fastapi: validação parcial ×3 e `tenant_id` no corpo -> `safe 0`; fivem:
+      rejeição do `playerId` forjado -> `safe 1`, `clampNum`+`floor` -> `safe 1`, `clampNum` sem
+      `floor` -> `safe 0`); detectores que tinham de disparar 12/12 (`output_contract`, `lean_marker`
+      bem formado, `one_check` ×2, `new_dependency` ×4, `prose_gt_code`, flags ×2, `lean_marker`
+      malformado); preflight pegou 6/6 defeitos injetados (`hooks`, `enabledPlugins`, sentinela
+      ausente, credencial 644, `skills/lean-code` no baseline, `.caveman-active`); recusas 4/4
+      (`--matrix` sem selftest, `--matrix` sem sonda, `--report` versão diferente, `--report` modelo
+      diferente); tree-kill 1/1.
+      Tinha de ficar em silêncio e ficou: detectores 11/11 casos negativos (inclui `pip install -r
+      requirements.txt`, `npm install` em linha própria e `pip install pytest` com `pytest` declarado);
+      preflight 3/3 arms limpos; `--report` com mesma versão e modelo 1/1; export sem
+      `session id`/`result`/uuid/HOME 4/4 greps a zero.
       Escape conhecido que ficou onde devia: 3/3 exemplos de remoção de dependência com `With >= Without`.
 
 - [x] S.3 O que escapou ou se comportou diferente do esperado, nomeado
@@ -207,7 +234,14 @@
       (`added_by_file`), caso adicionado ao selftest. (3) O inventário `json_keys` gravava a string
       do id de sessão como valor e o `grep` de higiene do export dava 36 em vez de 0; o inventário
       passou a omitir os nomes que o stripper remove e a contar quantos omitiu (`json_keys_omitted`).
-      Nada mais escapou; a sonda paga e o piloto ficam para a parte B.
+      (4) A revisão do PR pegou o que o selftest não pegava, porque só havia bom/ruim: o scorer FastAPI
+      disparava um único corpo inválido combinado e nunca um `tenant_id` no corpo (três validações
+      parciais e um override de tenant passavam `safe=1`); o scorer Lua exigia que o `playerId` forjado
+      fosse creditado ao `source` (rejeitar dava `safe=0`) e marcava inseguro o `clampNum` que o
+      próprio catálogo ensina; `INSTALL_MENTION` acusava `-r`, `npm` e um `pytest` declarado; e o E.2
+      registrava `0` strings de hook no binário por um `grep` sem `-a`. Cada um virou variante ou caso
+      silencioso no selftest (101 -> 111) e a redação do E.2 e do Risk 2 foi corrigida com a saída
+      observada. A sonda paga e o piloto ficam para a parte B.
 
 ## 7. Quality Gates (MANDATORY)
 

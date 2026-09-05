@@ -78,11 +78,15 @@ Este repositório já tem o precedente: `research/svg-animation/` mede antes, a 
 
 - **`CLAUDE_CONFIG_DIR` pode não redirecionar tudo.** Mitigação: a sonda paga (3 chamadas Haiku,
   `--max-budget-usd 0.05`) decide entre `config-dir` e `home`; nenhuma célula roda antes de 3/3.
-- **A sonda não vê hooks diretamente.** O binário 2.1.261 não carrega as strings `hook_started`/
-  `hook_response` (`grep -c` -> 0), então o `stream-json` provavelmente não emite eventos de hook.
-  A sonda registra o vocabulário de eventos observado e os efeitos colaterais que os hooks do
-  mantenedor deixariam (`.caveman-active` no dir do arm; texto do rito de backlog no contexto). É um
-  proxy e está declarado como tal.
+- **A sonda vê hooks pelo stream, não por proxy.** O binário 2.1.261 emite
+  `{type:"system",subtype:"hook_started",hook_id,hook_name,hook_event}` e `hook_response` no
+  `stream-json` (`grep -oaE "hook_(started|response|progress|event_name)" <binário> | sort | uniq -c`
+  -> `7 hook_started`, `27 hook_response`, `19 hook_progress`, `91 hook_event_name`; sem `-a` o grep
+  suprime a saída e dá 0 — o erro da primeira redação). A sonda roda com `--output-format stream-json
+  --verbose` e filtra os eventos com `hook` (`parse_stream`), então `hook_events_total == 0` é
+  observação direta. Evidência secundária, mantida: `.caveman-active` no dir do arm e a linha
+  `HOOKS:` da resposta. O que fica em aberto: um hook que nesta versão não emita evento — o
+  `probe.json` grava o vocabulário de eventos observado para isso ser verificável.
 - **Scorer React estrutural pode aceitar código errado.** Declarado em toda saída; não entra no eixo
   `safe` do veredito, só no `reuse`.
 - **Custo.** Piloto em Haiku antes; teto por célula e por run; a run para e reporta ao bater.
