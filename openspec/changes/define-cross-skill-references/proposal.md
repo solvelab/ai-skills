@@ -39,7 +39,8 @@ Pares que competem pelo mesmo prompt, medidos na auditoria e sem redirecionament
 - **Validador** (`scripts/validate-skills.py`): três checks novos, cada um declarando o que não
   cobre — `C11 orphan reference` (todo `references/**/*.md` alcançável a partir do `SKILL.md`,
   transitivo), `C12 out-of-skill path` (raiz só-do-catálogo como `research/` e `claude/`, caminho
-  `<outra-skill>/references/` sem prefixo `skills/`, link relativo que sai de `skills/<x>/`), `C13
+  `<outra-skill>/references/` sem prefixo `skills/`, caminho relativo — link ou crase — que sai de
+  `skills/<x>/`; corre sobre `SKILL.md` e todo `*.md` sob `references/`, recursivamente), `C13
   anti-trigger clause` (lista literal de frases + redirecionamento a uma skill irmã nomeada). Docstring
   C1..C13. `scripts/selftest-validate-skills.py` ganha uma mutação por check.
 - **Conteúdo**: cada achado C12/C13 acima é corrigido no catálogo — caminho cruzado vira
