@@ -23,12 +23,22 @@ allowlist, the session-wide informative mode). When the payload marks the block 
 progress, the artifact SHALL NOT block again: it SHALL report what remains as a message and let the
 turn end, because the second turn is the last chance and never a loop.
 
+The artifact SHALL build the diff in a shape that does not depend on the user's git configuration:
+no external diff driver or text conversion, unquoted non-ASCII paths, fixed `a/` and `b/` prefixes,
+no colour — so that a setting in `~/.gitconfig` can neither silence the gate nor make it report a
+path that does not exist. Untracked files the check itself calls vendored, and empty or binary
+files, SHALL be skipped before git is asked, so they consume neither the measuring budget nor a
+process each.
+
 The artifact SHALL be silent — no output, exit zero, under one second — outside a git work tree, on
 an empty diff, on advisory-only findings, in the informative mode, and on a payload it cannot read.
-It SHALL cap the diff it measures at a declared number of lines and SHALL say so in its reason when
-the cap was reached, never truncating in silence. It SHALL carry a self-test exercised by the
-repository's CI and SHALL declare what escapes it: a file committed inside the same turn, a
-repository outside the working directory, and the event's different name inside a subagent.
+It SHALL cap the diff it measures at a declared number of lines and SHALL say so when the cap was
+reached, never truncating in silence: in its reason when the measured part has a finding, and as a
+block of its own — once, then a message on the Stop that follows — when the measured part is clean,
+because an unmeasured tail is not a clean result. It SHALL carry a self-test exercised by the
+repository's CI, exercised also under a git configuration that alters the diff's shape, and SHALL
+declare what escapes it: a file committed inside the same turn, a repository outside the working
+directory, and the event's different name inside a subagent.
 
 #### Scenario: A heredoc-written Portuguese file blocks the end of the turn
 
@@ -63,3 +73,18 @@ repository outside the working directory, and the event's different name inside 
 - **WHEN** the uncommitted diff has more lines than the declared cap and a gating finding within it
 - **THEN** the reason states that the diff was truncated at the cap and that the rest was not
   measured, so the truncation is never silent
+
+#### Scenario: A clean measured part over the cap is not a clean result
+
+- **WHEN** the uncommitted diff has more lines than the declared cap and the part within the cap has
+  no gating finding — clean or generated content that sorts ahead of a Portuguese file, for instance
+- **THEN** the artifact still blocks the end of the turn once, its reason says the tail was not
+  measured and how to measure it, and on the Stop that follows it reports as a message and lets the
+  turn end
+
+#### Scenario: The user's git configuration does not change what is measured
+
+- **WHEN** `~/.gitconfig` sets an external diff driver, mnemonic prefixes or the default path quoting,
+  and the turn edited a tracked file or wrote an untracked file whose name carries a non-ASCII letter
+- **THEN** the artifact blocks as it would under a blank configuration, and the reason names the
+  repository-relative path exactly as it is on disk

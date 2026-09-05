@@ -97,7 +97,7 @@ Rename detection fica no padrão do `git diff`: um arquivo em português **movid
 como rename, não como `--- /dev/null`, e o tier de caminho não dispara. É a leitura fiel de "legado só
 entra se o turno o tocou"; declarado no docstring.
 
-### D3 — Não rastreados entram um a um por `git diff --no-index /dev/null <path>`; binários pulados
+### D3 — Não rastreados entram um a um por `git diff --no-index /dev/null <path>`; vendored, vazios e binários pulados
 
 `git ls-files --others --exclude-standard` respeita `.gitignore` e `info/exclude` — `node_modules/`
 e `.venv/` ignorados nunca entram. Para cada caminho, `git diff --no-index --no-color /dev/null
@@ -105,12 +105,31 @@ e `.venv/` ignorados nunca entram. Para cada caminho, `git diff --no-index --no-
 medido; rc=1 é "há diferença", não erro). Um arquivo com NUL nos primeiros 8 KiB é binário e é pulado
 antes de chamar o git — o git também não emitiria linha `+` nenhuma, mas o `+++` que emitiria faria o
 tier de caminho medir um `.pdf`; o gate mede código, e um nome de binário fica declarado como limite.
+Pelo mesmo caminho, e antes do git, ficam de fora os não rastreados que o detector chama de vendored e
+os arquivos vazios — o que eles custavam ao teto está em D4.
 
 ### D4 — Um teto de linhas declarado, nunca um corte em silêncio
 
 O harness mata hooks lentos, e um `git diff` de milhares de linhas mais o detector por cima poderia
 passar do tempo. O total de linhas do diff é limitado a `MAX_DIFF_LINES = 4000`; passado o teto, o que
-sobra não é medido e o motivo **diz** isso ("diff truncated at N lines; run the check on the rest").
+sobra não é medido e o hook **diz** isso. Com achado na parte medida, a nota vai no motivo ("diff
+truncated at N lines; run the check on the rest"). **Sem** achado na parte medida, o hook bloqueia
+mesmo assim, uma vez: a revisão do PR mediu que a primeira versão só anexava a nota ao motivo, e
+quando o teto era comido por conteúdo limpo ou vendored que ordena **antes** do arquivo em português
+(`aaa_generated.py` com 5000 linhas em inglês; 5000 linhas anexadas a um rastreado; `build/gen.py`
+não ignorado; 1500 arquivos vazios em `build/`), o arquivo em português nunca era medido e o hook não
+dizia nada — rc=0, sem saída, nos quatro casos. Uma cauda não medida não é um resultado limpo; o
+motivo do bloqueio diz que a parte após o teto não foi medida e como medir (`git diff HEAD | check
+--diff -`, mais os não rastreados), e o Stop seguinte (`stop_hook_active`) só reporta e encerra —
+mesma cadência de D6.
+
+Para o teto medir o que o turno escreveu, e não o que ele gerou: caminhos não rastreados que o
+detector chama de vendored (`is_vendored`), arquivos vazios (o git não emite `+++` para eles) e
+binários são pulados **antes** de chamar o git — não consomem teto nem processo. Medido: 1500 vazios
+em `build/` custavam 1721 ms e engoliam o teto; pulados, 85 ms e o arquivo em português bloqueia sem
+nota de truncamento. O filtro de vendored **depois** do scan (D5) fica como segunda rede para um
+`vendor/` rastreado editado.
+
 Cada chamada ao git tem `timeout=5`; um git que estoura o tempo devolve silêncio, porque um gate que
 não consegue medir não pode segurar o turno para sempre — e esse é o único caso em que "não medir"
 vira "não bloquear", declarado como KNOWN LIMIT.
@@ -143,6 +162,35 @@ Os dois eventos têm o mesmo `stop_hook_active` no bundle. O README wira só `St
 dois para que um wiring em `SubagentStop` funcione sem edição, e ignora qualquer outro evento — um
 matcher errado não pode virar um bloqueio em PostToolUse.
 
+### D10 — A forma do diff é fixada contra o `~/.gitconfig` do usuário
+
+`scan_diff` lê `--- /dev/null`, `+++ b/<path>` e linhas `+`. Três configurações comuns mudam essa
+forma, e a revisão do PR mediu cada uma (git 2.47.3) silenciando ou desviando o gate:
+`diff.external = true` (quem usa difftastic/delta) entrega o diff à ferramenta e o stdout fica
+**vazio** — `git diff HEAD --no-color | wc -l` → 0, hook mudo com `id_pedido` em `shipping.py`;
+`diff.mnemonicPrefix = true` imprime `+++ w/shipping.py`, e todo achado saía sob um caminho que não
+existe (`w/shipping.py`), o que também quebra as entradas de caminho do `.identifier-locale-allow`;
+`core.quotePath` (padrão **true**) imprime `+++ "b/relat\303\263rio.py"` com as aspas, o sufixo vira
+`.py"`, nenhuma linguagem casa e as linhas `+` nunca são lidas — justamente o tier `non-ascii` que o
+detector existe para pegar, no rastreado e no não rastreado. Um `textconv` por `.gitattributes`
+reescreve o conteúdo do mesmo jeito (medido: `tr a-z A-Z <` deixou todo identificador em caixa alta).
+
+Decisão: toda chamada ao git roda como `git --no-pager -c core.quotePath=false`, e os dois diffs levam
+`--no-ext-diff --no-textconv --no-color --no-relative --src-prefix=a/ --dst-prefix=b/`. Probado com
+todas as configurações ligadas de uma vez (mais `diff.noprefix`, `diff.relative`, `color.ui =
+always`, e `GIT_EXTERNAL_DIFF` no ambiente): os cabeçalhos voltam como `--- a/shipping.py` /
+`+++ b/shipping.py` e `+++ b/relatório.py`. A alternativa — desfazer as aspas no detector — é edição
+em `skills/**` e fica anotada para a issue #139 (E.4); fixar a forma aqui resolve os três casos sem
+tocar o detector e é o que qualquer leitor de diff deveria fazer.
+
+O selftest carrega esse gitconfig como fixture (`GIT_CONFIG_GLOBAL` apontando para um arquivo com
+`diff.external`, `diff.mnemonicPrefix`, `diff.relative`, `core.quotePath`, `color.*`), porque a
+fixture padrão (`GIT_CONFIG_GLOBAL=/dev/null`) só provava as decisões sob config em branco.
+`diff.noprefix` fica **fora** da fixture de propósito: ele tira o prefixo (forma que o `scan_diff` já
+lê) e sobrepõe o `mnemonicPrefix` — com ele ligado, o mutante sem `--src-prefix/--dst-prefix` ficou
+verde. Limite declarado: um nome com aspas duplas, barra invertida ou caractere de controle continua
+sendo citado pelo git mesmo com `quotePath=false`, e não é medido.
+
 ### D9 — O selftest cria um repositório git em `tempfile.TemporaryDirectory()`
 
 Cada caso tem o repositório que precisa: um commit inicial com um arquivo limpo, depois o arquivo
@@ -172,6 +220,10 @@ Nenhuma skill do catálogo é editada por esta change, então não há doutrina 
 - **Diff enorme e lento** → teto de 4000 linhas declarado no motivo, `timeout=5` por chamada ao git,
   silêncio quando o git não responde (D4). O tempo em diff vazio e em 500 linhas está medido em
   `tasks.md`.
+- **Teto comido por conteúdo limpo antes do arquivo em português** → bloqueio único dizendo que a
+  cauda não foi medida; vendored e vazios não consomem o teto (D4).
+- **`~/.gitconfig` do usuário muda a forma do diff** → forma fixada por flag em toda chamada; fixture
+  do selftest com as configurações ligadas (D10).
 - **Loop de bloqueio** → uma vez, depois `systemMessage` (D6); a guarda do bundle (cap 8) fica como
   segunda rede.
 - **Nome legítimo de domínio bloqueado** → as três saídas no fim do motivo, sempre dentro do cap

@@ -24,7 +24,10 @@ e um `decision: "block"` com `reason` impede o modelo de encerrar o turno. Proba
   e sai 2), payload malformado mudo com exit 0. Num payload de Stop: se `cwd` está num work tree git,
   monta o diff não commitado (`git diff <HEAD|árvore vazia> --no-color` mais, para cada arquivo de
   `git ls-files --others --exclude-standard`, `git diff --no-index --no-color /dev/null <path>`;
-  binários pulados; total de linhas limitado a um N declarado, e o truncamento é dito no motivo);
+  vendored, vazios e binários pulados antes do git; forma do diff fixada contra o `~/.gitconfig` —
+  `core.quotePath=false`, `--no-ext-diff --no-textconv --no-relative`, prefixos `a/`/`b/`; total de
+  linhas limitado a um N declarado, e o truncamento é dito sempre: no motivo quando há achado, e como
+  bloqueio único quando a parte medida está limpa);
   passa o diff ao detector embarcado (`scan_diff`, com o `.identifier-locale-allow` do repositório);
   havendo achado gating e `stop_hook_active` falso e `LOCALE_RITE_MODE != inform` → bloqueia o
   encerramento com os achados e as três saídas; `stop_hook_active` verdadeiro → não bloqueia de novo
@@ -34,8 +37,9 @@ e um `decision: "block"` com `reason` impede o modelo de encerrar o turno. Proba
   `locale-rite`.
 - `README.md`, seção dos hooks: snippet completo do `settings.json` com `UserPromptSubmit`,
   `PreToolUse` e `PostToolUse` (matcher `Write|Edit|MultiEdit|NotebookEdit`, o `PreToolUse` que a
-  issue #137 entrega em paralelo, com `LOCALE_RITE_MODE=inform`) e o bloco `Stop` novo, mais a tabela
-  "qual camada pega o quê".
+  issue #137 entrega em paralelo — comentado no snippet até #137 entrar, porque hoje `locale-rite.py`
+  não tem caminho de `PreToolUse` — com `LOCALE_RITE_MODE=inform`) e o bloco `Stop` novo, mais a
+  tabela "qual camada pega o quê".
 
 ## Capabilities
 
