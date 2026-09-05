@@ -232,21 +232,15 @@ EOF
 
 To customize: edit `~/ai-skills/claude/global/personal-rules.md` (or fork the repo).
 
-### Enforcing the rite (optional hook)
+### Enforcing the rite (optional hooks)
 
 The rules file states that every code change starts as a backlog item ([`backlog`](skills/backlog/) →
 [`execute-backlog`](skills/execute-backlog/)). A rule in context only works if the assistant notices
 it — and the failure mode is specific: a request to *diagnose* something drifts into implementing the
 fix, and no new prompt ever arrives to trigger the rite.
 
-`claude/global/hooks/backlog-rite.py` closes that gap. It is a `UserPromptSubmit` hook: the harness
-runs it on every prompt, and its output becomes context for that turn. It **informs, never blocks** —
-no tool call is denied, and the user can waive the rite explicitly.
-
-Where the working directory carries `openspec/`, the reminder gains one extra sentence naming the
-spec gate: the item also becomes an OpenSpec change, validated strict before the first edit outside
-`openspec/`. The sentence is conditional on purpose — it never fires in a repo that has no such
-workflow, so the reminder does not teach a step that does not exist there.
+Four hooks under `claude/global/hooks/` close that gap, each on the harness event where its rule can
+be measured. This is the complete wiring; every block is optional, and each hook is described below.
 
 ```jsonc
 // ~/.claude/settings.json
@@ -267,10 +261,54 @@ workflow, so the reminder does not teach a step that does not exist there.
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/YOUR_USER/ai-skills/claude/global/hooks/locale-rite.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/YOUR_USER/ai-skills/claude/global/hooks/locale-rite.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/YOUR_USER/ai-skills/claude/global/hooks/locale-stop-gate.py",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }
 ```
+
+**The backlog rite.** `claude/global/hooks/backlog-rite.py` is a `UserPromptSubmit` hook: the harness
+runs it on every prompt, and its output becomes context for that turn. It **informs, never blocks** —
+no tool call is denied, and the user can waive the rite explicitly.
+
+Where the working directory carries `openspec/`, the reminder gains one extra sentence naming the
+spec gate: the item also becomes an OpenSpec change, validated strict before the first edit outside
+`openspec/`. The sentence is conditional on purpose — it never fires in a repo that has no such
+workflow, so the reminder does not teach a step that does not exist there.
 
 It stays silent for prompts already inside the rite (`/backlog`, `/execute-backlog`, any slash
 command), for explicit waivers ("sem backlog", "skip the rite"), and for anything that does not look
@@ -282,11 +320,11 @@ while a false negative costs traceability, the reminder itself says diagnosis is
 
 ### The grounding rite (anti-achismo)
 
-`claude/global/hooks/verify-rite.py` is the second hook in the array above. It carries the
-[`verify-before-claiming`](skills/verify-before-claiming/) doctrine into context when a prompt reads
-as **a guess being caught or research being demanded** — "achismo", "você inventou", "de onde
-tirou", "essa flag não existe", "fora do escopo", "don't guess", "cite the source", "that's not what
-I asked". Same contract as the backlog hook: informs, never blocks, silent on explicit waivers
+`claude/global/hooks/verify-rite.py` is the second hook in the `UserPromptSubmit` array above. It
+carries the [`verify-before-claiming`](skills/verify-before-claiming/) doctrine into context when a
+prompt reads as **a guess being caught or research being demanded** — "achismo", "você inventou", "de
+onde tirou", "essa flag não existe", "fora do escopo", "don't guess", "cite the source", "that's not
+what I asked". Same contract as the backlog hook: informs, never blocks, silent on explicit waivers
 ("de cabeça", "pode chutar", "from memory is fine").
 
 **What it deliberately does not do.** It fires on *corrections*, not on the guess itself. The moment
@@ -303,42 +341,70 @@ it — it cannot enforce anything on a pull request. The gate that survives an u
 with an `Evidence & Sources (MANDATORY)` group. The hook makes the guess less likely; CI makes the
 missing evidence visible.
 
-### The locale rite (English machine layer, measured at the write)
+### The locale rite, at the write (English machine layer, measured on the tool call)
 
-`claude/global/hooks/locale-rite.py` is the third hook, and the only one that measures an artifact
-instead of matching a prompt. It runs on `PostToolUse` for `Write|Edit`, feeds the written **path**
-and the written **content** to [`check-identifier-locale.py`](skills/code-locale/references/check-identifier-locale.py),
-and returns the findings to the assistant. Silent when the write is clean.
+`claude/global/hooks/locale-rite.py` is the third hook, and the first that measures an artifact
+instead of matching a prompt. It runs for `Write|Edit|MultiEdit|NotebookEdit` on two events, and the
+event decides the envelope, not the measurement: it feeds the written **path** and the written
+**content** to [`check-identifier-locale.py`](skills/code-locale/references/check-identifier-locale.py)
+either way.
 
-```jsonc
-// ~/.claude/settings.json — alongside the UserPromptSubmit block above
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 /home/YOUR_USER/ai-skills/claude/global/hooks/locale-rite.py",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+- On `PreToolUse` a gating finding (`pt-*`, `path-pt-*`) **denies the write** through
+  `hookSpecificOutput.permissionDecision: "deny"`, with every finding and the exits in the reason —
+  the file is never written (issue #137).
+- On `PostToolUse` it **informs**: the findings, including the advisory `en-unknown` question ("is
+  this word English?"), travel in `hookSpecificOutput.additionalContext`, not on plain stdout —
+  `PostToolUse` is not one of the events that turn stdout into context (`UserPromptSubmit`,
+  `UserPromptExpansion`, `SessionStart` are), so a hook that printed would be silently useless.
 
-**Why a different event.** The other two rites match a prompt, so a reminder is the best they can do.
-This one has the artifact in hand — the name that was just written — so it measures instead of
-reminding. The findings travel in `hookSpecificOutput.additionalContext`, not on plain stdout:
-`PostToolUse` is not one of the events that turn stdout into context (`UserPromptSubmit`,
-`UserPromptExpansion`, `SessionStart` are), so a hook that printed would be silently useless.
+Silent when the write is clean. The exits are the ones the `code-locale` skill defines: an inline
+`# locale-ok: <reason>` on the line or the line above, the token or path in the repository's
+`.identifier-locale-allow`, and `LOCALE_RITE_MODE=inform` in the session's environment, which turns
+the deny back into the advisory for the whole session. Where the check itself is missing it exits
+silently instead of failing, because an absent gate must not present itself as an error.
 
-Same contract as the other two: informs, never blocks, persists nothing, needs no credentials — and
-where the check itself is missing it exits silently instead of failing, because an absent gate must
-not present itself as an error.
+### The locale rite, at the end of the turn (the Stop gate)
+
+The write hooks see the **tool**, not the **result**. Anything written through Bash — a heredoc,
+`sed -i`, a script — never passes through them, and the harness's auto mode instructs the assistant
+to edit files exactly that way; measured live on 2026-09-05, a heredoc wrote `servico_cliente.py`
+with `def buscar_cliente(id_usuario)` and no hook fired (issue #138).
+
+`claude/global/hooks/locale-stop-gate.py` is the fourth hook and runs on `Stop`, once per turn. It
+finds the git work tree the working directory is in, builds the **uncommitted diff** — tracked files
+against `HEAD` (or the empty tree in a repository with no commit yet), plus every untracked file the
+repository does not ignore, each as an added file — and runs the same check over it in `--diff` mode,
+honouring the repository's `.identifier-locale-allow` and the check's vendored-path exclusions. A
+gating finding **blocks the end of the turn**: the hook answers `{"decision": "block", "reason": …}`
+and the reason lists every finding and the three exits. The shape was probed against the installed
+bundle (`claude 2.1.261`) rather than read from the docs, whose pages disagree: the bundle reads
+`decision`, `reason` and `systemMessage` at the **top level**, and for `Stop` the nested
+`hookSpecificOutput` carries only `additionalContext` — anything else nested is dropped without an
+error. The probe fragments and the version live in the hook's docstring.
+
+It never loops. The Stop that follows a block arrives with `stop_hook_active: true`; the hook then
+returns only a `systemMessage` naming what is still in Portuguese and lets the turn end. The second
+turn is the last chance, not a loop — whoever read the reason and did not rename has decided. It
+measures only what the turn left uncommitted, so a legacy repository is not judged for what it
+already had; a Portuguese file **moved** without an edit is a rename to git and does not fire. Over
+`MAX_DIFF_LINES` (4000) the rest is not measured and the reason **says so**; a git call that exceeds
+its timeout makes the hook silent rather than holding the turn forever. Silent — no output, exit 0,
+under a second — outside a git work tree, on an empty diff, on advisory-only findings, with
+`LOCALE_RITE_MODE=inform`, and on a payload it cannot read. What it does not see is declared in its
+docstring: a file committed inside the same turn, a repository other than the one `cwd` is in, and
+the event's other name (`SubagentStop`) inside a subagent.
+
+**Which layer catches what.** The three layers overlap on purpose; each covers a path the others
+cannot see.
+
+| What wrote the name | Layer that catches it | Effect |
+|---|---|---|
+| `Write` / `Edit` / `MultiEdit` / `NotebookEdit` | `locale-rite.py` on `PreToolUse` (#137) | the write is **denied**; nothing reaches the disk |
+| Bash — heredoc, `sed -i`, a script, a generator | `locale-stop-gate.py` on `Stop` | the **turn does not end** until the diff is clean or waived |
+| another assistant (Codex, Cursor, Copilot), or a human commit | the per-repository kit of the [`code-locale`](skills/code-locale/) skill — pre-commit hook and CI step (issue #139) | the **commit or the pull request** fails |
+
+The hooks run only in a Claude Code session that wired them; they enforce nothing on a pull request
+from someone who did not. The third row is the layer that survives that.
 
 > Like `personal-rules.md`, this is the **maintainer's** process. Edit the signal lists and the
 > reminder text to match yours — both matchers cover Portuguese and English by default.
