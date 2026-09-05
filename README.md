@@ -397,11 +397,15 @@ ai-skills/
 |--------|---------|
 | `skills/` | **Canonical skills** — self-contained `SKILL.md` per skill, open Agent Skills standard. Edit here. |
 | `.claude-plugin/` | Claude Code plugin + marketplace manifests |
+| `plugins/` | Per-domain plugins (`ai-skills-<group>`), 10 of the 11 marketplace entries — each carries its own `.claude-plugin/plugin.json` and a generated `skills/` copy of the group |
+| `openspec/` | Spec-driven rite: `specs/` (current truth), `changes/` (active + `archive/`), `schemas/skills-rite/` (the forked schema) |
+| `research/` | Measurements behind a skill (e.g. `svg-animation`) — the numbers a skill's rule was derived from |
 | `claude/global/` | Portable global rules for Claude Code, `@`-included from `~/.claude/CLAUDE.md` |
 | `claude/skills/` | Generated wrappers for legacy `~/.claude/CLAUDE.md` installs |
 | `codex/skills/` | Generated OpenAI Codex wrappers using `@./path` file includes |
 | `cursor/rules/` | Generated Cursor .mdc rules with content inlined |
 | `copilot/instructions/` | Generated GitHub Copilot wrappers with markdown link references |
+| `scripts/` | CI gates and release plumbing: `validate-skills.py` (+ selftest), `validate-repo-hygiene.py`, `validate-rite.sh` (+ `validate-rite-evidence.py`, `validate-spec-rite.py`), `scan-secrets.py`, `set-version.sh` |
 
 ---
 
@@ -765,11 +769,27 @@ Every check above iterates over *active changes*, which means a pull request tha
 pass them all vacuously: the loop found nothing, `fail` stayed 0, and the gate printed `rite gate OK`.
 That is how PR #80 and PR #84 shipped blocking CI gates with no proposal and had to be registered
 retroactively by PR #88. [`scripts/validate-spec-rite.py`](scripts/validate-spec-rite.py) reads the
-**diff** instead: a pull request touching anything outside `openspec/` (beyond the paths the release
-automation writes) must carry an active change, a change archived in the same diff, or a waiver line
-`Spec-rite: none — <reason>` in its body. The waiver is authored by whoever opened the PR, including
-from a fork, so it is matched as text and never executed. The checkout runs at `fetch-depth: 0`
-because a gate with no base revision cannot measure, and a gate that cannot measure must not approve.
+**diff** instead, and since #127 it checks **relevance, not existence**. Its three rules, quoted from
+the script's docstring:
+
+```
+S1 a diff outside openspec/ carries a change, an archive, or a written waiver
+S2 the waiver names a reason
+S3 the change it carries is ITS change: the diff touches openspec/changes/<id>/ of an active
+   change, or the pull request body names one on a `Spec-rite: <id>` line. Until issue #117
+   (2026-09-04) the mere existence of any active change registered any diff, and the selftest
+   pinned that as a silent case.
+```
+
+So a pull request touching anything outside `openspec/` (beyond the paths the release automation
+writes) passes in exactly four ways: the diff touches `openspec/changes/<id>/` of an active change (a
+tick in its `tasks.md` counts), or the PR body names an active change on a `Spec-rite: <id>` line, or
+the diff archives a change (`openspec/changes/archive/`), or the body carries the written waiver
+`Spec-rite: none — <reason>`. An active change that the diff neither touches nor names no longer
+registers it — that is the S3 finding. The waiver and the `Spec-rite:` line are authored by whoever
+opened the PR, including from a fork, so they are matched as text and never executed. The checkout
+runs at `fetch-depth: 0` because a gate with no base revision cannot measure, and a gate that cannot
+measure must not approve.
 
 A second gate checks the **content** of the skills themselves.
 [`scripts/validate-skills.py`](scripts/validate-skills.py) runs nine checks over every
@@ -819,10 +839,9 @@ openspec init --tools claude          # generates the /opsx commands into .claud
 ```
 
 > `openspec init` also writes six helper skills (`openspec-propose`, `openspec-apply-change`, …) into
-> `.claude/skills/`. They are not part of the catalog and the repo `.gitignore` does not exclude
-> `.claude/` — ignore it in your global excludes file (`core.excludesFile`) so `git add -A` never
-> commits them. That is why `npx skills add ./ --list` in a maintainer checkout finds 41 skills
-> against the 35 that `git archive HEAD` ships.
+> `.claude/skills/`. They are not part of the catalog; the repo `.gitignore` excludes `.claude/` so
+> `git add -A` never commits them. That is why `npx skills add ./ --list` in a maintainer checkout
+> finds 41 skills against the 35 that `git archive HEAD` ships.
 
 ### Board integration
 

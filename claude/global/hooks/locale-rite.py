@@ -15,8 +15,12 @@ WHY `hookSpecificOutput.additionalContext` AND NOT PLAIN STDOUT
     For PostToolUse, plain stdout goes to the debug log and the model never sees it. The events that
     turn stdout into context are UserPromptSubmit, UserPromptExpansion and SessionStart — which is
     why the repo's other two rite hooks can print and this one cannot. Probed against the installed
-    version rather than recalled: `claude --version` -> `2.1.246 (Claude Code)`, and the binary reads
+    binary rather than recalled. First measured on 2.1.246 (2026-08-26): the bundle reads
     `let {additionalContext:a,...l}=e.hookSpecificOutput` with the cap `additionalContext:8000`.
+    Re-measured 2026-09-05 on `readlink -f $(which claude)` ->
+    ~/.local/share/claude/versions/2.1.261 (`claude --version` -> `2.1.261 (Claude Code)`; a
+    single ELF, so the grep needs `-a`): `grep -a -o -E 'additionalContext:[0-9]+'` prints
+    `additionalContext:8000` exactly once, and the same on the 2.1.260 bundle beside it.
     Docs: code.claude.com/docs/en/hooks (read 2026-08-26).
 
 WHAT THIS HOOK DELIBERATELY DOES NOT DO
@@ -31,7 +35,7 @@ Wiring (~/.claude/settings.json):
 
     "hooks": {
       "PostToolUse": [
-        {"matcher": "Write|Edit",
+        {"matcher": "Write|Edit|MultiEdit|NotebookEdit",
          "hooks": [{"type": "command",
                     "command": "python3 ~/ai-skills/claude/global/hooks/locale-rite.py",
                     "timeout": 10}]}
@@ -42,20 +46,25 @@ Like personal-rules.md, this is the maintainer's config — edit the matcher and
 your own process instead of adopting it blindly.
 
 Modes: (default) read one payload from stdin   |   --selftest assert the decisions against synthetic payloads.
+Any other argument prints usage to stderr and exits 2 — the same contract as backlog-rite.py and
+verify-rite.py since #115, so a misspelt flag cannot fall through to the stdin path and exit 0.
 """
 
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
-# The check lives in the skill that owns the doctrine. Two directories up from claude/global/hooks/
-# is the repository root; the path is resolved, never guessed, and a miss exits silently.
+# The check lives in the skill that owns the doctrine. parents[3] of this file is the repository
+# root — three directories up from claude/global/hooks/ (hooks -> global -> claude -> root); the path
+# is resolved, never guessed, and a miss exits silently.
 CHECK_PATH = Path(__file__).resolve().parents[3] / "skills/code-locale/references/check-identifier-locale.py"
 
 # The harness truncates a longer value; truncating here keeps the tail we choose rather than the
-# tail it chooses. Measured cap: `additionalContext:8000` in claude 2.1.246.
+# tail it chooses. Measured cap: `additionalContext:8000` in claude 2.1.246, 2.1.260 and 2.1.261
+# (see the docstring for the probe).
 CONTEXT_CAP = 8000
 
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
@@ -233,17 +242,33 @@ def selftest() -> int:
     print(f"  {'OK     ' if shape_ok else 'FAILED '} output shape is the field the harness reads")
     if not shape_ok:
         failed.append("output shape")
+    # The argv contract can only be measured through the real entry point: a misspelt flag must
+    # print usage and exit 2, never read stdin and exit 0 (the silent no-op #115 closed in the
+    # sibling hooks).
+    run = subprocess.run([sys.executable, __file__, "--bogus"], stdin=subprocess.DEVNULL,
+                         capture_output=True, text=True)
+    argv_ok = run.returncode == 2 and "usage:" in run.stderr and run.stdout == ""
+    print(f"  {'OK     ' if argv_ok else 'FAILED '} unknown flag prints usage and exits 2")
+    if not argv_ok:
+        failed.append("unknown flag")
     print()
     if failed:
         print("selftest FAILED: " + "; ".join(failed))
         return 1
-    print(f"selftest OK: {len(cases)} decisions plus the output shape")
+    print(f"selftest OK: {len(cases)} decisions, the output shape, plus the argv contract")
     return 0
 
 
 def main() -> int:
-    if "--selftest" in sys.argv[1:]:
+    args = sys.argv[1:]
+    if args == ["--selftest"]:
         return selftest()
+    if args:
+        # An unknown argument must not fall through to the stdin path: a misspelt flag in a CI
+        # step would then read empty stdin and exit 0 — the silent no-op the selftest mode exists
+        # to make impossible.
+        print(f"usage: {sys.argv[0]} [--selftest]", file=sys.stderr)
+        return 2
     try:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
