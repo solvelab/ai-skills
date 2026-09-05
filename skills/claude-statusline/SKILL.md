@@ -4,13 +4,21 @@ description: >-
   Configure or customize the Claude Code status line — the shell-script status bar at the bottom of the CLI that shows model, effort tier, context usage, git state, cost (cumulative session + per-turn token cost), rate limits and prompt-cache health. Use when the user wants to set up, change, share, or debug their Claude Code status line / status bar, mentions statusLine in settings.json or a statusline.sh script, wants a context/token/cost/git/effort indicator in the CLI, or shares a status-line gist to install. Ships a ready-made 3-line script (references/statusline.sh) and the full list of available JSON fields (references/fields.md). Do NOT use for shell prompt themes (PS1, starship, powerlevel10k) or non-Claude-Code status bars.
 metadata:
   author: solvelab
-  version: 1.2.1
+  version: 1.2.2
   category: tooling
 license: MIT
 compatibility: Works in Claude Code (CLI, desktop, IDE). Requires `jq` on PATH. Bash script targets macOS/Linux (incl. WSL); Git Bash on Windows.
 ---
 
 # Claude Code Status Line
+
+> **Verified against**: `Claude Code 2.1.261` · `jq 1.6` · `bash 5.2.15`. Probed on 2026-09-05:
+> `references/statusline.sh` is byte-identical to the script rendering the status line of the
+> session that wrote this, and fed a synthetic payload of the fields in `references/fields.md` it
+> printed its three lines (`🤖 Fable 5.1 | ⚡ medium | 🧠 thinking enabled | ⏱️ 1m 5s | 💰 $1.23`, the
+> repo/branch/diff line, the three meters). Not probed: each field's presence in the live payload —
+> the script falls back to `-` for a missing field, so a render proves the script runs, not that
+> every documented field still arrives; the per-version notes in `fields.md` stand as written.
 
 The status line is a customizable bar at the bottom of Claude Code. Claude Code runs a
 shell command, pipes JSON session data to it on **stdin**, and renders whatever the

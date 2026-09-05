@@ -9,13 +9,22 @@ description: >-
   services use backend-resilience instead.
 metadata:
   author: solvelab
-  version: 1.3.0
+  version: 1.3.1
   category: fivem
 license: MIT
 compatibility: Works in any environment with filesystem access.
 ---
 
 # FiveM fallback & resilience (Lua adaptation)
+
+> **Verified against**: `Lua 5.4.8` · `citizenfx/fivem` at commit `6fd665a3` (2026-09-02) ·
+> `citizenfx/natives` at `7263f211` (2026-08-17). Probed on 2026-09-05: all 5 fenced Lua blocks in
+> this skill and its reference parse under `luac -p`; the 6 runtime functions and natives named
+> here (`PerformHttpRequest`, `GetConvar`, `GetGameTimer`, `CreateThread`, `Wait`,
+> `RegisterNUICallback`) resolve in `ext/native-decls/`,
+> `data/shared/citizen/scripting/lua/scheduler.lua` or `natives/MISC/`. Not probed: no FXServer
+> build ran this code, and no backend was called from a resource — the retry and negative-cache
+> behaviour was observed on the DriveZone servers and carries no artifact number here.
 
 **Doctrine lives in `backend-resilience`** — read it first: safe defaults, one shared helper,
 response-shape validation, clamping, bounded retries, negative cache (never negative-cache a real 404),

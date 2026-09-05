@@ -3,6 +3,7 @@
 ## errors.ts — typed taxonomy
 
 ```ts
+// excerpt — condensed: the constructor is elided; does not compile as written
 export enum ErrorCodes {
   INSUFFICIENT_BALANCE = 'INSUFFICIENT_BALANCE',
   COOLDOWN_ACTIVE = 'COOLDOWN_ACTIVE',
@@ -28,6 +29,7 @@ export const isApiException = (e: unknown): e is ApiException => e instanceof Ap
 ## client.ts — the interceptor contract (essence)
 
 ```ts
+// excerpt — condensed: imports, the axios instance field and the constructor are elided
 export interface AuthHandlers {
   getAccessToken: () => string | null;
   onUnauthorized: () => void;
@@ -95,6 +97,7 @@ export const createApiClient = (cfg: ApiClientConfig) => new ApiClient(cfg);
 ## createAuthStore.ts — factory essentials
 
 ```ts
+// excerpt — condensed: zustand imports and the storage adapter are elided
 export function createAuthStore({ persistKey }: { persistKey: string }) {
   return createStore(persist(
     (set) => ({

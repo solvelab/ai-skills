@@ -11,13 +11,20 @@ description: >-
   metrics/APM instrumentation of the monitored application.
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.1.1
   category: backend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 # Log-tailing event collector
+
+> **Verified against**: `Python 3.11.2` (standard library only). Probed on 2026-09-05: the
+> partial-line read returns the complete lines and leaves the offset before the partial tail
+> (`['line one', 'line two']`, offset 18; the tail arrives whole on the next read), and the atomic
+> state write lands through `os.replace` with no `.tmp` left behind. The parser excerpt is not
+> runnable by design. No tailer was run against a live server here; the doctrine is stack-agnostic
+> and pins nothing else.
 
 When a system you can't modify (game server, third-party daemon) only exposes its life in text
 logs, ship a **collector sidecar**: tail the log, parse lines into normalized events, POST them to

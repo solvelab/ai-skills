@@ -14,13 +14,24 @@ description: >-
   (different Lua contexts and permissions), or for FiveM Lua (that is fivem-lua).
 metadata:
   author: solvelab
-  version: 1.1.1
+  version: 1.1.2
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 # CSP Lua online scripts (AssettoServer-served overlays)
+
+> **Verified against**: `acc-lua-sdk` at commit `7cf60f5a` (2026-08-17, the public CSP Lua library
+> tree) · `Lua 5.4.8` · `AssettoServer v0.0.54` and `v0.0.55-pre25` source. Probed on 2026-09-05:
+> 12 of the 15 `ac.*`/`ui.*` names this skill uses are declared in that tree;
+> `ui.measureDWriteText`, `ui.pushDWriteFont` and `ac.onCarCollision` are not (the tree does not
+> enumerate every C++-side binding) — they were paid for in game and are not re-probed here.
+> `references/snippets.lua` and the fenced Lua block parse under `luac -p`;
+> `CSPServerScriptProvider.AddScript(string, string?, Dictionary<string, object>?)`, the
+> `SCRIPT_N-<name>` section and the `/api/scripts/N` route exist at both server tags. Not probed:
+> every rendering, font and audio rule below needs the CSP client, and the CSP build the DriveZone
+> servers require is not recorded on this machine.
 
 Prescriptive conventions for the in-game UI layer of an AssettoServer: Lua scripts pushed to every
 client by the server itself. Zero-install is the point — the player installs nothing; art, sound

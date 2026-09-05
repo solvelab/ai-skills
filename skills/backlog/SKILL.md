@@ -14,7 +14,7 @@ description: >-
   non-GitHub trackers (Jira, Linear, Trello).
 metadata:
   author: solvelab
-  version: 1.5.1
+  version: 1.5.2
   category: process
 license: MIT
 compatibility: >-
@@ -23,6 +23,15 @@ compatibility: >-
 ---
 
 # Backlog — idea → structured GitHub Project item
+
+> **Verified against**: `gh 2.96.0` · `openspec 1.6.0`. Probed on 2026-09-05: the read recipes ran
+> against the AI-SKILLS board (`gh project list/view/field-list/item-list --owner --format json
+> --jq`, `gh issue view --json --jq`, `gh issue list --search --state --json`, `gh label list
+> --json`, `gh auth status`); `gh project item-edit --project-id --id --field-id
+> --single-select-option-id` moved a real card the same day; every other flag this skill and its
+> references prescribe (58 flags across 18 subcommands, `gh issue create --title --body-file
+> --label` and `gh project item-add --url` among them) is present in that client's `--help`.
+> Nothing was created, closed or merged by the probe.
 
 Enrich a raw idea with real repository context and publish it as a GitHub issue inside the
 configured GitHub Project v2 — never a copy of the user's sentence, always grounded in the actual

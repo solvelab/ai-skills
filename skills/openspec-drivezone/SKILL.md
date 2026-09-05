@@ -13,13 +13,20 @@ description: >-
   Do NOT use for vanilla OpenSpec on non-DriveZone projects — that is the openspec skill.
 metadata:
   author: solvelab
-  version: 2.1.3
+  version: 2.1.4
   category: process
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 # OpenSpec — the DriveZone rite (forked schema)
+
+> **Verified against**: `openspec 1.6.0`. Probed on 2026-09-05: a throwaway project with a change
+> missing every gate section passed `openspec validate <id> --strict` (`Change 'probe' is valid`),
+> which is the claim this skill's hard gate rests on; the subcommands and flags shared with the
+> `openspec` skill were probed there. Not probed: the DriveZone repositories and their rite-gate
+> script are not on this machine — their described behaviour is the maintainer's field record, not
+> a re-run.
 
 > **What this is.** DriveZone uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) as its
 > spec-driven process — the base workflow is the **`openspec` skill** — but with a **project-local

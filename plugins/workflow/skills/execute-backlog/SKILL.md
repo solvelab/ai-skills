@@ -14,7 +14,7 @@ description: >-
   PRs, for deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.8.2
+  version: 1.8.3
   category: process
 license: MIT
 compatibility: >-
@@ -24,6 +24,16 @@ compatibility: >-
 ---
 
 # Execute-backlog — backlog item → implemented, validated PR
+
+> **Verified against**: `gh 2.96.0` · `openspec 1.6.0`. Probed on 2026-09-05: the read recipes ran
+> against the AI-SKILLS board and this repository (`gh issue view --json
+> closedByPullRequestsReferences`, `gh api repos/<o>/<r>/issues/<n>/timeline --jq`, `gh api
+> graphql`, `gh project item-list --owner --limit --format json --jq`), `gh project item-edit
+> --project-id --id --field-id --single-select-option-id` moved a real card, and `openspec new
+> change <id> --schema <name>` scaffolded a real change; every other flag this skill and its
+> references prescribe (`gh issue edit --body-file`, `gh issue comment --body-file`, `gh pr create
+> --title --body-file --base --head` among the 58 checked) is present in that client's `--help`.
+> Nothing was merged or closed by the probe.
 
 Drive an existing issue to a reviewable pull request while keeping the board in sync. Companion
 to the `backlog` skill; consumes the same config (`.github/backlog.yml` in repo mode,

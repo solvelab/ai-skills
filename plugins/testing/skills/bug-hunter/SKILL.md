@@ -10,13 +10,19 @@ description: >-
   api-resilience-testing.
 metadata:
   author: solvelab
-  version: 2.2.2
+  version: 2.2.3
   category: testing
 license: MIT
 compatibility: Works in any environment with filesystem access.
 ---
 
 # Bug-Hunter — adversarial testing
+
+> **Not version-bound**: this skill does not depend on a tool version — it is a methodology (defect
+> classes, the anti-forge lens, the closure checklist). The stack tracks under `references/` name
+> `pytest`, `busted` and Mono.Cecil as the runners a track uses and prescribe no version-specific
+> flag; the versions belong to the stack skills that own the code (`python-rest-api`, `fivem-lua`,
+> `assettoserver-plugin`). Declared on 2026-09-05.
 
 A repeatable rite: after implementing a change, actively **try to break it** — don't just confirm the
 happy path. Hunt for the bug before it ships.

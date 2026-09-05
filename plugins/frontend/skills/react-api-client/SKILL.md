@@ -9,13 +9,21 @@ description: >-
   mutations. Not for FiveM NUIs (CEF) — that is fivem-nui-react.
 metadata:
   author: solvelab
-  version: 1.1.1
+  version: 1.1.2
   category: frontend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 # React SPA ↔ typed-envelope API
+
+> **Verified against**: `typescript 7.0.2` · `axios 1.20.0` · `zustand 5.0.15`. Probed on
+> 2026-09-05: the four `ts` blocks in `references/api-client.md` were extracted and typechecked.
+> None of the three complete-looking ones compiles as written (24 errors: elided constructors,
+> sibling names), and a harness supplying the imports and the elided declarations still leaves
+> typing errors in the interceptor and store blocks — so all four now carry the `// excerpt` marker
+> and are read as shape, not as modules. `zod` is named in prose only and was not exercised. The
+> project this skill was extracted from was not available.
 
 The backend (`python-rest-api` skill) speaks `{status, code, message, data}`. These conventions
 keep the frontend honest about it: the front only EXHIBITS state and SENDS intents — balance,

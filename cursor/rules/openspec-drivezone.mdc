@@ -7,6 +7,13 @@ alwaysApply: false
 
 # OpenSpec — the DriveZone rite (forked schema)
 
+> **Verified against**: `openspec 1.6.0`. Probed on 2026-09-05: a throwaway project with a change
+> missing every gate section passed `openspec validate <id> --strict` (`Change 'probe' is valid`),
+> which is the claim this skill's hard gate rests on; the subcommands and flags shared with the
+> `openspec` skill were probed there. Not probed: the DriveZone repositories and their rite-gate
+> script are not on this machine — their described behaviour is the maintainer's field record, not
+> a re-run.
+
 > **What this is.** DriveZone uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) as its
 > spec-driven process — the base workflow is the **`openspec` skill** — but with a **project-local
 > forked schema** that makes three sections **mandatory** where vanilla has none: **`Fallback & Modos

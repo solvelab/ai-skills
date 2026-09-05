@@ -10,7 +10,7 @@ description: >-
   same commit as the code. Do NOT use for non-software documentation tasks.
 metadata:
   author: solvelab
-  version: 3.0.2
+  version: 3.0.3
   category: docs
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

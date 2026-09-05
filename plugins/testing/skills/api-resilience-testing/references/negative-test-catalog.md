@@ -100,11 +100,12 @@ Content-Type: application/json
 
 [[[[[[[[[[ … ]]]]]]]]]]     # 1000 levels — about 2 KB on the wire
 ```
-Measured on the same stock service: **500** (`RecursionError`). A 2 KB unauthenticated request that
-returns a 5xx is a denial-of-service primitive, and it violates the "input errors are never 5xx" rule
-that the rest of this catalog assumes. Expect **400** once the guard from `python-rest-api`
-("Request limits") is registered. Test at 1k and 10k levels — 200 levels still returns 422, so a
-shallow probe misses it entirely.
+Measured on the same stock service, re-run 2026-09-05 on `fastapi 0.141.1` / `pydantic 2.13.4`:
+**400** `{"detail":"There was an error parsing the body"}` from 990 levels up to 10 000, closed or
+unclosed — FastAPI's body parser catches the `RecursionError`, and the **500** this catalog published
+earlier did not reproduce. The request still costs a full recursion stack per call, so the depth
+guard from `python-rest-api` ("Request limits") stays worth registering. Test at 1k and 10k levels —
+200 levels still returns 422, so a shallow probe misses it entirely.
 
 ## 8. Malformed / truncated JSON
 

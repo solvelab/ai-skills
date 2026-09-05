@@ -10,13 +10,18 @@ description: >-
   same commit as the code. Do NOT use for non-software documentation tasks.
 metadata:
   author: solvelab
-  version: 3.0.2
+  version: 3.0.3
   category: docs
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 # Documentation
+
+> **Not version-bound**: this skill does not depend on a tool version — it decides which documents
+> a project gets and how a claim inside them is made checkable, and it prescribes no generator,
+> linter or CLI. The `AGENTS.md` convention it names is a specification, not a versioned tool.
+> Declared on 2026-09-05.
 
 Write documentation a reader can act on and a script can verify. Templates and full worked examples
 live in `references/` — read them when you are about to generate output, not before.

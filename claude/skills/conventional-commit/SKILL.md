@@ -10,7 +10,7 @@ description: >-
   items (that is `backlog`).
 metadata:
   author: solvelab
-  version: 1.3.1
+  version: 1.3.2
   category: git
 license: MIT
 compatibility: Works in any environment with git access.
