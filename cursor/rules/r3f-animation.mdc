@@ -4,6 +4,8 @@ description: >-
 alwaysApply: false
 ---
 
+Reference files (`references/…` below) live at https://github.com/solvelab/ai-skills/tree/master/skills/r3f-animation/references/
+
 
 
 # React Three Fiber Animation
@@ -18,11 +20,11 @@ Each topic is a reference file — read the one the task needs, not the whole se
 
 | Reference | Covers |
 |---|---|
-| [GLTF Animations with useAnimations](../../skills/r3f-animation/references/gltf-animations-with-useanimations.md) | useFrame Basics, GLTF Animations with useAnimations |
-| [Spring Animation (@react-spring/three)](../../skills/r3f-animation/references/spring-animation-react-springthree.md) | Spring Animation (@react-spring/three), Morph Targets |
-| [Procedural Animation Patterns](../../skills/r3f-animation/references/procedural-animation-patterns.md) | Skeletal Animation, Procedural Animation Patterns, Drei Animation Helpers |
-| [State Management Performance](../../skills/r3f-animation/references/state-management-performance.md) | Animation with Zustand State, State Management Performance |
-| [Procedural Walk Cycle (Bipedal Character)](../../skills/r3f-animation/references/procedural-walk-cycle-bipedal-character.md) | Performance Tips, Procedural Walk Cycle (Bipedal Character), Procedural Jump Animation (Point-to-Point) |
+| [GLTF Animations with useAnimations](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-animation/references/gltf-animations-with-useanimations.md) | useFrame Basics, GLTF Animations with useAnimations |
+| [Spring Animation (@react-spring/three)](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-animation/references/spring-animation-react-springthree.md) | Spring Animation (@react-spring/three), Morph Targets |
+| [Procedural Animation Patterns](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-animation/references/procedural-animation-patterns.md) | Skeletal Animation, Procedural Animation Patterns, Drei Animation Helpers |
+| [State Management Performance](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-animation/references/state-management-performance.md) | Animation with Zustand State, State Management Performance |
+| [Procedural Walk Cycle (Bipedal Character)](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-animation/references/procedural-walk-cycle-bipedal-character.md) | Performance Tips, Procedural Walk Cycle (Bipedal Character), Procedural Jump Animation (Point-to-Point) |
 
 ## See Also
 

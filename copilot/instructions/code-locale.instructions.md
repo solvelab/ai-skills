@@ -2,4 +2,4 @@
 
 Follow the instructions in [SKILL.md](../../skills/code-locale/SKILL.md)
 
-Reference files: [references/](../../skills/code-locale/references/)
+Reference files: [references/](https://github.com/solvelab/ai-skills/tree/master/skills/code-locale/references/)

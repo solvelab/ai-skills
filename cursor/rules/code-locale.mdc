@@ -4,6 +4,8 @@ description: >-
 alwaysApply: false
 ---
 
+Reference files (`references/…` below) live at https://github.com/solvelab/ai-skills/tree/master/skills/code-locale/references/
+
 
 # Code locale — prose follows the repo, the machine layer is English
 

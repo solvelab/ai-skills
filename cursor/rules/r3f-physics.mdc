@@ -4,6 +4,8 @@ description: >-
 alwaysApply: false
 ---
 
+Reference files (`references/…` below) live at https://github.com/solvelab/ai-skills/tree/master/skills/r3f-physics/references/
+
 
 
 # React Three Fiber Physics (Rapier)
@@ -18,11 +20,11 @@ Each topic is a reference file — read the one the task needs, not the whole se
 
 | Reference | Covers |
 |---|---|
-| [RigidBody](../../skills/r3f-physics/references/rigidbody.md) | Quick Start, Installation, Physics Component, RigidBody |
-| [Colliders](../../skills/r3f-physics/references/colliders.md) | Colliders, Applying Forces |
-| [Collision Events](../../skills/r3f-physics/references/collision-events.md) | Collision Events, Sensors, Collision Groups |
-| [Joints](../../skills/r3f-physics/references/joints.md) | Joints |
-| [Accessing the World](../../skills/r3f-physics/references/accessing-the-world.md) | Instanced Physics, Accessing the World, Attractors, Debug Visualization, Performance Tips |
+| [RigidBody](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-physics/references/rigidbody.md) | Quick Start, Installation, Physics Component, RigidBody |
+| [Colliders](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-physics/references/colliders.md) | Colliders, Applying Forces |
+| [Collision Events](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-physics/references/collision-events.md) | Collision Events, Sensors, Collision Groups |
+| [Joints](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-physics/references/joints.md) | Joints |
+| [Accessing the World](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-physics/references/accessing-the-world.md) | Instanced Physics, Accessing the World, Attractors, Debug Visualization, Performance Tips |
 
 ## See Also
 

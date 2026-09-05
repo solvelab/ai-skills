@@ -4,6 +4,8 @@ description: >-
 alwaysApply: false
 ---
 
+Reference files (`references/…` below) live at https://github.com/solvelab/ai-skills/tree/master/skills/assettoserver-csp-lua/references/
+
 
 # CSP Lua online scripts (AssettoServer-served overlays)
 

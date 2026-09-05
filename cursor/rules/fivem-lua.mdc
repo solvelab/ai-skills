@@ -4,6 +4,8 @@ description: >-
 alwaysApply: false
 ---
 
+Reference files (`references/…` below) live at https://github.com/solvelab/ai-skills/tree/master/skills/fivem-lua/references/
+
 
 # FiveM Lua — CitizenFX conventions
 

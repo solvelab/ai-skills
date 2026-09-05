@@ -4,6 +4,8 @@ description: >-
 alwaysApply: false
 ---
 
+Reference files (`references/…` below) live at https://github.com/solvelab/ai-skills/tree/master/skills/r3f-lighting/references/
+
 
 
 # React Three Fiber Lighting
@@ -18,9 +20,9 @@ Each topic is a reference file — read the one the task needs, not the whole se
 
 | Reference | Covers |
 |---|---|
-| [directionalLight](../../skills/r3f-lighting/references/directionallight.md) | Quick Start, Light Types Overview, ambientLight, hemisphereLight, directionalLight, pointLight, spotLight, rectAreaLight |
-| [Drei Lighting Helpers](../../skills/r3f-lighting/references/drei-lighting-helpers.md) | Shadow Setup, Drei Lighting Helpers |
-| [Common Lighting Setups](../../skills/r3f-lighting/references/common-lighting-setups.md) | Common Lighting Setups, Animated Lighting, Light Helpers, Performance Tips |
+| [directionalLight](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-lighting/references/directionallight.md) | Quick Start, Light Types Overview, ambientLight, hemisphereLight, directionalLight, pointLight, spotLight, rectAreaLight |
+| [Drei Lighting Helpers](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-lighting/references/drei-lighting-helpers.md) | Shadow Setup, Drei Lighting Helpers |
+| [Common Lighting Setups](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-lighting/references/common-lighting-setups.md) | Common Lighting Setups, Animated Lighting, Light Helpers, Performance Tips |
 
 ## See Also
 

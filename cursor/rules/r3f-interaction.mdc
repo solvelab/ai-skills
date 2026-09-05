@@ -4,6 +4,8 @@ description: >-
 alwaysApply: false
 ---
 
+Reference files (`references/…` below) live at https://github.com/solvelab/ai-skills/tree/master/skills/r3f-interaction/references/
+
 
 
 # React Three Fiber Interaction
@@ -18,10 +20,10 @@ Each topic is a reference file — read the one the task needs, not the whole se
 
 | Reference | Covers |
 |---|---|
-| [Pointer Events](../../skills/r3f-interaction/references/pointer-events.md) | Quick Start, Pointer Events |
-| [Camera Controls](../../skills/r3f-interaction/references/camera-controls.md) | Camera Controls |
-| [Keyboard Controls](../../skills/r3f-interaction/references/keyboard-controls.md) | Transform Controls, Drag Controls, Keyboard Controls |
-| [Selection System](../../skills/r3f-interaction/references/selection-system.md) | Selection System, Screen-Space to World-Space, Gesture Recognition, Scroll Controls, Presentation Controls, Performance Tips |
+| [Pointer Events](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-interaction/references/pointer-events.md) | Quick Start, Pointer Events |
+| [Camera Controls](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-interaction/references/camera-controls.md) | Camera Controls |
+| [Keyboard Controls](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-interaction/references/keyboard-controls.md) | Transform Controls, Drag Controls, Keyboard Controls |
+| [Selection System](https://github.com/solvelab/ai-skills/blob/master/skills/r3f-interaction/references/selection-system.md) | Selection System, Screen-Space to World-Space, Gesture Recognition, Scroll Controls, Presentation Controls, Performance Tips |
 
 ## See Also
 

@@ -2,4 +2,4 @@
 
 Follow the instructions in [SKILL.md](../../skills/react-api-client/SKILL.md)
 
-Reference files: [references/](../../skills/react-api-client/references/)
+Reference files: [references/](https://github.com/solvelab/ai-skills/tree/master/skills/react-api-client/references/)
