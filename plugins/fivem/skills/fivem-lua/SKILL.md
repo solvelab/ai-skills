@@ -4,13 +4,22 @@ description: >-
   Conventions for writing FiveM (CitizenFX) server/client Lua resources. Use when working on FiveM/FXServer Lua — RegisterNetEvent/RegisterNUICallback handlers, fxmanifest, exports, NUI (SendNUIMessage/SetNuiFocus), threads/CreateThread, StateBags, or natives. Enforces the client-is-never-trusted boundary (validate payload + derive actor from `source`), explicit fxmanifest order, no busy `while true` loops, module-per-global pattern, and NUI focus/disconnect cleanup. Do NOT use for react-three-fiber, for CSP Lua scripts on an Assetto Corsa server (that is `assettoserver-csp-lua`), or for other non-FiveM Lua.
 metadata:
   author: solvelab
-  version: 1.3.2
+  version: 1.3.3
   category: fivem
 license: MIT
 compatibility: Works in any environment with filesystem access.
 ---
 
 # FiveM Lua — CitizenFX conventions
+
+> **Verified against**: `Lua 5.4.8` · `citizenfx/fivem` at commit `6fd665a3` (2026-09-02) ·
+> `citizenfx/natives` at `7263f211` (2026-08-17). Probed on 2026-09-05: 6 of the 7 fenced Lua
+> blocks in this skill and its references parse under `luac -p` (the seventh is the marked `--
+> excerpt` and is skipped by design); the 8 runtime functions named here (`RegisterNetEvent`,
+> `RegisterNUICallback`, `TriggerClientEvent`, `SetNuiFocus`, `SendNUIMessage`, `CreateThread`,
+> `Wait`, `SetTimeout`) resolve in `ext/native-decls/` or
+> `data/shared/citizen/scripting/lua/scheduler.lua`. Not probed: no FXServer build ran this code —
+> the runtime rules were observed on the DriveZone servers and carry no artifact number here.
 
 Generic conventions for writing maintainable server/client Lua resources on FiveM (CitizenFX).
 Project-agnostic: resource prefixes, exact endpoints, and keybind registries belong in the project's

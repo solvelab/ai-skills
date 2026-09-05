@@ -6,7 +6,7 @@ Implements the mechanically checkable half of openspec/specs/skills-authoring:
   C2 cross-skill references name a real skill
   C3 code blocks parse                      (bash -n, yaml, json, lua -p, python)
   C4 description agrees with body           (heuristic: absolute promise vs qualifying rule)
-  C5 versioned external APIs are pinned     (code-heavy skill without a version statement)
+  C5 every skill declares its versions      ('Verified against' or 'does not depend on a tool version')
   C6 fence tags match content               (a block tagged X that is obviously not X)
   C7 no orphan wrapper skills               (every generated skill has a canonical source)
   C8 no meta sections in SKILL.md           (triggers belong in the description, not the body)
@@ -241,29 +241,40 @@ def check_description(skill: str, text: str) -> None:
             f"description promises {promises[:2]} while the body qualifies it")
 
 
-# ── C5: versioned APIs pinned ─────────────────────────────────────────────
-# A pin is any concrete "this was checked against version X" statement, in prose or in a fence.
-PIN = re.compile(r"[Vv]erified against|[Mm]easured on|[Pp]robed on|version[s]? pinned"
-                 r"|@[\d]+\.[\d]+|targets? v?\d+\.\d+"
-                 r"|\b(?:runtime|tag|CLI|preset)\s+v?\d+\.\d+"
-                 r"|pydantic v\d|SQLAlchemy \d|Python .{0,3}\d\.\d+|\b\w+ \d+\.\d+")
+# ── C5: every skill declares what it was verified against ─────────────────
+# Two literal phrases, the same ones a reader greps for. A version mentioned in passing ("Probed on
+# CLI 1.6.0", "needs CSP >= 0.1.78") is not a pin: until issue #131 (2026-09-05) the regex here
+# accepted any `<word> <digits>.<digits>` and fired only on skills with 40+ fenced lines, and 20 of
+# 35 skills carried no block while C5 reported nothing.
+PIN = re.compile(r"Verified against")
+NO_VERSION = re.compile(r"does not depend on a tool version")
+DEFERS = re.compile(r"source of truth, not this skill|read the local copy first", re.I)
 API_HINT = re.compile(r"@react-three|@react-spring|fastapi|pydantic|sqlalchemy|helm |kubectl|"
                       r"citizenfx|Qmmands|AssettoServer|openspec|gh project|zod|vite", re.I)
 
 
 def check_pin(skill: str, text: str) -> None:
-    """KNOWN LIMIT: only fires on skills carrying 40+ lines of fenced code. A skill that makes
-    the same versioned claims in prose (config keys, CLI flags, API names in bullets) escapes
-    this check and must be reviewed by hand. Widening the trigger produced false positives on
-    every skill that merely names a tool, so the gap is stated instead of guessed at."""
-    blocks = FENCE.findall(text)
-    code_lines = sum(len(b.splitlines()) for _, b in blocks)
-    if code_lines < 40:
-        return
-    defers = re.search(r"source of truth, not this skill|read the local copy first", text, re.I)
-    if API_HINT.search(text) and not PIN.search(text) and not defers:
+    """Every SKILL.md carries `Verified against` or `does not depend on a tool version`. The
+    declaration is an exit for process skills: a skill with 40+ fenced lines against a versioned API
+    may not take it unless it defers to a local source of truth the reader opens first (the phrase
+    `helm-migration` already carries).
+
+    KNOWN LIMIT: this proves the literal is PRESENT, not that it is earned. A block naming a version
+    nobody ran passes; the date the block owes is not checked; a code-heavy skill that adds the
+    deferral phrase to dodge the second rule passes too. Those stay with the review — which is why
+    the block has to say what was run, not only against what."""
+    pinned = PIN.search(text)
+    declared = NO_VERSION.search(text)
+    if not pinned and not declared:
         add(skill, "C5 no version pin",
-            f"{code_lines} lines of code against a versioned API, no version statement")
+            "neither 'Verified against' nor 'does not depend on a tool version' — a version "
+            "mentioned in passing is not a pin")
+        return
+    if declared and not pinned:
+        code_lines = sum(len(b.splitlines()) for _, b in FENCE.findall(text))
+        if code_lines >= 40 and API_HINT.search(text) and not DEFERS.search(text):
+            add(skill, "C5 no version pin",
+                f"{code_lines} lines of code against a versioned API, declared not version-bound")
 
 
 # ── C6: fence tag matches content ─────────────────────────────────────────

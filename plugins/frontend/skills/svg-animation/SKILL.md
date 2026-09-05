@@ -14,13 +14,21 @@ description: >-
   the traps that break silently.
 metadata:
   author: solvelab
-  version: 1.1.2
+  version: 1.1.3
   category: frontend
 license: MIT
 compatibility: Works in any environment with filesystem access; verification steps need a Chrome binary.
 ---
 
 # svg-animation — understand the object, then represent it
+
+> **Verified against**: `Google Chrome for Testing 151.0.7922.34` (`--headless=new`, 1280×720,
+> software rasterisation, WSL2), driven over CDP by [`measure.mjs`](https://github.com/solvelab/ai-skills/blob/master/research/svg-animation/measure.mjs) on
+> 2026-08-30 and 2026-08-31 — every cost in `references/platform.md` comes from those two runs and
+> is recorded with its raw numbers in [`measurements.md`](https://github.com/solvelab/ai-skills/blob/master/research/svg-animation/measurements.md). Not re-run on
+> 2026-09-05: no Chrome binary on the machine that wrote this pin. SVG, SMIL and CSS animation
+> semantics are specification-level and carry no tool version; the numbers do, and they expire with
+> that browser build.
 
 The failure this skill exists to prevent is not ugly output. It is **plausible** output: an animation
 whose every part is defensible and whose whole is wrong. Measured on 22 objects and 12 primitives

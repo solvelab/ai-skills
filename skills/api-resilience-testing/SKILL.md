@@ -4,13 +4,22 @@ description: >-
   Tests REST/HTTP APIs beyond the happy path — negative, fuzz, contract, and security testing — to find critical failures before production. Use this skill whenever the work involves a REST API: adding or changing an endpoint, reviewing an API PR or diff, writing API tests, designing request/response schemas, or when the user says "test/harden/break/audit/review the API", "negative testing", "fuzz", "API robustness", "API security", "validate payloads", or asks about invalid inputs, status codes, error handling, auth/authz, or OpenAPI/Swagger contract validation. Produces an endpoint map, positive + negative scenarios, suggested automated tests, and a resilience checklist. Do NOT use for non-API or pure happy-path unit testing, nor for writing the service's own layout, envelope and handlers (that is `python-rest-api`).
 metadata:
   author: solvelab
-  version: 1.3.1
+  version: 1.3.2
   category: testing
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 # API Resilience Testing
+
+> **Verified against**: `fastapi 0.141.1` · `pydantic 2.13.4` · `starlette 1.6.0` · `httpx 0.28.1`
+> · `uvicorn 0.52.4`, re-measured on 2026-09-05 with a stock two-route service (a pydantic body
+> model, an `int` path parameter) under `TestClient` and under a real uvicorn server. Eight of the
+> nine baseline rows held; **one was corrected**: a body of nested brackets returns **400**
+> `{"detail":"There was an error parsing the body"}` at every depth from 990 to 10 000, closed or
+> unclosed, for model, `Any` and `dict` bodies — FastAPI's body parser catches the
+> `RecursionError`, and the **500** published here earlier did not reproduce. `curl` is the only
+> tool the checklist prescribes and no version-bound flag of it is used.
 
 Test a REST API so it survives the inputs nobody intended — invalid, malformed,
 out-of-contract, hostile — and fails **safely** instead of crashing, corrupting
@@ -178,11 +187,13 @@ FastAPI 0.141.1 / pydantic 2.13.4 (the `python-rest-api` baseline), stock servic
 | Wrong path-param type (`/users/abc`) | 404 | **422** | No — the route matched, the value didn't |
 | Wrong HTTP method | 405 | **405** (with `Allow`) | Already correct |
 | Extra/unknown body field | rejected | **200**, ignored | Yes if the field is privileged (mass assignment) |
-| **2 KB body of nested brackets** | handled | **500** (`RecursionError`) | **Yes — this is the bug** |
+| **2 KB body of nested brackets** | 500 | **400** (`RecursionError` caught by the body parser) | Only for the cost: the stack is burned before the 400 |
 | **20 MB flat JSON body** | 413 | **200**, fully buffered | **Yes — no default limit exists** |
 
-The last two are not style preferences: a 2 KB unauthenticated request that returns 500 is a
-denial-of-service primitive. The guard belongs to the service baseline — see `python-rest-api`
+The last row is not a style preference: a 20 MB unauthenticated request that is fully buffered is a
+denial-of-service primitive, and the nested-brackets request still costs a full recursion stack
+before its 400 — re-measured on 2026-09-05, the **500** this table published earlier did not
+reproduce on this stack. The guard belongs to the service baseline — see `python-rest-api`
 ("Request limits"), which carries the verified middleware + handler.
 
 Re-run this table against your own stack and version before trusting any row of it.

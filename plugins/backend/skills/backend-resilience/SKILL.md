@@ -12,13 +12,23 @@ description: >-
   adaptation use fivem-fallback instead.
 metadata:
   author: solvelab
-  version: 2.0.1
+  version: 2.0.2
   category: backend
 license: MIT
 compatibility: Works in any environment with filesystem access.
 ---
 
 # Backend resilience & fallback
+
+> **Verified against**: `Python 3.11.2` · `httpx 0.28.1` · `structlog 26.1.0` · `prometheus-client
+> 0.26.0`. Probed on 2026-09-05: the five `python` blocks were extracted and executed against stubs
+> — `httpx.Timeout(connect=, read=, write=, pool=)` constructs; `safe_call` and `safe_call_async`
+> return `(False, fallback)` on a raising callable and emit the `fallback_used` line with the
+> counter at 1; `clamp_num` clamps, and defaults on `None` and on `"x"`; the retry loop returns
+> after 3 attempts with full jitter and makes 0 attempts past the deadline; the negative cache
+> makes 1 upstream call for 2 requests after a `ConnectError`; the config fallback lands on
+> `FALLBACK` after a `ReadTimeout`. Fragments were wrapped in a function to run; nothing was run
+> against a live Consul or HTTP dependency.
 
 Defensive patterns for calling an unreliable dependency. The network boundary is unstable: timeouts,
 5xx, partial payloads, dependency down, races. Every call needs a **safe default** so the service keeps

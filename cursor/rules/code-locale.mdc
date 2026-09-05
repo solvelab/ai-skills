@@ -9,6 +9,14 @@ Reference files (`references/…` below) live at https://github.com/solvelab/ai-
 
 # Code locale — prose follows the repo, the machine layer is English
 
+> **Verified against**: `Python 3.11.2` · `Claude Code 2.1.261`. Probed on 2026-09-05:
+> `references/check-identifier-locale.py --selftest` (7 content tiers fire, 16 clean cases silent,
+> 6 path tiers fire, 9 path cases silent, 2 en-unknown tiers fire, 5 silent), `locale-rite.py
+> --selftest` (13 PostToolUse and 12 PreToolUse decisions) and `locale-stop-gate.py --selftest` (26
+> decisions in throwaway git repositories) all pass, and both hooks are the ones wired in
+> `~/.claude/settings.json` of the session that wrote this. The detector uses only the standard
+> library; the earlier probe on `Python 3.14.5` is recorded below.
+
 **Prose follows the repository's working language. Anything a machine parses is English.**
 This skill covers the prose/machine boundary, the untranslatable-domain-term exception and its
 gate, the grooming glossary, the new-code-only migration policy, and a shipped detector a

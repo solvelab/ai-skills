@@ -12,13 +12,23 @@ description: >-
   fivem-lua), or general .NET services.
 metadata:
   author: solvelab
-  version: 1.3.2
+  version: 1.3.3
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
 
 # AssettoServer plugin conventions
+
+> **Verified against**: `AssettoServer v0.0.54` source — `git show
+> v0.0.54:AssettoServer/AssettoServer.csproj` gives `net8.0`, `Qmmands 5.0.2`, `Autofac 7.1.0`,
+> `Serilog 3.1.1`; `AssettoServerModule`, `ACModuleBase`, the
+> `RequireConnectedPlayer`/`RequireAdmin` attributes and `CSPServerScriptProvider.AddScript(string,
+> string?, Dictionary<string, object>?)` are declared at that tag. Probed on 2026-09-05 by reading
+> the tree: no plugin was compiled or loaded here. **Disclosed**: the DriveZone runtime measured
+> the same day reports `AssettoServer 0.0.55+51d8d8a6e0`, built from a tree whose csproj targets
+> `net9.0` — on that host `System.Threading.Lock` exists and the `net8.0` fallback below is one
+> major behind. The doctrine is re-derived for `0.0.55` in a follow-up, not silently here.
 
 Distilled from a production plugin (DriveZone.AssettoServer.Plugin) that survived real
 AssettoServer runtime incompatibilities. Prescriptive: follow these unless the project documents a

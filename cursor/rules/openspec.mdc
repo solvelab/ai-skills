@@ -7,6 +7,15 @@ alwaysApply: false
 
 # OpenSpec — vanilla spec-driven workflow
 
+> **Verified against**: `openspec 1.6.0` (`@fission-ai/openspec`). Probed on 2026-09-05: every
+> subcommand this skill prescribes exists (`validate`, `list`, `spec list --long`, `update`,
+> `archive`, `instructions`, `skill`, `new change`, `init`, `status`, `templates`) and `--strict`,
+> `--all`, `--type`, `--no-interactive`, `--long` are in `--help`; `openspec validate <id>
+> --strict` reported a change whose `tasks.md` carries no mandatory group as valid, so the CLI
+> checks delta format only. **Disclosed**: `openspec spec list` prints a deprecation warning on
+> 1.6.0 — "Prefer verb-first commands (e.g., `openspec show`, `openspec validate --specs`)"; the
+> noun-first form still works and stays here until this pin moves.
+
 [OpenSpec](https://github.com/Fission-AI/OpenSpec) structures a change as a validated proposal before
 any code: **explore → propose → validate → apply → archive**. Specs are the source of truth; changes
 are deltas against them.

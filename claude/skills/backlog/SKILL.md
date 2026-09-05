@@ -14,7 +14,7 @@ description: >-
   non-GitHub trackers (Jira, Linear, Trello).
 metadata:
   author: solvelab
-  version: 1.5.1
+  version: 1.5.2
   category: process
 license: MIT
 compatibility: >-

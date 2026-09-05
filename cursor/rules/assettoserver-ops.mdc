@@ -9,6 +9,16 @@ Reference files (`references/…` below) live at https://github.com/solvelab/ai-
 
 # AssettoServer operations
 
+> **Verified against**: `AssettoServer v0.0.55-pre25` — the source tree at `~/works/AssettoServer`
+> (commit `51d8d8a6`), which is what the DriveZone image `drivezone/assettoserver:local` reports as
+> `AssettoServer 0.0.55+51d8d8a6e0`. Probed on 2026-09-05: all 15 `extra_cfg.yml` keys cited here
+> resolve to properties under `Server/Configuration/Extra/`; 24 of the 25 `server_cfg.ini` keys
+> resolve to the sample `Assets/server_cfg.ini` or to an `[IniField]` under
+> `Server/Configuration/Kunos/` — `CARS` is a stock acServer key this source never reads; the
+> density function quoted below is `Server/Ai/AiBehavior.cs:455-466` at that tag. Not probed: no
+> server was started against a client, and the CSP build the DriveZone servers require is not
+> recorded on this machine.
+
 Distilled from a production freeroam deployment (DriveZone on SRP/Shutoko). The runtime is
 `compujuckel/AssettoServer` — a CSP-aware replacement for stock `acServer` that adds
 `extra_cfg.yml`, an AI traffic engine, and a .NET plugin loader. Prescriptive: follow these unless

@@ -9,6 +9,12 @@ Reference files (`references/…` below) live at https://github.com/solvelab/ai-
 
 # Helm Migration Skill
 
+> **Not version-bound**: this skill does not depend on a tool version — it prescribes the shape of
+> `values.yaml` and `env.yaml` for the solvelab chart template and tells the reader to read the
+> local template first, and it prescribes no `helm` or `kubectl` command whose flags could be
+> pinned (measured on 2026-09-05: zero such commands in the skill and its reference). The field
+> names are pinned by the template itself, as the note below says.
+
 You are a Helm chart expert. When asked to migrate a Kubernetes YAML file to Helm, follow the workflow and conventions below. These are derived from real solvelab production charts and are specific to that chart template.
 
 > **The chart template is the source of truth, not this skill.** The field names below were taken from

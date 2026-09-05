@@ -9,6 +9,15 @@ Reference files (`references/…` below) live at https://github.com/solvelab/ai-
 
 # FiveM Lua — CitizenFX conventions
 
+> **Verified against**: `Lua 5.4.8` · `citizenfx/fivem` at commit `6fd665a3` (2026-09-02) ·
+> `citizenfx/natives` at `7263f211` (2026-08-17). Probed on 2026-09-05: 6 of the 7 fenced Lua
+> blocks in this skill and its references parse under `luac -p` (the seventh is the marked `--
+> excerpt` and is skipped by design); the 8 runtime functions named here (`RegisterNetEvent`,
+> `RegisterNUICallback`, `TriggerClientEvent`, `SetNuiFocus`, `SendNUIMessage`, `CreateThread`,
+> `Wait`, `SetTimeout`) resolve in `ext/native-decls/` or
+> `data/shared/citizen/scripting/lua/scheduler.lua`. Not probed: no FXServer build ran this code —
+> the runtime rules were observed on the DriveZone servers and carry no artifact number here.
+
 Generic conventions for writing maintainable server/client Lua resources on FiveM (CitizenFX).
 Project-agnostic: resource prefixes, exact endpoints, and keybind registries belong in the project's
 own CLAUDE.md, not here.

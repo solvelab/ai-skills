@@ -14,7 +14,7 @@ description: >-
   the traps that break silently.
 metadata:
   author: solvelab
-  version: 1.1.2
+  version: 1.1.3
   category: frontend
 license: MIT
 compatibility: Works in any environment with filesystem access; verification steps need a Chrome binary.

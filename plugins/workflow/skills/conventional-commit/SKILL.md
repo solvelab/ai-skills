@@ -10,13 +10,21 @@ description: >-
   items (that is `backlog`).
 metadata:
   author: solvelab
-  version: 1.3.1
+  version: 1.3.2
   category: git
 license: MIT
 compatibility: Works in any environment with git access.
 ---
 
 # conventional-commit
+
+> **Verified against**: `semantic-release 25` · `conventional-changelog-conventionalcommits 8` ·
+> `@semantic-release/commit-analyzer` with the `headerPattern` in this repository's
+> `.releaserc.json` (`^(?:[^\w\s]+\s+)?(\w+)(?:\((.*)\))?!?: (.*)$`, which lets the gitmoji prefix
+> through). Probed on 2026-09-05 against the release history: `✨ feat(code-locale): …` (b1f527f)
+> cut `v2.24.0`, `✨ feat(hooks): …` (69aaf73) cut `v2.23.0` and `✨ feat(hooks): …` (49c44d0) cut
+> `v2.22.0`, all on that date. The message format itself is a convention with no tool version; the
+> pin covers the release tooling that parses it.
 
 Every commit message must follow **Conventional Commits**, prefixed with a **gitmoji icon** matching
 the type.
