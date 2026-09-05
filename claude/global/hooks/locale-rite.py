@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
-"""PostToolUse hook — measures the code-locale rite at the moment a file is written.
+"""PreToolUse + PostToolUse hook — enforces the code-locale rite at the moment a file is written.
 
-Reads the hook payload on stdin and, when a Write/Edit just landed, runs the shipped
-identifier-locale check against the written PATH and the written CONTENT. Findings go back to the
-assistant as context for the next turn. Silent when the write is clean.
+Reads the hook payload on stdin and, when a Write/Edit is about to land (PreToolUse) or has just
+landed (PostToolUse), runs the shipped identifier-locale check against the written PATH and the
+written CONTENT. One decision, two envelopes, chosen by `hook_event_name`:
 
-Why a hook and not only the skill and the global rule: both were already in place — the `code-locale`
-skill in the catalog and the Code Locale section of personal-rules.md — and Portuguese identifiers
-and file names kept reaching code in new sessions (issue #95). Doctrine in context is not
-measurement. This is the same argument `backlog-rite.py` states for its own rule, applied to the one
-rule whose violation is visible in the artifact itself.
+    PreToolUse   a gating finding (pt-verb, pt-noun, path-pt-*) DENIES the tool call, with the findings
+                 and the three exits in the reason; an advisory finding alone (en-unknown) denies
+                 nothing, and neither does a clean write.
+    PostToolUse  advisory only, exactly as before this mode existed: findings go back to the assistant
+                 as context for the next turn, gating and advisory alike. Silent when the write is clean.
 
-WHY `hookSpecificOutput.additionalContext` AND NOT PLAIN STDOUT
+Why deny and not only inform: the rule already existed in three layers — the Code Locale section of
+personal-rules.md, the `code-locale` skill and this hook on PostToolUse — and Portuguese identifiers
+kept reaching code in new sessions (issues #95, #137). With the hook only informing, the model reads
+the finding and moves on; nothing obliges it to rename. PreToolUse has the content in the payload, so
+this is measurement of the write itself, not a proxy for it.
+
+WHY `hookSpecificOutput.additionalContext` AND NOT PLAIN STDOUT (PostToolUse)
     For PostToolUse, plain stdout goes to the debug log and the model never sees it. The events that
     turn stdout into context are UserPromptSubmit, UserPromptExpansion and SessionStart — which is
     why the repo's other two rite hooks can print and this one cannot. Probed against the installed
@@ -23,17 +29,63 @@ WHY `hookSpecificOutput.additionalContext` AND NOT PLAIN STDOUT
     `additionalContext:8000` exactly once, and the same on the 2.1.260 bundle beside it.
     Docs: code.claude.com/docs/en/hooks (read 2026-08-26).
 
+WHY `hookSpecificOutput.permissionDecision` AND NOT `exit 2` (PreToolUse)
+    Probed 2026-09-05 on the same 2.1.261 bundle with `re.finditer` over the bytes (the machine's
+    grep is ugrep and refuses the pattern with context). The output schema for the event is
+    `c({hookEventName:C("PreToolUse"),permissionDecision:boe().optional(),permissionDecisionReason:
+    s().optional(),updatedInput:pe(s(),se()).optional(),additionalContext:s().optional()})`, and the
+    normaliser keeps the reason only when the decision is deny or ask:
+    `let o=t.permissionDecision==="deny"||t.permissionDecision==="ask"; ... d=o?X5(e,
+    "permissionDecisionReason",t.permissionDecisionReason):void 0`. `X5` applies TWO caps, read
+    from `AKr={...,additionalContext:8000,permissionDecisionReason:2000}` (characters) and
+    `RKr={...,additionalContext:200,permissionDecisionReason:20}` (lines): the reason is cut to 20
+    lines and 2000 characters, the context to 200 lines and 8000 characters — the line cap was not
+    recorded here before. An envelope whose `hookEventName` does not match the event is dropped
+    (`if(t.hookEventName!==r){Ik(e,"hookSpecificOutput_event_mismatch",!0);return}`), which is why
+    the event name comes from the payload and not from a constant. `exit 2` also denies (the bundle
+    wraps stderr as the reason), but through a cap this hook did not measure; JSON keeps one output
+    format for both events. The bundle also honours `additionalContext` on PreToolUse — the schema
+    above carries it, and the run loop yields it as `hook_additional_context` with
+    `hookEvent:"PreToolUse"` — but this hook does not use it: with both events wired, the advisory
+    would reach the model twice for one write, and PostToolUse already carries it.
+
+MODES
+    default                  PreToolUse denies on a gating finding; PostToolUse informs.
+    LOCALE_RITE_MODE=inform  PreToolUse never denies; PostToolUse informs as before. The whole
+                             session, for the rare tree where the lexicon is wrong more often than
+                             right. Any other value of the variable — empty, absent, misspelt — is the
+                             default mode, so a typo cannot open the door in silence.
+    The two exits the check already honours still apply and are named in every denial:
+    `# locale-ok: <reason>` on the line above an identifier, and the name or the path listed in
+    .identifier-locale-allow (the only waiver a file name can carry).
+
 WHAT THIS HOOK DELIBERATELY DOES NOT DO
-    - It never blocks. The tool already ran, and the rite informs; the user waives.
+    - It never denies on PostToolUse (the tool already ran) and never denies on an advisory finding
+      alone: a word the English list does not know is a question, not a verdict.
+    - It never rewrites the tool input (`updatedInput` exists in the bundle): renaming on the model's
+      behalf would be an invented translation, and the rite forbids exactly that.
     - It never writes state, reads credentials, or calls the network.
     - It reports nothing when the shipped check is missing: a gate that is absent must not present
       itself to the user as an error.
     - It inherits every limit of the check it calls, including the open-vocabulary escape — a
       Portuguese word outside the lexicon passes here exactly as it passes in CI.
 
-Wiring (~/.claude/settings.json):
+KNOWN LIMIT
+    Only the harness write tools pass through here (Write, Edit, MultiEdit, NotebookEdit). A file
+    written by a Bash command — heredoc, `sed -i`, a script — is never seen, so a denied write is not
+    proof that no Portuguese name can land. Closing that path is the Stop gate of issue #138.
+
+Wiring (~/.claude/settings.json) — BOTH blocks, same command. PreToolUse is the one that denies;
+PostToolUse is the one that carries the advisory and the `inform` mode. Wiring only the first loses
+en-unknown; wiring only the second is the behaviour before issue #137.
 
     "hooks": {
+      "PreToolUse": [
+        {"matcher": "Write|Edit|MultiEdit|NotebookEdit",
+         "hooks": [{"type": "command",
+                    "command": "python3 ~/ai-skills/claude/global/hooks/locale-rite.py",
+                    "timeout": 10}]}
+      ],
       "PostToolUse": [
         {"matcher": "Write|Edit|MultiEdit|NotebookEdit",
          "hooks": [{"type": "command",
@@ -48,6 +100,9 @@ your own process instead of adopting it blindly.
 Modes: (default) read one payload from stdin   |   --selftest assert the decisions against synthetic payloads.
 Any other argument prints usage to stderr and exits 2 — the same contract as backlog-rite.py and
 verify-rite.py since #115, so a misspelt flag cannot fall through to the stdin path and exit 0.
+The selftest feeds only the fields this hook reads (`hook_event_name`, `tool_name`, `tool_input`,
+`cwd`), in the shape the 2.1.261 bundle declares; that the harness still sends them under those names
+is what the wired session proves, not the selftest.
 """
 
 import importlib.util
@@ -55,6 +110,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 # The check lives in the skill that owns the doctrine. parents[3] of this file is the repository
@@ -63,9 +119,21 @@ from pathlib import Path
 CHECK_PATH = Path(__file__).resolve().parents[3] / "skills/code-locale/references/check-identifier-locale.py"
 
 # The harness truncates a longer value; truncating here keeps the tail we choose rather than the
-# tail it chooses. Measured cap: `additionalContext:8000` in claude 2.1.246, 2.1.260 and 2.1.261
-# (see the docstring for the probe).
+# tail it chooses. Measured caps (see the docstring for the probes): `additionalContext:8000`
+# characters in claude 2.1.246, 2.1.260 and 2.1.261, plus 200 lines in 2.1.261;
+# `permissionDecisionReason:2000` characters and 20 lines in 2.1.261.
 CONTEXT_CAP = 8000
+CONTEXT_LINE_CAP = 200
+REASON_CAP = 2000
+REASON_LINE_CAP = 20
+# Header (1) + findings (<= 12) + "+N more" (1) + advisory count (1) + exits (3) = 18 < 20 lines.
+REASON_MAX_FINDINGS = 12
+
+PRE_EVENT = "PreToolUse"
+POST_EVENT = "PostToolUse"
+
+MODE_ENV = "LOCALE_RITE_MODE"
+MODE_INFORM = "inform"
 
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 
@@ -82,6 +150,21 @@ HEADER = (
     "reason the name is correct as written.\n\n"
 )
 
+DENY_HEADER = (
+    "CODE-LOCALE: write denied — {count} non-English name{plural} in the machine layer. Identifiers, "
+    "file and directory names are English (code-locale skill); comments, docstrings and strings keep "
+    "the repository's language. Rename, or waive with a reason:"
+)
+
+# The three exits, literal, so the model can act without opening the skill. A denial that only says
+# "there are exits" produces the blind second attempt issue #137 lists as a risk.
+EXITS = (
+    "Exits: (1) `# locale-ok: <reason>` on the line above the name (identifiers only — a file name "
+    "has nowhere to carry it);",
+    "  (2) list the name or the path in .identifier-locale-allow (the only waiver for a file name);",
+    f"  (3) export {MODE_ENV}={MODE_INFORM} to make this hook advisory for the whole session.",
+)
+
 
 def load_check():
     """Import the shipped check by path. Its file name has hyphens, so it is not importable by name."""
@@ -94,6 +177,11 @@ def load_check():
         return module
     except Exception:
         return None
+
+
+def current_mode() -> str:
+    """The session mode from the environment. Anything but `inform` is the default (denying) mode."""
+    return os.environ.get(MODE_ENV, "").strip().lower()
 
 
 def written_text(tool_name: str, tool_input: dict) -> str:
@@ -109,24 +197,29 @@ def written_text(tool_name: str, tool_input: dict) -> str:
     return ""
 
 
-def first_line_of(path: Path, text: str) -> int:
+def first_line_of(path: Path, anchor: str) -> int:
     """Where the written fragment starts in the file, so a finding points at a real line.
 
     An Edit hands over `new_string` alone, and scanning it in isolation numbers its lines from 1 —
     which reads as "line 1 of the file" and sends the reader to the wrong place. Locating the
-    fragment in the file that the tool has already written is what makes the number true. A fragment
-    that cannot be located (a replace_all whose copies differ, a file already changed again) falls
-    back to 1, which is the previous behaviour and never worse than it.
+    fragment in the file is what makes the number true. After the write (PostToolUse) the anchor is
+    the `new_string` the tool has already put there; before it (PreToolUse) the `new_string` is not
+    in the file yet, so the anchor is the `old_string` it will replace, which sits exactly where the
+    new text will start. An anchor that cannot be located (a replace_all whose copies differ, a file
+    already changed again, a Write) falls back to 1, which is the previous behaviour and never worse
+    than it.
     """
+    if not anchor:
+        return 1
     try:
         body = path.read_text(encoding="utf-8")
     except OSError:
         return 1
-    index = body.find(text)
+    index = body.find(anchor)
     return body.count("\n", 0, index) + 1 if index >= 0 else 1
 
 
-def findings_for(check, file_path: str, text: str, cwd: str) -> list:
+def findings_for(check, file_path: str, text: str, cwd: str, anchor: str) -> list:
     path = Path(file_path)
     if check.is_vendored(path):
         return []
@@ -138,15 +231,21 @@ def findings_for(check, file_path: str, text: str, cwd: str) -> list:
     if lang and text:
         rel = check.project_relative(path, root)
         findings.extend(check.scan_text(text, lang, str(rel), allow,
-                                        first_line=first_line_of(path, text), english=english))
+                                        first_line=first_line_of(path, anchor), english=english))
     return findings
 
 
-def report(findings: list) -> dict:
-    # Gating first, advisory after, and the header says which is which: an advisory finding is a
-    # question for the author ("is this English?"), not a defect the check is sure of.
+def split_findings(findings: list) -> "tuple[list, list]":
     gating = [f for f in findings if not getattr(f, "advisory", False)]
     advisory = [f for f in findings if getattr(f, "advisory", False)]
+    return gating, advisory
+
+
+def report(findings: list) -> dict:
+    """The PostToolUse envelope — advisory, the tool call already ran. Unchanged by issue #137."""
+    # Gating first, advisory after, and the header says which is which: an advisory finding is a
+    # question for the author ("is this English?"), not a defect the check is sure of.
+    gating, advisory = split_findings(findings)
     body = (HEADER if gating else ADVISORY_HEADER) + "\n".join(f.render() for f in gating + advisory)
     if len(body) > CONTEXT_CAP:
         body = body[:CONTEXT_CAP - 80].rstrip() + "\n    … truncated; run the check on the file for the rest."
@@ -156,13 +255,66 @@ def report(findings: list) -> dict:
     if advisory:
         parts.append(f"{len(advisory)} unrecognised word{'s' if len(advisory) != 1 else ''} (advisory)")
     return {
-        "hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": body},
+        "hookSpecificOutput": {"hookEventName": POST_EVENT, "additionalContext": body},
         "systemMessage": "code-locale: " + ", ".join(parts) + " in the last write",
     }
 
 
-def evaluate(payload: dict, check) -> "dict | None":
-    """The whole decision, isolated from stdin and stdout so the selftest can drive it."""
+def finding_line(f) -> str:
+    """One line per finding. The check's own render() spends 4-5 lines each, which the 20-line cap
+    would spend on the first four findings and then cut the exits — the part that must survive."""
+    where = f"{f.path}:{f.line}" if getattr(f, "line", 0) else f.path
+    return f"  {where}: {f.token}  [{f.tier}: '{f.segment}']"
+
+
+def deny_reason(gating: list, advisory: list) -> str:
+    """Header, one line per distinct (path, token), `+N more`, the advisory count, the three exits.
+
+    Built to fit REASON_LINE_CAP lines by construction and REASON_CAP characters by trimming finding
+    lines from the end — never the exits, which the harness would otherwise be the one to cut.
+    """
+    seen = set()
+    distinct = []
+    for f in gating:
+        key = (f.path, f.token)
+        if key not in seen:
+            seen.add(key)
+            distinct.append(f)
+    header = DENY_HEADER.format(count=len(distinct), plural="s" if len(distinct) != 1 else "")
+    tail = []
+    if advisory:
+        tail.append(f"  (+{len(advisory)} unrecognised word{'s' if len(advisory) != 1 else ''}, "
+                    "advisory: never denies, reported after a clean write lands)")
+    tail.extend(EXITS)
+    shown = min(len(distinct), REASON_MAX_FINDINGS)
+    while True:
+        lines = [header] + [finding_line(f) for f in distinct[:shown]]
+        if len(distinct) > shown:
+            lines.append(f"  (+{len(distinct) - shown} more — run the check on the file for the rest)")
+        text = "\n".join(lines + tail)
+        if len(text) <= REASON_CAP or shown == 0:
+            return text
+        shown -= 1
+
+
+def deny(findings: list) -> dict:
+    """The PreToolUse envelope. Shape probed on the 2.1.261 bundle (see the docstring)."""
+    gating, advisory = split_findings(findings)
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": PRE_EVENT,
+            "permissionDecision": "deny",
+            "permissionDecisionReason": deny_reason(gating, advisory),
+        }
+    }
+
+
+def evaluate(payload: dict, check, mode: "str | None" = None) -> "dict | None":
+    """The whole decision, isolated from stdin and stdout so the selftest can drive it.
+
+    `mode` defaults to the environment (LOCALE_RITE_MODE); the selftest passes it explicitly so it
+    fixes both modes without touching os.environ, and proves the default through a subprocess.
+    """
     if check is None:
         return None
     tool_name = payload.get("tool_name") or ""
@@ -172,14 +324,30 @@ def evaluate(payload: dict, check) -> "dict | None":
     if not isinstance(tool_input, dict):
         return None
     file_path = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
-    if not file_path:
+    if not isinstance(file_path, str) or not file_path:
         return None
-    cwd = payload.get("cwd") or os.getcwd()
+    cwd = payload.get("cwd")
+    if not isinstance(cwd, str) or not cwd:
+        cwd = os.getcwd()
+    # In doubt the hook informs and never denies: a payload with no event name, or one this hook does
+    # not know, is treated as the event that follows the write.
+    pre = payload.get("hook_event_name") == PRE_EVENT
+    text = written_text(tool_name, tool_input)
+    anchor = (tool_input.get("old_string") or "") if (pre and tool_name == "Edit") else text
+    if not isinstance(anchor, str):
+        anchor = ""
     try:
-        findings = findings_for(check, file_path, written_text(tool_name, tool_input), cwd)
+        findings = findings_for(check, file_path, text, cwd, anchor)
     except Exception:
         return None                      # a check that crashes must not crash the write
-    return report(findings) if findings else None
+    if not findings:
+        return None
+    if not pre:
+        return report(findings)
+    if (mode if mode is not None else current_mode()) == MODE_INFORM:
+        return None                      # the write lands; PostToolUse informs, as before #137
+    gating, _ = split_findings(findings)
+    return deny(findings) if gating else None
 
 
 def selftest() -> int:
@@ -188,6 +356,8 @@ def selftest() -> int:
         print(f"selftest FAILED: check not found at {CHECK_PATH}")
         return 1
     cwd = "/tmp/locale-rite-selftest"
+    # The PostToolUse cases carry no hook_event_name on purpose: the payloads that reached this hook
+    # before issue #137 must decide exactly as they did, so a missing event name is the advisory path.
     cases = [
         ("portuguese path reported", True, {
             "tool_name": "Write", "cwd": cwd,
@@ -224,24 +394,143 @@ def selftest() -> int:
             "tool_name": "Edit", "cwd": cwd,
             "tool_input": {"file_path": f"{cwd}/servicos/x.py", "old_string": "a",
                            "new_string": "b = 1\n"}}),
+        ("PostToolUse by name is the advisory envelope", True, {
+            "hook_event_name": POST_EVENT, "tool_name": "Write", "cwd": cwd,
+            "tool_input": {"file_path": f"{cwd}/orders/service.py",
+                           "content": "def buscar_order(x):\n    return x\n"}}),
     ]
     failed = []
     for name, should_report, payload in cases:
         got = evaluate(payload, check)
-        ok = bool(got) == should_report
+        ok = bool(got) == should_report and (not got or "permissionDecision" not in got["hookSpecificOutput"])
         print(f"  {'OK     ' if ok else 'FAILED '} {name}")
         if not ok:
             failed.append(name)
     reported = evaluate(cases[0][2], check)
     shape_ok = (
         isinstance(reported, dict)
-        and reported["hookSpecificOutput"]["hookEventName"] == "PostToolUse"
+        and reported["hookSpecificOutput"]["hookEventName"] == POST_EVENT
         and isinstance(reported["hookSpecificOutput"]["additionalContext"], str)
         and len(reported["hookSpecificOutput"]["additionalContext"]) <= CONTEXT_CAP
     )
-    print(f"  {'OK     ' if shape_ok else 'FAILED '} output shape is the field the harness reads")
+    print(f"  {'OK     ' if shape_ok else 'FAILED '} output shape is the field the harness reads (PostToolUse)")
     if not shape_ok:
         failed.append("output shape")
+
+    # PreToolUse: `deny` is the denial envelope, None is silence, `advisory` is the PostToolUse
+    # envelope (only reachable here when the event name is missing — kept out of this list on
+    # purpose: a PreToolUse payload never gets the advisory shape, which the harness would drop).
+    def pre(tool_input, tool_name="Write", cwd_=cwd, event=PRE_EVENT):
+        return {"hook_event_name": event, "tool_name": tool_name, "cwd": cwd_, "tool_input": tool_input}
+
+    pt_ident = {"file_path": f"{cwd}/orders/service.py", "content": "def buscar_order(x):\n    return x\n"}
+    pre_cases = [
+        ("PreToolUse denies a portuguese identifier", "deny", None, pre(pt_ident)),
+        ("PreToolUse denies a portuguese path", "deny", None,
+         pre({"file_path": f"{cwd}/servicos_pedido/shipping.py", "content": "x = 1\n"})),
+        ("PreToolUse denies an Edit whose new_string is portuguese", "deny", None,
+         pre({"file_path": f"{cwd}/orders/service.py", "old_string": "a", "new_string": "usuario_count = 1\n"},
+             tool_name="Edit")),
+        ("PreToolUse allows the same name with locale-ok on the line above", None, None,
+         pre({"file_path": f"{cwd}/orders/service.py",
+              "content": "# locale-ok: legacy wire name mirrored in the adapter\ndef buscar_order(x):\n    return x\n"})),
+        ("PreToolUse allows a clean write", None, None,
+         pre({"file_path": f"{cwd}/orders/shipping_cost.py", "content": "def compute_shipping(order_id):\n    return 0\n"})),
+        ("PreToolUse in inform mode never denies", None, MODE_INFORM, pre(pt_ident)),
+        ("PreToolUse with a misspelt mode still denies", "deny", "informar", pre(pt_ident)),
+        ("PreToolUse ignores another tool", None, None,
+         pre({"command": "ls servicos_pedido"}, tool_name="Bash")),
+        ("PreToolUse ignores a payload without file_path", None, None, pre({})),
+        ("PreToolUse ignores a tool_input that is not an object", None, None, pre("x")),
+        ("PreToolUse ignores a file_path that is not a string", None, None, pre({"file_path": 42, "content": "a"})),
+        ("PreToolUse with a cwd that is not a string still denies", "deny", None,
+         pre(pt_ident, cwd_=42)),
+    ]
+    for name, expect, mode, payload in pre_cases:
+        got = evaluate(payload, check, mode=mode)
+        kind = None
+        if got:
+            kind = "deny" if got["hookSpecificOutput"].get("permissionDecision") == "deny" else "advisory"
+        ok = kind == expect
+        print(f"  {'OK     ' if ok else 'FAILED '} {name}")
+        if not ok:
+            failed.append(name)
+
+    # inform mode: the same payload, on the event that follows the write, is the advisory as before.
+    post_inform = evaluate({**pre(pt_ident), "hook_event_name": POST_EVENT}, check, mode=MODE_INFORM)
+    ok = bool(post_inform) and "additionalContext" in post_inform["hookSpecificOutput"]
+    print(f"  {'OK     ' if ok else 'FAILED '} inform mode: PostToolUse still carries the advisory")
+    if not ok:
+        failed.append("inform mode PostToolUse")
+
+    # en-unknown alone never denies on PreToolUse, and is the advisory on PostToolUse. The token is
+    # asserted to be an advisory-only finding first, so the case cannot pass on a clean write.
+    unknown = {"file_path": f"{cwd}/orders/service.py", "content": "zqxbrv_count = 1\n"}
+    gating, advisory = split_findings(findings_for(check, unknown["file_path"], unknown["content"], cwd, unknown["content"]))
+    only_advisory = not gating and bool(advisory)
+    pre_unknown = evaluate(pre(unknown), check)
+    post_unknown = evaluate({**pre(unknown), "hook_event_name": POST_EVENT}, check)
+    ok = only_advisory and pre_unknown is None and bool(post_unknown) and \
+        "additionalContext" in post_unknown["hookSpecificOutput"]
+    print(f"  {'OK     ' if ok else 'FAILED '} en-unknown alone: PreToolUse silent, PostToolUse advisory")
+    if not ok:
+        failed.append("en-unknown alone")
+
+    # The allowlist is found from the payload's cwd, so the case builds one in a temporary tree and
+    # never reads the allowlist of whoever runs the selftest.
+    with tempfile.TemporaryDirectory() as tmp:
+        (Path(tmp) / check.ALLOWLIST_FILE).write_text("buscar_order\n", encoding="utf-8")
+        allowed = pre({"file_path": f"{tmp}/orders/service.py", "content": "def buscar_order(x):\n    return x\n"}, cwd_=tmp)
+        ok = evaluate(allowed, check) is None and evaluate({**allowed, "hook_event_name": POST_EVENT}, check) is None
+        print(f"  {'OK     ' if ok else 'FAILED '} PreToolUse allows a name listed in {check.ALLOWLIST_FILE} of the cwd")
+        if not ok:
+            failed.append("allowlist")
+
+    # Denial envelope: the shape the 2.1.261 bundle parses, within both measured caps, each distinct
+    # name once, the three exits at the end — on a write with 30 gating findings plus an advisory one.
+    many = "\n".join(f"preco_{i} = {i}" for i in range(30)) + "\nzqxbrv_count = 1\n"
+    denied = evaluate(pre({"file_path": f"{cwd}/orders/service.py", "content": many}), check)
+    reason = denied["hookSpecificOutput"]["permissionDecisionReason"] if denied else ""
+    deny_ok = (
+        bool(denied)
+        and denied["hookSpecificOutput"]["hookEventName"] == PRE_EVENT
+        and denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+        and len(reason) <= REASON_CAP
+        and reason.count("\n") + 1 <= REASON_LINE_CAP
+        and reason.startswith("CODE-LOCALE: write denied — 30 non-English names")
+        and reason.count("preco_0 ") == 1
+        and "(+18 more" in reason
+        and "(+1 unrecognised word, advisory" in reason
+        and reason.endswith(EXITS[-1])
+        and "locale-ok:" in reason and check.ALLOWLIST_FILE in reason and f"{MODE_ENV}={MODE_INFORM}" in reason
+    )
+    print(f"  {'OK     ' if deny_ok else 'FAILED '} denial envelope: PreToolUse shape, <= {REASON_CAP} chars, "
+          f"<= {REASON_LINE_CAP} lines, three exits last")
+    if not deny_ok:
+        failed.append("denial envelope")
+    # The issue's own example: preco on two lines is one line in the reason.
+    issue = evaluate(pre({"file_path": f"{cwd}/servico_pedido.py",
+                          "content": "def calcular_total(preco):\n    return preco\n"}), check)
+    reason = issue["hookSpecificOutput"]["permissionDecisionReason"] if issue else ""
+    distinct_ok = reason.startswith("CODE-LOCALE: write denied — 3 non-English names") and reason.count(" preco ") == 1
+    print(f"  {'OK     ' if distinct_ok else 'FAILED '} denial reason names each distinct token once")
+    if not distinct_ok:
+        failed.append("distinct tokens")
+
+    # The mode's default reads the environment; only the real entry point can prove that.
+    raw = json.dumps(pre(pt_ident))
+    env = {k: v for k, v in os.environ.items() if k != MODE_ENV}
+    run_default = subprocess.run([sys.executable, __file__], input=raw, capture_output=True, text=True, env=env)
+    run_inform = subprocess.run([sys.executable, __file__], input=raw, capture_output=True, text=True,
+                                env={**env, MODE_ENV: MODE_INFORM})
+    env_ok = (
+        run_default.returncode == 0 and '"permissionDecision": "deny"' in run_default.stdout
+        and run_inform.returncode == 0 and run_inform.stdout == "" and run_inform.stderr == ""
+    )
+    print(f"  {'OK     ' if env_ok else 'FAILED '} {MODE_ENV}={MODE_INFORM} read from the environment through stdin")
+    if not env_ok:
+        failed.append("environment mode")
+
     # The argv contract can only be measured through the real entry point: a misspelt flag must
     # print usage and exit 2, never read stdin and exit 0 (the silent no-op #115 closed in the
     # sibling hooks).
@@ -255,7 +544,8 @@ def selftest() -> int:
     if failed:
         print("selftest FAILED: " + "; ".join(failed))
         return 1
-    print(f"selftest OK: {len(cases)} decisions, the output shape, plus the argv contract")
+    print(f"selftest OK: {len(cases)} PostToolUse decisions, {len(pre_cases)} PreToolUse decisions, "
+          "inform mode, en-unknown, the allowlist, both envelopes, the environment and the argv contract")
     return 0
 
 
