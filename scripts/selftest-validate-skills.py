@@ -27,8 +27,23 @@ MUTATIONS = {
  "C4 desc vs body": ("skills/conventional-commit/SKILL.md",
      lambda s: s.replace("description: >-", "description: >-\n  ALWAYS creates all three tiers.", 1)
                 .replace("\n## ", "\n## Rules\n\nDo not create documents that don't apply.\n\n## ", 1)),
- "C5 no version pin": ("skills/react-api-client/SKILL.md",
-     lambda s: s + "\n```tsx\n" + "const a = 1\n" * 45 + "```\n\nUses zod and vite.\n"),
+ # C5 owns three defect classes since issue #131 (2026-09-05). (a) The block stripped from a
+ # code-heavy skill: nothing else in fivem-lua reads as a pin, so the literal is what fires.
+ "C5 no version pin": ("skills/fivem-lua/SKILL.md",
+     lambda s: s.replace("**Verified against**", "**Checked with**", 1),
+     ("C5 no version pin", "neither")),
+ # (b) The loose form that passed for months: strip the literal and leave "Probed on CLI 1.6.0"
+ # where it is — the old regex accepted it as a pin, this one must not.
+ "C5 no version pin (loose mention)": ("skills/openspec/SKILL.md",
+     lambda s: s.replace("**Verified against**", "**Checked with**", 1),
+     ("C5 no version pin", "mentioned in passing is not a pin")),
+ # (c) The declaration on a skill whose 70+ fenced bash lines drive kubectl: the exit exists for
+ # process skills, and k8s-tune-resources carries no deferral phrase. (The r3f skills keep their code
+ # under references/, so their SKILL.md has zero fenced lines and would stay silent here by design.)
+ "C5 no version pin (declaration on code-heavy API skill)": ("skills/k8s-tune-resources/SKILL.md",
+     lambda s: s.replace("**Verified against**: `kubectl v1.36.1`",
+                         "**Not version-bound**: this skill does not depend on a tool version — `kubectl v1.36.1`", 1),
+     ("C5 no version pin", "declared not version-bound")),
  "C6 wrong tag": ("skills/r3f-materials/SKILL.md",
      lambda s: s + "\n```tsx\nvarying vec2 vUv;\nvoid main() {}\n```\n"),
  "C7 orphan wrapper": (None, None),
