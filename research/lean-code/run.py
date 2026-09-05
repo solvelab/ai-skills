@@ -197,6 +197,7 @@ class Task:
     score: Callable[[Path], dict]
     structural: bool = False
     extra: dict = field(default_factory=dict)
+    variants: dict = field(default_factory=dict)   # name -> {"apply", "expect", "note"}; selftest only
 
     @property
     def boundary(self) -> bool:
@@ -241,6 +242,7 @@ def load_tasks() -> dict[str, Task]:
             good=lambda wd, m=mod: _copy_tree(m.GOOD_DIR, wd),
             bad=lambda wd, m=mod: _copy_tree(m.BAD_DIR, wd),
             score=mod.score, structural=bool(getattr(mod, "STRUCTURAL", False)),
+            variants=dict(getattr(mod, "VARIANTS", {})),
         )
     return tasks
 
@@ -391,7 +393,10 @@ PY_IMPORT = re.compile(r"^\s*(?:from|import)\s+([A-Za-z_][A-Za-z0-9_]*)", re.M)
 TS_IMPORT = re.compile(r"""^\s*import\s[^'"\n]*from\s+['"]((?:@[^/'"]+/)?[^./'"][^'"/]*)""", re.M)
 TS_BARE_IMPORT = re.compile(r"""^\s*import\s+['"]((?:@[^/'"]+/)?[^./'"][^'"/]*)""", re.M)
 PKG_DEP_LINE = re.compile(r'^\+\s*"((?:@[^/"]+/)?[^"]+)":\s*"[^"]*",?\s*$', re.M)
-INSTALL_MENTION = re.compile(r"\b(?:pip|pip3|uv pip|npm|pnpm|yarn)\s+(?:install|add)\s+([@A-Za-z0-9_./-]+)")
+INSTALL_MENTION = re.compile(r"\b(?:pip|pip3|uv pip|npm|pnpm|yarn)[ \t]+(?:install|add)[ \t]+([@A-Za-z0-9_./-]+)")
+# tokens that follow `install`/`add` without naming a package (a flag, a verb, a manager)
+INSTALL_NOISE = {"npm", "pnpm", "yarn", "npx", "pip", "pip3", "uv", "python", "python3", "run", "install",
+                 "add", "ci", "i", "test", "build", "dev", "start"}
 
 _STDLIB = set(getattr(sys, "stdlib_module_names", ()))
 
@@ -449,8 +454,14 @@ def detect_new_dependency(added_by_file: dict[str, str], patch: str, result_text
             name = re.split(r"[=<>!~\[; ]", line[1:].strip(), maxsplit=1)[0]
             if name and not name.startswith(("#", "[")) and name.lower() not in declared:
                 found.add(name)
+    declared_norm = {d.lower().replace("-", "_") for d in declared}
     for m in INSTALL_MENTION.finditer(result_text or ""):
-        found.add(m.group(1))
+        name = m.group(1).rstrip(".,:;")
+        if not name or name.startswith("-") or name.lower() in INSTALL_NOISE:
+            continue
+        if name.lower().replace("-", "_") in declared_norm:
+            continue
+        found.add(name)
     return sorted(found)
 
 
@@ -1269,6 +1280,18 @@ def selftest_scorers(st: Selftest, tasks: dict[str, Task]) -> None:
                 ok = r.get(task.axis) == 0
             label = f"{tid} {kind}" + (" [STRUCTURAL]" if task.structural else "")
             st.case("scorers", label, ok, f"correct={r.get('correct')} safe={r.get('safe')} axis={task.axis}  {str(r.get('reason', ''))[:70]}")
+        # variants: the good reference with one decision changed, and the verdict decided in task.py
+        for name, variant in task.variants.items():
+            with tempfile.TemporaryDirectory(prefix="lean-selftest-") as d:
+                wd = Path(d)
+                task.seed(wd)
+                task.good(wd)
+                variant["apply"](wd)
+                r = task.score(wd)
+            expect = variant["expect"]
+            ok = all(r.get(k) == v for k, v in expect.items())
+            st.case("scorers", f"{tid} variant {name}", ok,
+                    f"expect={expect} got={{'correct': {r.get('correct')}, 'safe': {r.get('safe')}}}  {str(r.get('reason', ''))[:70]}")
 
 
 def selftest_detectors(st: Selftest) -> None:
@@ -1303,6 +1326,10 @@ def selftest_detectors(st: Selftest) -> None:
     st.case("detectors", "new_dependency: package.json line", d3 == ["swr"], str(d3))
     st.case("detectors", "new_dependency: ts import of undeclared package", d4 == ["swr"], str(d4))
     st.case("detectors", "new_dependency: install mentioned in the answer", d5 == ["lodash"], str(d5))
+    for text in ("Run `pip install -r requirements.txt`", "Then run:\nnpm install\nnpm run dev",
+                 "pip install pytest to run the tests."):
+        d6 = detect_new_dependency({}, "", text, {"pytest", "fastapi"}, set())
+        st.case("detectors", f"new_dependency silent on {text.splitlines()[0][:34]!r}", d6 == [], str(d6))
 
     long_prose = "\n".join(f"Explanation line {i}." for i in range(12)) + "\n```python\nx = 1\n```\n"
     st.case("detectors", "prose_gt_code fires: 12 prose lines vs 4 added", detect_prose_gt_code(long_prose, 4))

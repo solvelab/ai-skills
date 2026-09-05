@@ -49,12 +49,14 @@ Every cell command is written to `<cell>/_command.txt` before it runs; every cel
 
 ## What the selftest proved on 2026-09-05
 
-`python3 research/lean-code/run.py --selftest` → `selftest: 101/101 OK` in 0.7 s: LOC port equal
+`python3 research/lean-code/run.py --selftest` → `selftest: 111/111 OK` in 2.0 s: LOC port equal
 to `loc.js` on 22/22 sections; `Without > With` on 8/8 of the line-count examples and the three
 dependency-removal examples (`infinite-scroll`, `number-formatting`, `url-params`) pinned as such —
 the plan had assumed 11/11 and the upstream's own counter says otherwise on those three; scorers
-18/18 (good passes, bad caught on its axis); detectors 20/20; arm preflight 15/15; export stripper
-3/3; tree-kill 1/1; refusals 5/5; metrics 4/4.
+25/25 (good passes, bad caught on its axis, and the 7 declared variants of the good reference score
+as decided: partial validation and a body `tenant_id` are unsafe on FastAPI, rejecting a forged
+`playerId` and `clampNum`+`floor` are safe on FiveM, `clampNum` without `floor` is not); detectors
+23/23; arm preflight 15/15; export stripper 3/3; tree-kill 1/1; refusals 5/5; metrics 4/4.
 
 ## Status
 

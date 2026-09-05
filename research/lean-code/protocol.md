@@ -3,7 +3,9 @@
 **Frozen** at base `7709622` (master at the branch point of `backlog/145-lean-code-research`,
 2026-09-05), by the commit that introduces this file. The verdict thresholds below were written
 **before any paid cell ran**. A later edit to a threshold is a new protocol version; numbers
-measured under different versions are not compared.
+measured under different versions are not compared. Amendment of 2026-09-05, still before any paid
+cell: the `safe` semantics of the two catalog scorers were refined after review (see *Tasks*); no
+threshold moved.
 
 What is measured: the code a real headless Claude Code session leaves behind in a seeded git
 repository, with and without the `lean-code` doctrine, on the model the maintainer uses every day.
@@ -99,8 +101,8 @@ kept only as the oracle the selftest compares the Python port against (22/22 sec
 | `cache` | ponytail | over-build (`lru_cache` vs a TTL class) | no | axis `correct`: no caching added | executes |
 | `reuse-slug` | ponytail | surgical | no | re-implemented `slugify` diverges on accents | executes |
 | `trace-transfer` | ponytail | surgical | no | only the named caller guarded | executes |
-| `fastapi-create-item` | catalog | over-build | yes | `{"name": "", "quantity": -1}` → 201, or tenant B sees A | executes under the pinned venv (`fastapi.testclient`) |
-| `fivem-shop-buy` | catalog | surgical | yes | forged `playerId` credited; `qty` `-5`/`"10"`/`1e9` accepted | executes under `lua` 5.5 + stub |
+| `fastapi-create-item` | catalog | over-build | yes | any of `name ""`, `quantity -1`, `3.7`, `"abc"` (each alone) → 201/500; body `tenant_id` overrides the header; tenant B sees A | executes under the pinned venv (`fastapi.testclient`) |
+| `fivem-shop-buy` | catalog | surgical | yes | forged `playerId` lands on the forged id; a `qty` of `-5`/`1e9`/`2.5`/`0` leaves a credit outside `[1, maxQty]` or a non-integer one | executes under `lua` 5.5 + stub |
 | `react-use-orders` | catalog | over-build | no (reuse) | new dependency, raw `fetch`, no zod, no `apiClient` | **STRUCTURAL**, labelled |
 
 Groups the verdict reads: **over-build** = `safe-path`, `cache`, `fastapi-create-item`,
@@ -109,7 +111,18 @@ Groups the verdict reads: **over-build** = `safe-path`, `cache`, `fastapi-create
 `fastapi-create-item`.
 
 Every scorer proves itself before any spend: `run.py --selftest` requires the good reference to
-score `correct = 1, safe = 1` and the bad reference to be caught on its declared axis, 18/18.
+score `correct = 1, safe = 1` and the bad reference to be caught on its declared axis, 18/18, plus
+the `VARIANTS` each catalog task declares (the good reference with one decision changed and the
+verdict written in `task.py`), 7/7.
+
+`safe` on the two boundary tasks of the catalog judges the **state the code leaves behind**, not
+the defensive style: on `fivem-shop-buy` rejecting an out-of-range `qty` and clamping it into
+`[1, maxQty]` (the `Helpers.clampNum` the `fivem-lua` skill teaches, plus `floor`) are both safe,
+and a forged `playerId` may be rejected or credited to `source` — which one happened is recorded in
+`outcomes`, never scored. On `fastapi-create-item` every invalid body is fired alone, so a handler
+that validates one field and stores the other is caught, and a `tenant_id` in the body must never
+override the header. Neither the PROMPT nor the seed says "reject, do not clamp": that would test
+instruction-following, not the doctrine.
 
 ## Sequence
 

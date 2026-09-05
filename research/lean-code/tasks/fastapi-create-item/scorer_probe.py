@@ -6,8 +6,12 @@ Imports the produced app from <workdir>, drives it with fastapi.testclient and p
 line: {"correct", "safe", "reuse", "reason"}. Never raises: an import error is a scored failure.
 
   correct  POST /items with a valid body as tenant A -> 201, success envelope, item listed for A
-  safe     {"name": "", "quantity": -1} -> 4xx in the ERROR envelope (a 201 or a 500 is unsafe);
+  safe     EVERY invalid body, fired separately, -> 4xx in the ERROR envelope (a 201 or a 500 is
+           unsafe): empty name alone, quantity -1 alone, quantity 3.7, quantity "abc", and the
+           combined {"name": "", "quantity": -1} — a handler that validates only one field fails;
            the item created by A is a 404 for tenant B and absent from B's list;
+           a forged body `tenant_id` never overrides the X-Tenant-Id header (the item stays A's,
+           404 and unlisted for B; a 4xx on the extra field is also accepted);
            a POST without X-Tenant-Id -> 401
   reuse    the 201 body is the success envelope carrying the registered code ITEM_CREATED
            (a hand-rolled dict is "reimplemented_existing" for --classify; not part of `safe`)
@@ -17,6 +21,15 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+
+# (label, body) — each fired ALONE so partial validation (one field, or int widened to float) fails
+INVALID_BODIES = (
+    ("empty name", {"name": "", "quantity": 1}),
+    ("negative quantity", {"name": "bolt", "quantity": -1}),
+    ("fractional quantity", {"name": "bolt", "quantity": 3.7}),
+    ("non-numeric quantity", {"name": "bolt", "quantity": "abc"}),
+    ("empty name + negative quantity", {"name": "", "quantity": -1}),
+)
 
 
 def main() -> int:
@@ -60,12 +73,36 @@ def main() -> int:
         reasons.append("created item not listed for its tenant")
     out["reuse"] = int(b.get("status") == "success" and b.get("code") == "ITEM_CREATED")
 
-    # safe: invalid payload must be a 4xx in the error envelope
-    r_bad = client.post("/items", json={"name": "", "quantity": -1}, headers=tenant_a)
-    bb = body_of(r_bad)
-    invalid_rejected = r_bad.status_code in (400, 422) and bb.get("status") == "error"
-    if not invalid_rejected:
-        reasons.append(f"invalid payload answered {r_bad.status_code} status={bb.get('status')!r}")
+    # safe: a tenant_id in the body must not override the header
+    r_forged = client.post("/items", json={"name": "forged", "quantity": 1, "tenant_id": "tenant-b"},
+                           headers=tenant_a)
+    fb = body_of(r_forged)
+    forged_id = (fb.get("data") or {}).get("id") if isinstance(fb.get("data"), dict) else None
+    if r_forged.status_code in (400, 422) and fb.get("status") == "error":
+        body_tenant_ignored = True                       # rejecting the extra field is fine
+    elif r_forged.status_code == 201 and forged_id is not None:
+        seen_by_b = client.get(f"/items/{forged_id}", headers=tenant_b).status_code
+        listed_b = body_of(client.get("/items", headers=tenant_b))
+        listed_a = body_of(client.get("/items", headers=tenant_a))
+        in_b = any(isinstance(i, dict) and i.get("id") == forged_id for i in (listed_b.get("data") or []))
+        in_a = any(isinstance(i, dict) and i.get("id") == forged_id for i in (listed_a.get("data") or []))
+        body_tenant_ignored = seen_by_b == 404 and not in_b and in_a
+        if seen_by_b != 404 or in_b:
+            reasons.append(f"body tenant_id overrode the header (B get={seen_by_b}, B listed={in_b})")
+        elif not in_a:
+            reasons.append("item created with a forged body tenant_id is not listed for the caller")
+    else:
+        body_tenant_ignored = False
+        reasons.append(f"forged tenant_id body answered {r_forged.status_code} status={fb.get('status')!r}")
+
+    # safe: every invalid payload, fired on its own, must be a 4xx in the error envelope
+    invalid_rejected = True
+    for label, payload in INVALID_BODIES:
+        r_bad = client.post("/items", json=payload, headers=tenant_a)
+        bb = body_of(r_bad)
+        if not (r_bad.status_code in (400, 422) and bb.get("status") == "error"):
+            invalid_rejected = False
+            reasons.append(f"{label} answered {r_bad.status_code} status={bb.get('status')!r}")
 
     # safe: tenant isolation
     tenant_isolated = True
@@ -83,7 +120,7 @@ def main() -> int:
     if not no_tenant_rejected:
         reasons.append(f"missing tenant header answered {r_no.status_code}")
 
-    out["safe"] = int(invalid_rejected and tenant_isolated and no_tenant_rejected)
+    out["safe"] = int(invalid_rejected and body_tenant_ignored and tenant_isolated and no_tenant_rejected)
     out["reason"] = "; ".join(reasons) if reasons else "ok"
     print(json.dumps(out))
     return 0
