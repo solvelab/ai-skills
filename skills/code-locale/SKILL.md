@@ -14,7 +14,7 @@ description: >-
   naming (each stack's skill), or for i18n and user-facing translation.
 metadata:
   author: solvelab
-  version: 1.3.1
+  version: 1.4.0
   category: process
 license: MIT
 compatibility: >-
@@ -43,6 +43,9 @@ without a taste debate.
 - **Existing names: the three migration tiers**: `references/migration.md`
 - **The detector** — measures the path of every file it is given and the contents of the types
   it tokenizes: `references/check-identifier-locale.py`
+- **Adopting the gate in a repository, without the assistant**: the pre-commit hook
+  `references/pre-commit-locale.sh` and the CI step `references/ci-step.md` (section *Wire it in
+  one minute*)
 
 ## The two layers
 
@@ -191,6 +194,32 @@ depend on the assistant noticing a rule it already has.
 The findings travel in the field the harness reads for that event, not on plain standard output;
 the hook's own docstring records the probe that established which one. Wiring: the README's hooks
 section.
+
+## Wire it in one minute
+
+The session hook above exists only where a harness runs it with this machine's settings. A
+repository adopts the same detector on its own, for every tool and every human, with one file or one
+YAML block — both invoke `check-identifier-locale.py --diff` on added lines only, pin it to a tagged
+release of the catalog, and print the exits the *Reviewing a diff* section already explains:
+
+- **Pre-commit hook**: [`references/pre-commit-locale.sh`](references/pre-commit-locale.sh) — copy
+  to `.git/hooks/pre-commit` (or into a `core.hooksPath` directory); it finds the detector in a local
+  clone or downloads it once, digest-checked, and refuses a commit whose staged diff adds a
+  non-English name.
+- **CI step**: [`references/ci-step.md`](references/ci-step.md) — a copy-paste GitHub Actions job
+  (`pull_request`, `fetch-depth: 0`, `curl` at a tag with `sha256sum -c`,
+  `git diff origin/<base>...HEAD | python3 check-identifier-locale.py --diff -`).
+
+Each layer catches a different moment, and each has a hole the next one covers:
+
+| Layer | Runs | Catches | Misses |
+|---|---|---|---|
+| Session hook (`locale-rite.py`, the catalog's global rules) | on the assistant's `Write`/`Edit`, in a Claude Code session with the hook wired | the name at the moment it is written, before it spreads across a diff | every other tool (Codex, Cursor, Copilot), a human typing in an editor, a machine without the wiring; informs, never blocks |
+| Pre-commit hook | on `git commit`, on the author's machine | the staged diff of any author and any tool, before it leaves the machine | `git commit --no-verify`, rebases and merges, a clone that never installed it; only added lines in tokenized file types |
+| CI step | on every pull request | the pull request's added lines regardless of how they were produced or bypassed | direct pushes to the default branch (branch protection's job); existing content; the advisory tier unless the word lists are shipped |
+
+Each file states in its own header what it does not cover; a green run at any layer is a
+measurement of what the tiers reach, not proof of compliance.
 
 ## Existing code
 
