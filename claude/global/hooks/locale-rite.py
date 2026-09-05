@@ -5,11 +5,20 @@ Reads the hook payload on stdin and, when a Write/Edit is about to land (PreTool
 landed (PostToolUse), runs the shipped identifier-locale check against the written PATH and the
 written CONTENT. One decision, two envelopes, chosen by `hook_event_name`:
 
-    PreToolUse   a gating finding (pt-verb, pt-noun, path-pt-*) DENIES the tool call, with the findings
-                 and the three exits in the reason; an advisory finding alone (en-unknown) denies
-                 nothing, and neither does a clean write.
+    PreToolUse   a gating finding (pt-verb, pt-noun in the added content; path-pt-* in a path the write
+                 CREATES) DENIES the tool call, with the findings and the three exits in the reason; an
+                 advisory finding alone (en-unknown) denies nothing, and neither does a clean write.
+                 A file that already exists is never denied for its own name: the name is on disk
+                 already, existing names change through a deprecation window and not through a blocked
+                 edit, and a denial naming a file the model did not name has no exit but the allowlist.
     PostToolUse  advisory only, exactly as before this mode existed: findings go back to the assistant
-                 as context for the next turn, gating and advisory alike. Silent when the write is clean.
+                 as context for the next turn, gating and advisory alike — a legacy path included, so
+                 the name stays visible. Silent when the write is clean.
+
+    On both events a `# locale-ok: <reason>` that already sits in the file on the line above the
+    fragment an Edit replaces counts as if it were part of the new text (D9 of the change): the
+    denial's first exit tells the model to put the waiver there, and a hook that then cannot see it
+    produces the blind second attempt issue #137 lists as a risk.
 
 Why deny and not only inform: the rule already existed in three layers — the Code Locale section of
 personal-rules.md, the `code-locale` skill and this hook on PostToolUse — and Portuguese identifiers
@@ -219,19 +228,48 @@ def first_line_of(path: Path, anchor: str) -> int:
     return body.count("\n", 0, index) + 1 if index >= 0 else 1
 
 
-def findings_for(check, file_path: str, text: str, cwd: str, anchor: str) -> list:
+def waiver_above(check, path: Path, first_line: int) -> bool:
+    """True when the file line immediately above the located fragment carries `locale-ok: <reason>`.
+
+    `scan_text()` honours a waiver on the line above a name, but only inside the text it is given; an
+    Edit hands over `new_string` alone, so a waiver that already sits in the file — including one the
+    model just added because the denial told it to — is outside that text. `first_line` is 1 when
+    the fragment was not located (or is the whole file), and then there is no line above to read.
+    The regex is the check's own, so the two never drift apart.
+    """
+    if first_line <= 1:
+        return False
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return False
+    above = first_line - 2                       # 0-based index of the line before the fragment
+    return above < len(lines) and bool(check.WAIVER_RE.search(lines[above]))
+
+
+def findings_for(check, file_path: str, text: str, cwd: str, anchor: str, pre: bool = False) -> list:
+    """Path findings plus content findings for one write.
+
+    Before the write (`pre`), the path is judged only when the write CREATES it — a file already on
+    disk is never denied for its own name, and its path findings are left out of the reason entirely
+    (D8). After the write the path is reported as it always was, so a legacy name stays visible.
+    """
     path = Path(file_path)
     if check.is_vendored(path):
         return []
     root = Path(cwd) if cwd else Path.cwd()
     allow = check.load_allowlist(root)
     english = check.load_english() if hasattr(check, "load_english") else None
-    findings = list(check.scan_path(path, allow, root, english))
+    creates = not path.exists()
+    findings = list(check.scan_path(path, allow, root, english)) if (creates or not pre) else []
     lang = check.EXT_LANG.get(path.suffix.lower())
     if lang and text:
         rel = check.project_relative(path, root)
-        findings.extend(check.scan_text(text, lang, str(rel), allow,
-                                        first_line=first_line_of(path, anchor), english=english))
+        first_line = first_line_of(path, anchor)
+        fragment = check.scan_text(text, lang, str(rel), allow, first_line=first_line, english=english)
+        if waiver_above(check, path, first_line):
+            fragment = [f for f in fragment if f.line != first_line]
+        findings.extend(fragment)
     return findings
 
 
@@ -337,7 +375,7 @@ def evaluate(payload: dict, check, mode: "str | None" = None) -> "dict | None":
     if not isinstance(anchor, str):
         anchor = ""
     try:
-        findings = findings_for(check, file_path, text, cwd, anchor)
+        findings = findings_for(check, file_path, text, cwd, anchor, pre=pre)
     except Exception:
         return None                      # a check that crashes must not crash the write
     if not findings:
@@ -486,6 +524,46 @@ def selftest() -> int:
         if not ok:
             failed.append("allowlist")
 
+    # A file that already exists is never denied for its own name (D8), and a waiver already in the
+    # file on the line above the edited fragment counts (D9). Both need a real file, built in a
+    # temporary tree; both were review findings on the first version of this mode.
+    with tempfile.TemporaryDirectory() as tmp:
+        legacy = Path(tmp) / "servico_pedido.py"
+        legacy.write_text("total = 0\n", encoding="utf-8")
+        edit = {"file_path": str(legacy), "old_string": "total = 0", "new_string": "total = 1\n"}
+        pre_edit = evaluate(pre(edit, tool_name="Edit", cwd_=tmp), check)
+        post_edit = evaluate({**pre(edit, tool_name="Edit", cwd_=tmp), "hook_event_name": POST_EVENT}, check)
+        ok = pre_edit is None and bool(post_edit) and "servico_pedido" in post_edit["hookSpecificOutput"]["additionalContext"]
+        print(f"  {'OK     ' if ok else 'FAILED '} PreToolUse allows a clean Edit on a legacy portuguese-named file; PostToolUse still reports the path")
+        if not ok:
+            failed.append("legacy path edit")
+        pt_edit = {**edit, "new_string": "usuario_count = 1\n"}
+        denied = evaluate(pre(pt_edit, tool_name="Edit", cwd_=tmp), check)
+        reason = denied["hookSpecificOutput"]["permissionDecisionReason"] if denied else ""
+        ok = "1 non-English name " in reason and "usuario_count" in reason and "path-pt-noun" not in reason
+        print(f"  {'OK     ' if ok else 'FAILED '} PreToolUse denies the identifier in that Edit and names only the identifier, not the legacy path")
+        if not ok:
+            failed.append("legacy path identifier")
+        overwrite = evaluate(pre({"file_path": str(legacy), "content": "total = 2\n"}, cwd_=tmp), check)
+        fresh = evaluate(pre({"file_path": f"{tmp}/novo_servico.py", "content": "total = 2\n"}, cwd_=tmp), check)
+        ok = overwrite is None and bool(fresh) and fresh["hookSpecificOutput"].get("permissionDecision") == "deny"
+        print(f"  {'OK     ' if ok else 'FAILED '} PreToolUse allows a clean Write over the legacy file and still denies the Write that creates a portuguese path")
+        if not ok:
+            failed.append("legacy path write")
+        two = Path(tmp) / "two.py"
+        two.write_text("a = 1\n# locale-ok: wire name from the legacy adapter\nb = 2\n", encoding="utf-8")
+        waived = {"file_path": str(two), "old_string": "b = 2", "new_string": "usuario = 2"}
+        pre_waived = evaluate(pre(waived, tool_name="Edit", cwd_=tmp), check)
+        two.write_text("a = 1\n# locale-ok: wire name from the legacy adapter\nusuario = 2\n", encoding="utf-8")
+        post_waived = evaluate({**pre(waived, tool_name="Edit", cwd_=tmp), "hook_event_name": POST_EVENT}, check)
+        two.write_text("a = 1\nb = 2\n", encoding="utf-8")
+        unwaived = evaluate(pre(waived, tool_name="Edit", cwd_=tmp), check)
+        ok = pre_waived is None and post_waived is None and bool(unwaived) \
+            and unwaived["hookSpecificOutput"].get("permissionDecision") == "deny"
+        print(f"  {'OK     ' if ok else 'FAILED '} locale-ok already in the file above old_string: PreToolUse silent, PostToolUse silent, denied without it")
+        if not ok:
+            failed.append("waiver above the fragment")
+
     # Denial envelope: the shape the 2.1.261 bundle parses, within both measured caps, each distinct
     # name once, the three exits at the end — on a write with 30 gating findings plus an advisory one.
     many = "\n".join(f"preco_{i} = {i}" for i in range(30)) + "\nzqxbrv_count = 1\n"
@@ -545,7 +623,8 @@ def selftest() -> int:
         print("selftest FAILED: " + "; ".join(failed))
         return 1
     print(f"selftest OK: {len(cases)} PostToolUse decisions, {len(pre_cases)} PreToolUse decisions, "
-          "inform mode, en-unknown, the allowlist, both envelopes, the environment and the argv contract")
+          "inform mode, en-unknown, the allowlist, the legacy path, the waiver above the fragment, "
+          "both envelopes, the environment and the argv contract")
     return 0
 
 
