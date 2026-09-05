@@ -2,7 +2,7 @@
 
 Reuses the `backlog` skill's config (`project.owner`, `project.number`, `fields.status`) and the
 same runtime-ID discipline: resolve project/field/option/item IDs fresh each run (see the
-`backlog` skill's `backlog/references/gh-projects.md` for the base recipes).
+`backlog` skill's `skills/backlog/references/gh-projects.md` for the base recipes).
 
 ## Find the item for an issue
 
@@ -42,7 +42,7 @@ Configured/heuristic name not among the Status options → warn, leave status un
 (board sync is never a reason to fail the execution).
 
 **Mirrors.** When the config declares `extra_projects` (see the `backlog` skill's
-`backlog/references/backlog-config.md`), apply every transition to those boards too — resolve each board's
+`skills/backlog/references/backlog-config.md`, in the `backlog` skill), apply every transition to those boards too — resolve each board's
 own project/item/field/option IDs, match the column by **name**, and set Status only. Two boards
 cloned from the same template can share option IDs, so reusing an ID from the primary board looks
 correct until the day it silently writes the wrong column. A mirror that is unreachable, has no
