@@ -76,35 +76,90 @@
 
 ## 2. Protocolo e harness
 
-- [ ] P.1 `research/lean-code/protocol.md` congelado com o sha: arms, célula, métricas, vereditos
+- [x] P.1 `research/lean-code/protocol.md` congelado com o sha: arms, célula, métricas, vereditos
       SHIP / INCONCLUSIVE / NO-CLAIM / REWRITE, lista de tarefas, regras de falso positivo da lente
-- [ ] P.2 `run.py` stdlib com `--selftest`, `--prepare-arms`, `--probe-isolation`, `--matrix`,
+
+      `grep -c "^| \*\*" research/lean-code/protocol.md` -> `4` linhas de veredito;
+      `grep -n "Frozen" research/lean-code/protocol.md` -> `3:**Frozen** at base \`7709622\``;
+      cinco regras de falso positivo numeradas na seção *Review lens*.
+
+- [x] P.2 `run.py` stdlib com `--selftest`, `--prepare-arms`, `--probe-isolation`, `--matrix`,
       `--classify`, `--rescore`, `--report --export`; `--matrix` recusa sem selftest verde na mesma
-      invocação; `--report` recusa versões/modelos diferentes; `--export` sem `session_id`, `result`,
+      invocação; `--report` recusa versões/modelos diferentes; `--export` sem ids de sessão, `result`,
       uuids e HOME absoluto
-- [ ] P.3 Vendor do ponytail em `vendor/ponytail/` (`tasks.py`, `loc.js`, `LICENSE`, `PIN`) e os 11
+
+      `python3 research/lean-code/run.py --matrix ... --arms-root /tmp/nowhere ...` (sem `--selftest`)
+      -> `refusing --matrix: --selftest did not pass in this invocation`, rc 1.
+      `python3 run.py --selftest --matrix ...` com arms preparados e sonda ausente ->
+      `refusing --matrix: the isolation probe has not passed for these arms`, rc 1.
+      `python3 run.py --report runs-sim/sim-a runs-sim/sim-oldcli` ->
+      `refusing to aggregate: claude versions differ: ['2.1.177 (Claude Code)', '2.1.261 (Claude Code)']`;
+      `--report runs-sim/sim-a runs-sim/sim-haiku` -> `refusing to aggregate: model ids differ`.
+      `--report runs-sim/sim-a runs-sim/sim-b --export runs-sim/export-ab.json` -> `wrote`; depois
+      `grep -c session_id export-ab.json` -> `0`, `grep -c /home/diegops` -> `0`, `grep -c '"result"'` -> `0`,
+      `grep -c 426614174000` -> `0` (o uuid sintético). `python3 -m py_compile run.py` -> ok; só stdlib
+      importada (`import` de `argparse … typing`).
+
+- [x] P.3 Vendor do ponytail em `vendor/ponytail/` (`tasks.py`, `loc.js`, `LICENSE`, `PIN`) e os 11
       `examples/*.md` em `fixtures/examples/`
+
+      `sha256sum tasks.py loc.js LICENSE` -> `68f47355…`, `c3c346f8…`, `fb1bc690…`, gravados no `PIN`
+      com o commit `974d940a1c5344210874150b98ff0d2c861fab6a` (2026-09-04 14:35:29 +0200, v4.9.0);
+      `ls fixtures/examples/*.md | wc -l` -> `11` (mais o README).
 
 ## 3. Arms e isolamento
 
-- [ ] A.1 `--prepare-arms` monta `<arms-root>/<arm>/` com `settings.json` filtrado, `CLAUDE.md` do ref
+- [x] A.1 `--prepare-arms` monta `<arms-root>/<arm>/` com `settings.json` filtrado, `CLAUDE.md` do ref
       mais sentinela, `skills/` por symlink à árvore do ref, `.credentials.json` modo 600; baseline sem
       `skills/lean-code`; preflight recusa arms-root dentro do repositório
+
+      `python3 run.py --prepare-arms --arms-root <scratch>/lean-dev/arms --rules-ref HEAD` ->
+      `note: skills/lean-code does not exist at HEAD; only the baseline arm is prepared`,
+      `arm baseline … preflight OK`, `wrote …/arms.json`. Inspeção: `settings.json` com exatamente
+      `model`, `effortLevel`, `modelSettings`, `skillOverrides`; `tail -2 CLAUDE.md` ->
+      `BENCH-SENTINEL: baseline`; `stat -c %a .credentials.json` -> `600`;
+      `ls skills | wc -l` -> `35`; `readlink skills/bug-hunter` -> `…/arms/_tree/02b1b89faeb4/skills/bug-hunter`
+      (árvore materializada por `git archive`, não a working tree). `--prepare-arms --arms-root research/lean-code/_arms`
+      -> `refusing: --arms-root research/lean-code/_arms resolves inside the repository`, rc 1.
+
 - [ ] A.2 `--probe-isolation` (parte B, paga): sentinela 3/3, eventos de hook do mantenedor 0/3,
       `.caveman-active` ausente 3/3; saída registrada em `results/`
 
 ## 4. Tarefas e scorers
 
-- [ ] T.1 Seis tarefas do upstream ligadas: `safe-path`, `sql-user`, `csv-sum`, `cache`, `reuse-slug`,
+- [x] T.1 Seis tarefas do upstream ligadas: `safe-path`, `sql-user`, `csv-sum`, `cache`, `reuse-slug`,
       `trace-transfer`
-- [ ] T.2 `fastapi-create-item`: semente com envelope + registry + repositório por tenant; ruim devolve
+
+      `run.py --selftest` -> `OK tasks nine tasks wired (6 upstream + 3 catalog)` e 12/12 linhas
+      `OK scorers <id> good|bad` para as seis (bom `correct=1 safe=1`; ruim pego no eixo:
+      `cache bad correct=0 … axis=correct`, `trace-transfer bad … patched only transfer; withdraw still overdraws`).
+
+- [x] T.2 `fastapi-create-item`: semente com envelope + registry + repositório por tenant; ruim devolve
       201/500 para `{"name": "", "quantity": -1}`; scorer roda sob o venv via `fastapi.testclient`
-- [ ] T.3 `fivem-shop-buy`: `fxmanifest.lua`, `Inventory.give`, `Helpers.clampNum`; stub
+
+      `LEAN_SCORER_VENV=<venv> python3 tasks/fastapi-create-item/task.py <seed+good>` ->
+      `{"correct": 1, "safe": 1, "reuse": 1, "reason": "ok"}`; `<seed+bad>` ->
+      `{"correct": 1, "safe": 0, "reuse": 1, "reason": "invalid payload answered 201 status='success'"}`;
+      diretório sem `app/` -> `import failed: ModuleNotFoundError: No module named 'app'`;
+      sem venv -> `scorer venv not found: set LEAN_SCORER_VENV / --scorer-venv (see scorer-venv.txt)`.
+
+- [x] T.3 `fivem-shop-buy`: `fxmanifest.lua`, `Inventory.give`, `Helpers.clampNum`; stub
       `fivem_stub.lua`; `playerId=2` forjado com `source=1` credita o 1; `qty` `-5`, `"10"`, `1e9`
       rejeitados
-- [ ] T.4 `react-use-orders`: esqueleto Vite+TS com `apiClient`, zod, TanStack; scorer ESTRUTURAL e
+
+      `python3 tasks/fivem-shop-buy/task.py <seed+good>` -> `{"correct": 1, "safe": 1, "reason": "ok"}`;
+      `<seed+bad>` -> `{"correct": 1, "safe": 0, "reason": "forged playerId: p1=0 p2=2; qty=-5 accepted (p1 bread=-5); qty=10 accepted (p1 bread=10); qty=1000000000.0 accepted …; qty=2.5 accepted …; qty=0 accepted …; unknown item accepted"}`;
+      semente intocada -> `{"correct": 0, "safe": 0, "reason": "valid buy credited 0; …"}`.
+      Ordem de carga lida do `fxmanifest.lua` (`shared_scripts` + `server_scripts`).
+
+- [x] T.4 `react-use-orders`: esqueleto Vite+TS com `apiClient`, zod, TanStack; scorer ESTRUTURAL e
       rotulado: `package.json` intacto, `z.object`/`.parse`, `apiClient` importado, sem `fetch(`/
       `axios.create(`
+
+      `run.py --selftest` -> `OK scorers react-use-orders good [STRUCTURAL] correct=1 safe=1 … STRUCTURAL: ok`
+      e `react-use-orders bad [STRUCTURAL] correct=0 safe=0 … STRUCTURAL: package.json changed (new dependency?); does not wrap useQuery; …`.
+      O rótulo `STRUCTURAL` aparece na `reason`, na tabela do `--report` (`(STRUCTURAL scorer)`) e no
+      `baseline-defects.md` (`react-use-orders (STRUCTURAL)`).
 
 ## 5. Baseline (parte B)
 
@@ -114,27 +169,99 @@
 
 ## 6. Simulation & Field Proof (MANDATORY)
 
-- [ ] S.1 `python3 research/lean-code/run.py --selftest` pelo caminho real, saída observada registrada
-- [ ] S.2 Matriz de casos como contagens: LOC 22/22 e 11/11, scorers 18/18, detectores, preflight,
+- [x] S.1 `python3 research/lean-code/run.py --selftest` pelo caminho real, saída observada registrada
+
+      `LEAN_SCORER_VENV=<scratch>/lean-dev/venv python3 research/lean-code/run.py --selftest` ->
+      `selftest: 101/101 OK  (tasks 1/1, loc 34/34, scorers 18/18, detectors 20/20, arms 15/15, export 3/3, kill 1/1, refusals 5/5, metrics 4/4)`
+      e `selftest wall time: 0.7s (target < 15s)`, rc 0. Também pelo caminho real, sem gasto:
+      `--prepare-arms` no scratch (A.1), `--classify runs-sim/sim-a` -> `wrote …/sim-a-baseline-defects.md`
+      com a tabela de flags (`guard_dropped 5/18`, `patched_caller_only 1/18`, `reimplemented_existing 2/18`,
+      `new_dependency 1/18`, `output_contract 9/18`) sobre um stamp **sintético** (18 células =
+      9 tarefas × referência boa/ruim com `_claude.json` falso — nenhuma célula paga rodou);
+      `--rescore runs-sim/sim-a` -> `rescored 18 cells`.
+
+- [x] S.2 Matriz de casos como contagens: LOC 22/22 e 11/11, scorers 18/18, detectores, preflight,
       stripper, tree-kill, recusas
-- [ ] S.3 O que escapou ou se comportou diferente do esperado, nomeado
+
+      Tinha de bater e bateu: porte == `loc.js` 22/22 seções; `Without > With` 8/8 nos exemplos de
+      contagem de linhas; scorers bom 9/9 e ruim pego no eixo 9/9 (18/18); detectores que tinham de
+      disparar 12/12 (`output_contract`, `lean_marker` bem formado, `one_check` ×2, `new_dependency` ×4,
+      `prose_gt_code`, flags ×2, `lean_marker` malformado); preflight pegou 6/6 defeitos injetados
+      (`hooks`, `enabledPlugins`, sentinela ausente, credencial 644, `skills/lean-code` no baseline,
+      `.caveman-active`); recusas 4/4 (`--matrix` sem selftest, `--matrix` sem sonda, `--report` versão
+      diferente, `--report` modelo diferente); tree-kill 1/1.
+      Tinha de ficar em silêncio e ficou: detectores 8/8 casos negativos; preflight 3/3 arms limpos;
+      `--report` com mesma versão e modelo 1/1; export sem `session id`/`result`/uuid/HOME 4/4 greps
+      a zero.
+      Escape conhecido que ficou onde devia: 3/3 exemplos de remoção de dependência com `With >= Without`.
+
+- [x] S.3 O que escapou ou se comportou diferente do esperado, nomeado
+
+      Três coisas, e a contagem foi o que pegou. (1) O plano assumia `Without > With` 11/11 nos
+      exemplos do ponytail; o próprio `loc.js` dá `16 < 17`, `5 < 6`, `4 < 7` em `infinite-scroll`,
+      `number-formatting` e `url-params` — são exemplos de "1 dependency → 0 dependencies", onde o
+      ganho é a dependência, não a linha. O selftest passou a pinar esses três como exceção declarada
+      (`DEPENDENCY_REMOVAL_EXAMPLES`) em vez de afirmar um 11/11 falso; README e protocolo dizem 8/8 + 3.
+      (2) O detector de dependência lia `import useSWR from 'swr'` também como `import` Python e
+      acusava `useSWR`; corrigido para rodar cada regex só nos arquivos da sua linguagem
+      (`added_by_file`), caso adicionado ao selftest. (3) O inventário `json_keys` gravava a string
+      do id de sessão como valor e o `grep` de higiene do export dava 36 em vez de 0; o inventário
+      passou a omitir os nomes que o stripper remove e a contar quantos omitiu (`json_keys_omitted`).
+      Nada mais escapou; a sonda paga e o piloto ficam para a parte B.
 
 ## 7. Quality Gates (MANDATORY)
 
-- [ ] Q.1 Nenhuma `SKILL.md` tocada; `python3 scripts/validate-skills.py` e o frontmatter do gate
+- [x] Q.1 Nenhuma `SKILL.md` tocada; `python3 scripts/validate-skills.py` e o frontmatter do gate
       inalterados
-- [ ] Q.2 Todo conteúdo de `research/lean-code/` em inglês onde é máquina: identificadores, nomes de
+
+      `gates.sh` -> `PASS validate-skills :: skills checked: 35   findings: 0`, `PASS frontmatter`;
+      `GITHUB_EVENT_PATH=event145.json python3 scripts/validate-skill-version.py` ->
+      `skill-version gate: 0 findings (base origin/master, 0 skill(s) changed, 0 with content changes)`.
+
+- [x] Q.2 Todo conteúdo de `research/lean-code/` em inglês onde é máquina: identificadores, nomes de
       arquivo, chaves de JSON, flags; prosa em português onde é prosa
-- [ ] Q.3 Nenhuma doutrina restatada: o harness detecta o marcador e o contrato de saída, não os
+
+      O hook `locale-rite.py` (PostToolUse) só emitiu avisos `en-unknown` para nomes de biblioteca
+      (`fastapi`, `pydantic`, `axios`, `fxmanifest`) e da stdlib (`killpg`, `gmatch`) — nenhum termo
+      em português; `deps.py` foi renomeado para `dependencies.py` por ser abreviação, não inglês.
+      A prosa dos `.md` do diretório está em inglês, como `research/svg-animation/`; os prompts das
+      tarefas em inglês porque são o que o agente lê.
+
+- [x] Q.3 Nenhuma doutrina restatada: o harness detecta o marcador e o contrato de saída, não os
       redige (design.md, Canonical Home)
-- [ ] Q.4 `python3 scripts/scan-secrets.py` verde; `git ls-files research/lean-code | xargs grep -l
+
+      `grep -c "lean:" research/lean-code/protocol.md` -> `1` (a única linha com o marcador nomeia o formato
+      detectado, `lean: <ceiling> -> <trigger>`); nenhuma escada, regra ou carve-out do ponytail
+      transcrito fora de `vendor/`.
+
+- [x] Q.4 `python3 scripts/scan-secrets.py` verde; `git ls-files research/lean-code | xargs grep -l
       session_id` vazio
-- [ ] Q.5 `bash generate.sh` sem diff; `python3 scripts/validate-repo-hygiene.py` verde
+
+      `python3 scripts/scan-secrets.py` -> `scanned 765 files (working tree)`, `no credentials found`, rc 0;
+      `/usr/bin/git ls-files research/lean-code | xargs grep -l session_id` -> vazio (xargs rc 123 = nenhum match
+      em 71 arquivos rastreados).
+
+- [x] Q.5 `bash generate.sh` sem diff; `python3 scripts/validate-repo-hygiene.py` verde
+
+      `gates.sh` -> `PASS generate :: Generated 10 category plugins in plugins/`, `PASS tree-clean-after-generate`,
+      `PASS hygiene :: repo hygiene: 0 findings`, `PASS hygiene-selftest :: 4/4 defect classes detected`,
+      `PASS plugin-validate :: ✔ Validation passed`, `PASS smoke :: smoke: 17/17 cases passed`, `dirty-after: 0`.
 
 ## 8. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `openspec validate add-lean-code-research --strict` green
-- [ ] V.2 `bash scripts/validate-rite.sh` -> `rite gate OK`; `GITHUB_EVENT_PATH=... python3
+- [x] V.1 `openspec validate add-lean-code-research --strict` green
+
+      `openspec validate add-lean-code-research --strict` -> `Change 'add-lean-code-research' is valid`.
+
+- [x] V.2 `bash scripts/validate-rite.sh` -> `rite gate OK`; `GITHUB_EVENT_PATH=... python3
       scripts/validate-skill-version.py` -> 0 skills changed
-- [ ] V.3 `research/lean-code/README.md` com a ordem de leitura e a linha de status
+
+      `GITHUB_EVENT_PATH=event145.json bash scripts/validate-rite.sh` -> `rite gate OK`,
+      `spec-rite gate: 0 findings`; `validate-skill-version.py` -> `0 skill(s) changed`.
+
+- [x] V.3 `research/lean-code/README.md` com a ordem de leitura e a linha de status
+
+      `grep -n "## Read in this order\|## Status" research/lean-code/README.md` -> ambas as seções;
+      a linha de status diz **No paid cell has run** e nomeia CLI `2.1.261`, Lua `5.5.0`, node `v26.0.0`.
+
 - [ ] V.4 `openspec archive add-lean-code-research --yes` after all groups above are `[x]`
