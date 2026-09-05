@@ -21,8 +21,12 @@ the **host's instantiation path**, not just your logic.
 
   Known examples from a production AssettoServer plugin: `CommandContext.get_Services()` (crashes
   at command time), non-parameterless command-module constructors (host instantiates by
-  reflection, DI never runs), `System.Threading.Lock` type references (missing in the host
-  runtime — checked via `GetTypeReferences()`). Every new runtime crash earns a new Cecil assert.
+  reflection, DI never runs), and — **only for a host on `net8.0`** (`AssettoServer v0.0.54`) —
+  `System.Threading.Lock` type references, checked via `GetTypeReferences()`. An assert whose
+  reason is "the type is missing in the host runtime" carries the TFM it holds for and reads the
+  detected TFM before firing: on `v0.0.55-pre25` (`net9.0`) the type exists and a plugin using it
+  loaded (`assettoserver-plugin`, block and forbidden-constructs table, 2026-09-05). Every new
+  runtime crash earns a new Cecil assert; every version-scoped assert names its range.
 - **Publish-shape check**: the artifact triple exists next to the DLL (`.deps.json`,
   `.runtimeconfig.json`); no host assemblies were copied into the plugin output.
 - **Host-instantiation test**: drive the plugin through the host's real reflection path (e.g. a

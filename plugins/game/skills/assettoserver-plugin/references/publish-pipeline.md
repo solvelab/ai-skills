@@ -10,7 +10,7 @@ dispatch when already containerized.
 git status --short --branch                      # know your tree before editing
 bash -n tooling/scripts/*.sh                     # 1. shell syntax gate
 tooling/scripts/run-plugin-tests.sh              # 2. unit tests (host-free)
-export ASSETTOSERVER_SOURCE_DIR=~/src/AssettoServer   # checkout at the runtime's tag!
+export ASSETTOSERVER_SOURCE_DIR=~/src/AssettoServer   # checkout at the runtime's tag (v0.0.55-pre25 for 0.0.55+51d8d8a6e0)!
 tooling/scripts/build-drivezone-plugin.sh        # 3. compile against upstream
 tooling/scripts/publish-drivezone-plugin.sh      # 4. publish (docker by default)
 tooling/scripts/run-bug-hunter.sh                # 5. Cecil inspection of the published DLL
@@ -23,7 +23,7 @@ script checks for the rite proof (below) before copying.
 ## Publish script essentials
 
 ```bash
-# TFM comes from upstream, never hardcoded:
+# TFM comes from upstream, never hardcoded (reads net9.0 at v0.0.55-pre25, net8.0 at v0.0.54):
 target_framework="$(awk -F'[><]' '/<TargetFramework>/{print $3; exit}' \
   "$ASSETTOSERVER_SOURCE_DIR/AssettoServer/AssettoServer.csproj")"
 
