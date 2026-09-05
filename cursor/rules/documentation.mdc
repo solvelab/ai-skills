@@ -25,7 +25,13 @@ Never write a line of documentation before reading the code it describes.
 2. Read the entry point, the config module, the dependency manifest, and any existing docs.
 3. Identify: language, framework, how it is configured, how it is run, what it integrates with.
 4. **Extract the facts**, don't invent them: env vars from the config module, endpoints from the
-   router, commands from the manifest scripts / Makefile / CI, ports from the compose file.
+   router, commands from the manifest scripts / Makefile / CI, and — from the deployment manifest
+   (compose file, chart, Kubernetes manifest, systemd unit) — the ports, the compute and storage the
+   project asks for, the uid/gid it runs as, and the filesystem modes it needs. Prerequisites are
+   read from that file, never composed from memory: measured on a production repo, the setup guide
+   listed four prerequisites while the manifest two directories away carried the CPU and memory
+   requests and limits, the volume size, both node ports, the uid and the read-only root — none of
+   which reached the guide.
 
 Only document what you read. A fact that matters and could not be verified is written as an admitted
 gap ("Deployment target: not documented in this repo"), never guessed — the ladder for finding it and
@@ -74,6 +80,18 @@ the repo, and write them so it can:
 
 - **Repo paths are links**, not prose: `[app/main.py](app/main.py)`. A link is checkable; a sentence
   is not.
+- **A prerequisite states the value that passes**, not only the command that probes it. `kubectl
+  version` printing a JSON blob proves the reader has *a* cluster, and an expected result of "a JSON
+  block" is satisfied by every run — a step that cannot fail does not verify, it reassures, and that
+  costs the reader attention while returning nothing. Name the minimum, the range, or the exact
+  string. Where one command's results mean different failures with opposite fixes, map each result to
+  its meaning in a table; a single "expected" line can only describe success.
+- **What the software must reach is a prerequisite too.** Inbound ports get written down; outbound
+  destinations almost never do — and for anything that notifies, integrates, pulls an image or calls
+  an API, blocked egress fails *silently*: the process is healthy, the request never lands, and no
+  error surfaces where anyone looks. List the hostnames and ports the software must reach out to, and
+  say what the reader sees when it cannot. What the service should *do* while that dependency is
+  down is a different subject, and it belongs to `backend-resilience`.
 - **Directory trees show the real root.** Measured on a production repo: a README tree written without
   its `src/` prefix made every path in it unresolvable, and one entry had been renamed months earlier
   — 9 of 10 entries wrong in a block the reader trusts most.
