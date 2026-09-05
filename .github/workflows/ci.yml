@@ -146,6 +146,12 @@ jobs:
       - name: Locale write-gate hook self-test (the shipped hook is itself gated)
         run: python3 claude/global/hooks/locale-rite.py --selftest
 
+      - name: Locale stop-gate hook self-test (the shipped hook is itself gated)
+        # Builds throwaway git repositories under a temporary directory and drives the Stop decision
+        # through them: a heredoc-written Portuguese file blocks, renamed it does not, the second
+        # Stop (stop_hook_active) reports without blocking. Needs only python3 and git.
+        run: python3 claude/global/hooks/locale-stop-gate.py --selftest
+
       - name: Backlog rite hook self-test (the shipped hook is itself gated)
         run: python3 claude/global/hooks/backlog-rite.py --selftest
 
