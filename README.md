@@ -191,7 +191,7 @@ Each release automatically: bumps `VERSION`, propagates it to `.claude-plugin/pl
 | Claude Code plugin | **Version-pinned** — updates only when `plugin.json` version is bumped by a release |
 | `npx skills` / `install.sh` / `update.sh` | Latest `master` |
 
-Each skill also carries its own `metadata.version` in its `SKILL.md` frontmatter — bump it when that skill's behavior changes. Repo version = the collection; skill version = the individual contract. The CI/CD pipeline (`.github/workflows/ci.yml`) validates every pull request and every push to `master` (wrapper sync, version coherence, frontmatter) and cuts releases on `master`.
+Each skill also carries its own `metadata.version` in its `SKILL.md` frontmatter — bump it when that skill changes. Repo version = the collection; skill version = the individual contract. The bump is measured, not trusted: [`scripts/validate-skill-version.py`](scripts/validate-skill-version.py) diffs every pull request against its base and fails when anything under `skills/<name>/` changed without that skill's version moving up, unless the PR body carries one line `Skill-version: none — <reason>` covering the whole diff. The CI/CD pipeline (`.github/workflows/ci.yml`) validates every pull request and every push to `master` (wrapper sync, version coherence, frontmatter) and cuts releases on `master`.
 
 ---
 
@@ -861,7 +861,7 @@ license: MIT
 
 - `name` must match the directory name (CI enforces this).
 - Put supporting material in `skills/<skill-name>/references/` and point to it with **relative paths** (`references/examples.md`) — never absolute paths, so the skill stays portable.
-- Bump `metadata.version` whenever the skill's behavior changes.
+- Bump `metadata.version` whenever the skill changes. CI measures it (`scripts/validate-skill-version.py`): a pull request that edits `skills/<name>/` without raising that skill's version fails unless its body carries `Skill-version: none — <reason>`.
 
 ### 2. Generate the tool wrappers
 
