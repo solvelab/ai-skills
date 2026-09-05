@@ -52,6 +52,13 @@ field keys.
   it is in neither. An invented translation is an unverified claim (see Grounding).
 - Existing code is not renamed for its own sake: new code is English, and a contract-bearing name
   (route, persisted column, event name, deployed config key) changes only through a deprecation window.
+- This is enforced, not only remembered: the `locale-rite.py` hook **denies** a Write/Edit whose
+  new content, or whose path when the write creates it, carries a Portuguese identifier
+  (PreToolUse), and only informs after the write for words it is unsure about. A file that already
+  carries a Portuguese name is edited freely and its name is only reported afterwards — the previous
+  bullet applies. The exits are named in the denial itself — `# locale-ok: <reason>` on the line
+  above (already in the file counts), the name or path in `.identifier-locale-allow`, or
+  `LOCALE_RITE_MODE=inform` for the session. Files written through Bash are not seen (issue #138).
 - Full doctrine, exception protocol, migration policy and the detector: the `code-locale` skill.
 
 ## Commits & Pull Requests
