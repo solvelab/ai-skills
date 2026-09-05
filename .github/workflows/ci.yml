@@ -228,9 +228,18 @@ jobs:
         # nothing left to release.
         # The commit released may therefore be newer than the one Validate examined in THIS run.
         # Each of those commits passed Validate on its own pull request; master takes no direct push
-        # by convention (PR-only) other than the [skip ci] release commit. No branch protection rule
-        # exists as of 2026-09-04 (`gh api repos/solvelab/ai-skills/branches/master/protection` -> 404);
-        # whether to add one is issue #120's decision.
+        # by convention (PR-only) other than the [skip ci] release commit.
+        # What GitHub enforces, since 2026-09-05, is the repository ruleset "master-protect"
+        # (id 22339892, active on refs/heads/master) with exactly two rules: `deletion` and
+        # `non_fast_forward` — master cannot be deleted or force-pushed
+        # (`gh api repos/solvelab/ai-skills/rulesets/22339892` -> rules [deletion, non_fast_forward],
+        # bypass_actors []). Classic branch protection stays absent (`.../branches/master/protection`
+        # -> 404). Neither rule blocks a normal fast-forward push, so a direct push to master is still
+        # POSSIBLE and only convention prevents it; the PR-only premise above is convention, not a
+        # rule. "Require a pull request" is deliberately left out: this job pushes the release commit
+        # with GITHUB_TOKEN, that token cannot be a bypass actor of a ruleset, and the rule would
+        # reject the release push. Enforcing it waits on a PAT or GitHub App with bypass for this
+        # job — the open decision is issue #120, which records the 2026-09-05 choice.
         uses: actions/checkout@v5
         with:
           ref: master
