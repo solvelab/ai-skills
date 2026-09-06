@@ -486,6 +486,11 @@
       python3 scripts/scan-secrets.py -> no credentials found
       $SCR/venv-A/bin/agentskills validate skills/lean-code -> Valid skill
       LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest -> selftest: 157/157 OK
+      (2026-09-06, em b3584ef — o probe-skill.json não rastreado do mantenedor posto de lado durante o gate e restaurado com o mesmo sha256)
+      bash $SCR/gates.sh <worktree> "Spec-rite: add-lean-code-doctrine" -> 22 PASS, 0 FAIL, dirty-after: 0
+      GITHUB_EVENT_PATH=$SCR/event146.json python3 scripts/validate-skill-version.py -> 0 findings (5 skill(s) changed, 5 with content changes)
+      python3 scripts/scan-secrets.py -> no credentials found
+      LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest -> selftest: 183/183 OK  (2.2s)
       ```
 
 - [x] V.3 README / docs updated where the change alters catalog composition or usage: README (membro
