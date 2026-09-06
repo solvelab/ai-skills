@@ -465,9 +465,11 @@ ai-skills/
 ├── update.sh                                 # Sync + regenerate
 ├── scripts/
 │   ├── set-version.sh                        # Version propagation (called by semantic-release)
-│   ├── validate-skills.py                    # Skill content checks (C1–C9) + selftest-validate-skills.py
+│   ├── validate-skills.py                    # Skill content checks (C1–C13, list in its docstring) + selftest-validate-skills.py
 │   ├── validate-repo-hygiene.py              # Compiled artifacts, published counts
 │   ├── validate-rite.sh                      # OpenSpec rite gate (+ validate-rite-evidence.py, validate-spec-rite.py)
+│   ├── validate-skill-version.py             # Skill version gate (an edited skill moves its metadata.version, or the PR body waives it)
+│   ├── smoke-install-scripts.sh              # install.sh + update.sh under a temporary HOME, against a local bare clone
 │   └── scan-secrets.py                       # Credential scan (working tree gates, history reports)
 ├── .releaserc.json                           # semantic-release config (auto-versioning from commits)
 └── README.md
