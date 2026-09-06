@@ -10,7 +10,7 @@ description: >-
   same commit as the code. Do NOT use for non-software documentation tasks.
 metadata:
   author: solvelab
-  version: 3.1.1
+  version: 3.2.0
   category: docs
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -81,6 +81,30 @@ most common reason readers can't find anything:
 The practical rule: **how-to content changes far faster than why content.** A page that mixes a
 command sequence with architectural rationale goes stale at the speed of its fastest-changing half.
 Keep them on separate pages, and cross-link.
+
+## Organization is checkable too
+
+A reader cannot verify a fact they cannot find, so the rules below sit beside the ones about
+verifiability rather than under them. The full set — seven rules, each with its published source,
+its worked example and the measurement behind its verdict — is
+[`references/information-architecture.md`](references/information-architecture.md), and the checker
+for the ones a script can judge is `references/check-doc-structure.py` beside it.
+
+These four hold without exception, so they belong in the body:
+
+- **A document over 100 lines carries an index, and the index links every `##`.** Required by the
+  Standard README spec, not recommended by it. This is also the precondition for the rule below —
+  a page of per-option sections is only navigable because the index exists.
+- **A table cell stops at 120 characters.** Above that the data is not tabular; it is a paragraph
+  rendered as one unbroken line, with whatever the reader needed pushed to the far right.
+- **Past 25 options, a table becomes an index plus one section per option.** A heading is an anchor:
+  `docs/REFERENCE.md#leader_term` can be pasted into an issue or an alert, and it appears in the
+  GitHub Outline. A table row can do neither. Below that threshold the table is still the right form.
+- **A `###` belongs to the `##` above it.** A heading is a tree, and the Outline reads it as one.
+
+Two rules in that file ship **review-only**, with no validator and the measurement saying why. That
+is a legitimate outcome, and the reason it is written down: a gate that reproves a correct document
+is switched off in its first week, which leaves the rule worse off than never having had one.
 
 ## Every claim must be checkable
 
@@ -194,6 +218,8 @@ sections this project earns. The full skeleton and a worked example: `references
 
 - `code-locale` — an identifier, route or config key quoted in the docs is copied from the code,
   never translated; docs prose keeps the project's language.
+- `references/information-architecture.md` — the seven organization rules, their sources, and the
+  measured verdict on which of them a script can judge.
 - `references/templates.md` — README / SETUP / TECHNICAL skeletons.
 - `references/examples.md` — worked examples of good output per tier.
 - `verify-before-claiming` — how to research a fact before documenting it, and the report to write
