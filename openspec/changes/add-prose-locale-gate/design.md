@@ -158,15 +158,24 @@ que são ingleses por regra; 755 em changes de 2026-07/08 e em 5 de setembro esc
 Nenhum limiar foi estreitado; nenhuma palavra foi removida pela calibração — `do` saiu da lista PT
 pelo selftest de interseção, antes dela. Contagens completas: `tasks.md` S.3.
 
+Re-medição depois da revisão da change (2026-09-06, `tasks.md` 2.5 — pragmas de linter e
+cabeçalhos de licença passam a `skipped:code`/`skipped:license`, kebab-case é limpo, uma linha de
+contexto separa runs no `--diff`): `server_addons` -> **42 gating**, os mesmos por arquivo, cada um
+relido, **42/42 = 1,00**, 7 consultivos, pulados 7 short / 4 code / 7 unknown; catálogo sob `en`
+-> **0 gating**, 1342 medidos, pulados 61 / 78 / 104 / 14 waived; archive sob `pt-BR` -> **0
+gating**, 1709 consultivos, 1 `license`. Os contadores do catálogo derivam com o texto do próprio
+catálogo; a asserção é o gating.
+
 ### D8 — O kit roda os dois detectores só onde há declaração
 
 `pre-commit-locale.sh`: depois do detector de identificadores, se
 `$(git rev-parse --show-toplevel)/.code-locale` existe, roda `check-prose-locale.py --diff -` sobre
 o mesmo diff staged, com o detector localizado **ao lado** do de identificadores (o de prosa
 importa o irmão por caminho, então os dois têm de estar juntos; em modo download só o de
-identificadores é baixado, e o hook diz que a direção de prosa está desligada). Mesma semântica
-de exit: 1 com `findings:` recusa, 2 recusa nomeando a declaração inválida, qualquer outro recusa
-como falha do detector. `ci-step.md` documenta o step extra, condicionado a `[ -f .code-locale ]`,
+identificadores é baixado, e num repositório **declarado** o hook então **recusa** o commit
+nomeando o que falta — a mesma regra do python3 ausente: uma gate que não consegue medir não
+aprova; sem declaração o modo download segue igual). Mesma semântica de exit: 1 com `findings:`
+recusa, 2 recusa nomeando a declaração inválida, qualquer outro recusa como falha do detector. `ci-step.md` documenta o step extra, condicionado a `[ -f .code-locale ]`,
 e a declaração.
 
 ## Canonical Home & Cross-Links (MANDATORY)

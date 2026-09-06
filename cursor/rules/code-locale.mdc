@@ -199,11 +199,14 @@ python3 references/check-prose-locale.py --prose pt-BR --report src/          # 
 **What is measured.** A run of consecutive comment lines, a whole docstring, a whole block comment
 is one fragment, anchored at its first line; a Markdown paragraph outside fences and frontmatter is
 one fragment. Each is cleaned — quoted spans, inline code, URLs, paths, identifiers, numbers,
-`#tags` — and its words are counted against two closed lists of function words, one per language,
+`#tags`, kebab-case tokens — and its words are counted against two closed lists of function words, one per language,
 that share no entry (`references/prose-words-pt.txt`, `references/prose-words-en.txt`;
 `references/prose-words.SOURCE.md` records the ambiguity rule that keeps `a`, `no`, `do`, `for`,
 `so` out of both). A fragment under four words, one that is mostly code, or one with no function
-word at all is **skipped and counted**, never passed. A comment or docstring reads as the wrong
+word at all is **skipped and counted**, never passed; so are a linter pragma (`# pylint: disable=…`,
+`# noqa`, `# type: ignore`, `eslint-disable`) and a copyright or license header inside a source
+file (`Copyright (c)`, `SPDX-License-Identifier`, `Licensed under the`), which stay verbatim in the
+license's own language. A comment or docstring reads as the wrong
 language only when that language's hits dominate; it is **gating** only with three uncontested hits
 (`hits_wrong >= 3` and `hits_right == 0`), advisory below that; a Markdown paragraph is always
 advisory. Precision first: calibrated before publishing on the service above (42 gating findings,
@@ -227,7 +230,9 @@ it.
 `PreToolUse` and reports a Markdown paragraph as advisory on `PostToolUse`; the Stop gate measures
 the uncommitted diff; the pre-commit hook and the CI step (`references/pre-commit-locale.sh`,
 `references/ci-step.md`) run the prose detector beside the identifier one when `.code-locale`
-exists at the repository root. All four are silent without the declaration.
+exists at the repository root. All four are silent without the declaration; with it, the pre-commit
+hook refuses a commit when the prose detector is not beside the identifier one (download mode
+fetches that one alone) — a gate that cannot measure must not approve.
 
 **This catalog does not declare.** Its README and skills are English and its change records are
 Portuguese — a mixed repository, on purpose; declaring either language would put half of it in the

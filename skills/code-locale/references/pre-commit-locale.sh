@@ -98,8 +98,12 @@
 #     (that is the detector's --markdown-fences mode, for documentation repositories).
 #   - Prose anywhere, unless .code-locale declares the language; and, with it, everything the prose
 #     detector's own KNOWN LIMIT names (strings and log messages, languages other than PT/EN, a
-#     block opened on a line the diff did not add). In download mode (source 3) the prose direction
-#     is off even with the declaration, and the hook says so on stderr.
+#     block opened on a line the diff did not add). A DECLARED repository whose resolved detector
+#     has no check-prose-locale.py beside it (download mode, source 3, fetches the identifier
+#     detector alone; or a ~/ai-skills clone older than the prose detector) is REFUSED, not
+#     approved with the direction off: a gate that cannot measure must not approve. Clone the
+#     catalog, vendor both detectors with the two prose-words-*.txt lists, or point LOCALE_CHECK at
+#     a clone that carries them.
 #   - Existing content. Only ADDED lines are read (`--diff`); a legacy name already in the tree is
 #     never reported, and renaming it is the skill's migration policy, not this hook's job. Partial
 #     staging (`git add -p`) is measured as staged: hunks left out of the commit are not read.
@@ -239,7 +243,7 @@ toplevel="$(git rev-parse --show-toplevel 2>/dev/null)" || toplevel=""
 if [ -n "$toplevel" ] && [ -f "${toplevel}/.code-locale" ]; then
   prose_path="$(dirname "$check_path")/check-prose-locale.py"
   if [ ! -f "$prose_path" ]; then
-    log "prose direction off: .code-locale is declared but check-prose-locale.py is not beside ${check_path} (download mode fetches the identifier detector alone — clone the catalog, or vendor both files and the two prose-words-*.txt lists)"
+    refuse ".code-locale declares a prose language but check-prose-locale.py is not beside ${check_path} (download mode fetches the identifier detector alone) — a gate that cannot measure must not approve: clone the catalog, or vendor both detectors and the two prose-words-*.txt lists, or point LOCALE_CHECK at a clone that carries them"
   else
     prose_output="$(git diff --cached --no-color --no-ext-diff --no-renames --src-prefix=a/ --dst-prefix=b/ \
       | PYTHONIOENCODING=utf-8:surrogateescape python3 "$prose_path" --diff - --root "$toplevel" 2>&1)"

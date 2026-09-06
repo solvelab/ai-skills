@@ -120,6 +120,31 @@
       -> selftest OK: 31 cases — the word lists, both directions, the skips, the waivers, the allowlist, Markdown, --diff, and the declaration through the real entry point
       ```
 
+- [x] 2.5 Correções da revisão da change (cada uma reproduzida com o comando do revisor antes de
+      corrigir, e coberta por um caso novo de selftest — 46 casos no detector):
+      - `--diff`: uma linha de contexto dentro do hunk entra no run como linha em branco, então dois
+        comentários adicionados em volta de código inalterado são dois fragmentos e o segundo é
+        reportado na linha real (antes: o run português de baixo absorvia o inglês de cima e o
+        gate ficava mudo — `printf -- '--- a/m.py\n+++ b/m.py\n@@ -1,1 +1,3 @@\n+# calcula ...\n x = 1\n+# compute ...\n' | --diff -` -> `findings: 0`; depois: `m.py:3: [gating]`).
+      - Pragma de linter (`# pylint: disable=too-many-arguments,too-many-locals`, `# fmt: off`,
+        `# noqa`, `# type: ignore`, `eslint-disable`) -> `skipped:code`; token kebab-case
+        (`too-many-arguments`) é limpo como identificador (antes: 4 hits ingleses, gating, e o
+        PreToolUse negava a escrita).
+      - Cabeçalho de copyright/licença dentro de um fonte (`Copyright (c)`, `SPDX-License-Identifier`,
+        `Licensed under the`, `Permission is hereby granted`, `All rights reserved`) ->
+        `skipped:license`, contado no `--report` e declarado no KNOWN LIMIT 9 (antes: o header
+        Apache era gating).
+      - `.code-locale` lido como `utf-8-sig`: um BOM não desliga a direção em silêncio (antes:
+        `findings: 0`, exit 0, e o hook mudo).
+      - Sem `--root`, a caminhada da declaração começa no primeiro caminho varrido, não no cwd
+        (antes: `cd <catálogo>; check-prose-locale.py /outro/repo/sub/deep.py` -> "silent").
+      - `LICENSE*`/`CHANGELOG*`/`NOTICE*` pulados pelo *stem* exato (ou `LICENSE-<nome>`) com sufixo
+        de documento ou nenhum; `changelog_parser.py`, `license_check.py` e `notices.py` são medidos.
+      - BOM no início de um `.md` não vira parágrafo; `--stdin`/`--diff -` decodificam com
+        `errors=replace` em vez de traceback (KNOWN LIMIT 10).
+      - `sys.dont_write_bytecode` antes do import por caminho (detector e dois hooks) e
+        `generate.sh` remove `__pycache__` da cópia do plugin.
+
 ## 3. Hooks
 
 - [x] 3.1 `locale-rite.py`: localiza a declaração subindo do arquivo escrito; `PreToolUse` nega
@@ -131,6 +156,14 @@
       -> selftest OK: 13 PostToolUse decisions, 12 PreToolUse decisions, inform mode, en-unknown, the allowlist, the legacy path, the waiver above the fragment, both envelopes, the environment, the argv contract and 17 prose decisions with and without .code-locale
       ```
 
+- [x] 3.3 Revisão: `remaining_message` (segundo Stop) conta nomes e prosa em separado e diz
+      *translate*/*rename* conforme o caso (antes anunciava um comentário como "non-English name");
+      um `.code-locale` ilegível é nomeado também na cauda do motivo de bloqueio e da mensagem do
+      segundo Stop quando há achado de identificador (antes só com diff limpo); `NotebookEdit` é
+      medido para prosa lendo `new_source` como Python (célula `code`) ou Markdown (célula
+      `markdown`) — a tier de identificadores continua sem `.ipynb`, declarado no KNOWN LIMIT; a
+      numeração de linha do `MultiEdit` (texto unido, `first_line_of` cai em 1) está declarada.
+      Casos novos: 41 decisões no stop gate, 21 decisões de prosa no write hook.
 - [x] 3.2 `locale-stop-gate.py`: mede o diff com o detector de prosa quando a raiz declara; bloqueia
       em gating, `systemMessage` em `.md`; guarda de `stop_hook_active` mantida; selftest com
       repositório temporário com e sem `.code-locale`, todos os casos existentes mantidos (D6).
@@ -161,6 +194,18 @@
       -> commits=1
       commit 4: sem .code-locale, comentário inglês                                        -> commits=2
       bash -n skills/code-locale/references/pre-commit-locale.sh                            -> ok
+      ```
+
+      Revisão: um repositório declarado cujo detector resolvido não tem `check-prose-locale.py` ao
+      lado (modo download, ou clone antigo) é **recusado**, não aprovado com a direção desligada —
+      a mesma regra do python3 ausente ("a gate that cannot measure must not approve"). Smoke,
+      `LOCALE_CHECK` apontando para um diretório com o detector de identificadores sozinho:
+
+      ```
+      commit 5: `prose: pt-BR`, comentário inglês, detector de prosa ausente
+      -> pre-commit-locale: .code-locale declares a prose language but check-prose-locale.py is not beside <dir>/check-identifier-locale.py (download mode fetches the identifier detector alone) — a gate that cannot measure must not approve: clone the catalog, or vendor both detectors and the two prose-words-*.txt lists, or point LOCALE_CHECK at a clone that carries them
+      -> pre-commit-locale: bypass, if you mean it: git commit --no-verify
+      -> commits=1 (recusado)
       ```
 
 - [x] 4.2 `ci.yml`: step `Prose-locale detector self-test` ao lado do de identificadores; README:
@@ -222,22 +267,30 @@
       observada aqui e ticar.
 - [x] S.3 Calibração (TR3, FR4), medida em `3de5bfe` com os limiares da issue (`MIN_WORDS=4`,
       `WRONG_MIN=2`, `STRONG_MIN=3`, `CODE_SHARE=0.5`), mantidos porque a precisão ficou acima da
-      barra sem estreitar:
+      barra sem estreitar, e **re-medida em 2026-09-06 depois das correções da revisão (2.5)** —
+      os limiares não mudaram; a extração sim (pragmas e cabeçalhos de licença pulados, kebab-case
+      limpo), e a tabela abaixo é a da re-medição. Os contadores do catálogo (`skills/` + `claude/`)
+      derivam com o próprio texto do catálogo a cada commit; a asserção é só o gating = 0:
 
-      | Corpus | Declaração | Gating | Consultivo | Pulados (short / code / unknown / waived) | Medidos na língua declarada | Strings (não medidas) | Arquivos pulados | Precisão adjudicada |
+      | Corpus | Declaração | Gating | Consultivo | Pulados (short / code / unknown / license / waived) | Medidos na língua declarada | Strings (não medidas) | Arquivos pulados | Precisão adjudicada |
       |---|---|---|---|---|---|---|---|---|
-      | `omnivoice-tts/server_addons` (8 `.py`, somente leitura) | `--prose pt-BR` | **42** (24 comentários, 18 docstrings: inference.py 26, voices.py 5, server_app.py 4, test_generate_kwargs.py 4, test_sanitize_text.py 2, schemas.py 1) | 7 | 7 / 1 / 10 / 0 | 6 | 419 | vendored 2 (`__pycache__`) | **42/42 = 1,00** — cada um dos 42 lido: todos são comentários ou docstrings inteiramente em inglês; nenhum falso positivo, nada excluído |
-      | catálogo `skills/` + `claude/` | `--prose en` | **0** | 0 | 54 / 73 / 121 / 13 | 1336 | 2367 | no-profile 6, vendored 20 | n/a (esperado 0, obtido 0) |
-      | `openspec/changes/archive` (81 changes) | `--prose pt-BR` | **0** | 1713 | 76 / 108 / 119 / 28 | 1540 | 0 | vendored 5 | n/a (esperado 0 gating, obtido 0) |
+      | `omnivoice-tts/server_addons` (8 `.py`, somente leitura) | `--prose pt-BR` | **42** (24 comentários, 18 docstrings: inference.py 26, voices.py 5, server_app.py 4, test_generate_kwargs.py 4, test_sanitize_text.py 2, schemas.py 1) | 7 | 7 / 4 / 7 / 0 / 0 | 6 | 419 | vendored 2 (`__pycache__`) | **42/42 = 1,00** — cada um dos 42 lido de novo na re-medição: todos são comentários ou docstrings inteiramente em inglês; nenhum falso positivo, nada excluído (3 fragmentos migraram de `unknown` para `code` pelo kebab-case/pragma) |
+      | catálogo `skills/` + `claude/` | `--prose en` | **0** | 0 | 61 / 78 / 104 / 0 / 14 | 1342 | 2857 | no-profile 6, vendored 19 | n/a (esperado 0, obtido 0) |
+      | `openspec/changes/archive` (81 changes) | `--prose pt-BR` | **0** | 1709 | 77 / 116 / 60 / 1 / 28 | 1529 | 0 | vendored 5 | n/a (esperado 0 gating, obtido 0) |
 
       ```
       python3 skills/code-locale/references/check-prose-locale.py --prose pt-BR --report /mnt/d/.../omnivoice-tts/server_addons; echo rc=$?
-      -> findings: 42 / advisory: 7 / skipped fragments: code 1, short 7, unknown 10 / skipped files: vendored 2 / measured: 6 / strings: 419 / rc=1
+      -> findings: 42 / advisory: 7 / skipped fragments: code 4, short 7, unknown 7 / skipped files: vendored 2 / measured: 6 / strings: 419 / rc=1
       python3 skills/code-locale/references/check-prose-locale.py --prose en --report skills claude; echo rc=$?
-      -> findings: 0 / skipped fragments: code 73, short 54, unknown 121, waived 13 / skipped files: no-profile 6, vendored 20 / measured: 1336 / strings: 2367 / rc=0
+      -> findings: 0 / skipped fragments: code 78, short 61, unknown 104, waived 14 / skipped files: no-profile 6, vendored 19 / measured: 1342 / strings: 2857 / rc=0
       python3 skills/code-locale/references/check-prose-locale.py --prose pt-BR --report openspec/changes/archive; echo rc=$?
-      -> findings: 0 / advisory: 1713 / skipped fragments: code 108, short 76, unknown 119, waived 28 / measured: 1540 / rc=0
+      -> findings: 0 / advisory: 1709 / skipped fragments: code 116, license 1, short 77, unknown 60, waived 28 / measured: 1529 / rc=0
       ```
+
+      Primeira medição (`3de5bfe`, antes da revisão), para o registro: server_addons 42 gating /
+      7 consultivos / short 7, code 1, unknown 10; catálogo 0 gating / short 54, code 73, unknown
+      121, waived 13, medidos 1336, strings 2367; archive 0 gating / 1713 consultivos / short 76,
+      code 108, unknown 119, waived 28, medidos 1540.
 
       O que se comportou diferente do esperado, e o que ficou de fora:
 

@@ -228,6 +228,9 @@ for skill_md in "$SKILLS"/*/SKILL.md; do
   group="$(group_of "$(category_of "$skill_md")")"
   mkdir -p "$PLUGINS_OUT/$group/skills"
   cp -r --no-preserve=mode "$skill_dir" "$PLUGINS_OUT/$group/skills/$name"
+  # A detector or hook run from the source tree can leave a __pycache__ beside the shipped files;
+  # it is git-ignored there and must not be copied into the plugin (the leak check compares copies).
+  find "$PLUGINS_OUT/$group/skills/$name" -name __pycache__ -type d -prune -exec rm -rf {} +
 done
 
 # "<theme> (<N> skills: <names>)" — names sorted under LC_ALL=C so the output is identical on every
