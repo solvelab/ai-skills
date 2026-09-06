@@ -10,13 +10,13 @@ Reference files (`references/…` below) live at https://github.com/solvelab/ai-
 # API Resilience Testing
 
 > **Verified against**: `fastapi 0.141.1` · `pydantic 2.13.4` · `starlette 1.6.0` · `httpx 0.28.1`
-> · `uvicorn 0.52.4`, re-measured on 2026-09-05 with a stock two-route service (a pydantic body
-> model, an `int` path parameter) under `TestClient` and under a real uvicorn server. Eight of the
-> nine baseline rows held; **one was corrected**: a body of nested brackets returns **400**
-> `{"detail":"There was an error parsing the body"}` at every depth from 990 to 10 000, closed or
-> unclosed, for model, `Any` and `dict` bodies — FastAPI's body parser catches the
-> `RecursionError`, and the **500** published here earlier did not reproduce. `curl` is the only
-> tool the checklist prescribes and no version-bound flag of it is used.
+> · `uvicorn 0.52.4`. Probed on 2026-09-05, re-measuring the nine baseline rows with a stock
+> two-route service (a pydantic body model, an `int` path parameter) under `TestClient` and under a
+> real uvicorn server. Eight of the nine baseline rows held; **one was corrected**: a body of
+> nested brackets returns **400** `{"detail":"There was an error parsing the body"}` at every depth
+> from 990 to 10 000, closed or unclosed, for model, `Any` and `dict` bodies — FastAPI's body
+> parser catches the `RecursionError`, and the **500** published here earlier did not reproduce.
+> `curl` is the only tool the checklist prescribes and no version-bound flag of it is used.
 
 Test a REST API so it survives the inputs nobody intended — invalid, malformed,
 out-of-contract, hostile — and fails **safely** instead of crashing, corrupting
