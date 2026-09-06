@@ -148,7 +148,15 @@ Três corridas, registradas em `tasks.md` S.3 e aqui:
 - `--prose pt-BR` sobre `openspec/changes/archive`: prosa portuguesa, esperado 0 gating (fences não
   são medidos).
 
-Resultado: preenchido pela tarefa S.3 depois da corrida (esta seção é atualizada no mesmo PR).
+Resultado (2026-09-06, `3de5bfe`, limiares da issue mantidos — `MIN_WORDS=4`, `WRONG_MIN=2`,
+`STRONG_MIN=3`, `CODE_SHARE=0.5`): `server_addons` sob `pt-BR` -> **42 gating** (24 comentários,
+18 docstrings), 7 consultivos, 18 pulados (7 short, 1 code, 10 unknown), 419 strings não medidas,
+**precisão 42/42 = 1,00** com cada achado lido; catálogo `skills/` + `claude/` sob `en` -> **0
+gating**, 1336 fragmentos medidos na língua declarada, 248 pulados; archive sob `pt-BR` -> **0
+gating**, 1713 consultivos de `.md` que são parágrafos ingleses de verdade (958 em deltas de spec,
+que são ingleses por regra; 755 em changes de 2026-07/08 e em 5 de setembro escritas em inglês).
+Nenhum limiar foi estreitado; nenhuma palavra foi removida pela calibração — `do` saiu da lista PT
+pelo selftest de interseção, antes dela. Contagens completas: `tasks.md` S.3.
 
 ### D8 — O kit roda os dois detectores só onde há declaração
 
