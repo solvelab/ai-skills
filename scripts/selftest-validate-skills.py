@@ -4,7 +4,7 @@ and assert the validator fires. A checker that never fails is not a checker.
 Each entry is  label: (relpath, mutate, expect)  — `expect` is the check name the validator must
 print for that label, plus an optional fragment its finding must carry. It exists because one
 check can own more than one defect class (C8 has five headings) and a dict cannot repeat a key."""
-import shutil, subprocess, sys, tempfile, pathlib, re, os
+import filecmp, shutil, subprocess, sys, tempfile, pathlib, re, os
 
 SRC = pathlib.Path(__file__).resolve().parent.parent
 VAL = str(SRC / "scripts" / "validate-skills.py")
@@ -115,22 +115,50 @@ MUTATIONS = {
 }
 
 fails = []
-for check, entry in MUTATIONS.items():
-    relpath, mutate = entry[0], entry[1]
-    expect, fragment = (entry[2] if len(entry) > 2 else (check, ""))
-    with tempfile.TemporaryDirectory() as td:
-        dst = pathlib.Path(td) / "repo"
-        shutil.copytree(SRC, dst, ignore=shutil.ignore_patterns(".git", "node_modules"))
-        if relpath is None:                       # C7: a wrapper skill with no canonical source
-            (dst / "claude" / "skills" / "ghost-skill").mkdir(parents=True)
-            (dst / "claude" / "skills" / "ghost-skill" / "SKILL.md").write_text("---\nname: ghost-skill\n---\n")
-        else:
-            p = dst / relpath
-            p.write_text(mutate(p.read_text() if p.exists() else ""))   # C11 creates its file
-        out = subprocess.run([sys.executable, str(dst / "scripts" / "validate-skills.py")], cwd=dst, capture_output=True, text=True).stdout
+with tempfile.TemporaryDirectory() as td:
+    # One copy per run (issue #172). Measured on 2026-09-06 before assuming: a copytree of the catalog
+    # costs 0.07 s and a validator run 1.7 s, so the 27 copies were 1.9 s of a 49.1 s run — the wall
+    # time is the validator, not the copying. What the single copy buys is less disk churn per PR and
+    # one place to prove isolation: each mutation is reverted before the next, and the copy is compared
+    # to the source after the loop. Bytes, not text: read_text() normalises line endings, so a text
+    # restore would leave the copy different from the source for the case that follows.
+    dst = pathlib.Path(td) / "repo"
+    shutil.copytree(SRC, dst, ignore=shutil.ignore_patterns(".git", "node_modules"))
+    ghost = dst / "claude" / "skills" / "ghost-skill"
+    for check, entry in MUTATIONS.items():
+        relpath, mutate = entry[0], entry[1]
+        expect, fragment = (entry[2] if len(entry) > 2 else (check, ""))
+        target = None if relpath is None else dst / relpath
+        original = target.read_bytes() if target is not None and target.exists() else None
+        try:
+            if relpath is None:                       # C7: a wrapper skill with no canonical source
+                ghost.mkdir(parents=True)
+                (ghost / "SKILL.md").write_text("---\nname: ghost-skill\n---\n")
+            else:
+                target.write_text(mutate(target.read_text() if original is not None else ""))   # C11 creates its file
+            out = subprocess.run([sys.executable, str(dst / "scripts" / "validate-skills.py")], cwd=dst, capture_output=True, text=True).stdout
+        finally:                                      # the next case must see the copy clean
+            if relpath is None:
+                shutil.rmtree(ghost, ignore_errors=True)
+            elif original is None:
+                target.unlink(missing_ok=True)
+            else:
+                target.write_bytes(original)
         caught = expect.split()[0] in out and expect in out and fragment in out
         print(f"  {'CAUGHT ' if caught else 'MISSED '} {check}")
         if not caught:
             fails.append(check)
+    # The copy after the loop must be byte-identical to the source: a restore that missed a case would
+    # leak its defect into the next one. Compared file by file rather than by re-running the validator —
+    # a validator run costs 1.7 s, the comparison milliseconds, and "identical" is the stronger claim.
+    ignored = {".git", "node_modules"}
+    src_files = {p.relative_to(SRC) for p in SRC.rglob("*") if p.is_file() and not ignored & set(p.relative_to(SRC).parts)}
+    dst_files = {p.relative_to(dst) for p in dst.rglob("*") if p.is_file()}
+    leaked = sorted(str(r) for r in (src_files ^ dst_files)) + sorted(
+        str(r) for r in src_files & dst_files if not filecmp.cmp(SRC / r, dst / r, shallow=False))
+    print(f"  {'CLEAN  ' if not leaked else 'LEAKED '} copy byte-identical to the source after all mutations reverted"
+          + (f": {', '.join(leaked[:3])}" if leaked else ""))
+    if leaked:
+        fails.append("copy left dirty after the loop")
 print(f"\n{len(MUTATIONS)-len(fails)}/{len(MUTATIONS)} defect classes detected")
 sys.exit(1 if fails else 0)
