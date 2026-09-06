@@ -104,6 +104,11 @@ it before any matrix.
 
 ### Isolation probe (paid, before any matrix)
 
+> Measured 2026-09-06 (Claude Code 2.1.261, Haiku): a project skill under `.claude/skills/<skill>` is
+> discovered **only when the cwd is a git repository root**. The same skill-arm cwd answered
+> `SKILLS: none` without `git init` ($0.006) and `SKILLS: bench-sentinel, lean-code` with it ($0.016).
+> Every cell workspace is a git repo already; the probe cwd is initialised the same way.
+
 Three calls per arm on Haiku, `--tools ""`, `--max-budget-usd 0.05`, on `--output-format
 stream-json --verbose --include-hook-events`.
 

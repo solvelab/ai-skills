@@ -1759,6 +1759,15 @@ def probe_workspace(arm_dir: Path, cwd: Path) -> Path:
         p.write_text(content, encoding="utf-8")
     for rel, src in workspace_dirs(arm_dir).items():
         _copy_tree(src, cwd / rel)
+    # The probe cwd is a git repository for the same reason every cell workspace is one: Claude Code
+    # discovers project skills (.claude/skills/<skill>) only under a git root. Measured 2026-09-06
+    # on 2.1.261 with the same skill-arm cwd: without `git init` the skills-list probe answered
+    # "SKILLS: none"; with it, "SKILLS: bench-sentinel, lean-code".
+    if not (cwd / ".git").exists():
+        git(cwd, "init", "-q")
+        git(cwd, "add", "-f", "-A")
+        git(cwd, "-c", "user.email=bench@example.invalid", "-c", "user.name=bench",
+            "commit", "-q", "-m", "probe", "--no-verify")
     return cwd
 
 
@@ -2332,6 +2341,15 @@ def selftest_isolation(st: Selftest, tasks: dict[str, Task]) -> None:
         st.case("isolation", "probe skills-list command carries PROBE_PROMPT_SKILLS, --tools '' and the setting sources",
                 PROBE_PROMPT_SKILLS in pk and PROBE_PROMPT_SENTINEL_ONLY not in pk
                 and all(f in pk for f in ("--tools", "", "--setting-sources", "project,local")))
+        with tempfile.TemporaryDirectory() as td:
+            _arm = Path(td) / "arm"; _arm.mkdir()
+            (_arm / "project-settings.json").write_text("{}\n", encoding="utf-8")
+            (_arm / "claude-snippet.md").write_text("BENCH-SENTINEL: t\n", encoding="utf-8")
+            (_arm / "arm.json").write_text(json.dumps({"arm": "baseline", "skill": "lean-code", "includes_skill": False,
+                                                       "layout": "settings-sources", "project_skill_path": None}), encoding="utf-8")
+            _cwd = probe_workspace(_arm, Path(td) / "cwd")
+            st.case("isolation", "probe cwd is a git repository root (project skills are discovered only under one)",
+                    (_cwd / ".git").is_dir() and (_cwd / "CLAUDE.md").exists(), str(sorted(p.name for p in _cwd.iterdir())))
         # the skills-line parser: the SKILLS: line alone when present, whole answer otherwise, whole-word
         st.case("isolation", "skills_visible_in: `SKILLS: lean-code` and the manual probe's bare `lean-code\\nDONE` are visible",
                 skills_visible_in(f"SKILLS: {DEFAULT_SKILL}\nDONE", DEFAULT_SKILL)

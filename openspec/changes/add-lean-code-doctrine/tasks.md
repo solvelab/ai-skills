@@ -287,6 +287,19 @@
        leituras em ~/.claude/skills/ e ~/ai-skills/ negadas — o arm `skill` da stamp 20260905-230209 mediu só o bloco)
       ```
 
+- [x] 4.3 The probe cwd is a git root, like every cell workspace, because project skills are not
+      discovered otherwise — measured before the fix on the harness's own probe dir:
+
+      ```
+      cd <arms-3>/_probe/20260906-002213/skill-cwd-skills && claude -p "<SKILLS prompt>" --model claude-haiku-4-5-20251001 --setting-sources project,local --tools ""
+      -> SKILLS: none            ($0.006, no .git)
+      cp -r . <tmp> && git init && git add -f -A && git commit -m base && claude -p "<same>"
+      -> SKILLS: bench-sentinel, lean-code   ($0.016)
+      python3 research/lean-code/run.py --selftest
+      -> OK  isolation  probe cwd is a git repository root (project skills are discovered only under one)
+      -> selftest: 184/184 OK
+      ```
+
       O harness, offline, nesta worktree (2026-09-06):
 
       ```
