@@ -440,7 +440,7 @@ ai-skills/
 │   ├── bug-hunter/SKILL.md
 │   ├── fivem-lua/SKILL.md
 │   ├── fivem-fallback/SKILL.md
-│   └── r3f-*/SKILL.md                        # React Three Fiber skills (10 topics)
+│   └── r3f-*/SKILL.md                        # React Three Fiber skills, one per topic
 ├── .claude-plugin/
 │   ├── plugin.json                           # Claude Code plugin manifest (version-pinned)
 │   └── marketplace.json                      # Claude Code marketplace catalog
