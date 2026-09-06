@@ -147,6 +147,10 @@
         pela própria issue.
       - `_diff.patch` das células lista `__pycache__/*.pyc` (observado no baseline-defects.md):
         cosmético, fora desta issue.
+      - O roteador léxico de S.1 ficou fora do repositório (`<scratch>/route-sim.py`), como o do
+        item #122: `research/lean-code/` recebe só o que o arm da skill precisa (`--claude-block`,
+        `arms-block.md`); a saída medida é a evidência, registrada em S.1. Entrou por engano num
+        commit da branch e saiu na revisão.
       - O `## Rules` verbatim mantém "Fewest files possible"; o catálogo tem skills que exigem
         arquivos por camada (`python-rest-api`). Não harmonizado: a regra é "shortest working diff
         **once you understand the problem**" e o texto de deferência já manda o layout do stack
@@ -264,8 +268,13 @@
 ## 5. Simulation & Field Proof (MANDATORY)
 
 - [x] S.1 O artefato foi exercitado pelo caminho real (parte offline). **Entry point 1** — a
-      description contra as 36 descriptions do catálogo por `research/lean-code/route-sim.py`
-      (`python3 research/lean-code/route-sim.py`, commit `9087e27`):
+      description contra as 36 descriptions do catálogo por um roteador léxico de rascunho
+      (`<scratch>/route-sim.py`, fora do repositório como no item #122: frases entre aspas casadas
+      ×3 + bigramas de conteúdo + unigramas/4 sobre a `description` de cada `skills/*/SKILL.md`;
+      6 prompts, 3 que devem cair em lean-code e 3 que não podem). O roteador real é o modelo; o
+      que se mede é se o sinal léxico existe e não colide com um irmão. Saída observada
+      (`python3 <scratch>/route-sim.py` na raiz da worktree, re-executado em 2026-09-05 depois de
+      o script sair de `research/lean-code/` — revisão do PR: arquivo fora da posse declarada):
 
       ```
       [lean-code] faz o mais simples que funciona pra esse endpoint, sem inventar camada
@@ -363,7 +372,7 @@
       do NOT collide with a sibling skill's triggers; "Do NOT use for" boundary present where overlap exists
 
       ```
-      python3 research/lean-code/route-sim.py -> intended-top=6/6, lean-code stole a non-lean prompt: 0/3
+      python3 <scratch>/route-sim.py -> prompts=6  intended-top=6/6  descriptions=36  lean-code stole a non-lean prompt: 0/3
       validate-skills.py C13 -> silencioso (a description carrega "Do NOT use" e nomeia verify-before-claiming, bug-hunter, documentation, /simplify)
       ```
 

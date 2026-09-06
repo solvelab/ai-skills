@@ -140,7 +140,7 @@ afirmar versão não probada e nenhuma foi probada aqui. Swift sai (fora das sta
 | `/simplify` e `/code-review` nativos do Claude Code | built-ins do harness, não skill | link — uma frase em *Reviewing a diff* diz que a lente roda **antes** dos dois |
 | Método de medição (arms, célula, vereditos, sonda) | `research/lean-code/protocol.md` (não é skill) | already canonical — a skill cita o arquivo por URL, nunca o método |
 | Números de efeito só quando medidos aqui | `skills-catalog` (*A published cost claim carries re-runnable backing*) | already canonical — `## What the baseline measured` cita as contagens do baseline e nomeia onde o arm da skill vai morar |
-| Identificadores em inglês no que a change introduz | `code-locale` | already canonical — `claude_block`, `claude_block_sha256`, `arms-block.md`, `route-sim.py` |
+| Identificadores em inglês no que a change introduz | `code-locale` | already canonical — `claude_block`, `claude_block_sha256`, `arms-block.md` |
 
 ## Risks / Trade-offs
 
