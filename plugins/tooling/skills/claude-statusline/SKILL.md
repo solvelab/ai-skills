@@ -4,7 +4,7 @@ description: >-
   Configure or customize the Claude Code status line — the shell-script status bar at the bottom of the CLI that shows model, effort tier, context usage, git state, cost (cumulative session + per-turn token cost), rate limits and prompt-cache health. Use when the user wants to set up, change, share, or debug their Claude Code status line / status bar, mentions statusLine in settings.json or a statusline.sh script, wants a context/token/cost/git/effort indicator in the CLI, or shares a status-line gist to install. Ships a ready-made 3-line script (references/statusline.sh) and the full list of available JSON fields (references/fields.md). Do NOT use for shell prompt themes (PS1, starship, powerlevel10k) or non-Claude-Code status bars.
 metadata:
   author: solvelab
-  version: 1.2.2
+  version: 1.3.0
   category: tooling
 license: MIT
 compatibility: Works in Claude Code (CLI, desktop, IDE). Requires `jq` on PATH. Bash script targets macOS/Linux (incl. WSL); Git Bash on Windows.
@@ -136,9 +136,30 @@ echo '{"model":{"display_name":"Opus 4.8"},"workspace":{"current_dir":"/tmp"},"c
   | ~/.claude/statusline.sh | sed 's/\x1b\[[0-9;]*m//g'
 ```
 
-Also test the empty case (`"current_usage": null`, no git repo) to confirm optional
-segments disappear cleanly. To exercise the git line, run it from inside a repo with
-staged and modified files.
+That input produces exactly three lines — measured against `references/statusline.sh`:
+
+```
+🤖 Opus 4.8 | ⚡ medium | 🧠 thinking enabled | ⏱️  1h 26m | 💰 $2.47
+📝 +1347 -156 | ↑ In 135k $0.10 · ♻️ 95% · ↓ Out 2k $0.05
+📊 ctx ▓▓▓▓▓░░░ 63% | 🚦 5h ▓▓▓▓░░░░ 57% | 7d ▓▓▓▓▓▓░░ 84%
+```
+
+Anything else is a defect: fewer lines means a segment silently returned empty, and a `jq` error on
+stderr means the input shape moved. Re-measure with the command above rather than trusting this
+block if you edited the script — the numbers here are what it printed, not what it ought to print.
+
+Also test the empty case (`"current_usage": null`, `"thinking": {"enabled": false}`, run outside a
+git repo). It must collapse to **two** lines, and the difference is what you check:
+
+```
+🤖 Opus 4.8 | ⚡ medium | 🧠 thinking disabled | 💰 $0.00
+📊 ctx ▓▓▓▓▓░░░ 63%
+```
+
+The `📝` token line is gone entirely, the `🚦` rate-limit segment has left the `📊` line, and the
+`⏱️` duration has left the header. A segment that renders as a bare separator (`|` with nothing
+after it) or as `$0.00` where it should be absent is the failure this case exists to catch. To
+exercise the git line, run it from inside a repo with staged and modified files.
 
 ---
 

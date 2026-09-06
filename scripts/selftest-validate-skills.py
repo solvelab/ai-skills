@@ -54,6 +54,17 @@ MUTATIONS = {
  "C5 no version pin (date but no Probed on)": ("skills/observability/SKILL.md",
      lambda s: s.replace("Probed on 2026-08-06", "Dated 2026-08-06", 1),
      ("C5 no version pin", "names no")),
+ # (f) Issue #165: the date's VALUE, one mutation per rule. observability carries exactly one probe
+ # date, so each replacement leaves the literal in place and only the plausibility rule fires.
+ "C5 implausible probe date (not a calendar date)": ("skills/observability/SKILL.md",
+     lambda s: s.replace("Probed on 2026-08-06", "Probed on 2026-13-45", 1),
+     ("C5 implausible probe date", "is not a calendar date")),
+ "C5 implausible probe date (future)": ("skills/observability/SKILL.md",
+     lambda s: s.replace("Probed on 2026-08-06", "Probed on 2099-01-01", 1),
+     ("C5 implausible probe date", "is in the future")),
+ "C5 implausible probe date (predates the repository)": ("skills/observability/SKILL.md",
+     lambda s: s.replace("Probed on 2026-08-06", "Probed on 2020-01-01", 1),
+     ("C5 implausible probe date", "predates the repository")),
  "C6 wrong tag": ("skills/r3f-materials/SKILL.md",
      lambda s: s + "\n```tsx\nvarying vec2 vUv;\nvoid main() {}\n```\n"),
  "C7 orphan wrapper": (None, None),

@@ -6,7 +6,8 @@ Implements the mechanically checkable half of openspec/specs/skills-authoring:
   C2 cross-skill references name a real skill
   C3 code blocks parse                      (bash -n, yaml, json, lua -p, python)
   C4 description agrees with body           (heuristic: absolute promise vs qualifying rule)
-  C5 every skill declares its versions      ('Verified against' or 'does not depend on a tool version')
+  C5 every skill declares its versions      ('Verified against' + a possible `Probed on <date>`, or
+                                             'does not depend on a tool version')
   C6 fence tags match content               (a block tagged X that is obviously not X)
   C7 no orphan wrapper skills               (every generated skill has a canonical source)
   C8 no meta sections in SKILL.md           (triggers belong in the description, not the body)
@@ -26,6 +27,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 ROOT = Path.cwd()
@@ -250,6 +252,12 @@ PIN = re.compile(r"Verified against")
 NO_VERSION = re.compile(r"does not depend on a tool version")
 ISO_DATE = re.compile(r"\b20\d\d-\d\d-\d\d\b")
 PROBED_ON = re.compile(r"\b[Pp]robed on 20\d\d-\d\d-\d\d\b")
+PROBE_DATE = re.compile(r"[Pp]robed on (20\d\d-\d\d-\d\d)")
+# The first commit of this repository, so a probe cannot predate it. Hardcoded on purpose: the
+# validator shells out for `bash -n` and `luac -p` but never for git, and a shallow clone would
+# have no history to derive this from — losing the rule in silence. Re-measure with
+# `git log --reverse --format='%cs %h' | head -1` (2026-09-06: 2026-03-13 1e95262).
+REPO_INCEPTION = date(2026, 3, 13)
 DEFERS = re.compile(r"source of truth, not this skill|read the local copy first", re.I)
 API_HINT = re.compile(r"@react-three|@react-spring|fastapi|pydantic|sqlalchemy|helm |kubectl|"
                       r"citizenfx|Qmmands|AssettoServer|openspec|gh project|zod|vite", re.I)
@@ -271,9 +279,16 @@ def check_pin(skill: str, text: str) -> None:
     line's start (assettoserver-csp-lua, react-api-client), and a gate must not fail a correct
     block for where the wrap broke it. The declaration owes no date.
 
-    KNOWN LIMIT: this proves the literals are PRESENT, not that they are earned. A block naming a
-    version nobody ran passes; a date is checked for shape only, never for plausibility (a future or
-    unrelated date passes); a code-heavy skill that adds the deferral phrase to dodge the second
+    Each captured probe date is also checked for POSSIBILITY (issue #165): it parses as a calendar
+    date, it is not after today, and it is not before this repository existed. The comparison runs
+    in UTC with `<=`, because CI runs in UTC while the maintainer is UTC-3 — a probe run late in the
+    evening locally is already tomorrow in UTC, and a date written for today must never fail. Dates
+    the block merely cites (a commit, a release, a measurement run) are left alone: only what
+    follows the literal is a claim about when the probe ran.
+
+    KNOWN LIMIT: this proves the literals are PRESENT and the probe date is POSSIBLE, not that
+    either is earned. A block naming a version nobody ran passes, and so does a plausible date for a
+    probe that never happened; a code-heavy skill that adds the deferral phrase to dodge the second
     rule passes too. Those stay with the review — which is why the block has to say what was run,
     not only against what."""
     pinned = PIN.search(text)
@@ -294,6 +309,22 @@ def check_pin(skill: str, text: str) -> None:
             add(skill, "C5 no version pin",
                 "'Verified against' block names no `Probed on <date>` — a date of a commit or "
                 "release the block cites does not stand in for the date the probe ran")
+        else:
+            today = datetime.now(timezone.utc).date()
+            for raw in PROBE_DATE.findall(block):
+                try:
+                    probed = date.fromisoformat(raw)
+                except ValueError:
+                    add(skill, "C5 implausible probe date",
+                        f"Probed on {raw} is not a calendar date")
+                    continue
+                if probed > today:
+                    add(skill, "C5 implausible probe date",
+                        f"Probed on {raw} is in the future (checked {today} UTC)")
+                elif probed < REPO_INCEPTION:
+                    add(skill, "C5 implausible probe date",
+                        f"Probed on {raw} predates the repository (first commit "
+                        f"{REPO_INCEPTION.isoformat()})")
     if declared and not pinned:
         code_lines = sum(len(b.splitlines()) for _, b in FENCE.findall(text))
         if code_lines >= 40 and API_HINT.search(text) and not DEFERS.search(text):
