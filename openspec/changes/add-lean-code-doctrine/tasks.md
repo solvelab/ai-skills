@@ -681,6 +681,15 @@
       $SCR/venv-A/bin/agentskills validate skills/lean-code -> Valid skill: skills/lean-code
       LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest -> selftest: 186/186 OK  (2.1s; isolation 45/45)
       /usr/bin/git ls-files research/lean-code | xargs grep -l session_id -> (vazio, rc=123); grep -l /home/diegops research/lean-code/results -> (vazio)
+      (2026-09-06, em 71a7be6, segunda revisão do PR: review-examples.md com o check em test_bank.py, upstream.md com o arm medido; PATH com o 2.1.261 na frente, `claude --version` -> 2.1.261 (Claude Code))
+      bash $SCR/gates.sh <worktree> "Spec-rite: add-lean-code-doctrine" -> 22 PASS, 0 FAIL, dirty-after: 0   ($SCR/gates-run-review4.txt)
+      (a passada antes do commit só reprovou tree-dirty-after-generate: as duas referências e seus espelhos em plugins/workflow, ainda não commitados)
+      GITHUB_EVENT_PATH=$SCR/event146.json python3 scripts/validate-skill-version.py -> skill-version gate: 0 findings (base origin/master, 5 skill(s) changed, 5 with content changes)
+      python3 scripts/scan-secrets.py -> no credentials found
+      $SCR/venv-A/bin/agentskills validate skills/lean-code -> Valid skill: skills/lean-code
+      LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest -> selftest: 186/186 OK  (2.1s; isolation 45/45)
+      /usr/bin/git ls-files research/lean-code | xargs grep -l session_id -> (vazio, rc=123); grep -l /home/diegops research/lean-code/results -> (vazio)
+      recomputo da tabela final a partir de runs/{003055,004900,013713}/results.json + baseline 211512: 31 células, correct 31 / safe 31, boundary 17/17, output_contract 27, new_dependency 0, guard_dropped 0, patched_caller_only 0; Δ do grupo −34,4 % (safe-path −79,8, cache −57,4 n=5, fastapi-create-item +4,2, react-use-orders −4,5); pior tarefa +4,2 %
       ```
 
 - [x] V.3 README / docs updated where the change alters catalog composition or usage: README (membro
