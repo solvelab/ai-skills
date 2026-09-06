@@ -81,5 +81,14 @@ single word longer than `max_len`; and `research/lean-code/run.py` cannot be exe
 
 ## Status
 
-**No paid cell has run.** The instruments are green offline; the probe, the pilot and the matrix
-are the next steps in `protocol.md`, and `results.md` says what has and has not been measured.
+**Measured on 2026-09-06. Verdict: NO-CLAIM.** Probe PASS on both arms; pilot confirmed the write
+order is readable from the transcript; matrix n=3 over six tasks on `opus[1m]` / Claude Code
+`2.1.263`, 36 cells, `order_source` `transcript` in 36/36, `$6.7351` (total spend `$6.9524`).
+
+The doctrine's behavioural effect is total and has no overlap between arms — `order` and
+test-writing both go from **0/18** in the baseline to **18/18** in the block arm, and every one of
+those tests genuinely fails on the pristine seed (`red` 18/18). Its effect on correctness is
+**unmeasurable here**: the baseline already scored `green` 18/18, so the task set has no headroom.
+By the letter of `protocol.md` that is NO-CLAIM — the skill of #183 may be written for the
+discipline, and **carries no number**. Read `results.md` for the reading condition by condition,
+the ceiling that made `green` uninformative, and what a future protocol version would need.

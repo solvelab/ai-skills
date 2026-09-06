@@ -81,11 +81,10 @@
 
       Três lacunas, nenhuma preenchida com substituto plausível:
 
-      (a) **Se `--output-format stream-json` em `2.1.263` emite eventos `tool_use` com o caminho do
-      arquivo em `Write`/`Edit`, e em que forma.** O `--help` confirma que o valor existe; a forma
-      dos eventos só aparece rodando uma sessão. Não foi probado — exige uma chamada paga. O desenho
-      já prevê o fallback (D2 do `design.md`) e a marca de fallback no registro, em vez de assumir a
-      forma. Fecha na tarefa 3.2 e no piloto.
+      (a) ~~**Se `--output-format stream-json` em `2.1.263` emite eventos `tool_use` com o caminho
+      do arquivo.**~~ **FECHADA em 2026-09-06 pelo piloto.** Emite: o piloto (2 células, Haiku,
+      `$0.0903`) marcou `order_source=transcript` nas duas, e a matriz completa em `transcript`
+      36/36 — zero células no fallback de mtime.
 
       (b) ~~**Se `research/lean-code/run.py` importa sem efeito colateral quando carregado de outro
       diretório.**~~ **FECHADA em 2026-09-06, com correção.** A leitura estática dizia que sim; a
@@ -96,9 +95,11 @@
       `exec_module`. Registrar antes de executar resolve; está no `lean()` de `research/tdd/run.py`
       com o motivo inline e no `PIN`. É exatamente o tipo de fato que leitura não entrega.
 
-      (c) **Se as seis tarefas separam os arms com n=3.** Não é probável nem improvável antes de
-      rodar; é o que a matriz responde. O protocolo escreve o critério de dispersão e as repetições
-      adicionais antes de qualquer célula paga.
+      (c) ~~**Se as seis tarefas separam os arms com n=3.**~~ **FECHADA em 2026-09-06, com
+      resposta dividida.** Separam totalmente em `order`, `red` e escrita de teste (0/18 contra
+      18/18, sem sobreposição) e **não podem separar** em `green`: o baseline acertou 18/18, então
+      não há folga para o tratamento melhorar. É o teto que leva o veredito a NO-CLAIM, está escrito
+      em `research/tdd/results.md` na seção *Why `green` could not move* e vira follow-up (E.4).
 
 - [x] E.4 Scope check: this change does only what the proposal asked. Adjacent improvements noticed
       along the way are listed here as follow-ups, not performed
@@ -113,6 +114,11 @@
         `research/lean-code` tem o mesmo follow-up em aberto).
       - Tracks de TDD para outros stacks além de pytest — decisão de #183, que nasce com um track só.
       - Um arm `skill` medindo a skill publicada — é #183 por definição.
+      - Um conjunto de tarefas com folga em `green` (o baseline precisa errar a uma taxa
+        mensurável), escolhido a partir de um run só-baseline para não selecionar contra o
+        tratamento. Levantado pelo resultado desta medição, não executado aqui.
+      - Reexpressar a guarda de `test_added_lines` como teto absoluto em vez de razão contra o
+        baseline (Amendment 1 do `protocol.md`); é nova versão de protocolo, não um edit desta.
 
       Nada em `skills/`, `claude/`, `codex/`, `cursor/`, `copilot/`, `plugins/`, `generate.sh`,
       `README.md` da raiz ou `.github/workflows/` foi tocado.
@@ -159,34 +165,103 @@
 
 ## 5. Medição
 
-- [ ] 5.1 `--prepare-arms` e `--probe-isolation` (pago, mínimo, em Haiku)
-- [ ] 5.2 Piloto n=1 antes da matriz, e a lacuna (a) de E.3 fechada com o que o transcrito mostrou
-- [ ] 5.3 Matriz nos dois arms no modelo diário, n>=3, dentro do `--budget-usd`
-- [ ] 5.4 `results.md` com a tabela por tarefa e arm, o veredito citado verbatim do protocolo e
+- [x] 5.1 `--prepare-arms` e `--probe-isolation` (pago, mínimo, em Haiku)
+- [x] 5.2 Piloto n=1 antes da matriz, e a lacuna (a) de E.3 fechada com o que o transcrito mostrou
+- [x] 5.3 Matriz nos dois arms no modelo diário, n>=3, dentro do `--budget-usd`
+- [x] 5.4 `results.md` com a tabela por tarefa e arm, o veredito citado verbatim do protocolo e
       conferido condição por condição, a seção de gasto e a do que não cobre
 
 ## 6. Simulation & Field Proof (MANDATORY)
 
-- [ ] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
+- [x] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
       observed output are recorded (or: this change touches no runtime artifact)
-- [ ] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
+
+      O artefato executável é `research/tdd/run.py`, e o caminho real é a matriz paga.
+
+      `python3 research/tdd/run.py --selftest --matrix --arms baseline,block --tasks all --runs 3
+      --model "opus[1m]" --arms-root <scratch>/tdd-arms --runs-root <scratch>/tdd-runs
+      --budget-usd 20 --scorer-venv <scratch>/tdd-venv`
+
+      `research/tdd/run.py --selftest --matrix ... --model "opus[1m]" --runs 3` -> `selftest 70/70`
+      -> `matrix 20260906-150952: 6 tasks x 2 arms x 3 runs = 36 cells, budget $20.0`
+      -> `parse-duration  baseline  run 0  order=False (transcript)  red=False  green=True  testLOC=0  $0.1930`
+      -> `parse-duration  block     run 0  order=True (transcript)  red=True  green=True  testLOC=39  $0.2187`
+      -> `spent $6.7351`
+
+      `research/tdd/run.py --probe-isolation --model claude-haiku-4-5-20251001`
+      -> `probe PASSED isolation=settings-sources cost=$0.127`
+
+      `research/tdd/run.py --report <stamp> --export research/tdd/results/20260906-150952-export.json`
+      -> `wrote research/tdd/results/20260906-150952-export.json`
+- [x] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
       silent and did, known escapes that stayed silent
-- [ ] S.3 What escaped or behaved differently than expected is named here — or it is stated
+
+      **Tinham de disparar e dispararam**: instrumentos offline com defeito injetado 70/70; leitura
+      de ordem pelo transcrito 36/36 (nenhum fallback de mtime); `red` verdadeiro nas 18 células do
+      arm `block` onde `order` é verdadeiro; `green` medido pela suíte oculta em 36/36; sonda de
+      isolamento 2/2 arms PASS.
+
+      **Tinham de ficar em silêncio e ficaram**: arm `skill` não foi preparado (0 arms, porque
+      `skills/tdd/SKILL.md` não existe); `skill_visible` `0/1` nos dois arms; eventos de hook do
+      mantenedor 0 em 8 chamadas de sonda; nenhuma célula parada por orçamento (0/36); nenhum
+      arquivo criado em `skills/` (0).
+
+      **Escapes conhecidos que ficaram em silêncio**: o piloto em Haiku e a matriz em `opus[1m]`
+      não foram agregados juntos — `--report` recusaria por modelo diferente, e não foram
+      submetidos a ele; as duas condições `test_added_lines` do veredito não dispararam porque a
+      razão contra um baseline de zero é indefinida (Amendment 1 do `protocol.md`).
+- [x] S.3 What escaped or behaved differently than expected is named here — or it is stated
       explicitly that nothing did
+
+      Três coisas se comportaram diferente do esperado, todas registradas:
+
+      1. **O veredito não foi SHIP.** O baseline acertou `green` 18/18, então não havia folga para
+         medir ganho de correção. NO-CLAIM pela letra. A consequência para #183 é dura e está
+         escrita: a skill pode existir pela disciplina, sem número nenhum.
+      2. **Duas condições do veredito eram indefinidas.** `test_added_lines` como razão contra um
+         baseline que escreveu zero linhas de teste divide por zero. Não foram editadas — mexer no
+         limiar depois do número seria nova versão de protocolo. Amendment 1.
+      3. **O baseline não escreveu um único teste em 18/18 células**, sob o `CLAUDE.md` real do
+         mantenedor, que carrega o piso de uma checagem do `lean-code`. Observação pós-hoc em
+         `results.md`, não uma conclusão desta medição.
 
 ## 7. Quality Gates (MANDATORY)
 
-- [ ] Q.1 Frontmatter uniforme em toda SKILL.md tocada — **nenhuma skill é tocada por esta change**
-- [ ] Q.2 Conteúdo de skill em inglês — nenhuma skill tocada
-- [ ] Q.3 Triggers de description testáveis — nenhuma skill tocada
-- [ ] Q.4 Sem doutrina duplicada: a tabela Canonical Home do `design.md` declara onde cada regra
+- [x] Q.1 Frontmatter uniforme em toda SKILL.md tocada — **nenhuma skill é tocada por esta change**
+
+      `git diff --name-only origin/master...HEAD -- skills/ claude/ plugins/` -> (vazio)
+- [x] Q.2 Conteúdo de skill em inglês — nenhuma skill tocada
+
+      `python3 scripts/validate-skills.py` -> `skills checked: 36   findings: 0`
+- [x] Q.3 Triggers de description testáveis — nenhuma skill tocada
+
+      Nenhuma `description` de skill mudou; a redação da skill `tdd` e seus triggers são #183.
+- [x] Q.4 Sem doutrina duplicada: a tabela Canonical Home do `design.md` declara onde cada regra
       mora, e este item não redige a doutrina TDD
-- [ ] Q.5 Identificadores em inglês em todo código novo (`research/tdd/run.py`, tarefas, scorers),
+
+      `grep -c "^| " openspec/changes/add-tdd-research/design.md` -> 9 linhas de tabela canônica.
+      O `arms-block.md` é o tratamento medido, não a skill; a linha da tabela diz isso por extenso.
+- [x] Q.5 Identificadores em inglês em todo código novo (`research/tdd/run.py`, tarefas, scorers),
       com a prosa em português como no resto do repositório
+
+      Todo identificador novo é inglês (`order`, `red`, `green`, `hidden_suite`, `test_added_lines`,
+      `arm`, `cell`); nenhum `# locale-ok` foi necessário. `python3 scripts/validate-skills.py`
+      -> `findings: 0` (a checagem C9 de identificadores roda sobre o catálogo).
 
 ## 8. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `openspec validate add-tdd-research --strict` green
-- [ ] V.2 Catalog discovery intact: contagem de skills inalterada, nenhum órfão
-- [ ] V.3 `research/tdd/README.md` com a ordem de leitura e a linha de status
+- [x] V.1 `openspec validate add-tdd-research --strict` green
+
+      `openspec validate add-tdd-research --strict` -> `Change 'add-tdd-research' is valid`
+      `bash scripts/validate-rite.sh` -> `Totals: 3 passed, 0 failed (3 items)`, `rite gate OK`
+- [x] V.2 Catalog discovery intact: contagem de skills inalterada, nenhum órfão
+
+      `python3 scripts/validate-repo-hygiene.py` -> `repo hygiene: 0 findings`
+      `python3 scripts/validate-skill-version.py` -> `0 skill(s) changed, 0 with content changes`
+      `python3 scripts/scan-secrets.py` -> `no credentials found`
+- [x] V.3 `research/tdd/README.md` com a ordem de leitura e a linha de status
+
+      `grep -n "## Read in this order\|## Status" research/tdd/README.md` -> ambas presentes; a
+      linha de status diz **Measured on 2026-09-06. Verdict: NO-CLAIM.** e nomeia modelo
+      `opus[1m]`, CLI `2.1.263`, 36 células, `$6.7351`.
 - [ ] V.4 `openspec archive add-tdd-research --yes` after all groups above are `[x]`

@@ -5,6 +5,18 @@ introduces this file. The verdict thresholds in the last section were written **
 cell ran**. A later edit to a threshold is a new protocol version; numbers measured under different
 versions are not compared. Amendments are appended dated and numbered, never rewritten in place.
 
+**Amendment 1 of 2026-09-06, after every paid cell ran — facts only, no threshold moved.** Two of
+the verdict conditions turned out to divide by a baseline of zero: SHIP's fourth
+(`test_added_lines` mean in `block` ≤ 2.0× the baseline) and REWRITE's second (the same ratio above
+2.0×). The baseline wrote **no test lines at all** in 18 of 18 cells, so the ratio is undefined and
+`run.py` reports `factor: null`. Neither condition can fire on this measurement, and neither was
+edited: a doctrine that introduces tests where there were none would otherwise trigger REWRITE for
+doing exactly what it promises, which is a defect in the threshold and not a finding about the
+doctrine. The reading in `results.md` treats both as not applicable and says so. A future protocol
+version should express that guard as an absolute ceiling on `test_added_lines`, or as a ratio
+conditioned on a baseline that writes tests; changing it here would make these numbers
+incomparable with the ones already recorded.
+
 The question is narrow and stated once: **does an always-on test-order doctrine change the order in
 which a headless Claude Code session writes files, and does the code it leaves behind get better or
 worse for it?**
