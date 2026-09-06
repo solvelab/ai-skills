@@ -248,6 +248,7 @@ def check_description(skill: str, text: str) -> None:
 # 35 skills carried no block while C5 reported nothing.
 PIN = re.compile(r"Verified against")
 NO_VERSION = re.compile(r"does not depend on a tool version")
+ISO_DATE = re.compile(r"\b20\d\d-\d\d-\d\d\b")
 DEFERS = re.compile(r"source of truth, not this skill|read the local copy first", re.I)
 API_HINT = re.compile(r"@react-three|@react-spring|fastapi|pydantic|sqlalchemy|helm |kubectl|"
                       r"citizenfx|Qmmands|AssettoServer|openspec|gh project|zod|vite", re.I)
@@ -259,10 +260,16 @@ def check_pin(skill: str, text: str) -> None:
     may not take it unless it defers to a local source of truth the reader opens first (the phrase
     `helm-migration` already carries).
 
-    KNOWN LIMIT: this proves the literal is PRESENT, not that it is earned. A block naming a version
-    nobody ran passes; the date the block owes is not checked; a code-heavy skill that adds the
-    deferral phrase to dodge the second rule passes too. Those stay with the review — which is why
-    the block has to say what was run, not only against what."""
+    A `Verified against` block — the text from that line to the next blank line, which covers the
+    blockquote form and the one-line prose form alike — must carry an ISO date (YYYY-MM-DD): a pin
+    with no date does not say when it stopped being trustworthy. Measured on 2026-09-05 (issue
+    #153): 14 of 35 blocks carried none. The declaration owes no date.
+
+    KNOWN LIMIT: this proves the literals are PRESENT, not that they are earned. A block naming a
+    version nobody ran passes; a date is checked for shape only, never for plausibility (a future or
+    unrelated date passes); a code-heavy skill that adds the deferral phrase to dodge the second
+    rule passes too. Those stay with the review — which is why the block has to say what was run,
+    not only against what."""
     pinned = PIN.search(text)
     declared = NO_VERSION.search(text)
     if not pinned and not declared:
@@ -270,6 +277,13 @@ def check_pin(skill: str, text: str) -> None:
             "neither 'Verified against' nor 'does not depend on a tool version' — a version "
             "mentioned in passing is not a pin")
         return
+    if pinned:
+        block = text[pinned.start():]
+        block = block.split("\n\n", 1)[0]
+        if not ISO_DATE.search(block):
+            add(skill, "C5 no version pin",
+                "'Verified against' block carries no date (YYYY-MM-DD) — a pin with no date does "
+                "not say when it stopped being trustworthy")
     if declared and not pinned:
         code_lines = sum(len(b.splitlines()) for _, b in FENCE.findall(text))
         if code_lines >= 40 and API_HINT.search(text) and not DEFERS.search(text):

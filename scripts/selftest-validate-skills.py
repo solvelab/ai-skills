@@ -44,6 +44,12 @@ MUTATIONS = {
      lambda s: s.replace("**Verified against**: `kubectl v1.36.1`",
                          "**Not version-bound**: this skill does not depend on a tool version — `kubectl v1.36.1`", 1),
      ("C5 no version pin", "declared not version-bound")),
+ # (d) The dated block with its date removed (issue #153): the literal stays, so only the date rule
+ # fires. observability's file carries exactly one ISO date, inside the block — fivem-lua was the
+ # first target and stayed silent because its block also dates the citizenfx commits it names.
+ "C5 no version pin (undated block)": ("skills/observability/SKILL.md",
+     lambda s: s.replace("2026-08-06", "the day the skill landed", 1),
+     ("C5 no version pin", "carries no date")),
  "C6 wrong tag": ("skills/r3f-materials/SKILL.md",
      lambda s: s + "\n```tsx\nvarying vec2 vUv;\nvoid main() {}\n```\n"),
  "C7 orphan wrapper": (None, None),
