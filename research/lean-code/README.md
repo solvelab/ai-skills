@@ -15,11 +15,12 @@ here, not the upstream's.
 | File | What it is |
 |---|---|
 | [`protocol.md`](protocol.md) | **The point of all of this.** Arms, cell, metrics, flags, the nine tasks, the sequence, and the SHIP / INCONCLUSIVE / NO-CLAIM / REWRITE thresholds — frozen before any paid cell ran. |
-| [`run.py`](run.py) | The harness. `--selftest` proves every instrument offline; `--prepare-arms`, `--probe-isolation`, `--matrix`, `--classify`, `--rescore`, `--report --export`. Three isolation modes (`settings-sources` by default, `config-dir`, `home`); its docstring carries the KNOWN LIMIT list. |
+| [`run.py`](run.py) | The harness. `--selftest` proves every instrument offline; `--prepare-arms` (with `--claude-block <file>` for the skill arm), `--probe-isolation`, `--matrix`, `--classify`, `--rescore`, `--report --export`. Three isolation modes (`settings-sources` by default, `config-dir`, `home`); its docstring carries the KNOWN LIMIT list. |
 | [`tasks/`](tasks/) | The three catalog tasks (`fastapi-create-item`, `fivem-shop-buy`, `react-use-orders`): seed, good/bad reference, executing `score()` — the React one is structural and says so. |
 | [`vendor/ponytail/`](vendor/ponytail/PIN) | The six upstream tasks (`tasks.py`), the LOC oracle (`loc.js`), the licence and the pin (commit, date, sha256). |
 | [`fixtures/examples/`](fixtures/examples/README.md) | Eleven upstream before/after transcripts, used only to prove the LOC counter against `loc.js`. |
 | [`scorer-venv.txt`](scorer-venv.txt) | The pinned `fastapi`/`httpx`/`pydantic`/`starlette` the FastAPI scorer ran under. The venv is never committed. |
+| [`arms-block.md`](arms-block.md) | The always-on *Lean Code* block (the `personal-rules.md` section without its heading) that `--claude-block` appends to the skill arm's `CLAUDE.md` snippet; the baseline never sees it. |
 | [`results.md`](results.md) | **What has been measured.** Probe, pilot (shake-out only), the baseline table on the maintainer's model, the flag sanity, and the arm that has not run yet. |
 | [`results/`](results/README.md) | The files behind it: probe record, baseline defect counts with the hand-read classification, stripped export. |
 
@@ -32,6 +33,10 @@ python3 research/lean-code/run.py --selftest --scorer-venv /tmp/lean-venv
 
 # 2. arms, outside the repository (default --isolation settings-sources: three files per arm, nothing copied)
 python3 research/lean-code/run.py --prepare-arms --arms-root /tmp/lean-arms --rules-ref <sha>
+#    item #146, the skill arm: the skill must be installed (ln -s <checkout>/skills/lean-code ~/.claude/skills/lean-code)
+#    and the always-on block is appended to the skill arm's CLAUDE.md snippet only (sha256 recorded in arm.json)
+python3 research/lean-code/run.py --prepare-arms --arms-root /tmp/lean-arms --rules-ref <sha> \
+    --skill lean-code --claude-block research/lean-code/arms-block.md
 
 # 3. PAID, small: prove the arms are isolated (3 calls per arm on Haiku, $0.05 each; mode read from arms.json)
 python3 research/lean-code/run.py --probe-isolation --arms-root /tmp/lean-arms --model claude-haiku-4-5-20251001

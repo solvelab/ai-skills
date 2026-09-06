@@ -19,12 +19,17 @@ judged by an LLM, anything under the maintainer's `caveman` plugin.
 | arm | what the session sees (default mode, `settings-sources`) | when |
 |---|---|---|
 | `baseline` | the maintainer's real `~/.claude/CLAUDE.md` (personal-rules + RTK + TalkToMe) and real `~/.claude/skills/`; project `settings.json` = the maintainer's `~/.claude/settings.json` minus `hooks`, `enabledPlugins`, `extraKnownMarketplaces`, `statusLine`, `permissions` (keeps `model`, `effortLevel`, `modelSettings`, `skillOverrides`) **plus `skillOverrides.lean-code = "off"`**, so the baseline stays clean once item #146 installs the skill under `~/.claude/skills` | item 1 (this) and item 2 |
-| `skill` | same, with `skillOverrides.lean-code = "on"` and the *Lean Code* block in `personal-rules.md` once the maintainer's rules file carries it | item 2 |
+| `skill` | same, with `skillOverrides.lean-code = "on"` **and** the always-on *Lean Code* block appended to the cell's `CLAUDE.md` after the sentinel (`--prepare-arms --claude-block research/lean-code/arms-block.md`; the block's sha256 is recorded in `arm.json`), so the arm measures the mechanism the upstream measured — a skill the router can pick plus a rule that is always present — without the block having to enter the maintainer's real `personal-rules.md` first | item 2 |
 | `ponytail-ref` | baseline plus the upstream plugin via `--plugin-dir` | optional, item 2, off by default |
 
 In the default mode an arm is three files outside the repository — `arm.json` (with the
-`rules_sha` of `--rules-ref`, for provenance), `project-settings.json`, `claude-snippet.md` (the
-line `BENCH-SENTINEL: <arm>`) — and **nothing is copied**: no credentials, no `CLAUDE.md`. Each
+`rules_sha` of `--rules-ref`, for provenance, and `claude_block_sha256` when a block was given),
+`project-settings.json`, `claude-snippet.md` (the line `BENCH-SENTINEL: <arm>`; in the `skill` arm
+followed by the always-on block from `--claude-block`, verbatim) — and **nothing is copied**: no
+credentials, no `CLAUDE.md`. The preflight refuses a `baseline` snippet that carries anything beyond
+the sentinel and a `skill` snippet whose block does not hash to the value in `arm.json`
+(amendment of 2026-09-05 for item #146, before the skill arm ran; metrics, tasks and thresholds
+untouched). Each
 cell writes the two into its workspace as `.claude/settings.json` and `CLAUDE.md`, commits them in
 the seed commit (force-added: the maintainer's global gitignore drops `**/.claude/`), and runs
 `claude -p` with `--setting-sources project,local`, which on Claude Code 2.1.261 drops the user
@@ -198,7 +203,10 @@ instruction-following, not the doctrine.
    (`opus[1m]` on 2026-09-05), `n = 3`, 9 tasks, `--budget-usd 25` → `--classify` →
    `results/<stamp>-baseline-defects.md`. This is item 1's deliverable and the input to the
    skill's `proposal.md`.
-6. Item 2: arms `baseline` + `skill`, same `claude --version`, same model id, `n = 3`;
+6. Item 2: `~/.claude/skills/lean-code` symlinked to the checkout (the preflight requires it), then
+   `run.py --prepare-arms --skill lean-code --claude-block research/lean-code/arms-block.md
+   --rules-ref <sha>` — `baseline` unchanged, `skill` with the block; the probe again (the arms'
+   `rules_sha` moved); arms `baseline` + `skill`, same `claude --version`, same model id, `n = 3`;
    `--report` refuses to aggregate stamps whose version or model differ.
 
 ## Verdict (written before the number)

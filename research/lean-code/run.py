@@ -35,13 +35,18 @@ Subcommands (one per invocation):
         case, a summary with counts, exit 1 on any failure.
 
   --prepare-arms --arms-root DIR --rules-ref REF [--skill NAME] [--ponytail-dir DIR]
-                 [--isolation settings-sources|config-dir|home]
+                 [--claude-block FILE] [--isolation settings-sources|config-dir|home]
         Build DIR/<arm>/ for arms baseline and skill (skill only when skills/<NAME>/ exists at
-        REF). settings-sources layout: arm.json (rules_sha kept for provenance),
-        project-settings.json (= ~/.claude/settings.json keeping only model, effortLevel,
-        modelSettings, skillOverrides, plus skillOverrides[<NAME>] = "off"/"on" per arm),
-        claude-snippet.md (the line "BENCH-SENTINEL: <arm>"); nothing else — no credentials, no
-        CLAUDE.md copy. Legacy layout (config-dir/home): settings.json filtered the same way,
+        REF). settings-sources layout: arm.json (rules_sha kept for provenance, and
+        claude_block_sha256 when --claude-block was given), project-settings.json
+        (= ~/.claude/settings.json keeping only model, effortLevel, modelSettings, skillOverrides,
+        plus skillOverrides[<NAME>] = "off"/"on" per arm), claude-snippet.md (the line
+        "BENCH-SENTINEL: <arm>"; in the skill arm followed by the always-on block read from
+        --claude-block FILE, verbatim — the baseline never carries it, and the preflight refuses
+        a baseline snippet with anything beyond the sentinel and a skill snippet whose block does
+        not hash to arm.json); nothing else — no credentials, no CLAUDE.md copy. --claude-block is
+        supported in the settings-sources layout only (item #146: the block is the personal-rules
+        section the skill arm has to see before it enters the maintainer's real rules file). Legacy layout (config-dir/home): settings.json filtered the same way,
         CLAUDE.md = claude/global/personal-rules.md at REF plus the sentinel line, skills/ =
         symlinks to every skills/*/ of a tree materialised from REF (baseline never gets
         skills/<NAME>), .credentials.json copied from ~/.claude with mode 600. DIR must resolve
@@ -121,6 +126,7 @@ import argparse
 import concurrent.futures
 import datetime as _dt
 import importlib.util
+import hashlib
 import json
 import os
 import re
@@ -702,21 +708,40 @@ def arm_settings(settings: dict, skill_name: str, include_skill: bool) -> dict:
     return out
 
 
+def block_sha256(block: str) -> str:
+    """sha256 of an always-on block, normalised to one trailing newline — the same value at write
+    time (arm.json) and at preflight (read back from claude-snippet.md after the sentinel line)."""
+    return hashlib.sha256((block.strip("\n") + "\n").encode("utf-8")).hexdigest()
+
+
+def snippet_block(snippet_text: str, arm: str) -> str:
+    """What claude-snippet.md carries after the sentinel line (empty when only the sentinel)."""
+    head, sep, rest = snippet_text.partition(f"{SENTINEL}: {arm}\n")
+    return rest if sep else snippet_text
+
+
 def prepare_arm_settings_sources(arm_root: Path, arm: str, settings: dict, skill_name: str,
                                  include_skill: bool, plugin_dir: str | None = None,
-                                 meta: dict | None = None) -> Path:
-    """An arm that copies nothing: project-settings.json, claude-snippet.md, arm.json."""
+                                 meta: dict | None = None, claude_block: str | None = None) -> Path:
+    """An arm that copies nothing: project-settings.json, claude-snippet.md, arm.json. The skill arm
+    (include_skill) appends `claude_block` — the always-on personal-rules section — after the
+    sentinel line and records its sha256; the baseline gets the sentinel alone whatever is passed."""
     arm_dir = arm_root / arm
     if arm_dir.exists():
         shutil.rmtree(arm_dir)
     arm_dir.mkdir(parents=True)
     (arm_dir / "project-settings.json").write_text(
         json.dumps(arm_settings(settings, skill_name, include_skill), indent=2) + "\n", encoding="utf-8")
-    (arm_dir / "claude-snippet.md").write_text(f"{SENTINEL}: {arm}\n", encoding="utf-8")
+    snippet = f"{SENTINEL}: {arm}\n"
+    sha = None
+    if include_skill and claude_block and claude_block.strip():
+        snippet += "\n" + claude_block.strip("\n") + "\n"
+        sha = block_sha256(claude_block)
+    (arm_dir / "claude-snippet.md").write_text(snippet, encoding="utf-8")
     (arm_dir / "arm.json").write_text(json.dumps({
         "arm": arm, "isolation": "settings-sources", "skill": skill_name, "includes_skill": include_skill,
         "skill_override": SKILL_OVERRIDE_ON if include_skill else SKILL_OVERRIDE_OFF,
-        "plugin_dir": plugin_dir, **(meta or {})}, indent=2) + "\n", encoding="utf-8")
+        "plugin_dir": plugin_dir, "claude_block_sha256": sha, **(meta or {})}, indent=2) + "\n", encoding="utf-8")
     return arm_dir
 
 
@@ -788,8 +813,26 @@ def settings_sources_preflight(arm_dir: Path, arm: str, skill_name: str, user_cl
             if got != want:
                 problems.append(f"project-settings.json skillOverrides[{skill_name}] is {got!r}, not {want!r}")
     snippet = arm_dir / "claude-snippet.md"
-    if not snippet.exists() or f"{SENTINEL}: {arm}" not in snippet.read_text(encoding="utf-8", errors="ignore"):
+    snippet_text = snippet.read_text(encoding="utf-8", errors="ignore") if snippet.exists() else ""
+    if f"{SENTINEL}: {arm}" not in snippet_text:
         problems.append(f"claude-snippet.md lacks the line `{SENTINEL}: {arm}`")
+    else:
+        rest = snippet_block(snippet_text, arm)
+        want_sha = None
+        arm_json = arm_dir / "arm.json"
+        if arm_json.exists():
+            try:
+                want_sha = json.loads(arm_json.read_text(encoding="utf-8")).get("claude_block_sha256")
+            except json.JSONDecodeError:
+                problems.append("arm.json is not JSON")
+        if arm == "baseline" and rest.strip():
+            problems.append("claude-snippet.md carries more than the sentinel line "
+                            "(the always-on block belongs to the skill arm only)")
+        if arm == "skill" and want_sha is not None:
+            got = block_sha256(rest) if rest.strip() else None
+            if got != want_sha:
+                problems.append(f"claude-snippet.md block sha256 {got} does not match arm.json "
+                                f"claude_block_sha256 {want_sha} (block missing or edited after --prepare-arms)")
     for stray in (".credentials.json", "CLAUDE.md", "settings.json", "skills", "home"):
         if (arm_dir / stray).exists():
             problems.append(f"arm dir carries {stray} (a settings-sources arm copies nothing)")
@@ -874,11 +917,23 @@ def cmd_prepare_arms(args: argparse.Namespace) -> int:
     home_claude = Path.home() / ".claude"
     settings = read_settings(home_claude / "settings.json")
     skill = args.skill
+    claude_block = None
+    if getattr(args, "claude_block", None):
+        if layout != "settings-sources":
+            sys.exit("--claude-block is supported in the settings-sources layout only")
+        block_path = Path(args.claude_block).expanduser()
+        if not block_path.is_file():
+            sys.exit(f"--claude-block {block_path} is not a file")
+        claude_block = block_path.read_text(encoding="utf-8")
+        if not claude_block.strip():
+            sys.exit(f"--claude-block {block_path} is empty")
     arms_root.mkdir(parents=True, exist_ok=True)
     meta = {"isolation": layout, "rules_ref": ref, "rules_sha": sha, "claude_version": claude_version(),
             "prepared_at": _dt.datetime.now().isoformat(timespec="seconds"),
             "settings_kept": [k for k in KEEP_SETTINGS_KEYS if k in settings],
-            "settings_stripped": [k for k in STRIP_SETTINGS_KEYS if k in settings]}
+            "settings_stripped": [k for k in STRIP_SETTINGS_KEYS if k in settings],
+            "claude_block_path": str(block_path) if claude_block else None,
+            "claude_block_sha256": block_sha256(claude_block) if claude_block else None}
     if layout == "settings-sources":
         credentials, tree = None, None
         skill_present = git(REPO_ROOT, "cat-file", "-e", f"{ref}:skills/{skill}/SKILL.md").returncode == 0
@@ -902,7 +957,11 @@ def cmd_prepare_arms(args: argparse.Namespace) -> int:
     for arm, include in arms:
         plugin = args.ponytail_dir if arm == "ponytail-ref" else None
         if layout == "settings-sources":
-            arm_dir = prepare_arm_settings_sources(arms_root, arm, settings, skill, include, plugin, meta)
+            arm_meta = {k: v for k, v in meta.items() if k != "claude_block_sha256"}
+            arm_dir = prepare_arm_settings_sources(arms_root, arm, settings, skill, include, plugin, arm_meta,
+                                                   claude_block=claude_block)
+            if claude_block:
+                log(f"arm {arm:12} claude-snippet.md = sentinel" + (" + always-on block" if include else " only"))
         else:
             arm_dir = prepare_arm(arms_root, arm, settings, credentials, rules.stdout, tree, skill,
                                   include, plugin, meta)
@@ -1781,6 +1840,40 @@ def selftest_isolation(st: Selftest, tasks: dict[str, Task]) -> None:
         st.case("isolation", "arm.json records isolation=settings-sources, skill_override and rules_sha",
                 arm_json["isolation"] == "settings-sources" and arm_json["skill_override"] == SKILL_OVERRIDE_OFF
                 and arm_json["rules_sha"] == "abc123" and arm_isolation(base) == "settings-sources")
+        # --claude-block: the always-on block reaches the skill arm's snippet and never the baseline's
+        block = "Before writing a line, climb the ladder.\n- one guard where all callers route through.\n"
+        skill_b = prepare_arm_settings_sources(root / "arms-block", "skill", settings, DEFAULT_SKILL, True,
+                                               meta={"rules_sha": "abc123"}, claude_block=block)
+        base_b = prepare_arm_settings_sources(root / "arms-block", "baseline", settings, DEFAULT_SKILL, False,
+                                              meta={"rules_sha": "abc123"}, claude_block=block)
+        snip_s = (skill_b / "claude-snippet.md").read_text(encoding="utf-8")
+        snip_b = (base_b / "claude-snippet.md").read_text(encoding="utf-8")
+        st.case("isolation", "--claude-block: skill snippet = sentinel line + blank line + block; baseline = sentinel only",
+                snip_s == f"{SENTINEL}: skill\n\n{block}" and snip_b == f"{SENTINEL}: baseline\n", repr(snip_s))
+        aj_s = json.loads((skill_b / "arm.json").read_text(encoding="utf-8"))
+        aj_b = json.loads((base_b / "arm.json").read_text(encoding="utf-8"))
+        st.case("isolation", "--claude-block: arm.json carries claude_block_sha256 in the skill arm, null in the baseline",
+                aj_s["claude_block_sha256"] == block_sha256(block) and aj_b["claude_block_sha256"] is None)
+        st.case("isolation", "--claude-block: both arms preflight OK",
+                arm_preflight(skill_b, "skill", user_claude_dir=user_dir) == [] and arm_preflight(base_b, "baseline", user_claude_dir=user_dir) == [],
+                "; ".join(arm_preflight(skill_b, "skill", user_claude_dir=user_dir) + arm_preflight(base_b, "baseline", user_claude_dir=user_dir)))
+        ws_s = workspace_files(skill_b)["CLAUDE.md"]
+        st.case("isolation", "--claude-block: the skill cell's CLAUDE.md carries the block after the sentinel, still a harness path",
+                ws_s.startswith(f"{SENTINEL}: skill\n") and block in ws_s and is_harness_path("CLAUDE.md"))
+        # injected defects, one per rule
+        (base_b / "claude-snippet.md").write_text(f"{SENTINEL}: baseline\n\n{block}", encoding="utf-8")
+        st.case("isolation", "preflight catches the block in the baseline snippet",
+                any("more than the sentinel" in p for p in arm_preflight(base_b, "baseline", user_claude_dir=user_dir)))
+        (base_b / "claude-snippet.md").write_text(f"{SENTINEL}: baseline\n", encoding="utf-8")
+        (skill_b / "claude-snippet.md").write_text(f"{SENTINEL}: skill\n", encoding="utf-8")
+        st.case("isolation", "preflight catches a skill snippet without the block arm.json promises",
+                any("claude_block_sha256" in p for p in arm_preflight(skill_b, "skill", user_claude_dir=user_dir)))
+        (skill_b / "claude-snippet.md").write_text(f"{SENTINEL}: skill\n\n{block}edited\n", encoding="utf-8")
+        st.case("isolation", "preflight catches a block edited after --prepare-arms (sha mismatch)",
+                any("does not match" in p for p in arm_preflight(skill_b, "skill", user_claude_dir=user_dir)))
+        (skill_b / "claude-snippet.md").write_text(snip_s, encoding="utf-8")
+        st.case("isolation", "--claude-block: preflight clean again after repairs",
+                arm_preflight(skill_b, "skill", user_claude_dir=user_dir) == [] and arm_preflight(base_b, "baseline", user_claude_dir=user_dir) == [])
         st.case("isolation", "baseline + skill preflight OK",
                 arm_preflight(base, "baseline", user_claude_dir=user_dir) == [] and arm_preflight(skill, "skill", user_claude_dir=user_dir) == [],
                 "; ".join(arm_preflight(base, "baseline", user_claude_dir=user_dir) + arm_preflight(skill, "skill", user_claude_dir=user_dir)))
@@ -2046,6 +2139,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--rules-ref", default="HEAD")
     ap.add_argument("--skill", default=DEFAULT_SKILL)
     ap.add_argument("--ponytail-dir")
+    ap.add_argument("--claude-block", metavar="FILE",
+                    help="--prepare-arms, settings-sources only: append this file (the always-on Lean Code "
+                         "block) to the skill arm's CLAUDE.md snippet after the sentinel; the baseline never sees it")
     ap.add_argument("--isolation", default=DEFAULT_ISOLATION, choices=(*ISOLATION_MODES, "auto"),
                     help="arm layout at --prepare-arms and mode at --probe-isolation (default "
                          f"{DEFAULT_ISOLATION}; auto = try config-dir then home on legacy arms)")
