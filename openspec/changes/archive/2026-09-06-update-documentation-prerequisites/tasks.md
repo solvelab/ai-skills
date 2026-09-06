@@ -177,4 +177,8 @@
       de nome, e nenhuma contagem publicada se move. `README.md` intocado de propósito;
       `python3 scripts/validate-repo-hygiene.py --selftest` -> `4/4 defect classes detected`, e o
       check H2 é justamente o que reprovaria uma contagem defasada.
-- [ ] V.4 `openspec archive update-documentation-prerequisites --yes` depois do merge do PR
+- [x] V.4 `openspec archive update-documentation-prerequisites --yes` depois do merge do PR
+      Evidência: PR #154 mergeado em 2026-09-06; `openspec archive update-documentation-prerequisites
+      --yes` -> `Specs to update: skills-authoring: update`, `+ 1 added`, `Totals: + 1, ~ 0, - 0`,
+      `Change 'update-documentation-prerequisites' archived as
+      '2026-09-06-update-documentation-prerequisites'`; `openspec list` -> a change saiu das ativas.
