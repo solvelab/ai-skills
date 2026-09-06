@@ -153,6 +153,13 @@ jobs:
       - name: Identifier-locale detector self-test (the shipped script is itself gated)
         run: python3 skills/code-locale/references/check-identifier-locale.py --selftest
 
+      - name: Prose-locale detector self-test (the shipped script is itself gated)
+        # The sibling detector for the other half of the rule: comments, docstrings and Markdown in
+        # the wrong language, measured only where a repository declares its prose in .code-locale.
+        # Its selftest asserts the two function-word lists share no word, both directions, the
+        # skips, the waivers, --diff, and the declaration through the real entry point (#179).
+        run: python3 skills/code-locale/references/check-prose-locale.py --selftest
+
       - name: Locale write-gate hook self-test (the shipped hook is itself gated)
         run: python3 claude/global/hooks/locale-rite.py --selftest
 

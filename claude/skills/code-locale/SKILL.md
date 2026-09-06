@@ -14,14 +14,14 @@ description: >-
   naming (each stack's skill), or for i18n and user-facing translation.
 metadata:
   author: solvelab
-  version: 1.4.3
+  version: 1.5.0
   category: process
 license: MIT
 compatibility: >-
-  The doctrine is language- and stack-agnostic and needs no runtime. The shipped detector
-  `references/check-identifier-locale.py` needs Python 3.9+ and no third-party package (its word
-  list is read with the standard library's gzip module); it tokenizes Python, Lua, JavaScript,
-  TypeScript, C#, SQL, YAML, JSON and Bash and reports any other file type as skipped. The
+  The doctrine is language- and stack-agnostic and needs no runtime. The shipped detectors
+  `references/check-identifier-locale.py` and `references/check-prose-locale.py` need Python 3.9+
+  and no third-party package; they tokenize Python, Lua, JavaScript, TypeScript, C#, SQL, YAML,
+  JSON and Bash (the prose one also Markdown) and report any other file type as skipped. The
   optional hook `locale-rite.py` (linked from the body) was built against Claude Code 2.1.246 and
   exits silently anywhere else.
 ---

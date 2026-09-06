@@ -24,6 +24,18 @@
 #   it prints, and it never refuses a commit (the detector's --gate-unknown is deliberately not
 #   passed here; add it to EXTRA_ARGS below once your repository has measured its own noise).
 #
+#   THE PROSE DIRECTION — only where the repository declares it. When
+#   `$(git rev-parse --show-toplevel)/.code-locale` exists (`prose: pt-BR` or `prose: en`; the
+#   format is in the code-locale skill, section "Prose follows the repository"), the same staged
+#   diff is run a second time through check-prose-locale.py, the detector that measures comments,
+#   docstrings and Markdown paragraphs in the wrong language. It must sit BESIDE the identifier
+#   detector (it imports it by path): sources 1 and 2 below carry both files, source 3 downloads
+#   only the identifier detector, so in download mode the hook says the prose direction is off and
+#   measures identifiers alone. Same exit semantics: a gating prose finding (a comment or docstring,
+#   never a Markdown paragraph) refuses the commit; an unreadable .code-locale (exit 2) refuses it
+#   too, naming the file — a gate that cannot read its own declaration must not approve. Without
+#   .code-locale nothing about prose is measured, and the hook is exactly the one it was before.
+#
 # INSTALL — one of:
 #   cp pre-commit-locale.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 #     (per clone; .git/ is never versioned)
@@ -65,7 +77,10 @@
 #                                                                above it (the waiver covers its
 #                                                                own line and the next, nothing further)
 #   .identifier-locale-allow                                     one path or segment per line — the
-#                                                                only waiver a FILE NAME can carry
+#                                                                only waiver a FILE NAME can carry;
+#                                                                skips a whole file for prose too
+#   translate it                                                 the prose direction's first exit; the
+#                                                                same `locale-ok:` line is the second
 #   git commit --no-verify                                       the deliberate bypass. Named, not
 #                                                                hidden: the rite informs, the author
 #                                                                decides — and the CI step
@@ -81,6 +96,14 @@
 #     .yaml .json .sh .bash): the file's PATH is still measured when the diff adds the file, and
 #     its content is reported as skipped, never as passing. Markdown fences are not scanned here
 #     (that is the detector's --markdown-fences mode, for documentation repositories).
+#   - Prose anywhere, unless .code-locale declares the language; and, with it, everything the prose
+#     detector's own KNOWN LIMIT names (strings and log messages, languages other than PT/EN, a
+#     block opened on a line the diff did not add). A DECLARED repository whose resolved detector
+#     has no check-prose-locale.py beside it (download mode, source 3, fetches the identifier
+#     detector alone; or a ~/ai-skills clone older than the prose detector) is REFUSED, not
+#     approved with the direction off: a gate that cannot measure must not approve. Clone the
+#     catalog, vendor both detectors with the two prose-words-*.txt lists, or point LOCALE_CHECK at
+#     a clone that carries them.
 #   - Existing content. Only ADDED lines are read (`--diff`); a legacy name already in the tree is
 #     never reported, and renaming it is the skill's migration policy, not this hook's job. Partial
 #     staging (`git add -p`) is measured as staged: hunks left out of the commit are not read.
@@ -194,24 +217,67 @@ if [ "$rc" -eq 1 ] && ! printf '%s\n' "$output" | grep -q '^findings: '; then
   rc=70
 fi
 
+refused=0
 case "$rc" in
   0)
     # Clean. Advisory lines, when any, still deserve the author's eyes.
     if [ -n "$output" ] && printf '%s\n' "$output" | grep -q 'advisory'; then
       printf '%s\n' "$output" >&2
     fi
-    exit 0
     ;;
   1)
     printf '%s\n' "$output" >&2
     log "refused: the staged diff adds a non-English name to the machine layer (code-locale)."
     log "  waive one line:   # locale-ok: <why this term has no faithful English name>   (on the line, or the one above)"
     log "  waive a path:     add it to .identifier-locale-allow (one path or segment per line)"
-    log "  bypass:           git commit --no-verify   — the deliberate exit; CI measures it anyway"
-    exit 1
+    refused=1
     ;;
   *)
     printf '%s\n' "$output" >&2
     refuse "the detector itself failed (exit ${rc}, no findings: line); nothing was measured, so nothing is approved"
     ;;
 esac
+
+# ── The prose direction: only where the repository declares it (header: THE PROSE DIRECTION) ──
+toplevel="$(git rev-parse --show-toplevel 2>/dev/null)" || toplevel=""
+if [ -n "$toplevel" ] && [ -f "${toplevel}/.code-locale" ]; then
+  prose_path="$(dirname "$check_path")/check-prose-locale.py"
+  if [ ! -f "$prose_path" ]; then
+    refuse ".code-locale declares a prose language but check-prose-locale.py is not beside ${check_path} (download mode fetches the identifier detector alone) — a gate that cannot measure must not approve: clone the catalog, or vendor both detectors and the two prose-words-*.txt lists, or point LOCALE_CHECK at a clone that carries them"
+  else
+    prose_output="$(git diff --cached --no-color --no-ext-diff --no-renames --src-prefix=a/ --dst-prefix=b/ \
+      | PYTHONIOENCODING=utf-8:surrogateescape python3 "$prose_path" --diff - --root "$toplevel" 2>&1)"
+    prose_rc=$?
+    if [ "$prose_rc" -eq 1 ] && ! printf '%s\n' "$prose_output" | grep -q '^findings: '; then
+      prose_rc=70
+    fi
+    case "$prose_rc" in
+      0)
+        if [ -n "$prose_output" ] && printf '%s\n' "$prose_output" | grep -q 'advisory'; then
+          printf '%s\n' "$prose_output" >&2
+        fi
+        ;;
+      1)
+        printf '%s\n' "$prose_output" >&2
+        log "refused: the staged diff adds a comment or docstring that is not in the prose language .code-locale declares (code-locale)."
+        log "  translate it, or waive one line:   # locale-ok: <reason>   (on the comment's line, or the one above)"
+        log "  waive a path:                      add it to .identifier-locale-allow (one path or segment per line)"
+        refused=1
+        ;;
+      2)
+        printf '%s\n' "$prose_output" >&2
+        refuse ".code-locale could not be read (see above); fix the declaration — a gate that cannot read its own declaration must not approve"
+        ;;
+      *)
+        printf '%s\n' "$prose_output" >&2
+        refuse "the prose detector itself failed (exit ${prose_rc}, no findings: line); nothing was measured, so nothing is approved"
+        ;;
+    esac
+  fi
+fi
+
+if [ "$refused" -ne 0 ]; then
+  log "  bypass:           git commit --no-verify   — the deliberate exit; CI measures it anyway"
+  exit 1
+fi
+exit 0
