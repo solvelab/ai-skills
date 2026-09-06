@@ -487,13 +487,22 @@
       escapes: lens/ (8/7/8 achados, net -38/-61/-39, $1,2499) e lens2/ (9/7/7, net -47/-65/-49, $1,5184) rodaram sem a skill — inválidas para este critério
       ```
 
-      **Pendente pela FR4 da issue** ("qualquer `delete:` em selftest/mutante é FP e corrige o
-      texto da guarda antes de publicar"): dois dos cinco FP são `delete:` em caso de selftest
-      (`49c44d0` achados 5 e 7). A frase de guarda em `SKILL.md`, *Reviewing a diff* ("A single
-      smoke test or `assert`-based self-check is the minimum, not bloat, never flag it for
-      deletion"), cobre a existência do check, não um caso dentro de um selftest — alargar antes de
-      publicar; não feito nesta parte (edição de doutrina fora do escopo da medição), registrado em
-      `results.md`, *Review lens*.
+      **FR4 da issue** ("qualquer `delete:` em selftest/mutante é FP e corrige o texto da guarda
+      antes de publicar"): dois dos cinco FP são `delete:` em caso de selftest (`49c44d0` achados 5
+      e 7). A frase de guarda em `SKILL.md`, *Reviewing a diff*, cobria a existência do check, não
+      um caso dentro de um selftest. **Alargada em `6831e24` (2026-09-06, revisão do PR)**, antes
+      da publicação: "A single smoke test or `assert`-based self-check — and any single case
+      inside a selftest, a mutant or an injected-defect check — is the minimum, not bloat, never
+      flag it for deletion: the check is the product." `references/upstream.md` registra a frase
+      como reescrita (era verbatim); wrappers regenerados. A lente **não** foi re-rodada no texto
+      alargado (nenhuma célula paga depois da medição): a precisão registrada continua 16/21 com
+      os achados 5 e 7 contados como FP — `results.md`, *Review lens* e *Post-hoc* item 6.
+
+      ```
+      grep -n "injected-defect" skills/lean-code/SKILL.md plugins/workflow/skills/lean-code/SKILL.md cursor/rules/lean-code.mdc
+      -> skills/lean-code/SKILL.md:160, plugins/workflow/skills/lean-code/SKILL.md:160, cursor/rules/lean-code.mdc:145
+      bash generate.sh && /usr/bin/git status --short -> (vazio depois do commit 6831e24)
+      ```
 
 - [x] S.6 **(mantenedor, 2026-09-06)** Exercício pelo caminho real: **nenhuma sessão interativa
       rodou**, e não precisa — o protocolo define a célula headless como o ponto de entrada

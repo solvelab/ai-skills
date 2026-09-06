@@ -206,7 +206,10 @@ Nothing here changes the verdict; it is what the frozen rules do not say.
    none of the three results carries the *"lean-code isn't in the available-skills list"* disclaimer
    that all six cells of the two earlier lens runs carry, and the layout is the one the probe
    verified 60–90 minutes later (`skill_visible` 1/1). The lens section of `SKILL.md` was not
-   touched by the REWRITE, so the text the lens ran on is the text that ships.
+   touched by the REWRITE (`8ed6fd0`); it was touched once after the measurement, by the FR4
+   widening of the self-check guard sentence (`6831e24`, 2026-09-06, *Review lens* below), so the
+   text that ships differs from the text the lens ran on by that one sentence, and the lens was
+   not re-run on it.
 
 ## Review lens — three real diffs, `lens3/<sha>/out.json`
 
@@ -227,13 +230,17 @@ PR body (`gh pr view <n> --json body`), which is the oracle for rule 3.
 **Precision 16/21 = 0.76 ≥ 0.7.** Read by the literal tag of rule 4 (`yagni:` only), finding 3 of
 `49c44d0` is not an FP and precision is 17/21 = 0.81; the conservative count is the one reported.
 `net:` 3/3 present; no `stdlib:`/`native:` finding was made, so rule 2 (a function absent from the
-pinned runtime) had nothing to judge. **Open item from #146 FR4** — *"qualquer `delete:` em
-selftest/mutante é FP e corrige o texto da guarda antes de publicar"*: two of the five FPs are
-exactly that (`49c44d0` findings 5 and 7, a `delete:` on a selftest case each). The lens text in
-`SKILL.md` guards the *existence* of a self-check ("never flag it for deletion") but not a case
-*inside* a selftest; the guard sentence is to be widened to cover any case inside a selftest, a
-mutant or an injected-defect check before the skill is published — not done in this measurement
-pass, recorded here and in the change's `tasks.md`.
+pinned runtime) had nothing to judge. **#146 FR4** — *"qualquer `delete:` em selftest/mutante é
+FP e corrige o texto da guarda antes de publicar"*: two of the five FPs are exactly that
+(`49c44d0` findings 5 and 7, a `delete:` on a selftest case each). The lens text the three cells
+ran on guarded the *existence* of a self-check ("never flag it for deletion") but not a case
+*inside* a selftest. The guard sentence was widened after the measurement, in commit `6831e24`
+(2026-09-06): *"A single smoke test or `assert`-based self-check — and any single case inside a
+selftest, a mutant or an injected-defect check — is the minimum, not bloat, never flag it for
+deletion: the check is the product."* The lens was **not re-run** on the widened text (no paid
+cell after the measurement), so the precision reported here is the one measured on the
+pre-widening sentence, with findings 5 and 7 still counted as FP; whether the wider sentence
+removes them is an untested claim until the three cells run again.
 
 ### `49c44d0` — `locale-rite.py` (+408)
 
