@@ -14,7 +14,7 @@ description: >-
   for the plan-approval gate of a backlog item (that is execute-backlog).
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.1.1
   category: process
 license: MIT
 compatibility: >-

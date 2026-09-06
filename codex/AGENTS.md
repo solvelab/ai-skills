@@ -25,6 +25,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `fivem-nui-react` | `codex/skills/fivem-nui-react/AGENTS.md` |
 | `helm-migration` | `codex/skills/helm-migration/AGENTS.md` |
 | `k8s-tune-resources` | `codex/skills/k8s-tune-resources/AGENTS.md` |
+| `lean-code` | `codex/skills/lean-code/AGENTS.md` |
 | `log-event-collector` | `codex/skills/log-event-collector/AGENTS.md` |
 | `observability` | `codex/skills/observability/AGENTS.md` |
 | `openspec-drivezone` | `codex/skills/openspec-drivezone/AGENTS.md` |

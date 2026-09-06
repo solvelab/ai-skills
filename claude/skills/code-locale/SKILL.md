@@ -14,7 +14,7 @@ description: >-
   naming (each stack's skill), or for i18n and user-facing translation.
 metadata:
   author: solvelab
-  version: 1.4.1
+  version: 1.4.2
   category: process
 license: MIT
 compatibility: >-
