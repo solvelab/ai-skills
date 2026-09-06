@@ -468,8 +468,9 @@
       da linha correspondente de `references/upstream.md`, commit `8ed6fd0`; arms e sonda
       refeitos; re-run só da tarefa afetada, n=3 (`20260906-004900`): 8,667 = −3,7 %, dispersão
       12 %, `test_articles.py` 3/3. Os dois stamps ficam e os dois estão na tabela de `results.md`.
-      O protocolo não diz o que segue um REWRITE (escopo do re-run, n, qual stamp conta) — anotado
-      em *Post-hoc observations*, não emendado.
+      O protocolo não diz o que segue um REWRITE (escopo do re-run, n, qual stamp conta); a regra
+      aplicada é a FR3 da issue #146 ("a reescrita re-roda só as tarefas afetadas e mantém os dois
+      stamps") — anotado em *Post-hoc observations*, protocolo não emendado.
 
 - [x] S.5 **(mantenedor, 2026-09-05 23:19–23:22)** Lente nos 3 diffs (`49c44d0`, `69aaf73`,
       `b1f527f`), uma célula `claude -p` cada em `opus[1m]`, `--setting-sources project,local`, a
@@ -485,6 +486,14 @@
       total 21 achados, net: 3/3, precisão 16/21 = 0,76 ≥ 0,7 (17/21 = 0,81 lendo a regra 4 só pela tag `yagni:`)
       escapes: lens/ (8/7/8 achados, net -38/-61/-39, $1,2499) e lens2/ (9/7/7, net -47/-65/-49, $1,5184) rodaram sem a skill — inválidas para este critério
       ```
+
+      **Pendente pela FR4 da issue** ("qualquer `delete:` em selftest/mutante é FP e corrige o
+      texto da guarda antes de publicar"): dois dos cinco FP são `delete:` em caso de selftest
+      (`49c44d0` achados 5 e 7). A frase de guarda em `SKILL.md`, *Reviewing a diff* ("A single
+      smoke test or `assert`-based self-check is the minimum, not bloat, never flag it for
+      deletion"), cobre a existência do check, não um caso dentro de um selftest — alargar antes de
+      publicar; não feito nesta parte (edição de doutrina fora do escopo da medição), registrado em
+      `results.md`, *Review lens*.
 
 - [x] S.6 **(mantenedor, 2026-09-06)** Exercício pelo caminho real: **nenhuma sessão interativa
       rodou**, e não precisa — o protocolo define a célula headless como o ponto de entrada

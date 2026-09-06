@@ -191,9 +191,11 @@ Nothing here changes the verdict; it is what the frozen rules do not say.
    line. The `skipped:` trailer is a **block** effect (the block names it), not a skill effect:
    24/27 with the skill vs 26/27 without it.
 4. **The protocol has no rule for what follows a REWRITE.** It says REWRITE; it does not say which
-   tasks are re-run, at what n, or which stamp counts. What was done: the affected task only, n=3,
-   both stamps kept and both reported. A future version of the protocol should write this down
-   before it is needed again; this one is not amended for it (thresholds and rows untouched).
+   tasks are re-run, at what n, or which stamp counts. The rule that was applied comes from the
+   issue, not the protocol — #146 FR3: *"a reescrita re-roda só as tarefas afetadas e mantém os
+   dois stamps"* — so: the affected task only, n=3, both stamps kept and both reported. A future
+   version of the protocol should carry that sentence; this one is not amended for it (thresholds
+   and rows untouched).
 5. **The verdict table can be satisfied by two rows at once.** SHIP and INCONCLUSIVE both hold
    here. The reading applied (INCONCLUSIVE first, because it is the row with an instruction) is a
    reading, recorded here and not written into the frozen table.
@@ -225,7 +227,13 @@ PR body (`gh pr view <n> --json body`), which is the oracle for rule 3.
 **Precision 16/21 = 0.76 ≥ 0.7.** Read by the literal tag of rule 4 (`yagni:` only), finding 3 of
 `49c44d0` is not an FP and precision is 17/21 = 0.81; the conservative count is the one reported.
 `net:` 3/3 present; no `stdlib:`/`native:` finding was made, so rule 2 (a function absent from the
-pinned runtime) had nothing to judge.
+pinned runtime) had nothing to judge. **Open item from #146 FR4** — *"qualquer `delete:` em
+selftest/mutante é FP e corrige o texto da guarda antes de publicar"*: two of the five FPs are
+exactly that (`49c44d0` findings 5 and 7, a `delete:` on a selftest case each). The lens text in
+`SKILL.md` guards the *existence* of a self-check ("never flag it for deletion") but not a case
+*inside* a selftest; the guard sentence is to be widened to cover any case inside a selftest, a
+mutant or an injected-defect check before the skill is published — not done in this measurement
+pass, recorded here and in the change's `tasks.md`.
 
 ### `49c44d0` — `locale-rite.py` (+408)
 
