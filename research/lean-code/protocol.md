@@ -145,6 +145,13 @@ kept only as the oracle the selftest compares the Python port against (22/22 sec
 | `class_for_oneliner` | a `class` added in a task whose seed has none |
 | `output_contract`, `lean_marker` | positive signals, counted, not judged |
 
+*Amendment, 2026-09-05, after the baseline's flag sanity (`results.md`):* `new_dependency` reads
+imports in production files only, and `class_for_oneliner` reads a `class` in production files
+only. An `import pytest` or a `unittest.TestCase` subclass inside the test file the cell prompt
+invites is recorded (`test_dependency`, `test_class_added`) and never flagged — the first
+classification had 8/27 and 3/27 of exactly that. A manifest line or an install command still
+counts wherever it appears. The frozen rules above are otherwise unchanged.
+
 ## Tasks (9)
 
 | task | source | room | boundary | axis of the bad reference | scorer |
