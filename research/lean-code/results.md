@@ -1,7 +1,8 @@
 # Results — what has been measured, and what the protocol says about it
 
-Items #145 (part B, the baseline) and #146 (the two treatment arms, the review lens), run by the
-maintainer on 2026-09-05 and 2026-09-06 with the harness in this directory. Every number below is
+Items #145 (part B, the baseline), #146 (the two treatment arms, the review lens) and #174 (the
+lens re-measured on the published guard, the `block` arm's +2 repetitions), run by the maintainer on
+2026-09-05 and 2026-09-06 with the harness in this directory. Every number below is
 recomputed from a file in [`results/`](results/) or from a stamp directory in the scratch space
 (`runs/<stamp>/{summary,results}.json`, one directory per cell with `_claude.json`, `_diff.patch`,
 `_result.txt`), by `run.py --report`, `run.py --classify` or a script over `results.json`; nothing is
@@ -23,7 +24,9 @@ the letter does not say is in *Post-hoc observations*, dated, never in the verdi
 | **skill**, `reuse-slug` after the REWRITE | `20260906-004900` | `opus[1m]` | 3 | $0.7391 | measured — replaces the task's row |
 | probe (3 arms), before the +2 reps | `20260906-013550` | Haiku | 12 calls | $0.1928 | PASS, `skill_visible` 1/1 / 0/1 / 0/1 |
 | **skill**, `cache` and `csv-sum` +2 reps (INCONCLUSIVE clause) | `20260906-013713` | `opus[1m]` | 4 | $1.1119 | measured — widens the two rows to n=5 |
-| review lens, 3 real diffs, skill loaded | `lens3/` | `opus[1m]` | 3 | $1.4648 | 21 findings, precision 0.76 |
+| review lens, 3 real diffs, skill loaded (pre-widening guard text) | `lens3/` | `opus[1m]` | 3 | $1.4648 | 21 findings, precision 16/21 = 0.76 |
+| **block**, `trace-transfer` +2 reps (INCONCLUSIVE clause, #174) | `20260906-024406` | `opus[1m]` | 2 | $0.7916 | measured — widens the row to n=5 |
+| **review lens, 3 real diffs, the published skill** (#174) | `lens4/` | `opus[1m]` | 3 | $1.5668 | 17 findings, precision 13/17 = 0.76 |
 
 ## Method
 
@@ -48,16 +51,18 @@ the letter does not say is in *Post-hoc observations*, dated, never in the verdi
   three cells of `20260906-003055` plus the +2 repetitions of `20260906-013713`, the INCONCLUSIVE
   clause executed) and the `reuse-slug` row is the post-REWRITE stamp `20260906-004900` (n=3),
   with the pre-REWRITE stamp `20260906-003055` (n=3) and the +2 repetitions `20260906-004535`
-  shown alongside — 31 `skill` cells in the final table. `rules_sha` differs between stamps
+  shown alongside — 31 `skill` cells in the final table. In the `block` arm, **n = 5 on
+  `trace-transfer`** (the three cells of `20260905-230209` plus the +2 repetitions of
+  `20260906-024406`, item #174) — 29 `block` cells. `rules_sha` differs between stamps
   (`6efed49`, `4e50922`, `4f6638d`, `8ed6fd0`, `af49cfa`) because it is the sha of the **worktree** ref at
   `--prepare-arms`; the rules file the cells actually read is `~/.claude/CLAUDE.md` →
   `~/ai-skills/claude/global/personal-rules.md` on the **master** checkout, which carries no *Lean
   Code* section (the branch is unmerged) — not frozen, but unchanged in the part that matters
   (KNOWN LIMIT 4).
 - **Process.** Every cell of every stamp: `subtype success`, `is_error false`, `killed false`,
-  `returncode 0`; longest cell 283.2 s (`block`), 171.4 s (`skill`; 65.0 s in `013713`) of the
-  300 s limit; no `--budget-usd` reached; costliest skill cell $0.7157 of the $1.00 per-cell cap
-  ($0.3447 in `013713`).
+  `returncode 0`; longest cell 283.2 s (`block`), 171.4 s (`skill`; 65.0 s in `013713`; 66.5 s in
+  `024406`) of the 300 s limit; no `--budget-usd` reached; costliest skill cell $0.7157 of the
+  $1.00 per-cell cap ($0.3447 in `013713`; $0.4263 in `024406`).
 
 ## The three arms, per task — `results/20260906-003055-export.json`, `…-004900-export.json` and `…-013713-export.json`
 
@@ -80,7 +85,8 @@ row says otherwise.
 | reuse-slug — **post-REWRITE `004900`** (the row that counts) | 9 (9–9) | 9 (9–9) | +0.0 % | 8.667 (8–9) | −3.7 % |
 | safe-path · OB | 67.667 (59–82) | 21 (20–22) | −69.0 % | 13.667 (12–16) | −79.8 % |
 | sql-user | 7.667 (7–9) | 3 (3–3) | −60.9 % | 3 (3–3) | −60.9 % |
-| trace-transfer | 27 (26–28) | 19.667 (10–25) | −27.2 % | 9.667 (8–11) | −64.2 % |
+| trace-transfer — n=3 `230209` | 27 (26–28) | 19.667 (10–25) | −27.2 % | 9.667 (8–11) | −64.2 % |
+| trace-transfer — **block n=5 after the +2 reps `024406`** (the row that counts for `block`) | 27 (26–28) | 22.400 (10–30; 10, 23, 24, 25, 30) | −17.0 % | 9.667 (8–11) | −64.2 % |
 
 OB = the pre-registered over-build group. `--report` on the three full stamps printed
 `block: over-build group mean delta -28.6% over 4 tasks; worst task fastapi-create-item +6.2%` and
@@ -111,6 +117,13 @@ recomputed over `results.json` with `004900` in place of `reuse-slug` and `01371
 | cells that wrote a test file | 24/27 | 24/27 | 27/31 |
 | `test_added_lines`, mean | 83.2 | 45.9 | 31.9 |
 | cost / turns per cell, mean | $0.350 / 9.3 | $0.336 / 8.8 | $0.337 / 9.6 |
+
+The `block` column is the 27 cells of `230209`. The two `trace-transfer` repetitions of `024406`
+(`results/20260906-024406-export.json`, `cells_detail`) add: `output_contract` 2/2 (28/29 over the
+arm), `lean_marker` 1/2 (7/29), `class_for_oneliner` 2/2 (3/29 — the baseline's own
+`trace-transfer` cells are 3/3), root cause `fixed shared _debit (withdraw guarded too)` 2/2
+(5/5), a test file 2/2 (56 and 83 test lines), every negative flag 0/2, $0.396 and 6 turns per
+cell.
 
 ## The `reuse-slug` story — INCONCLUSIVE, then REWRITE, then re-run
 
@@ -203,11 +216,47 @@ is the over-build group Δ the protocol pre-registered, −34.4 %, never the all
 
 ### `block` arm (the always-on mechanism alone, reported alongside, never the skill's verdict)
 
-Over-build group mean Δ **−28.6 %** (−69.0, −50.0, +6.2, −1.5) — inside the INCONCLUSIVE band
-(−15 % … −30 %); dispersion `trace-transfer` 76 % (10, 25, 24) — INCONCLUSIVE again; worst task
-`fastapi-create-item` +6.2 % < +10 %, no guard dropped, root cause 3/3, `new_dependency` 0/27 —
-no REWRITE row fires. `output_contract` 26/27, `lean_marker` 6/27. **INCONCLUSIVE** on both
-counts; the block was not re-run (it is not the deliverable).
+As first read (version of this file at `e7f5fe8`): over-build group mean Δ **−28.6 %** (−69.0,
+−50.0, +6.2, −1.5) — inside the INCONCLUSIVE band (−15 % … −30 %); dispersion `trace-transfer` 76 %
+(10, 25, 24) — INCONCLUSIVE again; worst task `fastapi-create-item` +6.2 % < +10 %, no guard
+dropped, root cause 3/3, `new_dependency` 0/27 — no REWRITE row fires. `output_contract` 26/27,
+`lean_marker` 6/27. The dispersion row's instruction had been applied only to the `skill` arm.
+
+**Final reading, after the +2 repetitions of item #174** — stamp `20260906-024406`
+(`--matrix --arms block --tasks trace-transfer --runs 2`, `rules_sha af49cfa`, the pinned `2.1.261`,
+`opus[1m]`, 2 cells, $0.7916, `subtype success` 2/2, `killed` 0/2, `correct` 2/2, `safe` 2/2;
+`results/20260906-024406-export.json` is `--report` over baseline + `230209` + `024406`, 56 cells,
+which aggregates the task at n=5 and printed `block: over-build group mean delta -28.6% over 4
+tasks; worst task fastapi-create-item +6.2%`):
+
+1. `trace-transfer` +2: **30 and 23** — both `fixed shared _debit (withdraw guarded too)`, both a
+   `test_bank.py` (83 and 56 test lines), both the `skipped:` trailer, both a class in `bank.py`
+   (as the baseline's three cells and block run 1), one `# lean:` marker. Widened to n=5: 10, 23,
+   24, 25, 30 → mean **22.400** (10–30), Δ **−17.0 %** (−27.2 % at n=3); dispersion
+   (30 − 10)/22.4 = **89 %** (76 % at n=3). The 10-line cell of `230209` is now the outlier, not the
+   rule: the four others sit at 23–30.
+2. Group Δ **unchanged at −28.6 %**: `trace-transfer` is not in the pre-registered over-build group
+   and no over-build cell was re-run.
+
+| row | condition (verbatim) | number | holds? |
+|---|---|---|---|
+| INCONCLUSIVE, Δ half | *"Δ between −15% and −30%"* | −28.6 % | **yes** |
+| INCONCLUSIVE, dispersion half | *"or the dispersion (max − min) of a task's `added_lines` exceeds 50% of its mean → +2 repetitions on those tasks, then re-read"* | `trace-transfer` 76 % → +2 reps (`024406`), 89 % at n=5 | instruction executed; this is the re-read; the row carries no threshold the widened spread has to fall under |
+| SHIP | *"mean Δ ≤ −30% over the over-build group"* | −28.6 % | no |
+| SHIP, the other six | `correct` ≥ baseline; `safe` 100 % on the boundary; no task > +10 %; `output_contract` ≥ 2/3; root cause 6/6; `new_dependency` 0/N | 29/29; 15/15; worst `fastapi-create-item` +6.2 %; 28/29; 3/3 + 5/5; 0/29 | yes |
+| NO-CLAIM | *"Δ better than −15% but not enough for SHIP"* | −28.6 % | literally yes as well — the band is read as INCONCLUSIVE first, the row with an instruction (observation 5) |
+| REWRITE | any of its four conditions | none fires | no |
+
+The Δ half of the INCONCLUSIVE row puts the block in the −15 % … −30 % band, and the row's
+instruction — *"+2 repetitions on those tasks, then re-read"* — names a task only through its
+dispersion half; a group mean has no task of its own, so re-reading the Δ half would mean +2
+repetitions on each of the four over-build tasks (8 cells, about $2.7 at the arm's $0.336 mean per
+cell). That was not done, on purpose: protocol *Verdict* reads *"The table is read for the `skill`
+arm; read for `block` it isolates the always-on mechanism and is reported alongside, never as the
+skill's verdict"*, and the deliverable of #146 is the `skill` arm, which is closed. **The block
+arm's final reading is INCONCLUSIVE by the Δ half** (−28.6 %, dispersion half executed and closed
+at n=5); it is informational — nothing the block measures is published in `SKILL.md` or a README,
+and the item that asked for its re-read (#174) asked for nothing more.
 
 ## Post-hoc observations (2026-09-06, after the letter was applied)
 
@@ -262,8 +311,9 @@ Nothing here changes the verdict; it is what the frozen rules do not say.
    verified 60–90 minutes later (`skill_visible` 1/1). The lens section of `SKILL.md` was not
    touched by the REWRITE (`8ed6fd0`); it was touched once after the measurement, by the FR4
    widening of the self-check guard sentence (`6831e24`, 2026-09-06, *Review lens* below), so the
-   text that ships differs from the text the lens ran on by that one sentence, and the lens was
-   not re-run on it.
+   text that ships differs from the text the lens ran on by that one sentence. Item #174 re-ran
+   the three cells on the published text (`lens4/`, *Review lens* below): 17 findings, precision
+   13/17, no `delete:` on a selftest case.
 7. **The dispersion that remains after the widening is the noise of a small absolute count.**
    `cache` at n=5 is 3, 3, 5, 5, 11 (mean 5.4): the four low cells write the same two lines —
    `from functools import cache` and `@cache` with a `# lean:` marker — separated by one blank line
@@ -276,14 +326,109 @@ Nothing here changes the verdict; it is what the frozen rules do not say.
    is why every mean in this file carries its min–max, and why the published number is the group
    Δ over four tasks and not a per-task figure.
 
-## Review lens — three real diffs, `lens3/<sha>/out.json`
+## Review lens — three real diffs, the published skill: `lens4/<sha>/out.json` (#174)
 
 The lens (`delete:` `stdlib:` `native:` `yagni:` `shrink:`, `net: -N lines possible.`) on the merge
-commits of PRs #140, #141, #142, one `claude -p` each on `opus[1m]`, `--setting-sources
-project,local`, the skill as a project skill, the diff restricted to the file the protocol names.
-Precision = valid / (valid + FP), FP by the five rules of `protocol.md` *Review lens — false-positive
-rules*, adjudicated against the diff (`lens3/<sha>/diff.patch`, line numbers are diff lines) and the
-PR body (`gh pr view <n> --json body`), which is the oracle for rule 3.
+commits of PRs #140, #141, #142, one `claude -p` each on `opus[1m]`, Claude Code `2.1.261` pinned,
+`--setting-sources project,local`, the diff restricted to the file the protocol names. The skill
+reached each cell as a project skill copied from master `e7f5fe8` — `diff -r skills/lean-code
+<cell>/.claude/skills/lean-code` is empty in 3/3 cells — i.e. the **published** text, with the
+guard sentence `6831e24` widened: *"A single smoke test or `assert`-based self-check — and any
+single case inside a selftest, a mutant or an injected-defect check — is the minimum, not bloat,
+never flag it for deletion: the check is the product."* (`skills/lean-code/SKILL.md`, *Review
+lens*). The project settings carry `skillOverrides.lean-code = "on"`; none of the three results
+carries the *"lean-code isn't in the available-skills list"* disclaimer of the invalid runs. The
+finding lines are in [`results/20260906-lens4-findings.md`](results/20260906-lens4-findings.md).
+
+Precision = valid / (valid + FP), FP by the five rules of `protocol.md` *Review lens —
+false-positive rules*, adjudicated against the diff (`lens4/<sha>/diff.patch`; line numbers are
+diff lines), the file at the commit (`git show <sha>:<path>`, for rule 1 — whether the line sits
+inside `selftest()`) and the PR body (`gh pr view <n> --json body`, the oracle for rule 3). The
+rules, verbatim: *"1. a `delete:` on a selftest, a mutant, or an injected-defect case — the check
+is the product; 2. a `stdlib:`/`native:` naming a function absent from the runtime pinned by the
+repository …; 3. a line justified by the pull request's own mutant table or by a `KNOWN LIMIT`
+paragraph; 4. a `yagni:` on a guard at a trust boundary (validation of hook input, of a PR body,
+of a path from the environment) — carve-out, not bloat; 5. a `shrink:` whose replacement changes
+behaviour on an input the diff's tests cover."*
+
+| diff | file | findings | by tag | `net:` | valid | FP (rule) |
+|---|---|--:|---|--:|--:|--:|
+| `49c44d0` (#140) | `claude/global/hooks/locale-rite.py` | 5 | delete 3, yagni 1, shrink 1 | −9 | 3 | 2 (rule 4 ×2) |
+| `69aaf73` (#141) | `claude/global/hooks/locale-stop-gate.py` | 5 | shrink 2, yagni 2, delete 1 | −63 | 5 | 0 |
+| `b1f527f` (#142) | `skills/code-locale/references/pre-commit-locale.sh` | 7 | shrink 3, yagni 2, delete 2 | −14 | 5 | 2 (rule 3, rule 5) |
+| **total** | | **17** | | | **13** | **4** |
+
+**Precision 13/17 = 0.76 ≥ 0.7** — `SKILL.md` is not touched (the issue's condition for touching
+it was precision below 0.7). Read by the literal tag of rule 4 (`yagni:` only), the two
+`49c44d0` guards are not FPs and precision is 15/17 = 0.88; the conservative count is the one
+reported, as for `lens3/`. `net:` 3/3 present; no `stdlib:`/`native:` finding was made, so rule 2
+had nothing to judge. **Rule 1: zero.** No lens4 finding names a line inside a `selftest()` (the
+line numbers below are checked against `def selftest` in each file at its commit), where `lens3/`
+had two (`49c44d0` findings 5 and 7, a `delete:` on a selftest case each) — the class of false
+positive the widened sentence names does not recur on the text that carries it. The `b1f527f`
+cell also closed by saying what it deliberately did **not** flag — the ~100-line header and the
+`rc` → `70` remap — which are exactly `lens3/`'s two rule-3 FPs on that diff.
+
+Against the pre-widening measurement (`lens3/`, kept below): findings 21 → 17, valid 16 → 13, FP
+5 → 4 — rule 1 2 → 0, rule 3 2 → 1 (the header and the remap gone; one new one, the `EXTRA_ARGS`
+expansion), rule 4 1 → 2 (both `isinstance` guards on hook input; `lens3/` had flagged one),
+rule 5 0 → 1. Precision 16/21 = 0.762 → 13/17 = 0.765: the guard removed the FP class it targets
+and precision held rather than rose, because the lens also found fewer valid cuts (16 → 13) and
+spent findings on other objects. `net:` −40 / −33 / −75 → −9 / −63 / −14: the `49c44d0` and
+`b1f527f` claims shrank by the selftest and header cuts that are no longer made; the `69aaf73`
+claim grew (the docstring triplication and the wiring snippet, prose the earlier cell had not
+counted). n = 1 per diff per text, one author.
+
+#### lens4 · `49c44d0` — `locale-rite.py` (+408)
+
+`def selftest` is line 391 of `git show 49c44d0:claude/global/hooks/locale-rite.py`; every flagged
+line is above it (file lines 135, 191-193, 221, 365, 375), so rule 1 applies to none.
+
+| # | finding | adjudication |
+|---|---|---|
+| 1 | L213 `delete:` `CONTEXT_LINE_CAP = 200` defined and never read | **valid** — `grep -c CONTEXT_LINE_CAP diff.patch` → 1 (the definition); same finding as `lens3/` 1 |
+| 2 | L253-257 `yagni:` `current_mode()` is a one-line `os.environ.get` wrapper with a single caller → inline at L455 | **valid** — `grep -n current_mode diff.patch` → the def (L253) and one call (L455); the selftest drives `evaluate(…, mode=…)` directly (file lines 488, 498) and proves the default through a subprocess (601), which inlining keeps; PR #140 lists *"variável de ambiente pelo caminho real"* as a selftest case, not as a reason for the wrapper |
+| 3 | L281-282 `delete:` the empty-anchor guard duplicates the fallback (`body.find("")` → 0 → returns 1) | **valid** — file line 221, inside `first_line_of()`; the anchor arrives normalised (`or ""` at L442, `anchor = ""` at L444), so this is a fast path after the boundary, not the validation of hook input rule 4 names; with it gone `body.find("")` is 0 and `body.count("\n", 0, 0) + 1` (L289) is 1, the same value, at the cost of one file read |
+| 4 | L432 `shrink:` the `isinstance(file_path, str)` guard is covered by the `except Exception` at L448 → back to `if not file_path:` | **FP, rule 4** (conservative) — `file_path` is `tool_input.get("file_path")` (L430), hook input; *"a `yagni:` on a guard at a trust boundary (validation of hook input …) — carve-out, not bloat"*: the tag is `shrink:`, the object is the guard the rule protects, the reading `lens3/` applied to its finding 3. The value is right (a non-str `file_path` raises inside the `try` at L445-449 and `evaluate()` returns `None` either way); the carve-out is what it misses |
+| 5 | L443-444 `delete:` the `isinstance(anchor, str)` guard, same reasoning | **FP, rule 4** (conservative) — the exact object of `lens3/` finding 3; `anchor` is `tool_input.get("old_string")` (L442) |
+
+#### lens4 · `69aaf73` — `locale-stop-gate.py` (+652)
+
+`def selftest` is line 407 of `git show 69aaf73:claude/global/hooks/locale-stop-gate.py`; the
+flagged lines are docstring (the WHY blocks from file line 45, `KNOWN LIMIT` from 83, the wiring
+snippet 109-117), constants (150-155, 163, 174-189) and product functions (234-252, 307-325,
+333-342) — rule 1 applies to none.
+
+| # | finding | adjudication |
+|---|---|---|
+| 1 | L119-181, 224-229, 248-249 `shrink:` the diff-pin and never-silent-truncation rationales are argued three times (docstring WHY block, constant comment, KNOWN LIMIT) → once in the docstring, a one-line pointer at the constant | **valid, rule 3 checked** — the replacement keeps each argument in the docstring, so the `KNOWN LIMIT` list (L157-181; PR #141 Known gaps: *"Limites declarados no docstring"*) survives; what goes is the repeat in the comments above `GIT_PIN`/`DIFF_FLAGS` (L224-229) and `UNMEASURED_REASON` (L248-249) — prose, behaviour untouched. `lens3/` finding 1 (the bundle fragments, L99-114) was the other half of the same docstring |
+| 2 | L183-191 `delete:` the wiring JSON snippet duplicated in the README hooks section → one line pointing at the README | **valid** — PR #141: *"`README.md`, seção dos hooks: snippet completo (`UserPromptSubmit`, `PostToolUse`, `Stop` …)"* and Known gaps *"Snippet do bloco `Stop` no README"*; the docstring copy (file lines 109-117) is the duplicate; not a mutant, not a `KNOWN LIMIT` |
+| 3 | L234-237, 323-326 `yagni:` two mechanisms for one empty-tree id (`hash-object` plus the SHA-1 constant as fallback) → the constant, with a `# lean:` marker for SHA-256 | **valid** — `lens3/` finding 2; not among PR #141's eleven mutants (*"nested-output, blocks-twice, ignores-inform, silent-truncation, skips-untracked, no-ext-diff, no-prefix-pin, no-quotepath, vendored-after-scan, empty-not-skipped, silent-clean-truncation"*); the diff's own comment calls the constant *"only the fallback"*; no selftest case runs a SHA-256 repository (`grep -i sha256 diff.patch` → that comment only) |
+| 4 | L259-263, 387-395 `shrink:` second-Stop copies of both messages (`UNMEASURED_MESSAGE`, `remaining_message` with a hand-rolled formatter `f.render()` already produces) → one `SECOND_STOP` prefix on the block texts | **valid, rule 5 checked** — the diff's selftest asserts on the second Stop `set(active) == {"systemMessage"}`, `len(…) <= SYSTEM_MESSAGE_CAP` and `"servico_cliente.py" in …` (L664-666) plus the `stop_hook_active` case (L508); a prefix on the block text keeps all three (the block text renders the path through `f.render()`; `REASON_CAP` 2000 plus a prefix stays under `SYSTEM_MESSAGE_CAP` 4000). Rule 3: PR #141's row *"`stop_hook_active` → mensagem sem bloqueio \| 3/3 \| keys=systemMessage"* and mutants `blocks-twice`/`silent-clean-truncation` justify that the second Stop answers without blocking, not that its text is built by a second formatter — `lens3/` finding 5, same reading |
+| 5 | L307-308, 353, 408-419 `yagni:` `vendored=None` guard whose only caller passes a lambda, plus `environment` and `git_env` normalising `env` twice → required `vendored`, one normalisation | **valid** — `lens3/` findings 4 and 6 merged: `grep -n vendored diff.patch` → def, docstring, the guard (L353), one call (L419); `git_env` (L416) reaches `run_git` only; the selftest always hands a full `_fixture_env` |
+
+#### lens4 · `b1f527f` — `pre-commit-locale.sh` (+217)
+
+A hook with no selftest: rule 1 has nothing to bind to. The cell opened, as `lens3/` did, by
+noting that the patch carries only the hook (correct: the diff is restricted on purpose; not a
+finding) and closed by naming the header and the `rc` → `70` remap as deliberately not flagged.
+
+| # | finding | adjudication |
+|---|---|---|
+| 1 | L135, L199 `yagni:` `LOCALE_CHECK_SHA256=skip` escape and its header paragraph | **valid** — `lens3/` finding 3; the header documents it, no PR paragraph justifies a third bypass beside `LOCALE_CHECK` and `--no-verify` |
+| 2 | L202-208 `shrink:` four `log` calls for one digest mismatch → one line with expected/got | **valid** — message text only; PR #142's tables carry no digest-mismatch row, and the pin's contract (*"A tag changed without its hash fails loudly"*, L134) holds with one line; rule 5 has no covered input to bind to |
+| 3 | L219-220 `shrink:` the two-element loop with a `case /"${CHECK_REL}") continue` sentinel → `${AI_SKILLS_HOME:+"$AI_SKILLS_HOME/$CHECK_REL"}` | **valid, rule 5 checked** — `:+` omits the candidate when the variable is unset or empty, the two cases the sentinel skips (`${AI_SKILLS_HOME:-}` expands to the empty string for both, L219); same candidates, same order, otherwise |
+| 4 | L232 `delete:` the `command -v curl` pre-flight; the `if ! curl -fsSL` branch refuses anyway | **valid** — an availability check, not the validation of input rule 4 names; without it the download branch (L236-240) still returns 1 after `mkdir -p` and the shell's own *command not found*, so the refusal stands and only the message worsens; not a mutant row, not a `KNOWN LIMIT` (the header's *WHERE THE DETECTOR COMES FROM*, L112, gives the source order, not the pre-flight) |
+| 5 | L246 `delete:` `command -v git` in a hook git itself launched | **valid** — `lens3/` finding 5 |
+| 6 | L183-184, L254-256, L263 `yagni:` `EXTRA_ARGS=()`, an empty knob that is the sole reason for the `${arr[@]+"${arr[@]}"}` bash-3.2 expansion and its comment → a plain `english_arg=""`, unquoted | **FP, rule 3** (conservative) — L254-256 and L263 are the fix PR #142's review table records: *"\| bash 3.2 / 4.3 (`/bin/bash` de fábrica do macOS) \| `line 154: EXTRA_ARGS[@]: unbound variable`, **100 % dos commits recusados** \| inglês rc=0, `buscar_cliente` rc=1 (containers `bash:3.2`, `bash:4.3`) \|"*; *"a line justified by the pull request's own mutant table"*. The knob half (L183-184) is `lens3/` finding 2, valid there; the lens now reaches the fixed lines through it. Its replacement (no array at all) would make the fix moot, but the rule protects the line, not the design |
+| 7 | L275-277 `shrink:` drop the `grep -q advisory` and echo `$output` whenever non-empty on rc=0 | **FP, rule 5** — the detector prints `findings: N` after every completed scan (`check-identifier-locale.py` at `b1f527f`, line 899; measured on a clean two-line diff: `findings: 0`, rc 0), so `$output` is never empty on rc=0 and the replacement prints on every clean commit, where the hook is silent today; the clean commit is the *"5 silêncios"* of PR #142's simulation (*"hook, matriz completa em repo novo (`sim139_full.py`) … 18/18"*). The diff carries no test file, so the PR's simulation stands in for *"the diff's tests"*. `lens3/` finding 7 shrank the same lines the other way (drop `[ -n "$output" ]`, keep the grep) and was valid |
+
+## Review lens — the pre-widening measurement, `lens3/<sha>/out.json` (#146)
+
+Kept as measured: the same three diffs, the same flags, the skill as a project skill at the text
+**before** `6831e24` (the guard covered the existence of a self-check, not a case inside a
+selftest). Precision = valid / (valid + FP), the same five rules, adjudicated against
+`lens3/<sha>/diff.patch` and the PR body.
 
 | diff | file | findings | by tag | `net:` | valid | FP |
 |---|---|--:|---|--:|--:|--:|
@@ -300,14 +445,10 @@ FP e corrige o texto da guarda antes de publicar"*: two of the five FPs are exac
 (`49c44d0` findings 5 and 7, a `delete:` on a selftest case each). The lens text the three cells
 ran on guarded the *existence* of a self-check ("never flag it for deletion") but not a case
 *inside* a selftest. The guard sentence was widened after the measurement, in commit `6831e24`
-(2026-09-06): *"A single smoke test or `assert`-based self-check — and any single case inside a
-selftest, a mutant or an injected-defect check — is the minimum, not bloat, never flag it for
-deletion: the check is the product."* The lens was **not re-run** on the widened text (no paid
-cell after the measurement), so the precision reported here is the one measured on the
-pre-widening sentence, with findings 5 and 7 still counted as FP; whether the wider sentence
-removes them is an untested claim until the three cells run again.
+(2026-09-06), and item #174 re-ran the three cells on the widened text — the `lens4/` section
+above, where the two selftest-case FPs do not recur.
 
-### `49c44d0` — `locale-rite.py` (+408)
+#### lens3 · `49c44d0` — `locale-rite.py` (+408)
 
 | # | finding | adjudication |
 |---|---|---|
@@ -319,7 +460,7 @@ removes them is an untested claim until the three cells run again.
 | 6 | L485-…-639 `shrink:` the `print(OK/FAILED) + failed.append` block copy-pasted 11 times → one `record(name, ok)` | **valid** — `grep -c "failed.append" diff.patch` → 12 in the selftest; same output |
 | 7 | L641-653 `delete:` the subprocess run proving the default mode reads the environment | **FP, rule 1 and rule 3** — a selftest case; PR #140 body: *"variável de ambiente pelo caminho real"* in the selftest list |
 
-### `69aaf73` — `locale-stop-gate.py` (+652)
+#### lens3 · `69aaf73` — `locale-stop-gate.py` (+652)
 
 | # | finding | adjudication |
 |---|---|---|
@@ -331,7 +472,7 @@ removes them is an untested claim until the three cells run again.
 | 6 | L417 `shrink:` defensive `dict(env)`; nothing downstream mutates it | **valid** — `git_env` is passed to `uncommitted_diff` → `run_git` only (L285-357) |
 | 7 | L448, 456 `yagni:` `**extra` on `_fixture_env`, never passed | **valid** — one call, `_fixture_env(td)` (L501) |
 
-### `b1f527f` — `pre-commit-locale.sh` (+217)
+#### lens3 · `b1f527f` — `pre-commit-locale.sh` (+217)
 
 The lens opened with *"Patch contains only `skills/code-locale/references/pre-commit-locale.sh`; the
 `ci-step.md` and `SKILL.md` changes the commit message describes are not in it"* — correct: the diff
@@ -347,7 +488,7 @@ was restricted to the file the protocol names. Not a finding.
 | 6 | L266-270 `shrink:` `rc` rewritten to a fabricated `70` so the message can print it | **FP, rule 3** — PR #142's review table: *"detector que crasha (exit 1) \| mesmo rodapé falso \| 'the detector itself failed (exit 70, no findings: line)'"* — the line is the fix that table records |
 | 7 | L274-277 `shrink:` `[ -n "$output" ] && printf … \| grep -q advisory` → the grep alone | **valid, rule 5 checked** — `grep -q` on empty input is false; same behaviour |
 
-### Two earlier lens runs are invalid for this criterion (escapes)
+### Two earlier lens runs are invalid for this criterion (escapes) — `lens/`, `lens2/`
 
 - `lens/` (2026-09-05, $1.2499, 3 cells) and `lens2/` ($1.5184, 3 cells) ran with the same flags
   and **no project skill** (`ls <cell>/.claude/skills` → no such directory in all six): five of the
@@ -377,27 +518,38 @@ lens `out.json` and `model-check.json` (`total_cost_usd`) that could be read:
 | probes `211029`, `230124`, `002213`, `002551`, `002908`, `004737`, `013550` | 0.0457 + 0.0939 + 0.1908 + 0.1941 + 0.1951 + 0.1945 + 0.1928 = 1.1069 |
 | ad-hoc probes (no-git 0.0057, git-init 0.0164, project-skill `--tools ""` 0.0179, `--tools Skill` 0.0307) | 0.0707 |
 | lens (invalid) `lens/` 0.5059 + 0.4355 + 0.3084, `lens2/` 0.5442 + 0.5960 + 0.3782 | 2.7683 |
-| lens (valid) `lens3/` 0.5210 + 0.5823 + 0.3615 | 1.4648 |
+| lens (valid, pre-widening text) `lens3/` 0.5210 + 0.5823 + 0.3615 | 1.4648 |
 | `model-check.json` | 0.0612 |
-| **total** | **36.1888** |
+| block `trace-transfer` +2 reps `20260906-024406` (2) — #174 | 0.7916 |
+| lens (valid, the published skill) `lens4/` 0.5362 + 0.6960 + 0.3346 — #174 | 1.5668 |
+| **total** | **38.5472** |
 
 Item #145 part B (probe, pilot, baseline) is $10.0557 of it; item #146 $26.1331 (of which the
-INCONCLUSIVE re-read of `cache` and `csv-sum`, probe + 4 cells, $1.3047).
+INCONCLUSIVE re-read of `cache` and `csv-sum`, probe + 4 cells, $1.3047); item #174 $2.3584 (no
+probe: the `block` arms of `rules_sha af49cfa` were the ones probe `013550` had passed, and the
+lens cells are not matrix cells).
 
 ## What this does not cover
 
 - One model id, one CLI version (`2.1.261`, pinned after the auto-update), one machine, two days;
   `--report` proves the id, not the weights (KNOWN LIMIT 6).
 - The INCONCLUSIVE clause is closed on the `skill` arm (its +2 repetitions ran on every task it
-  fired on) and open on `trace-transfer` in the `block` arm, which was not re-run: the block's
-  −28.6 % stays INCONCLUSIVE. After the widening `cache` and `csv-sum` still spread more than 50 %
-  of their mean (observation 7); the protocol has no rule about that, and n=5 on two tasks is
-  still a small sample — the published Δ is a group mean over four tasks, not a per-task claim.
+  fired on) and, since #174, its dispersion half is closed on the `block` arm too
+  (`trace-transfer` at n=5); the block's −28.6 % stays INCONCLUSIVE by the Δ half, whose re-read
+  would cost +2 repetitions on each over-build task and was not bought for an arm that is not the
+  deliverable. After the widening `cache`, `csv-sum` and the block's `trace-transfer` still spread
+  more than 50 % of their mean (observation 7); the protocol has no rule about that, and n=5 on a
+  task is still a small sample — the published Δ is a group mean over four tasks, not a per-task
+  claim.
 - `react-use-orders` is structural; its `safe` is the reuse axis and never feeds the gate.
 - No cell ran with the maintainer's hooks or plugins (KNOWN LIMIT 3); `~/.claude/skills` is not
   loaded in this mode (KNOWN LIMIT 4) — the skill reached the cells as a project skill only.
-- The lens ran once per diff (n=1) on three diffs of one author; the skill's load in those cells is
-  inferred from the absence of the disclaimer, not read from an `init` event.
+- The lens ran once per diff (n=1) on three diffs of one author, twice — on the pre-widening text
+  (`lens3/`) and on the published one (`lens4/`); in both the skill's load is inferred from the
+  absence of the disclaimer in 3/3 results and from the layout the probes verified, not read from
+  an `init` event (`--output-format json` carries none). Precision held at 0.76 with 17 findings
+  against 21: one run per text, one author, no second reviewer — the number says the guard removed
+  the FP class it names, not that the lens is 76 % right in general.
 - `added_lines` counts an inline `__main__` block as product code (observation 2); the metric is
   the one the protocol froze, and it is reported as frozen.
 - No interactive session was run: the headless cell **is** the real entry point the protocol
