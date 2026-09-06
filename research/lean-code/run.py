@@ -106,7 +106,11 @@ KNOWN LIMIT — what this harness does not do.
      skillOverrides semantics read from the binary (values on/name-only/user-invocable-only/off).
   4b. CLAUDE_CONFIG_DIR redirection (legacy modes) was likewise probed only on 2.1.261.
   5. Detectors read what the agent wrote, not what it meant: a test file that asserts nothing
-     still counts as a check; a dependency imported but never used still counts as new.
+     still counts as a check; a dependency imported but never used still counts as new. Since the
+     2026-09-05 baseline, `new_dependency` and `class_added` read production files only — an
+     `import pytest` or a `unittest.TestCase` subclass in the test file the prompt invited is
+     recorded as `test_dependency` / `test_class_added` and never flagged (8/27 and 3/27 of the
+     first baseline classification were exactly that).
   6. `--report` proves that two stamps share a CLI version and a model id, not that the model
      behind an alias (`opus[1m]`) was the same weights on both days.
 """
@@ -485,6 +489,7 @@ INSTALL_NOISE = {"npm", "pnpm", "yarn", "npx", "pip", "pip3", "uv", "python", "p
                  "add", "ci", "i", "test", "build", "dev", "start"}
 
 _STDLIB = set(getattr(sys, "stdlib_module_names", ()))
+CLASS_DEF = re.compile(r"^\s*(?:export\s+)?class\s+\w", re.M)
 
 
 def detect_output_contract(result_text: str) -> bool:
@@ -505,14 +510,15 @@ PY_SUFFIXES = (".py",)
 TS_SUFFIXES = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs")
 
 
-def detect_new_dependency(added_by_file: dict[str, str], patch: str, result_text: str,
-                          declared: set[str], local: set[str]) -> list[str]:
-    """Packages the diff pulls in that the seed did not declare. Import regexes run per language,
-    on the added lines of files with that language's suffix, so `import useSWR from 'swr'` is read
-    as TypeScript and never as a Python `import useSWR`."""
+def _undeclared_imports(added_by_file: dict[str, str], declared: set[str], local: set[str],
+                        test_files: bool) -> set[str]:
+    """Undeclared packages imported by the added lines of production files (test_files=False) or
+    of test files (test_files=True), per language suffix."""
     found: set[str] = set()
     allowed_py = _STDLIB | {d for d in declared} | {m.lower() for m in local} | {"app", "src"}
     for path, text in (added_by_file or {}).items():
+        if is_test_path(path) != test_files:
+            continue
         if path.endswith(PY_SUFFIXES):
             for m in PY_IMPORT.finditer(text):
                 name = m.group(1)
@@ -524,6 +530,24 @@ def detect_new_dependency(added_by_file: dict[str, str], patch: str, result_text
                     name = m.group(1)
                     if name not in declared and name not in ("react", "react-dom"):
                         found.add(name)
+    return found
+
+
+def detect_test_dependency(added_by_file: dict[str, str], declared: set[str], local: set[str]) -> list[str]:
+    """Undeclared packages imported only by the test files the agent wrote (`import pytest` in a
+    seed with no requirements.txt). Recorded, never a flag: the cell prompt invites tests, and a
+    cell that picks `unittest` over `pytest` did not build less product."""
+    return sorted(_undeclared_imports(added_by_file, declared, local, test_files=True))
+
+
+def detect_new_dependency(added_by_file: dict[str, str], patch: str, result_text: str,
+                          declared: set[str], local: set[str]) -> list[str]:
+    """Packages the diff pulls in that the seed did not declare. Import regexes run per language,
+    on the added lines of files with that language's suffix, so `import useSWR from 'swr'` is read
+    as TypeScript and never as a Python `import useSWR`. Imports inside test files are not read
+    here (see detect_test_dependency); a manifest line or an install command still counts
+    wherever it appears."""
+    found = _undeclared_imports(added_by_file, declared, local, test_files=False)
     # a dependency line added to package.json / requirements.txt
     current = None
     for line in (patch or "").splitlines():
@@ -574,14 +598,19 @@ def run_detectors(task_id: str, stats: dict, result_text: str, repo: Path | None
     declared = declared if declared is not None else (declared_dependencies(repo) if repo else set())
     local = local if local is not None else (local_modules(repo) if repo else set())
     added_text = stats.get("added_text", "")
+    by_file = stats.get("added_by_file", {}) or {}
+    production_text = "\n".join(t for path, t in by_file.items() if not is_test_path(path))
+    test_text = "\n".join(t for path, t in by_file.items() if is_test_path(path))
     det = {
         "output_contract": detect_output_contract(result_text),
         "one_check": detect_one_check(added_text, stats.get("test_added_lines", 0)),
-        "new_dependency": detect_new_dependency(stats.get("added_by_file", {}), stats.get("patch", ""),
-                                               result_text, declared, local),
+        "new_dependency": detect_new_dependency(by_file, stats.get("patch", ""), result_text, declared, local),
+        "test_dependency": detect_test_dependency(by_file, declared, local),
         "prose_gt_code": detect_prose_gt_code(result_text, stats.get("added_lines", 0)),
         "prose_lines": prose_lines(result_text),
-        "class_added": re.search(r"^\s*(?:export\s+)?class\s+\w", added_text, re.M) is not None,
+        # a class in the product, not a unittest.TestCase in the test file the prompt invited
+        "class_added": CLASS_DEF.search(production_text) is not None,
+        "test_class_added": CLASS_DEF.search(test_text) is not None,
     }
     det.update(detect_lean_marker(added_text))
     return det
@@ -1599,6 +1628,29 @@ def selftest_detectors(st: Selftest) -> None:
                  "pip install pytest to run the tests."):
         d6 = detect_new_dependency({}, "", text, {"pytest", "fastapi"}, set())
         st.case("detectors", f"new_dependency silent on {text.splitlines()[0][:34]!r}", d6 == [], str(d6))
+    # the 2026-09-05 baseline: `import pytest` in the test file, stdlib in the product (8/27 cells)
+    seed_like = {"db.py": "import sqlite3\n", "test_db.py": "import sqlite3\n\nimport pytest\n\nfrom db import get_user\n"}
+    d7 = detect_new_dependency(seed_like, "", "", set(), {"db"})
+    t7 = detect_test_dependency(seed_like, set(), {"db"})
+    st.case("detectors", "new_dependency silent on `import pytest` in a test file", d7 == [], str(d7))
+    st.case("detectors", "test_dependency records the pytest import instead", t7 == ["pytest"], str(t7))
+    d8 = detect_new_dependency({"db.py": "import requests\n", "test_db.py": "import pytest\n"}, "", "", set(), {"db"})
+    st.case("detectors", "new_dependency still flags a production import next to a test import", d8 == ["requests"], str(d8))
+    d9 = detect_new_dependency({"src/hooks/useOrders.test.ts": "import { it } from 'vitest';\n"}, "", "", {"zod"}, set())
+    st.case("detectors", "new_dependency silent on a vitest import in a .test.ts", d9 == [], str(d9))
+    # the class heuristic: a unittest.TestCase in the test file is not a class in the product (3/27 cells)
+    only_test_class = {"added_text": "class GetUserTest(unittest.TestCase):\n    pass\n", "added_lines": 7,
+                       "added_by_file": {"db.py": "    cur = conn.execute(q, (username,))\n",
+                                         "test_db.py": "class GetUserTest(unittest.TestCase):\n    pass\n"}}
+    dt = run_detectors("sql-user", only_test_class, "", None, set(), {"db"})
+    st.case("detectors", "class_added silent when the only class is in the test file",
+            not dt["class_added"] and dt["test_class_added"], str({k: dt[k] for k in ("class_added", "test_class_added")}))
+    prod_class = {"added_text": "class InsufficientFunds(Exception):\n    pass\n", "added_lines": 3,
+                  "added_by_file": {"bank.py": "class InsufficientFunds(Exception):\n    pass\n",
+                                    "test_bank.py": "def test_x():\n    assert True\n"}}
+    dp = run_detectors("trace-transfer", prod_class, "", None, set(), {"bank"})
+    st.case("detectors", "class_added fires on a class in the product file",
+            dp["class_added"] and not dp["test_class_added"], str({k: dp[k] for k in ("class_added", "test_class_added")}))
 
     long_prose = "\n".join(f"Explanation line {i}." for i in range(12)) + "\n```python\nx = 1\n```\n"
     st.case("detectors", "prose_gt_code fires: 12 prose lines vs 4 added", detect_prose_gt_code(long_prose, 4))
