@@ -142,9 +142,21 @@
       (árvore materializada por `git archive`, não a working tree). `--prepare-arms --arms-root research/lean-code/_arms`
       -> `refusing: --arms-root research/lean-code/_arms resolves inside the repository`, rc 1.
 
-- [ ] A.2 `--probe-isolation` (parte B, paga): sentinela 3/3, eventos de hook 0 (nenhum nomeando
+- [x] A.2 `--probe-isolation` (parte B, paga): sentinela 3/3, eventos de hook 0 (nenhum nomeando
       `locale-rite`, `backlog-rite`, `verify-rite`, `rtk`, `caveman`, `memory-autopush`), mtime de
       `~/.claude/.caveman-active` inalterado 3/3; saída registrada em `results/`
+
+      Rodada pelo mantenedor na sessão principal em 2026-09-05 (`run.py --probe-isolation --model
+      claude-haiku-4-5-20251001`, arms `settings-sources`, `rules_sha 6efed496…`); linha observada:
+      `baseline sentinel 3/3 hook-events 0 (maintainer 0) caveman-marker-untouched 3/3 $0.0457 -> PASS`.
+      `results/20260905-211029-probe.json`: `"sentinel": "3/3"`, `"hook_events_total": 0`,
+      `"maintainer_hook_events": 0`, `"hook_names": []` nas 3 chamadas, `"caveman_marker_untouched": "3/3"`,
+      `"caveman_active_absent": "3/3"`, `"hooks_reported": "0/3"`, `"config_dir_wrote": []`,
+      `"passed": true`, `"cost_usd": 0.0457`; vocabulário de eventos `assistant`, `rate_limit_event`,
+      `result/success`, `system/init`, `system/thinking_tokens` (nenhum `system/hook_*`); `result_keys`
+      com 21 chaves (`total_cost_usd`, `num_turns`, `duration_ms`, `modelUsage`, `usage`, `subtype`, […]).
+      `skill_listed 0/3` é o esperado com `--tools ""` (KNOWN LIMIT 4). `grep -c "/home/\|session_id"`
+      no arquivo -> `0`.
 
 - [x] A.3 Modo `settings-sources` (padrão): arm sem cópia de credencial nem de `CLAUDE.md`,
       `project-settings.json` filtrado com `skillOverrides.lean-code` off/on, workspace com
@@ -244,9 +256,38 @@
 
 ## 5. Baseline (parte B)
 
-- [ ] B.1 Piloto Haiku n=1 nas 9 tarefas (nunca reportado como número), campos do JSON registrados
-- [ ] B.2 Baseline no modelo diário, n=3, 9 tarefas, `--budget-usd 25`;
+- [x] B.1 Piloto Haiku n=1 nas 9 tarefas (nunca reportado como número), campos do JSON registrados
+
+      Stamp `20260905-211056` no scratch (não exportado), `--model claude-haiku-4-5-20251001`
+      (`_command.txt`), `results.json`: 9 células, `killed 0`, `is_error 0`, `returncode 0` em 9/9,
+      `correct` 9/9, `safe` 7/9 (`trace-transfer`: `patched only transfer; withdraw still overdraws`;
+      `fivem-shop-buy`: `qty=2.5 accepted (p1 bread=2.5)`), `spent_usd 0.5571`, `model_usage_models`
+      `['claude-haiku-4-5-20251001']` em 9/9. `json_keys` observadas: `api_error_status`,
+      `duration_api_ms`, `duration_ms`, `is_error`, `modelUsage`, `num_turns`, `permission_denials`,
+      `stop_reason`, `subtype`, `total_cost_usd`, `type`, `usage`, […] (21), `json_keys_omitted 3`.
+      Cada célula com `_claude.json`, `_command.txt`, `_diff.patch`, `_result.txt`, `repo/`. Serviu para
+      o que o protocolo pede (campos e arquivos); o `safe 7/9` de outro modelo em n=1 não é número.
+
+- [x] B.2 Baseline no modelo diário, n=3, 9 tarefas, `--budget-usd 25`;
       `results/<stamp>-baseline-defects.md` com contagens por flag, média/min/max, `n`, modelo e CLI
+
+      Stamp `20260905-211512`, rodado pelo mantenedor: `--model opus[1m]` (chaves de `modelUsage` em
+      27/27 células: `claude-opus-5[1m]` $9.4251 e `claude-haiku-4-5-20251001` $0.0278 = 0,29 %;
+      a chamada de verificação do modelo, $0.0612, mostra as mesmas duas com `canonicalModel`
+      `claude-opus-5` e `claude-haiku-4-5`), `claude_version 2.1.261 (Claude Code)`, `isolation
+      settings-sources`, `rules_sha 6efed496a66a215903e31bce737ffa5172a55424`, `runs 3`, 27 células,
+      `spent_usd 9.4529`, `stopped: no`, `killed 0`, `is_error 0`, `returncode 0` 27/27, `wall_s`
+      máximo 159.9 (limite 300). `--classify` (depois da correção dos detectores, ver S.3) ->
+      `wrote …/20260905-211512-baseline-defects.md`; tabela por tarefa (`n 3`, `correct 1.0`, `safe 1.0`
+      em todas): `cache 12.667 (10-17)`, `csv-sum 102 (81-127)`, `fastapi-create-item 16 (16-16)`,
+      `fivem-shop-buy 40.333 (35-44)`, `react-use-orders (STRUCTURAL) 22 (21-23)`, `reuse-slug 9 (9-9)`,
+      `safe-path 67.667 (59-82)`, `sql-user 7.667 (7-9)`, `trace-transfer 27 (26-28)`; flags:
+      `class_for_oneliner 6/27`, `no_check 3/27`, `prose_gt_code 1/27`, os demais `0/27`.
+      Copiado para `results/20260905-211512-baseline-defects.md` com as seções lidas à mão (flag
+      sanity, classificação dos defeitos com as linhas do diff, over-build contra a referência do
+      upstream: csv-sum 73 LOC de código contra 10, safe-path 44 contra 7, trace-transfer 27 linhas
+      contra um guard de 2). `--report runs/20260905-211512 --export results/20260905-211512-export.json`
+      -> `wrote …/20260905-211512-export.json`; `cells 27`, `spent_usd 9.4529`, 9 linhas de `summary`.
 
 ## 6. Simulation & Field Proof (MANDATORY)
 
@@ -264,6 +305,14 @@
       `output_contract 9/18`) sobre um stamp **sintético** (18 células = 9 tarefas × referência
       boa/ruim com `_claude.json` falso — nenhuma célula paga rodou); só a coluna `reason` mudou
       (`empty name answered 201 …`, `forged playerId: p1=0 p2=2; …`).
+      Parte B (2026-09-05, offline, depois da correção dos detectores):
+      `LEAN_SCORER_VENV=<scratch>/lean-dev/venv python3 research/lean-code/run.py --selftest` ->
+      `selftest: 146/146 OK  (tasks 1/1, loc 34/34, scorers 25/25, detectors 29/29, arms 15/15, isolation 25/25, export 3/3, kill 1/1, refusals 9/9, metrics 4/4)`,
+      `selftest wall time: 2.0s (target < 15s)`; `--rescore runs/20260905-211512` -> `rescored 27 cells`
+      (tabela final `trace-transfer baseline 3 1.0 1.0 27 26 28 $0.2460 5`); `--rescore runs/20260905-211056`
+      -> `rescored 9 cells`; `--classify` nos dois stamps -> `wrote …/<stamp>-baseline-defects.md`;
+      `--report runs/20260905-211512 --export results/20260905-211512-export.json` -> `wrote …`;
+      greps de higiene no export: `session_id 0`, `/home/diegops 0`, `"result" 0`, uuid 0.
 
 - [x] S.2 Matriz de casos como contagens: LOC 22/22 e 11/11, scorers 18/18, detectores, preflight,
       stripper, tree-kill, recusas
@@ -285,6 +334,16 @@
       preflight 3/3 arms limpos; `--report` com mesma versão e modelo 1/1; export sem
       `session id`/`result`/uuid/HOME 4/4 greps a zero.
       Escape conhecido que ficou onde devia: 3/3 exemplos de remoção de dependência com `With >= Without`.
+      Parte B: sonda sentinela 3/3, hooks 0/3 chamadas, marcador 3/3; piloto células 9/9 concluídas,
+      scorers rodaram 9/9 (`correct` 9/9, `safe` 7/9 — shake-out, não número); baseline células 27/27
+      concluídas, `correct` 27/27, `safe` 27/27, timeouts 0, `is_error` 0; flags por tarefa depois da
+      sanity: `class_for_oneliner` safe-path 3, trace-transfer 3; `no_check` react-use-orders 3;
+      `prose_gt_code` sql-user 1; `new_dependency`, `guard_dropped`, `patched_caller_only`,
+      `reimplemented_existing` 0 em todas; `output_contract`/`lean_marker` 0 (baseline, esperado).
+      Sinais informativos novos: `test_dependency` (`pytest`) 8/27, `test_class_added` 7/27.
+      Selftest novo: detectores 29/29 (6 casos a mais: `import pytest` em teste silencioso,
+      `test_dependency` registra, `import requests` no produto ainda acusa, `vitest` em `.test.ts`
+      silencioso, classe só no teste não conta, classe no produto conta).
 
 - [x] S.3 O que escapou ou se comportou diferente do esperado, nomeado
 
@@ -312,6 +371,32 @@
       E o pedido dizia `skillOverrides[<skill>] = false/true`; o binário compara strings
       (`on`/`name-only`/`user-invocable-only`/`off`), então o harness grava `"off"`/`"on"` e o
       preflight exige exatamente esses valores. A sonda paga e o piloto ficam para a parte B.
+      Parte B (2026-09-05) — o que a flag sanity pegou antes de publicar número:
+      (6) `new_dependency` 8/27 -> 0/27 na baseline e 1/9 -> 0/9 no piloto. Todos os 8 eram
+      `import pytest` no `test_*.py` novo (sql-user 0 e 2, cache 2, csv-sum 0-2, safe-path 0 e 1); o
+      produto só importava stdlib (`sqlite3`, `functools`, `csv`, `re`, `decimal`, `logging`, `ntpath`,
+      `os`, `posixpath`) e as células que escolheram `unittest` (sql-user 1, cache 1, safe-path 2) ficaram
+      em silêncio — o detector media o framework de teste, não o produto. Não era stdlib mal
+      classificada: `sqlite3` está em `sys.stdlib_module_names`. (7) `class_for_oneliner` 9/27 -> 6/27
+      e 1/9 -> 0/9: cache 1, reuse-slug 2 e sql-user 1 só adicionam `class …Test(unittest.TestCase)`
+      no arquivo de teste (o diff de produto não tem `class`); os 6 que ficaram são reais —
+      `class InsufficientFunds(Exception):` em trace-transfer 3/3 e `class UnsafeFilenameError(ValueError):`
+      / `class UnsafeUploadPath(ValueError):` em safe-path 3/3 — e estão citados em
+      `results/20260905-211512-baseline-defects.md` como o alvo do item #146. Correção: os dois
+      detectores leem só arquivos de produto (`is_test_path`), o lado dos testes fica em
+      `test_dependency`/`test_class_added`; emenda datada em `protocol.md` sob a tabela de flags;
+      `added_lines`, `correct` e `safe` não mudaram no `--rescore`. (8) `no_check` 3/3 em
+      react-use-orders ficou: o `package.json` da semente não tem test runner (`dev`/`build`/`preview`)
+      e acrescentar `vitest` dispararia `new_dependency`; é a tarefa estrutural e a flag diz o que diz.
+      (9) `prose_gt_code` em sql-user 2 (10 linhas de prosa contra `added_lines 7`) ficou: as 57 linhas
+      de `test_db.py` não entram no denominador por desenho. (10) `modelUsage` de cada célula traz
+      `claude-haiku-4-5-20251001` além de `claude-opus-5[1m]` (0,29 % do gasto); o harness não sabe para
+      que o CLI usou o Haiku — registrado, não explicado. (11) `_diff.patch` das células cujo scorer
+      importa o módulo lista `__pycache__/*.pyc` como binário novo (o scorer roda antes do `git add -A`
+      do `git_diff_stats`); `.pyc` não está em `CODE_EXT`, contadores e detectores ignoram, o patch só
+      fica mais ruidoso. (12) O piloto deu `safe 0` em trace-transfer e fivem-shop-buy no Haiku — o
+      scorer pegou exatamente o eixo declarado (`withdraw still overdraws`, `qty=2.5 accepted`); fica
+      como prova de que os scorers mordem em saída real, nunca como número.
 
 ## 7. Quality Gates (MANDATORY)
 
@@ -321,6 +406,8 @@
       `gates.sh` -> `PASS validate-skills :: skills checked: 35   findings: 0`, `PASS frontmatter`;
       `GITHUB_EVENT_PATH=event145.json python3 scripts/validate-skill-version.py` ->
       `skill-version gate: 0 findings (base origin/master, 0 skill(s) changed, 0 with content changes)`.
+      Parte B não toca `skills/`: mesma saída em 2026-09-05 (`0 skill(s) changed`); `gates.sh` ->
+      `PASS validate-skills :: skills checked: 35   findings: 0`, `PASS frontmatter`.
 
 - [x] Q.2 Todo conteúdo de `research/lean-code/` em inglês onde é máquina: identificadores, nomes de
       arquivo, chaves de JSON, flags; prosa em português onde é prosa
@@ -330,6 +417,11 @@
       em português; `deps.py` foi renomeado para `dependencies.py` por ser abreviação, não inglês.
       A prosa dos `.md` do diretório está em inglês, como `research/svg-animation/`; os prompts das
       tarefas em inglês porque são o que o agente lê.
+      Parte B: identificadores novos em `run.py` — `_undeclared_imports`, `detect_test_dependency`,
+      `test_dependency`, `test_class_added`, `production_text`, `CLASS_DEF`; `python3
+      skills/code-locale/references/check-identifier-locale.py research/lean-code/run.py
+      research/lean-code/results.md` -> `findings: 0`, `en-unknown: 31 segment(s) … advisory`
+      (nomes de biblioteca e siglas), `skipped (no language profile): 1 file(s)` (o `.md`, revisto à mão).
 
 - [x] Q.3 Nenhuma doutrina restatada: o harness detecta o marcador e o contrato de saída, não os
       redige (design.md, Canonical Home)
@@ -337,6 +429,10 @@
       `grep -c "lean:" research/lean-code/protocol.md` -> `1` (a única linha com o marcador nomeia o formato
       detectado, `lean: <ceiling> -> <trigger>`); nenhuma escada, regra ou carve-out do ponytail
       transcrito fora de `vendor/`.
+      Parte B: `grep -c "lean:" research/lean-code/protocol.md` -> `1` ainda (a emenda não acrescenta
+      marcador). A classificação em `results/…-baseline-defects.md` nomeia os degraus da lente do
+      próprio protocolo (`yagni:`, `shrink:`, regra 4 de falso positivo) sobre linhas citadas do diff;
+      não redige a doutrina — isso é o item #146.
 
 - [x] Q.4 `python3 scripts/scan-secrets.py` verde; `git ls-files research/lean-code | xargs grep -l
       session_id` vazio
@@ -344,28 +440,46 @@
       `python3 scripts/scan-secrets.py` -> `scanned 765 files (working tree)`, `no credentials found`, rc 0;
       `/usr/bin/git ls-files research/lean-code | xargs grep -l session_id` -> vazio (xargs rc 123 = nenhum match
       em 71 arquivos rastreados).
+      Parte B (com os 4 arquivos novos: probe, defects, export, `results.md`): `scan-secrets.py` ->
+      `scanned 769 files (working tree)`, `no credentials found`; `git ls-files research/lean-code |
+      xargs grep -l session_id` -> vazio (xargs rc 123, 75 arquivos rastreados); `grep -rl
+      "session_id\|/home/diegops\|c972f399" research/lean-code/results research/lean-code/results.md
+      research/lean-code/README.md research/lean-code/protocol.md` -> vazio (rc 1).
 
 - [x] Q.5 `bash generate.sh` sem diff; `python3 scripts/validate-repo-hygiene.py` verde
 
       `gates.sh` -> `PASS generate :: Generated 10 category plugins in plugins/`, `PASS tree-clean-after-generate`,
       `PASS hygiene :: repo hygiene: 0 findings`, `PASS hygiene-selftest :: 4/4 defect classes detected`,
       `PASS plugin-validate :: ✔ Validation passed`, `PASS smoke :: smoke: 17/17 cases passed`, `dirty-after: 0`.
+      Parte B, árvore commitada em 2026-09-05: `gates.sh` -> 20 linhas `PASS` (`PASS generate`,
+      `PASS tree-clean-after-generate`, `PASS hygiene :: repo hygiene: 0 findings`, `PASS rite :: rite
+      gate OK`, `PASS openspec-strict add-lean-code-research :: Change 'add-lean-code-research' is
+      valid`, […]) e `dirty-after: 0`.
 
 ## 8. Validation & Closure (MANDATORY)
 
 - [x] V.1 `openspec validate add-lean-code-research --strict` green
 
       `openspec validate add-lean-code-research --strict` -> `Change 'add-lean-code-research' is valid`.
+      Repetido em 2026-09-05 depois da parte B: `Change 'add-lean-code-research' is valid`.
 
 - [x] V.2 `bash scripts/validate-rite.sh` -> `rite gate OK`; `GITHUB_EVENT_PATH=... python3
       scripts/validate-skill-version.py` -> 0 skills changed
 
       `GITHUB_EVENT_PATH=event145.json bash scripts/validate-rite.sh` -> `rite gate OK`,
       `spec-rite gate: 0 findings`; `validate-skill-version.py` -> `0 skill(s) changed`.
+      Repetido em 2026-09-05: `validate-rite.sh` -> `Totals: 3 passed, 0 failed (3 items)`, `rite gate OK`;
+      `validate-skill-version.py` -> `skill-version gate: 0 findings (base origin/master, 0 skill(s)
+      changed, 0 with content changes)`.
 
 - [x] V.3 `research/lean-code/README.md` com a ordem de leitura e a linha de status
 
       `grep -n "## Read in this order\|## Status" research/lean-code/README.md` -> ambas as seções;
       a linha de status diz **No paid cell has run** e nomeia CLI `2.1.261`, Lua `5.5.0`, node `v26.0.0`.
+      Parte B: o mesmo `grep` -> `13:## Read in this order`, `69:## Status`; a tabela ganhou a linha
+      `results.md` e a de status passou a dizer que a parte B rodou em 2026-09-05 (`opus[1m]` ->
+      `claude-opus-5[1m]`, Claude Code `2.1.261`, n=3 × 9 = 27 células, $9.4529, `correct` 27/27,
+      `safe` 27/27) e que **the skill arm has not run** (item #146). `grep -n "not yet measured"
+      research/lean-code/results.md` -> linhas 13 e 86.
 
 - [ ] V.4 `openspec archive add-lean-code-research --yes` after all groups above are `[x]`
