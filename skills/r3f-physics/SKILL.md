@@ -20,6 +20,7 @@ compatibility: Works in Claude Code, Claude.ai, and any environment with filesys
 > `react@19.2`. Code blocks tagged `tsx` are complete modules and typecheck against that stack;
 > blocks marked `// excerpt` are illustrative fragments. R3F v10 (alpha) renames `state.gl` to
 > `state.renderer` and moves to `THREE.Timer` — check the migration guide before adopting it.
+> Probed on 2026-08-06 (change `harden-r3f-skills`, commit `a18758c`).
 
 ## Topics
 

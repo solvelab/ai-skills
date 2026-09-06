@@ -22,7 +22,8 @@ Skill for repeating the cluster-wide resources tuning routine across different K
 
 > **Verified against**: `kubectl v1.36.1` · `git 2.47.3`. Every flag the workflow uses — `-l`,
 > `-A`, `--field-selector`, `-o jsonpath` — was probed against that client. The clone URL template
-> assumes Bitbucket over SSH; adapt the host for any other forge.
+> assumes Bitbucket over SSH; adapt the host for any other forge. Probed on 2026-08-06 (change
+> `onboard-k8s-tune-resources`, commit `d1e22a4`).
 >
 > **This skill pushes to many repositories.** The Step 2 loop runs with `DRY_RUN=1` by default and
 > never pushes until you set it to `0`. Read the dry-run report first — see *Safety notes*.
