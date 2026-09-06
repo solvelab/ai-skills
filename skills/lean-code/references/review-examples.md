@@ -6,8 +6,8 @@ what replaces it. The ❌ line is the review comment that costs a paragraph and 
 
 ## The lens, one line per tag
 
-❌ "This EmailValidator class might be more complex than necessary, have you considered whether all
-these validation rules are needed at this stage?"
+❌ "This EmailValidator class might be more complex than necessary, have you
+considered whether all these validation rules are needed at this stage?"
 
 ✅ `L12-38: stdlib: 27-line validator class. "@" in email, 1 line, real validation is the confirmation mail.`
 
