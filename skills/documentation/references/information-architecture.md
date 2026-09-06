@@ -13,6 +13,8 @@ with `references/check-doc-structure.py`. Findings were confirmed by hand, one a
 sample is one repository with one writing style; that is a limit of the number, recorded rather than
 hidden.
 
+## Index
+
 | Rule | What it says | Verdict |
 |---|---|---|
 | [R1](#r1--a-navigated-document-carries-an-index) | index above 100 lines, covering every `##` | with validator |
@@ -22,6 +24,8 @@ hidden.
 | [R5](#r5--reference-describes-the-why-is-a-link) | reference describes; the why is a link | review-only |
 | [R6](#r6--a--belongs-to-the--above-it) | a `###` belongs to the `##` above it | review-only |
 | [R7](#r7--an-alert-uses-a-type-github-renders) | alerts use the five GitHub types | with validator |
+
+Then: [Running the check](#running-the-check) · [See also](#see-also).
 
 ## R1 — a navigated document carries an index
 
@@ -69,7 +73,7 @@ missing a link to itself.
 
 No cell in a pipe table carries more than **120 characters**.
 
-Source: Google's Markdown style guide names the failure directly — a bad table shows "poor column
+Source: Google's [Markdown style guide](https://google.github.io/styleguide/docguide/style.html) names the failure directly — a bad table shows "poor column
 distribution, unbalanced dimensions, or rambling prose within cells", and "avoid using tables when
 your data could easily be presented in a list".
 
@@ -95,13 +99,35 @@ gate rather than a report.
 Up to **25 rows** of uniform data stays a table. Above that, or with prose in any cell, it becomes an
 index plus **one section per option**, so every option gets an anchor.
 
-Source: the same Google rule, from the other direction — a table is right for uniform data scanned
+Source: the same Google [Markdown style guide](https://google.github.io/styleguide/docguide/style.html) rule, from the other direction — a table is right for uniform data scanned
 quickly. The section form at scale is what
 [Grafana's configuration reference](https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/)
 does: `###` per section, `####` per option, each with its own type, default and description.
 
 A heading is an anchor. `docs/REFERENCE.md#leader_term` can be pasted into an issue, a runbook or an
 alert message; a table row cannot, and it never appears in the GitHub Outline either.
+
+```markdown
+<!-- defect: 101 options, every one of them unreachable by link -->
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `DEADMAN_URL` | — | **obrigatória**. Endpoint do dead man's switch |
+| `FERDINAND_LABELS` | — | **obrigatória**. `chave=valor,...` |
+<!-- … 99 more rows, no heading anywhere -->
+```
+
+```markdown
+<!-- correct: the table scans, the section is the address -->
+| Variável | Padrão | Em uma linha |
+|---|---|---|
+| [`DEADMAN_URL`](#deadman_url) | — | dead man's switch |
+
+#### `DEADMAN_URL`
+
+**Tipo** URL · **Padrão** — · **Recarrega** não
+
+Endpoint do dead man's switch.
+```
 
 The count is per table **and** per document. A per-table threshold alone is evaded by splitting one
 catalog across many small tables, which leaves every option unanchored just the same.
@@ -123,6 +149,20 @@ the shape of a default the same way: state the behaviour per value, then the def
 An anatomy whose fields move around is six documents wearing one heading level.
 
 ```markdown
+<!-- defect: three entries, three shapes — the reader re-learns the page at every heading -->
+#### `HEALTH_PORT`
+Porta de `/healthz`. Padrão `8080`.
+
+#### `LEADER_TERM`
+**Padrão** `30m` · **Tipo** duração
+Mandato do líder.
+
+#### `STATE_DEBOUNCE`
+Coalescência das escritas. Aceita duração; o padrão é `1s`.
+```
+
+```markdown
+<!-- correct: the same fields, in the same order, every time -->
 #### `DEADMAN_URL`
 
 **Tipo** URL · **Padrão** — · **Recarrega** não
@@ -146,7 +186,7 @@ because adopting them is the work this rule unblocks. The check is proved by its
 A reference page describes. The reason a default is what it is belongs to an explanation page, and
 the reference links to it.
 
-Source: Diátaxis — reference is "austere and uncompromising", its only purpose is "to describe, as
+Source: [Diátaxis on reference](https://diataxis.fr/reference/) — reference is "austere and uncompromising", its only purpose is "to describe, as
 succinctly as possible, and in an orderly way", and it links out to how-to and explanation rather
 than absorbing them. The practical argument is rot speed: a page mixing the two goes stale at the
 speed of its faster half.
@@ -179,7 +219,7 @@ A heading is a tree, not a font size. Every `###` is a child of the `##` above i
 way — by the GitHub Outline, by anyone scanning the sidebar, and by every agent that parses the
 document.
 
-Source: Google's Markdown style guide requires "unique and fully descriptive names for each
+Source: Google's [Markdown style guide](https://google.github.io/styleguide/docguide/style.html) requires "unique and fully descriptive names for each
 heading, even for sub-sections", and one `#` per document with everything below nested from `##`.
 
 ```markdown
@@ -188,6 +228,17 @@ heading, even for sub-sections", and one `#` per document with everything below 
 ### Credenciais
 ### Limites dos destinos
 ### Coordenação entre agentes
+```
+
+```markdown
+<!-- correct: each subsection under the parent it is actually about -->
+## Configuração
+### Identidade do ambiente é obrigatória
+### Credenciais
+### `NODE_EXTRA_CA_CERTS` não é opcional
+
+## Modo sem cluster
+### Onde o estado é guardado sem ConfigMap
 ```
 
 **Verdict: review-only.** A size signal ships — a `##` over 80 lines with four or more children is
@@ -205,6 +256,18 @@ GitHub renders exactly five alert types: `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, 
 else renders as a plain blockquote, silently.
 
 Source: [GitHub's formatting documentation](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).
+
+```markdown
+<!-- defect: GitHub knows no DANGER, and renders this as a grey quote nobody reads as a warning -->
+> [!DANGER]
+> Declarar esta variável reprova o boot.
+```
+
+```markdown
+<!-- correct: one of the five, at the point of danger -->
+> [!CAUTION]
+> Declarar esta variável **reprova o boot**: ela saiu na `v1.44.0`.
+```
 
 Alerts are placed at the point of danger, not in a distant section. `<details>` is for a long block
 a reader chooses to open, never for something they must read. Neither is decoration: an alert that

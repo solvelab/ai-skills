@@ -51,8 +51,13 @@
         (`ferdinand#441`, `ferdinand#442`)
       - a second sample repository for the false-positive measurement; recorded in `design.md` as a
         limit of the measurement
-      - `templates.md` and `examples.md` of the `documentation` skill carry no index of their own;
-        left alone beyond the cross-link
+      - **The skill reproves itself, measured**: running the new detector over
+        `skills/documentation/` reports 7 findings in 3 pre-existing files — `SKILL.md` (no index,
+        229 lines; one 145-character cell), `references/examples.md` (no index, 291 lines) and
+        `references/templates.md` (no index, 407 lines; three cells at 206, 172 and 172). The new
+        `information-architecture.md` reports 0. Fixing the three is a follow-up, not this item:
+        the item's scope is the rule and its detector, and rewriting two reference documents under
+        it is a separate change with its own review.
 
 ## 2. The seven rules
 
@@ -149,6 +154,13 @@
          option sections and no alerts in that repository yet — but it means both are proved only by
          their injected defect, never against prose somebody wrote. Written here rather than counted
          as a clean run.
+
+      **Dogfood.** The detector was also run over its own skill, which is the sharpest test available:
+      `python3 …/check-doc-structure.py skills/documentation/` -> `findings: 7 in 4 file(s)`. All
+      seven are in files this change did not author, and the file it did author reports `findings: 0
+      in 1 file(s)`. The first run of that check reproved `information-architecture.md` itself for
+      having no index, and the fix — a real `## Index` heading over the rule table — went in before
+      the commit. A rule its own document violates is not a rule.
 
       Limit of the measurement: one repository, one writing style. A second sample is a follow-up.
 - [x] Q.1 Frontmatter uniform on every touched SKILL.md: name == directory, folded description,
