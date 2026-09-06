@@ -249,6 +249,7 @@ def check_description(skill: str, text: str) -> None:
 PIN = re.compile(r"Verified against")
 NO_VERSION = re.compile(r"does not depend on a tool version")
 ISO_DATE = re.compile(r"\b20\d\d-\d\d-\d\d\b")
+PROBED_ON = re.compile(r"\b[Pp]robed on 20\d\d-\d\d-\d\d\b")
 DEFERS = re.compile(r"source of truth, not this skill|read the local copy first", re.I)
 API_HINT = re.compile(r"@react-three|@react-spring|fastapi|pydantic|sqlalchemy|helm |kubectl|"
                       r"citizenfx|Qmmands|AssettoServer|openspec|gh project|zod|vite", re.I)
@@ -261,9 +262,14 @@ def check_pin(skill: str, text: str) -> None:
     `helm-migration` already carries).
 
     A `Verified against` block — the text from that line to the next blank line, which covers the
-    blockquote form and the one-line prose form alike — must carry an ISO date (YYYY-MM-DD): a pin
-    with no date does not say when it stopped being trustworthy. Measured on 2026-09-05 (issue
-    #153): 14 of 35 blocks carried none. The declaration owes no date.
+    blockquote form and the one-line prose form alike — must carry the probe date as the literal
+    `Probed on YYYY-MM-DD` (or `probed on`): a pin with no date does not say when it stopped being
+    trustworthy, and a date of a commit or release the block cites does not stand in for the
+    probe's (measured on 2026-09-06, issue #157: fivem-lua's block dates two citizenfx commits).
+    Both rules run on the NORMALISED block — blockquote prefix stripped, lines joined by a space —
+    because the 97-column wrap can leave `Probed on` at one line's end and the date at the next
+    line's start (assettoserver-csp-lua, react-api-client), and a gate must not fail a correct
+    block for where the wrap broke it. The declaration owes no date.
 
     KNOWN LIMIT: this proves the literals are PRESENT, not that they are earned. A block naming a
     version nobody ran passes; a date is checked for shape only, never for plausibility (a future or
@@ -278,12 +284,16 @@ def check_pin(skill: str, text: str) -> None:
             "mentioned in passing is not a pin")
         return
     if pinned:
-        block = text[pinned.start():]
-        block = block.split("\n\n", 1)[0]
+        block = text[pinned.start():].split("\n\n", 1)[0]
+        block = " ".join(re.sub(r"^> ?", "", line) for line in block.splitlines())
         if not ISO_DATE.search(block):
             add(skill, "C5 no version pin",
                 "'Verified against' block carries no date (YYYY-MM-DD) — a pin with no date does "
                 "not say when it stopped being trustworthy")
+        elif not PROBED_ON.search(block):
+            add(skill, "C5 no version pin",
+                "'Verified against' block names no `Probed on <date>` — a date of a commit or "
+                "release the block cites does not stand in for the date the probe ran")
     if declared and not pinned:
         code_lines = sum(len(b.splitlines()) for _, b in FENCE.findall(text))
         if code_lines >= 40 and API_HINT.search(text) and not DEFERS.search(text):

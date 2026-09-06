@@ -50,6 +50,10 @@ MUTATIONS = {
  "C5 no version pin (undated block)": ("skills/observability/SKILL.md",
      lambda s: s.replace("2026-08-06", "the day the skill landed", 1),
      ("C5 no version pin", "carries no date")),
+ # (e) A dated block whose date is not the probe's (issue #157): the ISO date stays, the literal goes.
+ "C5 no version pin (date but no Probed on)": ("skills/observability/SKILL.md",
+     lambda s: s.replace("Probed on 2026-08-06", "Dated 2026-08-06", 1),
+     ("C5 no version pin", "names no")),
  "C6 wrong tag": ("skills/r3f-materials/SKILL.md",
      lambda s: s + "\n```tsx\nvarying vec2 vUv;\nvoid main() {}\n```\n"),
  "C7 orphan wrapper": (None, None),
