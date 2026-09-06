@@ -91,6 +91,12 @@ THE PROSE DIRECTION (issue #179)
     as advisory on PostToolUse. Without the declaration nothing about prose is measured and the hook
     behaves exactly as before #179. A declaration the detector cannot read leaves this hook silent
     for prose — one error per write would be noise — and the Stop gate names it once per turn.
+    What each tool hands over: Write its `content`, Edit its `new_string`, MultiEdit every
+    `new_string` joined (a joined text cannot be anchored in the file, so its findings are numbered
+    inside the joined text — `first_line_of` falls back to 1), NotebookEdit its `new_source` read as
+    Python for a code cell and as Markdown for a `cell_type: markdown` cell (`.ipynb` has no entry
+    in EXT_LANG, so the identifier tier does not measure notebooks — a pre-existing gap, see KNOWN
+    LIMIT).
 
 KNOWN LIMIT
     Only the harness write tools pass through here (Write, Edit, MultiEdit, NotebookEdit). A file
@@ -99,6 +105,9 @@ KNOWN LIMIT
     The prose direction inherits every limit the prose detector declares (strings and log messages
     not measured, only Portuguese and English, function words rather than a dictionary), and is
     silent wherever the detector file is absent or the declaration is unreadable.
+    A NotebookEdit is measured for prose only: the identifier tier reads the language off the file
+    suffix through EXT_LANG, which has no `.ipynb`, so a Portuguese name in a notebook cell passes
+    the write hook (the Stop gate does not read notebooks either).
 
 Wiring (~/.claude/settings.json) — BOTH blocks, same command. PreToolUse is the one that denies;
 PostToolUse is the one that carries the advisory and the `inform` mode. Wiring only the first loses
@@ -231,6 +240,7 @@ def load_check():
     try:
         spec = importlib.util.spec_from_file_location("check_identifier_locale", CHECK_PATH)
         module = importlib.util.module_from_spec(spec)
+        sys.dont_write_bytecode = True       # no __pycache__ beside the shipped files
         spec.loader.exec_module(module)
         return module
     except Exception:
@@ -272,14 +282,16 @@ def declared_prose(prose, path: Path, cwd: str) -> "str | None":
         return None                          # named by the Stop gate once per turn, not per write
 
 
-def prose_findings_for(prose, file_path: str, text: str, cwd: str, anchor: str, check) -> list:
-    """Prose findings for one write, empty wherever the repository declares nothing."""
+def prose_findings_for(prose, file_path: str, text: str, cwd: str, anchor: str, check,
+                       kind: "str | None" = None) -> list:
+    """Prose findings for one write, empty wherever the repository declares nothing. `kind` names
+    the language when the path cannot (a notebook cell); else the detector reads it off the suffix."""
     if prose is None or not text:
         return []
     path = Path(file_path)
     if check.is_vendored(path):
         return []
-    kind = prose.kind_for(path)
+    kind = kind or prose.kind_for(path)
     if kind is None:
         return []
     declared = declared_prose(prose, path, cwd)
@@ -515,9 +527,12 @@ def evaluate(payload: dict, check, mode: "str | None" = None) -> "dict | None":
     anchor = (tool_input.get("old_string") or "") if (pre and tool_name == "Edit") else text
     if not isinstance(anchor, str):
         anchor = ""
+    kind = None
+    if tool_name == "NotebookEdit":
+        kind = "markdown" if tool_input.get("cell_type") == "markdown" else "python"
     try:
         findings = findings_for(check, file_path, text, cwd, anchor, pre=pre)
-        findings.extend(prose_findings_for(load_prose(), file_path, text, cwd, anchor, check))
+        findings.extend(prose_findings_for(load_prose(), file_path, text, cwd, anchor, check, kind=kind))
     except Exception:
         return None                      # a check that crashes must not crash the write
     if not findings:
@@ -778,6 +793,22 @@ def selftest() -> int:
         print(f"  {'OK     ' if line_ok else 'FAILED '} prose: the Edit finding carries the file line of old_string")
         if not line_ok:
             failed.append("prose edit line")
+        # A notebook cell: `.ipynb` has no suffix entry, so the tool names the kind.
+        nb = f"{declared}/orders/nb.ipynb"
+        prose_case("prose: a NotebookEdit code cell with an English comment is denied",
+                   "deny", pre({"notebook_path": nb, "new_source": en_comment, "cell_type": "code"}, tool_name="NotebookEdit", cwd_=declared))
+        prose_case("prose: a NotebookEdit markdown cell is advisory on PostToolUse, never denied", None,
+                   pre({"notebook_path": nb, "new_source": md["content"], "cell_type": "markdown"}, tool_name="NotebookEdit", cwd_=declared))
+        prose_case("prose: a NotebookEdit markdown cell reports on PostToolUse", "advisory",
+                   {**pre({"notebook_path": nb, "new_source": md["content"], "cell_type": "markdown"}, tool_name="NotebookEdit", cwd_=declared),
+                    "hook_event_name": POST_EVENT})
+        # MultiEdit: the joined new_strings are measured; the line is inside the joined text (docstring).
+        target.write_text("x = 1\ny = 2\nz = 3\n", encoding="utf-8")
+        prose_case("prose: a MultiEdit whose second edit adds an English comment is denied", "deny",
+                   pre({"file_path": str(target), "edits": [
+                       {"old_string": "y = 2", "new_string": "y = 2"},
+                       {"old_string": "z = 3", "new_string": "# compute the total for the order and apply the discount\nz = 3"}]},
+                       tool_name="MultiEdit", cwd_=declared))
         # Both directions: an identifier AND a comment in one write share one reason.
         both = prose_case("prose: identifier and comment findings share one denial", "deny",
                           pre({"file_path": py, "content": en_comment.replace("total = 0", "usuario_count = 0")}, cwd_=declared))

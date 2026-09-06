@@ -85,9 +85,11 @@ THE PROSE DIRECTION (issue #179)
     measured a second time by the prose detector beside the check (`check-prose-locale.py`): a
     comment or docstring with strong evidence of the wrong language blocks the turn in the same
     reason as an identifier finding; a Markdown paragraph, or a fragment with weak evidence, is a
-    `systemMessage` that never blocks; a declaration the detector cannot read is named in a
-    `systemMessage` once per Stop so a typo cannot switch the direction off in silence. Without the
-    declaration nothing about prose is measured, and this hook decides exactly as before #179.
+    `systemMessage` that never blocks; a declaration the detector cannot read is named once per Stop
+    — in a `systemMessage` when the diff is otherwise clean, at the tail of the block reason or of
+    the second-Stop message when identifier findings stand — so a typo cannot switch the direction
+    off in silence. Without the declaration nothing about prose is measured, and this hook decides
+    exactly as before #179.
 
 KNOWN LIMIT — what this hook does NOT see
     - Everything the prose detector declares it does not measure (strings and log messages, languages
@@ -230,6 +232,7 @@ def load_check():
     try:
         spec = importlib.util.spec_from_file_location("check_identifier_locale", CHECK_PATH)
         module = importlib.util.module_from_spec(spec)
+        sys.dont_write_bytecode = True       # no __pycache__ beside the shipped files
         spec.loader.exec_module(module)
         return module
     except Exception:
@@ -379,9 +382,13 @@ def capped(head: str, body: str, tail: str, cap: int) -> str:
     return head + body[:max(room, 0)].rstrip() + ELLIPSIS + tail
 
 
-def block_reason(findings: list, truncated: bool) -> str:
+def error_note(error: "str | None") -> str:
+    return ("\n\n" + PROSE_ERROR_MESSAGE.format(error=error)) if error else ""
+
+
+def block_reason(findings: list, truncated: bool, error: "str | None" = None) -> str:
     body = "\n".join(f.render() for f in findings)
-    tail = (TRUNCATED_NOTE.format(n=MAX_DIFF_LINES) if truncated else "") + FOOTER
+    tail = (TRUNCATED_NOTE.format(n=MAX_DIFF_LINES) if truncated else "") + error_note(error) + FOOTER
     head = PROSE_HEADER if any(is_prose(f) for f in findings) else HEADER
     return capped(head, body, tail, REASON_CAP)
 
@@ -395,12 +402,20 @@ def advisory_message(advisory: list, error: "str | None") -> str:
     return capped(head, "\n".join(brief(f) for f in advisory), "", SYSTEM_MESSAGE_CAP)
 
 
-def remaining_message(findings: list, truncated: bool) -> str:
-    n = len(findings)
-    head = (f"code-locale: the turn is ending with {n} non-English name{'s' if n != 1 else ''} still "
-            "uncommitted (second Stop — not blocking again; rename or waive before committing):\n")
+def remaining_message(findings: list, truncated: bool, error: "str | None" = None) -> str:
+    names = [f for f in findings if not is_prose(f)]
+    prose = [f for f in findings if is_prose(f)]
+    parts = []
+    if names:
+        parts.append(f"{len(names)} non-English name{'s' if len(names) != 1 else ''}")
+    if prose:
+        parts.append(f"{len(prose)} comment{'s' if len(prose) != 1 else ''}/docstring{'s' if len(prose) != 1 else ''} "
+                     f"in the wrong language")
+    verb = "rename/translate" if names and prose else "translate" if prose else "rename"
+    head = (f"code-locale: the turn is ending with {' and '.join(parts)} still uncommitted "
+            f"(second Stop — not blocking again; {verb} or waive before committing):\n")
     body = "\n".join(brief(f) for f in findings)
-    tail = TRUNCATED_NOTE.format(n=MAX_DIFF_LINES) if truncated else ""
+    tail = (TRUNCATED_NOTE.format(n=MAX_DIFF_LINES) if truncated else "") + error_note(error)
     return capped(head, body, tail, SYSTEM_MESSAGE_CAP)
 
 
@@ -448,8 +463,8 @@ def evaluate(payload: dict, check, env=None, max_lines: int = MAX_DIFF_LINES) ->
             return {"systemMessage": UNMEASURED_MESSAGE.format(**fill)[:SYSTEM_MESSAGE_CAP]}
         return {"decision": "block", "reason": UNMEASURED_REASON.format(**fill)[:REASON_CAP]}
     if active:
-        return {"systemMessage": remaining_message(findings, truncated)}
-    return {"decision": "block", "reason": block_reason(findings, truncated)}
+        return {"systemMessage": remaining_message(findings, truncated, prose_error)}
+    return {"decision": "block", "reason": block_reason(findings, truncated, prose_error)}
 
 
 # ── Self-test ─────────────────────────────────────────────────────────────
@@ -676,8 +691,14 @@ def selftest() -> int:
         print(f"  {'OK     ' if prose_reason_ok else 'FAILED '} prose: the reason names the path, the line, the fragment and the exits")
         if not prose_reason_ok:
             failed.append("prose reason")
-        case("prose: second stop reports the comment and does not block", "message",
-             evaluate(_payload(repo, active=True), check, env))
+        second = evaluate(_payload(repo, active=True), check, env)
+        case("prose: second stop reports the comment and does not block", "message", second)
+        second_ok = bool(second) and second["systemMessage"].startswith(
+            "code-locale: the turn is ending with 1 comment/docstring in the wrong language still uncommitted") \
+            and "translate or waive" in second["systemMessage"] and "non-English name" not in second["systemMessage"]
+        print(f"  {'OK     ' if second_ok else 'FAILED '} prose: the second-stop message counts prose apart and says translate, not rename")
+        if not second_ok:
+            failed.append("prose second-stop head")
         (repo / "orders" / "total.py").write_text(pt_comment)
         case("prose: translated to Portuguese, the turn ends", "silent", evaluate(_payload(repo), check, env))
         (repo / "orders" / "total.py").write_text("# locale-ok: upstream comment kept verbatim\n" + en_comment)
@@ -716,6 +737,34 @@ def selftest() -> int:
             failed.append("prose unreadable declaration")
         case("prose: LOCALE_RITE_MODE=inform silences the prose direction too", "silent",
              evaluate(_payload(repo), check, {**env, MODE_VAR: INFORM}))
+        # the unreadable declaration is still named when an identifier finding carries the block
+        (repo / "orders" / "u.py").write_text("usuario_total = 1\n")
+        both_err = evaluate(_payload(repo), check, env)
+        case("prose: an identifier finding beside an unreadable declaration blocks", "block", both_err)
+        err_named = bool(both_err) and "klingon" in both_err["reason"] and "could not be read" in both_err["reason"] \
+            and both_err["reason"].endswith(FOOTER)
+        print(f"  {'OK     ' if err_named else 'FAILED '} prose: that reason names the unreadable declaration")
+        if not err_named:
+            failed.append("prose error beside identifier finding")
+        both_err_second = evaluate(_payload(repo, active=True), check, env)
+        case("prose: the same on the second stop is a message", "message", both_err_second)
+        err_second_ok = bool(both_err_second) and "klingon" in both_err_second["systemMessage"] \
+            and both_err_second["systemMessage"].startswith("code-locale: the turn is ending with 1 non-English name still")
+        print(f"  {'OK     ' if err_second_ok else 'FAILED '} prose: the second-stop message names it too")
+        if not err_second_ok:
+            failed.append("prose error on second stop")
+        (repo / "orders" / "u.py").unlink()
+        (repo / prose.DECLARATION_FILE).write_text("prose: pt-BR\n")
+        (repo / "orders" / "total.py").write_text(en_comment + "usuario_count = 1\n")
+        mixed = evaluate(_payload(repo, active=True), check, env)
+        case("prose: identifier and comment on the second stop is a message", "message", mixed)
+        mixed_ok = bool(mixed) and mixed["systemMessage"].startswith(
+            "code-locale: the turn is ending with 1 non-English name and 1 comment/docstring in the wrong language still") \
+            and "rename/translate or waive" in mixed["systemMessage"]
+        print(f"  {'OK     ' if mixed_ok else 'FAILED '} prose: that message counts names and prose apart")
+        if not mixed_ok:
+            failed.append("prose mixed second stop")
+        (repo / "orders" / "total.py").unlink()
 
         # ── outside any git work tree ──
         outside = tmp / "no-repo"
