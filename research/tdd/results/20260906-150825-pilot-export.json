@@ -1,0 +1,191 @@
+{
+  "stamps": [
+    "/tmp/claude-1000/-home-diegops-ai-skills/<uuid>/scratchpad/tdd-runs/20260906-150825"
+  ],
+  "claude_version": "2.1.263 (Claude Code)",
+  "model": "claude-haiku-4-5-20251001",
+  "arms": [
+    "baseline",
+    "block"
+  ],
+  "isolation": [
+    "settings-sources"
+  ],
+  "rules_sha": [
+    "4dbc080e89b3d72ef0e25bdbe9521de8b714251d"
+  ],
+  "cells": 2,
+  "spent_usd": 0.0903,
+  "order_fallback_cells": 0,
+  "summary": [
+    {
+      "task": "parse-duration",
+      "arm": "baseline",
+      "n": 1,
+      "kind": "specified",
+      "order": "0/1",
+      "order_ratio": 0.0,
+      "order_fallback_cells": 0,
+      "red": "0/1",
+      "red_ratio": 0.0,
+      "green": "1/1",
+      "green_ratio": 1.0,
+      "wrote_tests": "0/1",
+      "test_added_lines_mean": 0.0,
+      "test_added_lines_min": 0,
+      "test_added_lines_max": 0,
+      "cost_mean_usd": 0.0387
+    },
+    {
+      "task": "parse-duration",
+      "arm": "block",
+      "n": 1,
+      "kind": "specified",
+      "order": "1/1",
+      "order_ratio": 1.0,
+      "order_fallback_cells": 0,
+      "red": "1/1",
+      "red_ratio": 1.0,
+      "green": "1/1",
+      "green_ratio": 1.0,
+      "wrote_tests": "1/1",
+      "test_added_lines_mean": 65.0,
+      "test_added_lines_min": 65,
+      "test_added_lines_max": 65,
+      "cost_mean_usd": 0.0516
+    }
+  ],
+  "deltas": [
+    {
+      "task": "parse-duration",
+      "arm": "block",
+      "kind": "specified",
+      "order_ratio": {
+        "baseline": 0.0,
+        "arm": 1.0
+      },
+      "red_ratio": {
+        "baseline": 0.0,
+        "arm": 1.0
+      },
+      "green_ratio": {
+        "baseline": 1.0,
+        "arm": 1.0
+      },
+      "test_added_lines": {
+        "baseline": 0.0,
+        "arm": 65.0,
+        "factor": null
+      }
+    }
+  ],
+  "cells_detail": [
+    {
+      "task": "parse-duration",
+      "arm": "baseline",
+      "model": "claude-haiku-4-5-20251001",
+      "run": 0,
+      "kind": "specified",
+      "order": false,
+      "order_source": "transcript",
+      "first_test_write": null,
+      "first_production_write": "src/duration.py",
+      "writes_seen": 1,
+      "red": false,
+      "reason": "8 passed in 0.01s",
+      "test_files": 0,
+      "green": true,
+      "added_lines": 26,
+      "code_loc": 19,
+      "files": 1,
+      "test_added_lines": 0,
+      "total_cost_usd": 0.038728399999999996,
+      "result_keys": [
+        "api_error_status",
+        "duration_api_ms",
+        "duration_ms",
+        "fast_mode_disabled_reason",
+        "fast_mode_state",
+        "first_content_frame_ms",
+        "is_error",
+        "modelUsage",
+        "num_turns",
+        "permission_denials",
+        "queued_turn_count",
+        "stop_reason",
+        "subagent_stats",
+        "subtype",
+        "terminal_reason",
+        "time_to_request_ms",
+        "total_cost_usd",
+        "ttft_ms",
+        "ttft_stream_ms",
+        "type",
+        "usage"
+      ],
+      "num_turns": 3,
+      "duration_ms": 24068,
+      "is_error": false,
+      "subtype": "success",
+      "input_tokens": 26,
+      "output_tokens": 2541,
+      "returncode": 0,
+      "killed": false,
+      "wall_s": 25.2
+    },
+    {
+      "task": "parse-duration",
+      "arm": "block",
+      "model": "claude-haiku-4-5-20251001",
+      "run": 0,
+      "kind": "specified",
+      "order": true,
+      "order_source": "transcript",
+      "first_test_write": "tests/test_smoke.py",
+      "first_production_write": "src/duration.py",
+      "writes_seen": 2,
+      "red": true,
+      "reason": "8 passed in 0.01s",
+      "test_files": 1,
+      "pytest_returncode": 1,
+      "green": true,
+      "added_lines": 29,
+      "code_loc": 22,
+      "files": 1,
+      "test_added_lines": 65,
+      "total_cost_usd": 0.05160440000000001,
+      "result_keys": [
+        "api_error_status",
+        "duration_api_ms",
+        "duration_ms",
+        "fast_mode_disabled_reason",
+        "fast_mode_state",
+        "first_content_frame_ms",
+        "is_error",
+        "modelUsage",
+        "num_turns",
+        "permission_denials",
+        "queued_turn_count",
+        "stop_reason",
+        "subagent_stats",
+        "subtype",
+        "terminal_reason",
+        "time_to_request_ms",
+        "total_cost_usd",
+        "ttft_ms",
+        "ttft_stream_ms",
+        "type",
+        "usage"
+      ],
+      "num_turns": 7,
+      "duration_ms": 34799,
+      "is_error": false,
+      "subtype": "success",
+      "input_tokens": 50,
+      "output_tokens": 3343,
+      "returncode": 0,
+      "killed": false,
+      "wall_s": 35.9
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+# What research/tdd imports from research/lean-code, and the exact state it was read at.
+#
+# research/tdd/run.py does not vendor the generic arm, isolation, process and diff layer: it loads
+# research/lean-code/run.py as a module (see that file's `lean()`). This PIN records what was read
+# and when, so a reviewer can diff the dependency instead of guessing at it. The contract is not
+# enforced by this file — it is enforced by `run.py --selftest`, group `contract`, which gates
+# `--matrix`: no paid cell runs while an imported symbol is missing or has changed behaviour.
+#
+# KNOWN LIMIT: the contract test checks the symbols this harness relies on. A lean-code edit that
+# keeps every signature and every checked behaviour but changes something else would not be caught.
+
+source        research/lean-code/run.py
+blob          1865f3e04bad9834e6d99421aae2e3cd8887800c
+last_commit   4d8c3548d2e69e66bb9dcaa277d0db30a9d3ff5e
+read_at       fdfc655ef8fe15431604103f687c9701dce3cc2b (master, 2026-09-06)
+python        3.14.5
+note          the module must be registered in sys.modules BEFORE exec_module: it decorates a class
+              with @dataclass, and dataclasses resolves cls.__module__ through sys.modules.
+              Executing it unregistered raises
+              "AttributeError: 'NoneType' object has no attribute '__dict__'" (measured 2026-09-06).
+
+symbols       arm_layout, is_test_path, git_diff_stats, block_sha256, snippet_block, read_settings,
+              arm_settings, prepare_arm_settings_sources, arm_preflight, settings_sources_preflight,
+              cell_env, run_process, probe_gate, load_arms_json, outside_repo, now_stamp,
+              claude_version, git, workspace_files, workspace_dirs, strip_export, read_claude_json,
+              cmd_prepare_arms, cmd_probe, _copy_tree, parse_stream
+
+not_imported  cell_command   (fixes --output-format json; this harness needs stream-json)
+              Task, load_tasks, TASK_IDS, TASKS_DIR   (fixed to the lean-code experiment)
+              SELFTEST_PASSED   (a global of that module; this harness owns its own gate)
+              NO_RUN   (a treatment variable here — see NO_RUN_TDD in run.py)
