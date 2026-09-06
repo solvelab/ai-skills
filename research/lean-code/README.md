@@ -15,7 +15,7 @@ here, not the upstream's.
 | File | What it is |
 |---|---|
 | [`protocol.md`](protocol.md) | **The point of all of this.** Arms, cell, metrics, flags, the nine tasks, the sequence, and the SHIP / INCONCLUSIVE / NO-CLAIM / REWRITE thresholds — frozen before any paid cell ran. |
-| [`run.py`](run.py) | The harness. `--selftest` proves every instrument offline; `--prepare-arms`, `--probe-isolation`, `--matrix`, `--classify`, `--rescore`, `--report --export`. Its docstring carries the KNOWN LIMIT list. |
+| [`run.py`](run.py) | The harness. `--selftest` proves every instrument offline; `--prepare-arms`, `--probe-isolation`, `--matrix`, `--classify`, `--rescore`, `--report --export`. Three isolation modes (`settings-sources` by default, `config-dir`, `home`); its docstring carries the KNOWN LIMIT list. |
 | [`tasks/`](tasks/) | The three catalog tasks (`fastapi-create-item`, `fivem-shop-buy`, `react-use-orders`): seed, good/bad reference, executing `score()` — the React one is structural and says so. |
 | [`vendor/ponytail/`](vendor/ponytail/PIN) | The six upstream tasks (`tasks.py`), the LOC oracle (`loc.js`), the licence and the pin (commit, date, sha256). |
 | [`fixtures/examples/`](fixtures/examples/README.md) | Eleven upstream before/after transcripts, used only to prove the LOC counter against `loc.js`. |
@@ -29,10 +29,10 @@ here, not the upstream's.
 python3 -m venv /tmp/lean-venv && /tmp/lean-venv/bin/pip install -r research/lean-code/scorer-venv.txt
 python3 research/lean-code/run.py --selftest --scorer-venv /tmp/lean-venv
 
-# 2. arms, outside the repository, frozen at a sha
+# 2. arms, outside the repository (default --isolation settings-sources: three files per arm, nothing copied)
 python3 research/lean-code/run.py --prepare-arms --arms-root /tmp/lean-arms --rules-ref <sha>
 
-# 3. PAID, small: prove the arms are isolated (3 calls per arm on Haiku, $0.05 each)
+# 3. PAID, small: prove the arms are isolated (3 calls per arm on Haiku, $0.05 each; mode read from arms.json)
 python3 research/lean-code/run.py --probe-isolation --arms-root /tmp/lean-arms --model claude-haiku-4-5-20251001
 
 # 4. PAID: the matrix (refuses without a green selftest in the same invocation and a passed probe)
@@ -49,14 +49,19 @@ Every cell command is written to `<cell>/_command.txt` before it runs; every cel
 
 ## What the selftest proved on 2026-09-05
 
-`python3 research/lean-code/run.py --selftest` → `selftest: 111/111 OK` in 2.0 s: LOC port equal
+`python3 research/lean-code/run.py --selftest` → `selftest: 140/140 OK` in 2.2 s: LOC port equal
 to `loc.js` on 22/22 sections; `Without > With` on 8/8 of the line-count examples and the three
 dependency-removal examples (`infinite-scroll`, `number-formatting`, `url-params`) pinned as such —
 the plan had assumed 11/11 and the upstream's own counter says otherwise on those three; scorers
 25/25 (good passes, bad caught on its axis, and the 7 declared variants of the good reference score
 as decided: partial validation and a body `tenant_id` are unsafe on FastAPI, rejecting a forged
 `playerId` and `clampNum`+`floor` are safe on FiveM, `clampNum` without `floor` is not); detectors
-23/23; arm preflight 15/15; export stripper 3/3; tree-kill 1/1; refusals 5/5; metrics 4/4.
+23/23; arm preflight 15/15; the `settings-sources` mode 25/25 (arm carries filtered project
+settings with `skillOverrides.lean-code` off/on and no credentials, workspace commits
+`.claude/settings.json` + `CLAUDE.md` in the seed and the counters ignore them, command has
+`--setting-sources project,local` + `acceptEdits` and no `bypassPermissions`, stream parser counts
+hook events by name); export stripper 3/3; tree-kill 1/1; refusals 9/9 (now with the probe gate:
+no probe, another `rules_sha`, layout mismatch); metrics 4/4.
 
 ## Status
 
