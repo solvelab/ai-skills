@@ -79,10 +79,26 @@ WHAT THIS HOOK DELIBERATELY DOES NOT DO
     - It inherits every limit of the check it calls, including the open-vocabulary escape — a
       Portuguese word outside the lexicon passes here exactly as it passes in CI.
 
+THE PROSE DIRECTION (issue #179)
+    Where the repository the written file belongs to declares its prose language — a `.code-locale`
+    file with `prose: pt-BR` (or `en`), found by walking up from the written file's directory until
+    `.code-locale`, `.git` or the filesystem root, with the payload's `cwd` as the fallback when the
+    walk met no repository at all — the same write is also measured by the prose detector beside the
+    check (`check-prose-locale.py`): comments and docstrings of the written text, and paragraphs of
+    a written `.md`. PreToolUse denies a comment or docstring with strong evidence of the wrong
+    language, with the same three exits in the reason (the inline `locale-ok:` also covers the
+    fragment's own line); a Markdown paragraph and weak evidence never deny and reach the assistant
+    as advisory on PostToolUse. Without the declaration nothing about prose is measured and the hook
+    behaves exactly as before #179. A declaration the detector cannot read leaves this hook silent
+    for prose — one error per write would be noise — and the Stop gate names it once per turn.
+
 KNOWN LIMIT
     Only the harness write tools pass through here (Write, Edit, MultiEdit, NotebookEdit). A file
     written by a Bash command — heredoc, `sed -i`, a script — is never seen, so a denied write is not
     proof that no Portuguese name can land. Closing that path is the Stop gate of issue #138.
+    The prose direction inherits every limit the prose detector declares (strings and log messages
+    not measured, only Portuguese and English, function words rather than a dictionary), and is
+    silent wherever the detector file is absent or the declaration is unreadable.
 
 Wiring (~/.claude/settings.json) — BOTH blocks, same command. PreToolUse is the one that denies;
 PostToolUse is the one that carries the advisory and the `inform` mode. Wiring only the first loses
@@ -111,7 +127,9 @@ Any other argument prints usage to stderr and exits 2 — the same contract as b
 verify-rite.py since #115, so a misspelt flag cannot fall through to the stdin path and exit 0.
 The selftest feeds only the fields this hook reads (`hook_event_name`, `tool_name`, `tool_input`,
 `cwd`), in the shape the 2.1.261 bundle declares; that the harness still sends them under those names
-is what the wired session proves, not the selftest.
+is what the wired session proves, not the selftest. The prose cases build their own temporary trees,
+each with a `.git` directory that stops the declaration walk, so the selftest never reads the
+declaration or the allowlist of whoever runs it.
 """
 
 import importlib.util
@@ -126,6 +144,10 @@ from pathlib import Path
 # root — three directories up from claude/global/hooks/ (hooks -> global -> claude -> root); the path
 # is resolved, never guessed, and a miss exits silently.
 CHECK_PATH = Path(__file__).resolve().parents[3] / "skills/code-locale/references/check-identifier-locale.py"
+# The prose detector ships beside the check and imports it by path; a miss leaves the prose
+# direction silent, never the whole hook.
+PROSE_CHECK_PATH = CHECK_PATH.parent / "check-prose-locale.py"
+_prose_cache: "tuple | None" = None
 
 # The harness truncates a longer value; truncating here keeps the tail we choose rather than the
 # tail it chooses. Measured caps (see the docstring for the probes): `additionalContext:8000`
@@ -135,7 +157,8 @@ CONTEXT_CAP = 8000
 CONTEXT_LINE_CAP = 200
 REASON_CAP = 2000
 REASON_LINE_CAP = 20
-# Header (1) + findings (<= 12) + "+N more" (1) + advisory count (1) + exits (3) = 18 < 20 lines.
+# Header (1) + findings (<= 12) + "+N more" (1) + advisory count (1) + exits (3, or 4 with the prose
+# line) = 19 < 20 lines.
 REASON_MAX_FINDINGS = 12
 
 PRE_EVENT = "PreToolUse"
@@ -159,10 +182,36 @@ HEADER = (
     "reason the name is correct as written.\n\n"
 )
 
+PROSE_HEADER = (
+    "CODE-LOCALE: the write that just landed carries a comment or docstring that does not read as the "
+    "repository's declared prose language (.code-locale, code-locale skill). Translate it before "
+    "continuing, or waive it with `locale-ok: <reason>` on its line or the line above.\n\n"
+)
+
+PROSE_ADVISORY_HEADER = (
+    "CODE-LOCALE (advisory): the write that just landed carries prose that reads as a language other "
+    "than the one .code-locale declares — a Markdown paragraph, or a fragment with weak evidence. "
+    "Advisory only: it never denies, and the author decides.\n\n"
+)
+
 DENY_HEADER = (
     "CODE-LOCALE: write denied — {count} non-English name{plural} in the machine layer. Identifiers, "
     "file and directory names are English (code-locale skill); comments, docstrings and strings keep "
     "the repository's language. Rename, or waive with a reason:"
+)
+DENY_PROSE_HEADER = (
+    "CODE-LOCALE: write denied — {count} comment{plural} or docstring{plural} not in the repository's "
+    "prose language ({declared}, declared in .code-locale; code-locale skill). Translate, or waive with "
+    "a reason:"
+)
+DENY_BOTH_HEADER = (
+    "CODE-LOCALE: write denied — {names} non-English name{names_plural} in the machine layer and "
+    "{count} comment{plural} or docstring{plural} not in the repository's prose language ({declared}, "
+    ".code-locale). Rename or translate, or waive with a reason:"
+)
+PROSE_EXIT = (
+    "  (prose) the same `locale-ok: <reason>` on the comment's own line or the line above, or translate "
+    "it to the declared language;"
 )
 
 # The three exits, literal, so the model can act without opening the skill. A denial that only says
@@ -186,6 +235,68 @@ def load_check():
         return module
     except Exception:
         return None
+
+
+def load_prose():
+    """Import the prose detector by path, once per process. None when it is absent or does not load:
+    the prose direction is then silent, and the identifier direction is unaffected."""
+    global _prose_cache
+    if _prose_cache is None:
+        module = None
+        if PROSE_CHECK_PATH.is_file():
+            try:
+                spec = importlib.util.spec_from_file_location("check_prose_locale", PROSE_CHECK_PATH)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+            except Exception:
+                module = None
+        _prose_cache = (module,)
+    return _prose_cache[0]
+
+
+def declared_prose(prose, path: Path, cwd: str) -> "str | None":
+    """The prose language the written file's repository declares, or None (undeclared, or unreadable).
+
+    The walk starts at the file's directory; the payload's cwd is the fallback only when that walk
+    met no repository boundary at all — a file inside a repository that does not declare is never
+    judged by another directory's declaration.
+    """
+    found, boundary = prose.find_declaration(path.parent)
+    if found is None and boundary is None and cwd:
+        found, _boundary = prose.find_declaration(Path(cwd))
+    if found is None:
+        return None
+    try:
+        return prose.load_declaration(found)
+    except prose.DeclarationError:
+        return None                          # named by the Stop gate once per turn, not per write
+
+
+def prose_findings_for(prose, file_path: str, text: str, cwd: str, anchor: str, check) -> list:
+    """Prose findings for one write, empty wherever the repository declares nothing."""
+    if prose is None or not text:
+        return []
+    path = Path(file_path)
+    if check.is_vendored(path):
+        return []
+    kind = prose.kind_for(path)
+    if kind is None:
+        return []
+    declared = declared_prose(prose, path, cwd)
+    if declared is None:
+        return []
+    root = Path(cwd) if cwd else Path.cwd()
+    allow = check.load_allowlist(root)
+    rel = check.project_relative(path, root)
+    first_line = first_line_of(path, anchor)
+    findings = prose.scan_text(text, kind, str(rel), declared, allow, first_line=first_line)
+    if waiver_above(check, path, first_line):
+        findings = [f for f in findings if f.line != first_line]
+    return findings
+
+
+def is_prose(f) -> bool:
+    return hasattr(f, "fragment")
 
 
 def current_mode() -> str:
@@ -284,14 +395,25 @@ def report(findings: list) -> dict:
     # Gating first, advisory after, and the header says which is which: an advisory finding is a
     # question for the author ("is this English?"), not a defect the check is sure of.
     gating, advisory = split_findings(findings)
-    body = (HEADER if gating else ADVISORY_HEADER) + "\n".join(f.render() for f in gating + advisory)
+    gating_names = [f for f in gating if not is_prose(f)]
+    gating_prose = [f for f in gating if is_prose(f)]
+    advisory_names = [f for f in advisory if not is_prose(f)]
+    advisory_prose = [f for f in advisory if is_prose(f)]
+    header = (HEADER if gating_names else PROSE_HEADER if gating_prose
+              else ADVISORY_HEADER if advisory_names else PROSE_ADVISORY_HEADER)
+    body = header + "\n".join(f.render() for f in gating + advisory)
     if len(body) > CONTEXT_CAP:
         body = body[:CONTEXT_CAP - 80].rstrip() + "\n    … truncated; run the check on the file for the rest."
     parts = []
-    if gating:
-        parts.append(f"{len(gating)} non-English name{'s' if len(gating) != 1 else ''}")
-    if advisory:
-        parts.append(f"{len(advisory)} unrecognised word{'s' if len(advisory) != 1 else ''} (advisory)")
+    if gating_names:
+        parts.append(f"{len(gating_names)} non-English name{'s' if len(gating_names) != 1 else ''}")
+    if gating_prose:
+        parts.append(f"{len(gating_prose)} comment{'s' if len(gating_prose) != 1 else ''}/docstring{'s' if len(gating_prose) != 1 else ''} "
+                     "in the wrong language")
+    if advisory_names:
+        parts.append(f"{len(advisory_names)} unrecognised word{'s' if len(advisory_names) != 1 else ''} (advisory)")
+    if advisory_prose:
+        parts.append(f"{len(advisory_prose)} prose fragment{'s' if len(advisory_prose) != 1 else ''} in the wrong language (advisory)")
     return {
         "hookSpecificOutput": {"hookEventName": POST_EVENT, "additionalContext": body},
         "systemMessage": "code-locale: " + ", ".join(parts) + " in the last write",
@@ -302,6 +424,8 @@ def finding_line(f) -> str:
     """One line per finding. The check's own render() spends 4-5 lines each, which the 20-line cap
     would spend on the first four findings and then cut the exits — the part that must survive."""
     where = f"{f.path}:{f.line}" if getattr(f, "line", 0) else f.path
+    if is_prose(f):
+        return f'  {where}: {f.kind} reads as {f.lang}, repo prose is {f.declared}: "{f.preview()}"'
     return f"  {where}: {f.token}  [{f.tier}: '{f.segment}']"
 
 
@@ -314,16 +438,33 @@ def deny_reason(gating: list, advisory: list) -> str:
     seen = set()
     distinct = []
     for f in gating:
-        key = (f.path, f.token)
+        key = (f.path, f.line, "prose") if is_prose(f) else (f.path, f.token)
         if key not in seen:
             seen.add(key)
             distinct.append(f)
-    header = DENY_HEADER.format(count=len(distinct), plural="s" if len(distinct) != 1 else "")
+    names = [f for f in distinct if not is_prose(f)]
+    prose = [f for f in distinct if is_prose(f)]
+    plural = "s" if len(prose) != 1 else ""
+    if names and prose:
+        header = DENY_BOTH_HEADER.format(names=len(names), names_plural="s" if len(names) != 1 else "",
+                                         count=len(prose), plural=plural, declared=prose[0].declared)
+    elif prose:
+        header = DENY_PROSE_HEADER.format(count=len(prose), plural=plural, declared=prose[0].declared)
+    else:
+        header = DENY_HEADER.format(count=len(names), plural="s" if len(names) != 1 else "")
     tail = []
-    if advisory:
-        tail.append(f"  (+{len(advisory)} unrecognised word{'s' if len(advisory) != 1 else ''}, "
+    advisory_names = [f for f in advisory if not is_prose(f)]
+    advisory_prose = [f for f in advisory if is_prose(f)]
+    if advisory_names:
+        tail.append(f"  (+{len(advisory_names)} unrecognised word{'s' if len(advisory_names) != 1 else ''}, "
                     "advisory: never denies, reported after a clean write lands)")
-    tail.extend(EXITS)
+    if advisory_prose:
+        tail.append(f"  (+{len(advisory_prose)} prose fragment{'s' if len(advisory_prose) != 1 else ''} "
+                    "with weak evidence or in Markdown, advisory: never denies)")
+    tail.append(EXITS[0])
+    if prose:
+        tail.append(PROSE_EXIT)
+    tail.extend(EXITS[1:])
     shown = min(len(distinct), REASON_MAX_FINDINGS)
     while True:
         lines = [header] + [finding_line(f) for f in distinct[:shown]]
@@ -376,6 +517,7 @@ def evaluate(payload: dict, check, mode: "str | None" = None) -> "dict | None":
         anchor = ""
     try:
         findings = findings_for(check, file_path, text, cwd, anchor, pre=pre)
+        findings.extend(prose_findings_for(load_prose(), file_path, text, cwd, anchor, check))
     except Exception:
         return None                      # a check that crashes must not crash the write
     if not findings:
@@ -564,6 +706,115 @@ def selftest() -> int:
         if not ok:
             failed.append("waiver above the fragment")
 
+    # ── The prose direction (issue #179): measured only where .code-locale declares it ──
+    # Each tree carries its own `.git` so the declaration walk stops there and never reaches the
+    # runner's repository; the second tree declares nothing and must decide exactly as before.
+    prose = load_prose()
+    prose_ok = prose is not None
+    print(f"  {'OK     ' if prose_ok else 'FAILED '} prose detector loads from {PROSE_CHECK_PATH.name}")
+    if not prose_ok:
+        failed.append("prose detector missing")
+    en_comment = "# compute the total for the order and apply the discount before saving\ntotal = 0\n"
+    pt_comment = "# calcula o total do pedido e aplica o desconto antes de salvar\ntotal = 0\n"
+    prose_decisions = 0
+    with tempfile.TemporaryDirectory() as declared, tempfile.TemporaryDirectory() as silent:
+        for tree in (declared, silent):
+            (Path(tree) / ".git").mkdir()
+            (Path(tree) / "orders").mkdir()
+        (Path(declared) / prose.DECLARATION_FILE).write_text("prose: pt-BR\n", encoding="utf-8")
+
+        def prose_case(name, expect, payload, mode=None):
+            nonlocal prose_decisions
+            prose_decisions += 1
+            got = evaluate(payload, check, mode=mode)
+            kind = None
+            if got:
+                kind = "deny" if got["hookSpecificOutput"].get("permissionDecision") == "deny" else "advisory"
+            ok = kind == expect
+            print(f"  {'OK     ' if ok else 'FAILED '} {name}")
+            if not ok:
+                failed.append(name)
+            return got
+
+        py = f"{declared}/orders/total.py"
+        denied = prose_case("prose: PreToolUse denies an English comment where .code-locale says pt-BR", "deny",
+                            pre({"file_path": py, "content": en_comment}, cwd_=declared))
+        reason = denied["hookSpecificOutput"]["permissionDecisionReason"] if denied else ""
+        named = (reason.startswith("CODE-LOCALE: write denied — 1 comment or docstring not in the repository's prose language (pt")
+                 and "orders/total.py:1: comment reads as en, repo prose is pt" in reason
+                 and PROSE_EXIT in reason and reason.endswith(EXITS[-1])
+                 and reason.count("\n") + 1 <= REASON_LINE_CAP and len(reason) <= REASON_CAP)
+        print(f"  {'OK     ' if named else 'FAILED '} prose: the reason names the line, the fragment, both languages and four exits")
+        if not named:
+            failed.append("prose reason")
+        prose_case("prose: PreToolUse lets a Portuguese comment through", None,
+                   pre({"file_path": py, "content": pt_comment}, cwd_=declared))
+        prose_case("prose: locale-ok on the line above the comment lands in silence", None,
+                   pre({"file_path": py, "content": "# locale-ok: upstream comment kept verbatim\n" + en_comment}, cwd_=declared))
+        prose_case("prose: PreToolUse denies an English docstring", "deny",
+                   pre({"file_path": py, "content": '"""Load the model once and keep it warm for the next requests."""\nx = 1\n'}, cwd_=declared))
+        prose_case("prose: a short technical comment is not a finding", None,
+                   pre({"file_path": py, "content": "# TODO: fix lru_cache\ntotal = 0\n"}, cwd_=declared))
+        md = {"file_path": f"{declared}/NOTES.md",
+              "content": "This paragraph explains how the order total is computed for the customer.\n"}
+        prose_case("prose: PreToolUse never denies a Markdown paragraph", None, pre(md, cwd_=declared))
+        post_md = prose_case("prose: PostToolUse reports the Markdown paragraph as advisory", "advisory",
+                             {**pre(md, cwd_=declared), "hook_event_name": POST_EVENT})
+        ctx = post_md["hookSpecificOutput"]["additionalContext"] if post_md else ""
+        md_ok = "[advisory] paragraph reads as en" in ctx and ctx.startswith("CODE-LOCALE (advisory)")
+        print(f"  {'OK     ' if md_ok else 'FAILED '} prose: the advisory names the paragraph and never the deny header")
+        if not md_ok:
+            failed.append("prose md advisory")
+        prose_case("prose: inform mode never denies the English comment", None,
+                   pre({"file_path": py, "content": en_comment}, cwd_=declared), mode=MODE_INFORM)
+        # An Edit anchors the finding at the replaced fragment's line, as the identifier tier does.
+        target = Path(declared) / "orders" / "edit.py"
+        target.write_text("x = 1\ny = 2\n", encoding="utf-8")
+        edited = prose_case("prose: an Edit whose new_string adds an English comment is denied", "deny",
+                            pre({"file_path": str(target), "old_string": "y = 2",
+                                 "new_string": "# compute the total for the order and apply the discount\ny = 2"},
+                                tool_name="Edit", cwd_=declared))
+        line_ok = bool(edited) and "orders/edit.py:2: comment reads as en" in edited["hookSpecificOutput"]["permissionDecisionReason"]
+        print(f"  {'OK     ' if line_ok else 'FAILED '} prose: the Edit finding carries the file line of old_string")
+        if not line_ok:
+            failed.append("prose edit line")
+        # Both directions: an identifier AND a comment in one write share one reason.
+        both = prose_case("prose: identifier and comment findings share one denial", "deny",
+                          pre({"file_path": py, "content": en_comment.replace("total = 0", "usuario_count = 0")}, cwd_=declared))
+        both_reason = both["hookSpecificOutput"]["permissionDecisionReason"] if both else ""
+        both_ok = both_reason.startswith("CODE-LOCALE: write denied — 1 non-English name in the machine layer and 1 comment") \
+            and "usuario_count" in both_reason and "comment reads as en" in both_reason
+        print(f"  {'OK     ' if both_ok else 'FAILED '} prose: the combined header counts names and prose apart")
+        if not both_ok:
+            failed.append("prose combined header")
+        # Silent tree: no declaration, so the English comment is exactly as invisible as before #179.
+        silent_py = f"{silent}/orders/total.py"
+        prose_case("prose: without .code-locale an English comment is not measured (PreToolUse)", None,
+                   pre({"file_path": silent_py, "content": en_comment}, cwd_=silent))
+        prose_case("prose: without .code-locale an English comment is not measured (PostToolUse)", None,
+                   {**pre({"file_path": silent_py, "content": en_comment}, cwd_=silent), "hook_event_name": POST_EVENT})
+        prose_case("prose: without .code-locale a Portuguese identifier is still denied", "deny",
+                   pre({"file_path": silent_py, "content": "def buscar_order(x):\n    return x\n"}, cwd_=silent))
+        # The reverse direction: prose: en and a Portuguese comment.
+        (Path(declared) / prose.DECLARATION_FILE).write_text("prose: en\n", encoding="utf-8")
+        prose_case("prose: under prose: en a Portuguese comment is denied", "deny",
+                   pre({"file_path": py, "content": pt_comment}, cwd_=declared))
+        prose_case("prose: under prose: en an English comment lands", None,
+                   pre({"file_path": py, "content": en_comment}, cwd_=declared))
+        # A declaration the detector cannot read leaves the write hook silent for prose.
+        (Path(declared) / prose.DECLARATION_FILE).write_text("prose: klingon\n", encoding="utf-8")
+        prose_case("prose: an unreadable declaration leaves the write hook silent for prose", None,
+                   pre({"file_path": py, "content": en_comment}, cwd_=declared))
+        # cwd fallback: a file outside any repository, judged by the cwd's declaration.
+        (Path(declared) / prose.DECLARATION_FILE).write_text("prose: pt-BR\n", encoding="utf-8")
+        with tempfile.TemporaryDirectory() as nowhere:
+            outside, _boundary = prose.find_declaration(Path(nowhere))
+            if outside is None and _boundary is None:
+                prose_case("prose: a file outside any repository falls back to the cwd's declaration", "deny",
+                           pre({"file_path": f"{nowhere}/total.py", "content": en_comment}, cwd_=declared))
+            else:
+                print("  SKIP    prose: cwd fallback (the temporary directory sits inside a repository or a declared tree)")
+
     # Denial envelope: the shape the 2.1.261 bundle parses, within both measured caps, each distinct
     # name once, the three exits at the end — on a write with 30 gating findings plus an advisory one.
     many = "\n".join(f"preco_{i} = {i}" for i in range(30)) + "\nzqxbrv_count = 1\n"
@@ -624,7 +875,8 @@ def selftest() -> int:
         return 1
     print(f"selftest OK: {len(cases)} PostToolUse decisions, {len(pre_cases)} PreToolUse decisions, "
           "inform mode, en-unknown, the allowlist, the legacy path, the waiver above the fragment, "
-          "both envelopes, the environment and the argv contract")
+          f"both envelopes, the environment, the argv contract and {prose_decisions} prose decisions "
+          "with and without .code-locale")
     return 0
 
 

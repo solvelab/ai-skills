@@ -80,7 +80,19 @@ WHY `stop_hook_active` NEVER BLOCKS TWICE
     lets the turn end. The second turn is the last chance, not a loop: whoever read the reason and did
     not rename has decided. The bundle's own cap (8 consecutive blocks) stays as the second net.
 
+THE PROSE DIRECTION (issue #179)
+    When the work tree root carries `.code-locale` with `prose: pt-BR` (or `en`), the same diff is
+    measured a second time by the prose detector beside the check (`check-prose-locale.py`): a
+    comment or docstring with strong evidence of the wrong language blocks the turn in the same
+    reason as an identifier finding; a Markdown paragraph, or a fragment with weak evidence, is a
+    `systemMessage` that never blocks; a declaration the detector cannot read is named in a
+    `systemMessage` once per Stop so a typo cannot switch the direction off in silence. Without the
+    declaration nothing about prose is measured, and this hook decides exactly as before #179.
+
 KNOWN LIMIT — what this hook does NOT see
+    - Everything the prose detector declares it does not measure (strings and log messages, languages
+      other than Portuguese and English, function words rather than a dictionary, a block or a fence
+      opened on a line the diff did not add); and prose anywhere when `.code-locale` is absent.
     - A file committed inside the same turn: the diff is against HEAD, and a commit moves HEAD.
     - A repository other than the one `cwd` is in, or a working directory outside any git work tree.
     - Inside a subagent the event is `SubagentStop`, and this hook is wired on `Stop`; it accepts
@@ -136,6 +148,9 @@ from pathlib import Path
 # root (hooks -> global -> claude -> root); the path is resolved, never guessed, and a miss exits
 # silently — the same rule as locale-rite.py.
 CHECK_PATH = Path(__file__).resolve().parents[3] / "skills/code-locale/references/check-identifier-locale.py"
+# The prose detector ships beside the check and imports it by path; a miss leaves the prose
+# direction silent, never the whole hook.
+PROSE_CHECK_PATH = CHECK_PATH.parent / "check-prose-locale.py"
 
 # Declared, not silent: past this many diff lines the rest is not measured and the reason says so.
 MAX_DIFF_LINES = 4000
@@ -167,6 +182,19 @@ HEADER = (
     "name in the machine layer. Whatever wrote them — an edit tool, a shell heredoc, sed — the diff "
     "is what is measured. Rename before ending the turn, or take one of the exits at the end.\n\n"
 )
+PROSE_HEADER = (
+    "CODE-LOCALE (stop gate): the turn is ending with uncommitted changes that carry a comment or "
+    "docstring not in the prose language .code-locale declares — or a non-English name in the "
+    "machine layer. Whatever wrote them — an edit tool, a shell heredoc, sed — the diff is what is "
+    "measured. Translate or rename before ending the turn, or take one of the exits at the end.\n\n"
+)
+PROSE_ADVISORY_MESSAGE = (
+    "code-locale: {n} uncommitted prose fragment{plural} read{third} as {lang} while .code-locale declares "
+    "{declared} (Markdown or weak evidence — advisory, not blocking):\n"
+)
+PROSE_ERROR_MESSAGE = (
+    "code-locale: the prose direction is OFF this turn because .code-locale could not be read — {error}"
+)
 TRUNCATED_NOTE = (
     "\n\n[diff truncated at {n} lines; the rest was NOT measured — run "
     "`check-identifier-locale.py --diff -` on the full diff before trusting a clean result]"
@@ -188,9 +216,9 @@ UNMEASURED_MESSAGE = (
     "the full diff before trusting it."
 )
 FOOTER = (
-    "\n\nExits: `# locale-ok: <reason>` on the line or the line above; the token or path in "
-    "`.identifier-locale-allow` at the repository root (the only exit for a file name); "
-    "`LOCALE_RITE_MODE=inform` for the whole session. Doctrine: the code-locale skill."
+    "\n\nExits: `# locale-ok: <reason>` on the line or the line above (a name or a comment alike); the "
+    "token or path in `.identifier-locale-allow` at the repository root (the only exit for a file "
+    "name); `LOCALE_RITE_MODE=inform` for the whole session. Doctrine: the code-locale skill."
 )
 ELLIPSIS = "\n    … more findings elided; run the check on the diff for the rest."
 
@@ -206,6 +234,53 @@ def load_check():
         return module
     except Exception:
         return None
+
+
+def load_prose():
+    """Import the prose detector by path. None when absent or failing to load: the prose direction is
+    then silent, and the identifier direction is unaffected."""
+    if not PROSE_CHECK_PATH.is_file():
+        return None
+    try:
+        spec = importlib.util.spec_from_file_location("check_prose_locale", PROSE_CHECK_PATH)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    except Exception:
+        return None
+
+
+def prose_findings(prose, check, root: str, lines: list) -> "tuple[list, list, str | None]":
+    """(gating, advisory, declaration error) for the diff, all empty where the root declares nothing."""
+    if prose is None:
+        return [], [], None
+    found, _boundary = prose.find_declaration(Path(root))
+    if found is None:
+        return [], [], None
+    try:
+        declared = prose.load_declaration(found)
+    except prose.DeclarationError as exc:
+        return [], [], str(exc)
+    if declared is None:
+        return [], [], None
+    allow = check.load_allowlist(Path(root))
+    findings = prose.scan_diff(iter(line + "\n" for line in lines), declared, allow)
+    gating = [f for f in findings if not f.advisory]
+    advisory = [f for f in findings if f.advisory]
+    return gating, advisory, None
+
+
+def is_prose(f) -> bool:
+    return hasattr(f, "fragment")
+
+
+def brief(f) -> str:
+    """One line per finding for the second-stop message. A path finding carries line 0 (there is
+    no line): print the path alone rather than `:0`."""
+    where = f"{f.path}{':' + str(f.line) if f.line else ''}"
+    if is_prose(f):
+        return f'  {where}: {f.kind} reads as {f.lang}, repo prose is {f.declared}: "{f.preview()}"'
+    return f"  {where}: {f.token}  [{f.tier}]"
 
 
 def run_git(args: list, cwd: str, env=None) -> "tuple[int, str] | None":
@@ -307,16 +382,24 @@ def capped(head: str, body: str, tail: str, cap: int) -> str:
 def block_reason(findings: list, truncated: bool) -> str:
     body = "\n".join(f.render() for f in findings)
     tail = (TRUNCATED_NOTE.format(n=MAX_DIFF_LINES) if truncated else "") + FOOTER
-    return capped(HEADER, body, tail, REASON_CAP)
+    head = PROSE_HEADER if any(is_prose(f) for f in findings) else HEADER
+    return capped(head, body, tail, REASON_CAP)
+
+
+def advisory_message(advisory: list, error: "str | None") -> str:
+    if error:
+        return PROSE_ERROR_MESSAGE.format(error=error)[:SYSTEM_MESSAGE_CAP]
+    n = len(advisory)
+    head = PROSE_ADVISORY_MESSAGE.format(n=n, plural="s" if n != 1 else "", third="" if n != 1 else "s",
+                                         lang=advisory[0].lang, declared=advisory[0].declared)
+    return capped(head, "\n".join(brief(f) for f in advisory), "", SYSTEM_MESSAGE_CAP)
 
 
 def remaining_message(findings: list, truncated: bool) -> str:
     n = len(findings)
     head = (f"code-locale: the turn is ending with {n} non-English name{'s' if n != 1 else ''} still "
             "uncommitted (second Stop — not blocking again; rename or waive before committing):\n")
-    # A path finding carries line 0 (there is no line): print the path alone rather than `:0`.
-    body = "\n".join(f"  {f.path}{':' + str(f.line) if f.line else ''}: {f.token}  [{f.tier}]"
-                     for f in findings)
+    body = "\n".join(brief(f) for f in findings)
     tail = TRUNCATED_NOTE.format(n=MAX_DIFF_LINES) if truncated else ""
     return capped(head, body, tail, SYSTEM_MESSAGE_CAP)
 
@@ -349,11 +432,15 @@ def evaluate(payload: dict, check, env=None, max_lines: int = MAX_DIFF_LINES) ->
         if not lines:
             return None
         findings = gating_findings(check, root, lines)
+        prose_gating, prose_advisory, prose_error = prose_findings(load_prose(), check, root, lines)
+        findings.extend(prose_gating)
     except Exception:
         return None                      # a check that crashes must not crash the turn
     active = bool(payload.get("stop_hook_active"))
     if not findings:
         if not truncated:
+            if prose_advisory or prose_error:
+                return {"systemMessage": advisory_message(prose_advisory, prose_error)}
             return None
         # Clean up to the cap is not clean: the tail was not measured, and silence would say it was.
         fill = {"n": max_lines, "check": str(CHECK_PATH)}
@@ -565,6 +652,71 @@ def selftest() -> int:
         case("tracked file with a non-ASCII name edited in place is measured", "block",
              evaluate(_payload(repo), check, configured))
 
+        # ── the prose direction: measured only where the work tree root declares it (#179) ──
+        prose = load_prose()
+        print(f"  {'OK     ' if prose else 'FAILED '} prose detector loads from {PROSE_CHECK_PATH.name}")
+        if not prose:
+            failed.append("prose detector missing")
+        en_comment = "# compute the total for the order and apply the discount before saving\ntotal = 0\n"
+        pt_comment = "# calcula o total do pedido e aplica o desconto antes de salvar\ntotal = 0\n"
+        repo = _repo(tmp, env, "prose-silent")
+        (repo / "orders" / "total.py").write_text(en_comment)
+        case("prose: without .code-locale an English comment is not measured", "silent",
+             evaluate(_payload(repo), check, env))
+        repo = _repo(tmp, env, "prose-declared")
+        (repo / prose.DECLARATION_FILE).write_text("prose: pt-BR\n")
+        case("prose: a declared repository with a clean diff is silent", "silent",
+             evaluate(_payload(repo), check, env))
+        (repo / "orders" / "total.py").write_text(en_comment)
+        blocked_prose = evaluate(_payload(repo), check, env)
+        case("prose: heredoc-written English comment blocks where .code-locale says pt-BR", "block", blocked_prose)
+        prose_reason_ok = (bool(blocked_prose) and blocked_prose["reason"].startswith("CODE-LOCALE (stop gate)")
+                           and 'orders/total.py:1: [gating] comment reads as en, repo prose is pt' in blocked_prose["reason"]
+                           and blocked_prose["reason"].endswith(FOOTER) and len(blocked_prose["reason"]) <= REASON_CAP)
+        print(f"  {'OK     ' if prose_reason_ok else 'FAILED '} prose: the reason names the path, the line, the fragment and the exits")
+        if not prose_reason_ok:
+            failed.append("prose reason")
+        case("prose: second stop reports the comment and does not block", "message",
+             evaluate(_payload(repo, active=True), check, env))
+        (repo / "orders" / "total.py").write_text(pt_comment)
+        case("prose: translated to Portuguese, the turn ends", "silent", evaluate(_payload(repo), check, env))
+        (repo / "orders" / "total.py").write_text("# locale-ok: upstream comment kept verbatim\n" + en_comment)
+        case("prose: locale-ok on the line above the comment is silent", "silent",
+             evaluate(_payload(repo), check, env))
+        (repo / "orders" / "total.py").unlink()
+        (repo / "NOTES.md").write_text("This paragraph explains how the order total is computed for the customer.\n")
+        advisory = evaluate(_payload(repo), check, env)
+        case("prose: a Markdown paragraph in English is a message, not a block", "message", advisory)
+        advisory_ok = bool(advisory) and "NOTES.md:1: paragraph reads as en" in advisory["systemMessage"] \
+            and "advisory" in advisory["systemMessage"]
+        print(f"  {'OK     ' if advisory_ok else 'FAILED '} prose: the message names the paragraph as advisory")
+        if not advisory_ok:
+            failed.append("prose md message")
+        (repo / "orders" / "total.py").write_text(en_comment + "usuario_count = 1\n")
+        both = evaluate(_payload(repo), check, env)
+        case("prose: identifier and comment findings block in one reason", "block", both)
+        both_ok = bool(both) and "usuario_count" in both["reason"] and "comment reads as en" in both["reason"]
+        print(f"  {'OK     ' if both_ok else 'FAILED '} prose: that reason carries both kinds of finding")
+        if not both_ok:
+            failed.append("prose combined reason")
+        (repo / "orders" / "total.py").unlink()
+        (repo / "NOTES.md").unlink()
+        (repo / prose.DECLARATION_FILE).write_text("prose: en\n")
+        (repo / "orders" / "total.py").write_text(pt_comment)
+        case("prose: under prose: en a Portuguese comment blocks", "block", evaluate(_payload(repo), check, env))
+        (repo / "orders" / "total.py").write_text(en_comment)
+        case("prose: under prose: en an English comment is silent", "silent", evaluate(_payload(repo), check, env))
+        (repo / prose.DECLARATION_FILE).write_text("prose: klingon\n")
+        unreadable = evaluate(_payload(repo), check, env)
+        case("prose: an unreadable declaration is a message naming the file, never a block", "message", unreadable)
+        unreadable_ok = bool(unreadable) and prose.DECLARATION_FILE in unreadable["systemMessage"] \
+            and "pt-BR" in unreadable["systemMessage"]
+        print(f"  {'OK     ' if unreadable_ok else 'FAILED '} prose: the message names the accepted values")
+        if not unreadable_ok:
+            failed.append("prose unreadable declaration")
+        case("prose: LOCALE_RITE_MODE=inform silences the prose direction too", "silent",
+             evaluate(_payload(repo), check, {**env, MODE_VAR: INFORM}))
+
         # ── outside any git work tree ──
         outside = tmp / "no-repo"
         outside.mkdir()
@@ -621,8 +773,8 @@ def selftest() -> int:
     if failed:
         print("selftest FAILED: " + "; ".join(failed))
         return 1
-    print(f"selftest OK: {decisions} decisions in temporary git repositories, 2 output shapes, "
-          f"{malformed} malformed payloads, plus the argv contract")
+    print(f"selftest OK: {decisions} decisions in temporary git repositories (the prose direction with and "
+          f"without .code-locale included), 2 output shapes, {malformed} malformed payloads, plus the argv contract")
     return 0
 
 
