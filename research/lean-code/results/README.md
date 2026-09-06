@@ -9,8 +9,9 @@ Aggregated, anonymised outputs of paid runs land here, written by `run.py --expo
 - `<stamp>-export.json` — the stripped aggregate (`--report --export`): no session id, no result
   text, no uuids, no absolute home paths.
 
-Present since part B of issue #145 (2026-09-05) and the two treatment arms of issue #146
-(2026-09-06) — read [`../results.md`](../results.md) first:
+Present since part B of issue #145 (2026-09-05), the two treatment arms of issue #146
+(2026-09-06) and the re-measurements of issue #174 (2026-09-06) — read
+[`../results.md`](../results.md) first:
 
 | file | what |
 |---|---|
@@ -27,6 +28,8 @@ Present since part B of issue #145 (2026-09-05) and the two treatment arms of is
 | `20260906-004900-export.json` | `--report` over baseline + block + the post-REWRITE `reuse-slug` stamp (57 cells): `reuse-slug skill 9 → 8.667, −3.7 %` — the row that replaces the task in the final table |
 | `20260906-013550-probe-3arms.json` | probe, 3 arms, at `rules_sha af49cfa`, before the +2 repetitions of `cache` and `csv-sum`, PASS with `skill_visible` 1/1 / 0/1 / 0/1, $0.1928 |
 | `20260906-013713-export.json` | `--report` over baseline + block + `003055` + the +2 repetitions stamp `013713` (85 cells): `cache` and `csv-sum` aggregated at n=5 (`cache skill 12.667 → 5.4, −57.4 %`; `csv-sum skill 102 → 19.6, −80.8 %`), skill over-build group Δ −34.4 %; `reuse-slug` is pre-REWRITE there — the final table takes it from `004900` |
+| `20260906-024406-export.json` | item #174: `--report` over baseline + block `230209` + the block's +2 repetitions of `trace-transfer` (`024406`, 30 and 23 lines; 56 cells): `trace-transfer block 27 → 22.4, −17.0 %` at n=5, block over-build group Δ unchanged at −28.6 % |
+| `20260906-lens4-findings.md` | item #174: the review lens on the three real diffs with the **published** skill (master `e7f5fe8`, the widened guard sentence): the 17 finding lines and the three `net:` lines verbatim, per-cell cost — adjudicated in `../results.md` (precision 13/17) |
 
 Two three-arm probes that **failed** (`20260906-002213`: the probe cwd was not a git root;
 `20260906-002551`: `init` listed `lean-code` and the model answered `none`) are not kept here; they

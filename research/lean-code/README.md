@@ -91,11 +91,15 @@ Everything paid has run (2026-09-05 → 2026-09-06, Claude Code `2.1.261` pinned
 $9.0828) — and **skill** (27 cells, $9.2791; `reuse-slug` re-measured with +2 repetitions and, after
 a REWRITE of the skill's one-check rule, n=3 again, $1.2331; `cache` and `csv-sum` widened to n=5
 by the +2 repetitions the dispersion clause asks for, probe + 4 cells, $1.3047), plus the review
-lens on the three real diffs ($1.4648). The verdict, read by the letter of
+lens on the three real diffs, twice — on the pre-widening guard text ($1.4648, 21 findings,
+precision 16/21) and, for item #174, on the published skill ($1.5668, 17 findings, precision 13/17
+= 0.76, no `delete:` on a selftest case) — and the `block` arm's `trace-transfer` widened to n=5
+(2 cells, $0.7916; $38.5472 in all). The verdict, read by the letter of
 [`protocol.md`](protocol.md) in [`results.md`](results.md): **skill SHIP** on the re-read that
 follows the +2 repetitions — every SHIP condition holds on the widened table, over-build group Δ
-−34.4 %, `correct`/`safe` 31/31, no REWRITE row open; **block INCONCLUSIVE** (−28.6 %, inside the
-band; `trace-transfer` dispersion not re-run). Per the SHIP row, `SKILL.md` and the catalog README
+−34.4 %, `correct`/`safe` 31/31, no REWRITE row open; **block INCONCLUSIVE by the Δ half** (−28.6 %,
+inside the band; its dispersion half executed and closed at n=5, `trace-transfer` 22.4, −17.0 %) —
+informational, never the skill's verdict. Per the SHIP row, `SKILL.md` and the catalog README
 carry that one group Δ with its conditions; every per-task mean with its min–max, the review-lens
 precision and the spend live in `results.md` only. Built against Lua `5.5.0`, node `v26.0.0`,
 Python 3.14 (harness) / 3.12 (scorer venv); Claude Code auto-updated to `2.1.263` on 2026-09-06,

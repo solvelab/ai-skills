@@ -532,6 +532,15 @@
       escapes: lens/ (8/7/8 achados, net -38/-61/-39, $1,2499) e lens2/ (9/7/7, net -47/-65/-49, $1,5184) rodaram sem a skill — inválidas para este critério
       ```
 
+      Re-medida em 2026-09-06 (#174) com o texto publicado da guarda (`6831e24`, master `e7f5fe8`),
+      `$SCR/lean-dev/lens4/<sha>/`: 5/5/7 achados, net -9/-63/-14, precisão 13/17 = 0,76 (15/17 = 0,88
+      pela tag literal da regra 4); os dois FP de regra 1 do `49c44d0` não voltaram. Tabela completa e
+      adjudicação em `research/lean-code/results.md`; linhas verbatim em
+      `research/lean-code/results/20260906-lens4-findings.md`; gasto $1,5668.
+
+      ```
+      ```
+
       **FR4 da issue** ("qualquer `delete:` em selftest/mutante é FP e corrige o texto da guarda
       antes de publicar"): dois dos cinco FP são `delete:` em caso de selftest (`49c44d0` achados 5
       e 7). A frase de guarda em `SKILL.md`, *Reviewing a diff*, cobria a existência do check, não
