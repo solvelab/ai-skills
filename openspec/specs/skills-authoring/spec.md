@@ -257,8 +257,9 @@ prescribes SHALL be probed against that tool before publication.
 
 Every `SKILL.md` SHALL carry exactly one of two literal declarations, placed where a reader meets it
 before the first rule: a `Verified against` block naming each tool and the version it was probed
-against, what was run, and the date; or the sentence `does not depend on a tool version` followed by
-the reason. A `Verified against` block SHALL name only versions the claims were actually probed
+against, what was run, and the ISO date it was probed on; or the sentence `does not depend on a tool
+version` followed by the reason. The date MAY be the recorded probe's when the block names the change
+or commit that recorded it. A `Verified against` block SHALL name only versions the claims were actually probed
 against, and SHALL name the part of the skill that was not probed rather than cover it by implication.
 A version written for a run nobody made is a defect, not a pin. The declaration is an exit for
 process skills: a skill carrying 40 or more fenced lines against a versioned API SHALL carry the
@@ -311,6 +312,13 @@ block unless it defers to a local source of truth it instructs the reader to ope
   runtime that executes them
 - **THEN** the `Verified against` block names what was probed, against which artifact and version,
   and states what was not probed, instead of letting the pin cover the whole skill
+
+#### Scenario: A pin carries the date it was probed
+
+- **WHEN** a `Verified against` block — the text from that line to the next blank line — carries no
+  ISO date (`YYYY-MM-DD`)
+- **THEN** the validator reports it under C5, because a pin with no date does not say when it
+  stopped being trustworthy
 
 ### Requirement: Authoring rules are machine-enforced
 
