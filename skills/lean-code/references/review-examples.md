@@ -97,9 +97,15 @@ def transfer(src: str, dst: str, cents: int) -> None:
 
 def withdraw(account: str, cents: int) -> None:
     _debit(account, cents)
+```
+
+The one runnable check lives beside the module, in `test_bank.py`, never inside it:
+
+```python
+from bank import balances, transfer, withdraw
 
 
-if __name__ == "__main__":
+def test_second_debit_cannot_overdraw() -> None:
     balances["a"] = 100
     withdraw("a", 60)
     try:
@@ -112,8 +118,11 @@ if __name__ == "__main__":
 The fix is the two-line guard inside `_debit`: one place, both callers. The symptom fix — a check at
 the top of `transfer()` — is a smaller-looking diff that leaves `withdraw()` overdrawing, and it is
 what the lens tags when it sees a guard duplicated per caller: `yagni:` on the second copy, `shrink:`
-on the first, replacement "one guard in `_debit`". The `__main__` block is the one runnable check
-the carve-outs require; it is never flagged.
+on the first, replacement "one guard in `_debit`". `test_bank.py` is the one runnable check the
+carve-outs require; it is never flagged, and it stays outside `bank.py` so the product file is the
+two-line guard and nothing else. An inline `assert`-based `__main__` block is for a single-file
+script that nothing imports — this module has two importers, so the check does not live in it (the
+harness counted such a block as product code: `reuse-slug` 9 → 19, `cache` 3 → 11 added lines).
 
 What the catalog's own baseline wrote for this shape (`trace-transfer`, 3/3 cells) was a custom
 `InsufficientFunds(Exception)` class with a docstring, a separate `_check_amount()` with `isinstance`

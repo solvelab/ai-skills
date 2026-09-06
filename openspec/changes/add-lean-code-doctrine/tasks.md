@@ -191,7 +191,8 @@
 
 - [x] 2.2 `references/platform-native.md` (173 linhas; sem Swift, debounce com `// lean: … -> …`,
       nota de lookup, nenhuma versão de runtime), `references/simplification-ledger.md` (81),
-      `references/review-examples.md` (125), `references/upstream.md` (106; aviso MIT integral,
+      `references/review-examples.md` (125 → 134 na revisão do PR, S.3), `references/upstream.md`
+      (106 → 110 na revisão do PR; aviso MIT integral,
       mapa verbatim/reescrito/descartado, proveniência por regra, números do upstream com
       condições); as quatro linkadas do índice do `SKILL.md` (C11); caminhos cruzados na forma
       `skills/<skill>/references/<file>` (C12)
@@ -431,6 +432,17 @@
         `cache` 141 % (3, 11, 3) e `csv-sum` 82 % (26, 11, 18) no arm `skill` e `trace-transfer`
         76 % (10, 25, 24) no `block` — sem as +2 repetições, o veredito é INCONCLUSIVE, não SHIP,
         embora todas as condições de SHIP valham nos números como estão (`results.md`).
+      - **A referência ensinava o que a regra reescrita proíbe** (revisão do PR, 2026-09-06). O
+        exemplo de causa-raiz em `review-examples.md` guardava o check único num bloco
+        `if __name__ == "__main__":` dentro do módulo importado por dois chamadores e dizia que esse
+        bloco "nunca é sinalizado" — a forma que o REWRITE `8ed6fd0` do `SKILL.md` reserva a script
+        de arquivo único e que o harness contou como código de produto (item acima). O modelo imita
+        o código que lhe mostram (Q.5): o check passou para um `test_bank.py` ao lado do módulo e a
+        frase diz onde ele mora e por quê. No mesmo passe, `upstream.md` ainda dizia que o arm da
+        skill "é escrito lá quando rodar" enquanto `SKILL.md` e README já publicavam −34,4 % /
+        31/31 / SHIP — trocado pelo ponteiro medido, recomputado dos stamps `003055` + `004900` +
+        `013713` (31 células, `correct`/`safe` 31/31, Δ do grupo −34,4 %, pior tarefa
+        `fastapi-create-item` +4,2 %, `output_contract` 27/31, dependência nova 0/31).
 
 - [x] S.4 **(mantenedor, 2026-09-06)** Arms novos + sonda + matriz `--arms skill` n=3 × 9 no mesmo
       `claude --version` do baseline (`2.1.261`, binário pinado primeiro no `PATH`) e mesmo modelo;

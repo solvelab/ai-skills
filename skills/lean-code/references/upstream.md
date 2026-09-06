@@ -102,5 +102,9 @@ by `git diff` on seeded repositories:
 None of these numbers is a claim about this skill on this catalog. They were measured on another
 model, another CLI version and another set of tasks. **Measured on this catalog: see
 [`research/lean-code/results.md`](https://github.com/solvelab/ai-skills/blob/master/research/lean-code/results.md)**
-— the baseline (`claude-opus-5[1m]`, Claude Code `2.1.261`, `n=3`, 27 cells) is there; the skill arm
-is written there when it runs, and nowhere before.
+— the baseline (`claude-opus-5[1m]`, Claude Code `2.1.261`, `n=3`, 27 cells, 2026-09-05) and the
+skill arm (same model and CLI, 31 cells on 2026-09-06 — `n=3` per task, `n=5` on `cache` and
+`csv-sum` after the protocol's dispersion clause — `correct`/`safe` 31/31, over-build group Δ
+**−34.4 %**, verdict **SHIP** by the letter of the protocol, after one REWRITE of the one-check
+rule) are both there, with the per-task table, min–max, spend and what the measurement does not
+cover. The group Δ is the only number this skill publishes.
