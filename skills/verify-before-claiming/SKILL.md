@@ -14,7 +14,7 @@ description: >-
   for the plan-approval gate of a backlog item (that is execute-backlog).
 metadata:
   author: solvelab
-  version: 1.1.0
+  version: 1.1.1
   category: process
 license: MIT
 compatibility: >-
@@ -209,6 +209,9 @@ When a guess ships and someone catches it, add the row **and** the incident that
 - `execute-backlog` — the backlog-rite bookkeeping for an approved scope deviation.
 - `backlog` — the GitHub-metadata instance of *No invention*.
 - `openspec` — where a claim about *what will be built* is recorded and gated.
+- `lean-code` — the "how much" counterpart of the off-script guard: once the scope is the one that was
+  asked for, that skill decides how much code is left behind, and its rung 1 ("does this need to
+  exist?") lands as a line under *Assumptions* here, never as a silent omission.
 
 > **Verified against**: ripgrep 14.1.1, git 2.47.3, Python 3.14.5, gh 2.92.0, openspec 1.6.0,
 > Node.js v26.0.0 — every command this skill and its references prescribe was probed on 2026-08-06.

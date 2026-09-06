@@ -14,7 +14,7 @@ description: >-
   naming (each stack's skill), or for i18n and user-facing translation.
 metadata:
   author: solvelab
-  version: 1.4.1
+  version: 1.4.2
   category: process
 license: MIT
 compatibility: >-
@@ -245,3 +245,5 @@ The three tiers and the expand/contract recipe are in `references/migration.md`.
 - `backlog` / `execute-backlog` — where the glossary is produced and consumed.
 - `bug-hunter` — a rename that crosses a wire boundary is a compatibility change and needs a test.
 - `react-api-client` — the shipped JavaScript instance of the anti-corruption boundary.
+- `lean-code` — the other inline marker (`lean: <ceiling> -> <trigger>`); the coexistence rule — `locale-ok:`
+  on the line above the name, `lean:` trailing the code line, one marker per comment — lives there.
