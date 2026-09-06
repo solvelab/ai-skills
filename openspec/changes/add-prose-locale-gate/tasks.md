@@ -248,23 +248,36 @@
       ```
 
       O que esta simulação **não** prova: o hook disparado pelo harness numa sessão real — é S.2.
-- [ ] S.2 Corrida na sessão real do mantenedor (não executável por este subagente — E.3): num
-      repositório temporário declarando `pt-BR`, o harness nega o `Write` com comentário inglês,
-      grava o comentário português e só avisa no `.md`. Comando exato, a rodar da sessão principal
-      com os hooks wired em `~/.claude/settings.json`:
+- [x] S.2 Corrida na sessão real do mantenedor (2026-09-06, `claude` 2.1.x com os hooks wired em
+      `~/.claude/settings.json`, branch em checkout em `~/ai-skills`, modelo
+      `claude-haiku-4-5-20251001`, `--permission-mode acceptEdits`, repositório temporário
+      `scratchpad/live179` com `prose: pt-BR`; script `scratchpad/live179.sh`, saídas em
+      `live179/*.json` e `D2.stream`/`D3.stream`). Cinco casos, todos pelo harness, nenhum por stdin:
 
       ```
-      T=$(mktemp -d) && cd "$T" && git init -q && printf 'prose: pt-BR\n' > .code-locale && \
-      claude -p --permission-mode acceptEdits --model sonnet \
-        'Do exactly these three tool calls and nothing else, in order, then stop: (1) Write the file orders/total.py with the content "# compute the total for the order and apply the discount\ndef total(x):\n    return x\n"; (2) Write the file orders/order_total.py with the content "# calcula o total do pedido e aplica o desconto\ndef total(x):\n    return x\n"; (3) Write the file NOTES.md with the content "This paragraph explains how the order total is computed for the customer.\n". Report which calls were denied and quote the denial reason.' ; \
-      ls -R "$T" ; cat "$T"/orders/*.py 2>/dev/null
+      A  Write app.py com "# compute the total for the order and return it"
+         -> Write denied: CODE-LOCALE: write denied — 1 comment or docstring not in the repository's prose language (pt, declared in .code-locale; code-locale skill) ...
+            app.py:2: comment reads as en, repo prose is pt: "compute the total for the order and return it"   | app.py ausente ; custo $0.037
+      B  Write calc.py com "# calcula o total do pedido e devolve"                -> DONE, arquivo gravado ; custo $0.033
+      C  Write NOTES.md com um parágrafo em inglês                                -> DONE, arquivo gravado; o modelo relatou o aviso do PostToolUse
+         ("prose in NOTES.md reads as English but repo prose is Portuguese ... translating ... or waiving with locale-ok") ; custo $0.034
+      D  Bash: printf '# compute the shipping cost for the order' > ship.py ; fim do turno
+         -> Stop NÃO bloqueou: hits en = {the, the} = 2 < STRONG_MIN (`for` está fora da lista por colidir com o PT) -> tier
+            advisory; o stream mostra o `systemMessage` "Stop says: code-locale: 2 uncommitted prose fragments read as en ...
+            (Markdown or weak evidence — advisory, not blocking)" listando NOTES.md:3 e ship.py:1 ; custo $0.032
+      D3 Bash: printf '# compute the shipping cost for the order and return it to the caller' > ship.py ; fim do turno
+         -> Stop BLOQUEOU: "Stop hook feedback: CODE-LOCALE (stop gate): the turn is ending with uncommitted changes that carry a
+            comment or docstring not in the prose language .code-locale declares ... ship.py:1: [gating] comment reads as en ..."
+            O modelo então usou a saída documentada (`# locale-ok: user-requested exact content` na linha acima) e o segundo
+            Stop passou (guarda `stop_hook_active`) ; 6 turnos, custo $0.051
       ```
 
-      Esperado: (1) negado com `CODE-LOCALE: write denied — ... comment reads as en, repo prose is
-      pt` e as saídas no motivo, `orders/total.py` ausente; (2) gravado, `orders/order_total.py`
-      existe com o comentário português; (3) gravado, com `[advisory] paragraph reads as en` no
-      contexto do PostToolUse (o modelo relata o aviso, não uma negação). Registrar a saída
-      observada aqui e ticar.
+      Contagens: tinha de disparar e disparou 2/2 (A negação no Write, D3 bloqueio no Stop); tinha
+      de ficar mudo e ficou 2/2 (B e C gravados sem negação); consultivo onde devia 2/2 (C no
+      PostToolUse, D no Stop); saída que tinha de abrir e abriu 1/1 (`locale-ok:` em D3 deixou o
+      segundo Stop passar). Observado = esperado em A, B, C e D3. D documenta o limiar na prática: uma frase de sete palavras
+      com só dois hits incontestados fica no tier consultivo — precisão antes de recall (D4). Custo
+      total da simulação: $0,19.
 - [x] S.3 Calibração (TR3, FR4), medida em `3de5bfe` com os limiares da issue (`MIN_WORDS=4`,
       `WRONG_MIN=2`, `STRONG_MIN=3`, `CODE_SHARE=0.5`), mantidos porque a precisão ficou acima da
       barra sem estreitar, e **re-medida em 2026-09-06 depois das correções da revisão (2.5)** —
