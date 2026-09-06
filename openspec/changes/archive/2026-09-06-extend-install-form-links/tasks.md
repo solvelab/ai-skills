@@ -342,4 +342,11 @@
       não muda; `README.md` não está entre os arquivos do item, e a nota da linha 150 (*"the SKILL.md
       link still expects the clone"*) fica desatualizada: follow-up registrado em E.4 e como *Known
       gap* no PR
-- [ ] V.4 `openspec archive extend-install-form-links --yes` em PR separado, depois do merge
+- [x] V.4 `openspec archive extend-install-form-links --yes` em PR separado, depois do merge
+
+
+      ```
+      openspec archive extend-install-form-links --yes
+      -> Specs updated successfully.
+      -> Change 'extend-install-form-links' archived as '2026-09-06-extend-install-form-links'.
+      ```

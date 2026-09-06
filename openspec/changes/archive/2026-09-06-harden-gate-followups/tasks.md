@@ -414,4 +414,11 @@
 - [x] V.3 README / docs atualizados onde a change altera composição ou uso do catálogo — a composição
       não muda; `README.md:443` é a única linha de docs tocada (6.1); a linha *Verified against* de
       `code-locale` reflete a contagem nova do selftest (3.4)
-- [ ] V.4 `openspec archive harden-gate-followups --yes` em PR separado, depois do merge
+- [x] V.4 `openspec archive harden-gate-followups --yes` em PR separado, depois do merge
+
+
+      ```
+      openspec archive harden-gate-followups --yes
+      -> Specs updated successfully.
+      -> Change 'harden-gate-followups' archived as '2026-09-06-harden-gate-followups'.
+      ```
