@@ -4,7 +4,7 @@ description: >-
   Tests REST/HTTP APIs beyond the happy path — negative, fuzz, contract, and security testing — to find critical failures before production. Use this skill whenever the work involves a REST API: adding or changing an endpoint, reviewing an API PR or diff, writing API tests, designing request/response schemas, or when the user says "test/harden/break/audit/review the API", "negative testing", "fuzz", "API robustness", "API security", "validate payloads", or asks about invalid inputs, status codes, error handling, auth/authz, or OpenAPI/Swagger contract validation. Produces an endpoint map, positive + negative scenarios, suggested automated tests, and a resilience checklist. Do NOT use for non-API or pure happy-path unit testing, nor for writing the service's own layout, envelope and handlers (that is `python-rest-api`).
 metadata:
   author: solvelab
-  version: 1.3.2
+  version: 1.3.3
   category: testing
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -13,13 +13,13 @@ compatibility: Works in Claude Code, Claude.ai, and any environment with filesys
 # API Resilience Testing
 
 > **Verified against**: `fastapi 0.141.1` · `pydantic 2.13.4` · `starlette 1.6.0` · `httpx 0.28.1`
-> · `uvicorn 0.52.4`, re-measured on 2026-09-05 with a stock two-route service (a pydantic body
-> model, an `int` path parameter) under `TestClient` and under a real uvicorn server. Eight of the
-> nine baseline rows held; **one was corrected**: a body of nested brackets returns **400**
-> `{"detail":"There was an error parsing the body"}` at every depth from 990 to 10 000, closed or
-> unclosed, for model, `Any` and `dict` bodies — FastAPI's body parser catches the
-> `RecursionError`, and the **500** published here earlier did not reproduce. `curl` is the only
-> tool the checklist prescribes and no version-bound flag of it is used.
+> · `uvicorn 0.52.4`. Probed on 2026-09-05, re-measuring the nine baseline rows with a stock
+> two-route service (a pydantic body model, an `int` path parameter) under `TestClient` and under a
+> real uvicorn server. Eight of the nine baseline rows held; **one was corrected**: a body of
+> nested brackets returns **400** `{"detail":"There was an error parsing the body"}` at every depth
+> from 990 to 10 000, closed or unclosed, for model, `Any` and `dict` bodies — FastAPI's body
+> parser catches the `RecursionError`, and the **500** published here earlier did not reproduce.
+> `curl` is the only tool the checklist prescribes and no version-bound flag of it is used.
 
 Test a REST API so it survives the inputs nobody intended — invalid, malformed,
 out-of-contract, hostile — and fails **safely** instead of crashing, corrupting
