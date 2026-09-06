@@ -21,7 +21,7 @@ here, not the upstream's.
 | [`fixtures/examples/`](fixtures/examples/README.md) | Eleven upstream before/after transcripts, used only to prove the LOC counter against `loc.js`. |
 | [`scorer-venv.txt`](scorer-venv.txt) | The pinned `fastapi`/`httpx`/`pydantic`/`starlette` the FastAPI scorer ran under. The venv is never committed. |
 | [`arms-block.md`](arms-block.md) | The always-on *Lean Code* block (the `personal-rules.md` section without its heading) that `--claude-block` appends to the `block` and `skill` arms' `CLAUDE.md` snippet; the baseline never sees it. |
-| [`results.md`](results.md) | **What has been measured.** The three arms per task with Δ, the `reuse-slug` INCONCLUSIVE → REWRITE → re-run story, the verdict read by the letter (skill **INCONCLUSIVE**, block INCONCLUSIVE), the dated post-hoc observations, the review lens on three real diffs against the pre-registered false-positive rules, the spend, and what it does not cover — the only place in this repository that carries a number about the skill's effect. |
+| [`results.md`](results.md) | **What has been measured.** The three arms per task with Δ and min–max, the `reuse-slug` INCONCLUSIVE → REWRITE → re-run story, the `cache`/`csv-sum` +2 repetitions and the re-read, the verdict read by the letter (skill **SHIP**, block INCONCLUSIVE), the dated post-hoc observations, the review lens on three real diffs against the pre-registered false-positive rules, the spend, and what it does not cover — the source of the one number (the over-build group Δ) that `SKILL.md` and the catalog README carry. |
 | [`results/`](results/README.md) | The files behind it: probe records, per-arm defect counts (baseline with the hand-read classification, block, skill), stripped exports of every reported stamp. |
 
 ## Running things
@@ -89,14 +89,15 @@ Everything paid has run (2026-09-05 → 2026-09-06, Claude Code `2.1.261` pinned
 `claude-opus-5[1m]`, one machine): isolation probes, the Haiku pilot (shake-out only), **baseline**
 (27 cells, $9.4529), **block** — the always-on block alone, relabelled from `skill` (27 cells,
 $9.0828) — and **skill** (27 cells, $9.2791; `reuse-slug` re-measured with +2 repetitions and, after
-a REWRITE of the skill's one-check rule, n=3 again, $1.2331), plus the review lens on the three real
-diffs ($1.4648). The verdict, read by the letter of [`protocol.md`](protocol.md) in
-[`results.md`](results.md): **skill INCONCLUSIVE** — the dispersion clause is open on `cache` and
-`csv-sum`, whose +2 repetitions have not run; **block INCONCLUSIVE**. Until those four cells run
-and the table is re-read, no README or `SKILL.md` carries a number about the skill's effect —
-this file included: the deltas, the per-task table and the review-lens precision live in
-`results.md` and nowhere else — and the skill ships for its doctrine and its review lens, which
-clears the protocol's precision threshold there. Built against Lua `5.5.0`, node `v26.0.0`,
+a REWRITE of the skill's one-check rule, n=3 again, $1.2331; `cache` and `csv-sum` widened to n=5
+by the +2 repetitions the dispersion clause asks for, probe + 4 cells, $1.3047), plus the review
+lens on the three real diffs ($1.4648). The verdict, read by the letter of
+[`protocol.md`](protocol.md) in [`results.md`](results.md): **skill SHIP** on the re-read that
+follows the +2 repetitions — every SHIP condition holds on the widened table, over-build group Δ
+−34.4 %, `correct`/`safe` 31/31, no REWRITE row open; **block INCONCLUSIVE** (−28.6 %, inside the
+band; `trace-transfer` dispersion not re-run). Per the SHIP row, `SKILL.md` and the catalog README
+carry that one group Δ with its conditions; every per-task mean with its min–max, the review-lens
+precision and the spend live in `results.md` only. Built against Lua `5.5.0`, node `v26.0.0`,
 Python 3.14 (harness) / 3.12 (scorer venv); Claude Code auto-updated to `2.1.263` on 2026-09-06,
 so the skill stamps ran the pinned `2.1.261` binary first on `PATH` (`--report` refuses a version
 mismatch).

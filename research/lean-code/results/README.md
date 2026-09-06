@@ -25,6 +25,8 @@ Present since part B of issue #145 (2026-09-05) and the two treatment arms of is
 | `20260906-004535-export.json` | the +2 repetitions of `reuse-slug` (INCONCLUSIVE clause), 2 cells, 9 and 8 lines |
 | `20260906-004737-probe-3arms.json` | probe, 3 arms, after the REWRITE (`rules_sha 8ed6fd0`), PASS, $0.1945 |
 | `20260906-004900-export.json` | `--report` over baseline + block + the post-REWRITE `reuse-slug` stamp (57 cells): `reuse-slug skill 9 → 8.667, −3.7 %` — the row that replaces the task in the final table |
+| `20260906-013550-probe-3arms.json` | probe, 3 arms, at `rules_sha af49cfa`, before the +2 repetitions of `cache` and `csv-sum`, PASS with `skill_visible` 1/1 / 0/1 / 0/1, $0.1928 |
+| `20260906-013713-export.json` | `--report` over baseline + block + `003055` + the +2 repetitions stamp `013713` (85 cells): `cache` and `csv-sum` aggregated at n=5 (`cache skill 12.667 → 5.4, −57.4 %`; `csv-sum skill 102 → 19.6, −80.8 %`), skill over-build group Δ −34.4 %; `reuse-slug` is pre-REWRITE there — the final table takes it from `004900` |
 
 Two three-arm probes that **failed** (`20260906-002213`: the probe cwd was not a git root;
 `20260906-002551`: `init` listed `lean-code` and the model answered `none`) are not kept here; they

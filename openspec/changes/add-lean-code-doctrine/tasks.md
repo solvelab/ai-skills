@@ -120,10 +120,12 @@
       Três itens, todos pagos ou interativos, todos do mantenedor (parte B):
 
       - ~~**O efeito da skill.**~~ Medido pelo mantenedor em 2026-09-06 (S.4): 27 células do arm
-        `skill` + 2 + 3 de `reuse-slug`; o veredito pela letra do protocolo é **INCONCLUSIVE**
-        (`research/lean-code/results.md`), então `SKILL.md` e README continuam sem número sobre o
-        efeito — a seção `## What the baseline measured` cita só o baseline e diz onde o veredito
-        mora.
+        `skill` + 2 + 3 de `reuse-slug`; o veredito pela letra do protocolo era **INCONCLUSIVE**
+        (`research/lean-code/results.md`), então `SKILL.md` e README ficaram sem número sobre o
+        efeito — a seção `## What the baseline measured` citava só o baseline e dizia onde o
+        veredito morava. Em 2026-09-06 01:37 (S.4.2) as +2 repetições de `cache` e `csv-sum`
+        rodaram e a releitura deu **SHIP**: a seção virou `## What the catalog measured` e carrega o
+        Δ do grupo over-build (−34,4 %) com as condições; a linha do README do catálogo também.
       - **Se a description roteia numa sessão real.** A simulação lexical de S.1 mede se o sinal
         léxico existe (6 prompts contra as 36 descriptions); o roteador real é o modelo. A sessão
         interativa com a skill instalada (prompt com armadilha de over-build + bug de dois callers)
@@ -434,7 +436,8 @@
       `claude --version` do baseline (`2.1.261`, binário pinado primeiro no `PATH`) e mesmo modelo;
       `--report <baseline> <block> <skill>`; veredito pela letra do protocolo em
       `research/lean-code/results.md` **antes** de qualquer número entrar em README ou `SKILL.md`
-      (nenhum entrou: o veredito é INCONCLUSIVE). Comandos e saída observada (stamps em
+      (nenhum entrou nesta rodada: o veredito era INCONCLUSIVE; entrou em S.4.2, depois da
+      releitura). Comandos e saída observada (stamps em
       `$SCR/lean-dev/runs/<stamp>/`, `results/` do repositório):
 
       ```
@@ -471,6 +474,36 @@
       O protocolo não diz o que segue um REWRITE (escopo do re-run, n, qual stamp conta); a regra
       aplicada é a FR3 da issue #146 ("a reescrita re-roda só as tarefas afetadas e mantém os dois
       stamps") — anotado em *Post-hoc observations*, protocolo não emendado.
+
+- [x] S.4.2 **Releitura** (mantenedor, 2026-09-06 01:35–01:40; protocolo, linha INCONCLUSIVE: *"the
+      dispersion (max − min) of a task's `added_lines` exceeds 50% of its mean → +2 repetitions on
+      those tasks, then re-read"*): a cláusula estava aberta em `cache` (141 %: 3, 11, 3) e
+      `csv-sum` (82 %: 26, 11, 18). Arms refeitos em `af49cfa`, sonda nova, +2 repetições só nas
+      duas tarefas, mesmo binário `2.1.261` e mesmo modelo; releitura da tabela inteira sobre os
+      31 cells finais. Comandos e saída observada:
+
+      ```
+      export PATH=$SCR/lean-dev/bin-261:$PATH && claude --version   -> 2.1.261 (Claude Code)
+      python3 research/lean-code/run.py --prepare-arms --arms-root $SCR/lean-dev/arms-146 --rules-ref HEAD (af49cfa) --skill lean-code --claude-block research/lean-code/arms-block.md
+      python3 research/lean-code/run.py --probe-isolation --arms-root $SCR/lean-dev/arms-146 --model claude-haiku-4-5-20251001
+      -> 20260906-013550 PASS: sentinel 3/3 ×3 arms, hook events 0, marker untouched 3/3 ×3, skill_visible baseline 0/1, block 0/1, skill 1/1 (init_skills: lean-code, …)   $0,1928   (results/20260906-013550-probe-3arms.json)
+      LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest --matrix --arms skill --tasks cache,csv-sum --model 'opus[1m]' --runs 2 --arms-root $SCR/lean-dev/arms-146 --runs-root $SCR/lean-dev/runs --budget-usd 4
+      -> stamp 20260906-013713: 4/4 células, subtype success 4/4, killed 0/4, correct 4/4, safe 4/4, $1,1119
+      -> cache: 5, 5 linhas (from functools import cache + @cache, check em test_compute.py, nenhum __main__ em compute.py)
+      -> csv-sum: 25, 18 linhas (csv.DictReader + float + try/except, ValueError sem coluna amount, test_sales.py 2/2)
+      python3 research/lean-code/run.py --report $SCR/lean-dev/runs/20260905-211512 $SCR/lean-dev/runs/20260905-230209 $SCR/lean-dev/runs/20260906-003055 $SCR/lean-dev/runs/20260906-013713 --export research/lean-code/results/20260906-013713-export.json
+      -> cache                  skill       12.667     5.4    -57.4  1.0->1.0     1.0->1.0        (n=5: 3, 3, 5, 5, 11)
+      -> csv-sum                skill          102    19.6    -80.8  1.0->1.0     1.0->1.0        (n=5: 11, 18, 18, 25, 26)
+      -> skill: over-build group mean delta -34.4% over 4 tasks; worst task reuse-slug +37.0% (pré-REWRITE nesse export; com 004900 o pior é fastapi-create-item +4.2%)
+      python3 -c "…"  (script sobre results.json: 003055 sem reuse-slug + 004900 + 013713 = 31 cells)
+      -> grupo over-build -34.4% (-79.8, -57.4, +4.2, -4.5); pior fastapi-create-item +4.2%; output_contract 27/31; lean_marker 13/31;
+         new_dependency 0/31; guard_dropped 0/31; root cause 3/3 + 3/3; correct 31/31; safe 31/31 (boundary 17/17)
+      -> dispersão depois do alargamento: cache 148% (8 linhas de spread numa média de 5,4), csv-sum 77% — a linha do protocolo não
+         exige que caia abaixo de 50%; registrado em Post-hoc observations (7)
+      => releitura: as sete condições de SHIP valem, nenhuma linha REWRITE dispara => SHIP (results.md, tabela do veredito, linha citada)
+      ```
+
+      Gasto da releitura: $0,1928 + $1,1119 = $1,3047 (#146 passa a $26,1331; total $36,1888).
 
 - [x] S.5 **(mantenedor, 2026-09-05 23:19–23:22)** Lente nos 3 diffs (`49c44d0`, `69aaf73`,
       `b1f527f`), uma célula `claude -p` cada em `opus[1m]`, `--setting-sources project,local`, a
@@ -589,6 +622,7 @@
       ```
       openspec validate add-lean-code-doctrine --strict   -> Change 'add-lean-code-doctrine' is valid
       (2026-09-06, em 4330450) openspec validate add-lean-code-doctrine --strict -> Change 'add-lean-code-doctrine' is valid
+      (2026-09-06, no commit da releitura S.4.2) openspec validate add-lean-code-doctrine --strict -> Change 'add-lean-code-doctrine' is valid
       ```
 
 - [x] V.2 Catalog discovery intact: `scripts/validate-skills.py` (36 skills), `validate-repo-hygiene.py`
@@ -627,6 +661,14 @@
       LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest -> selftest: 186/186 OK  (2.0s; isolation 45/45)
       /usr/bin/git ls-files research/lean-code | xargs grep -l session_id -> (vazio, rc=123)
       openspec validate add-lean-code-doctrine --strict -> Change 'add-lean-code-doctrine' is valid
+      (2026-09-06, no commit da releitura S.4.2: results.md, SKILL.md, README, results/ com o export 013713 e a sonda 013550; PATH com o 2.1.261 na frente)
+      bash $SCR/gates.sh <worktree> "Spec-rite: add-lean-code-doctrine" -> 22 PASS, 0 FAIL, dirty-after: 0   ($SCR/gates-run-146-reread.txt)
+      (a primeira passada, antes do commit, reprovou C12 em SKILL.md — caminho inline `research/lean-code/` na seção nova — trocado pela URL do repositório no mesmo commit)
+      GITHUB_EVENT_PATH=$SCR/event146.json python3 scripts/validate-skill-version.py -> skill-version gate: 0 findings (base origin/master, 5 skill(s) changed, 5 with content changes)
+      python3 scripts/scan-secrets.py -> no credentials found
+      $SCR/venv-A/bin/agentskills validate skills/lean-code -> Valid skill: skills/lean-code
+      LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest -> selftest: 186/186 OK  (2.1s; isolation 45/45)
+      /usr/bin/git ls-files research/lean-code | xargs grep -l session_id -> (vazio, rc=123); grep -l /home/diegops research/lean-code/results -> (vazio)
       ```
 
 - [x] V.3 README / docs updated where the change alters catalog composition or usage: README (membro
@@ -642,5 +684,10 @@
       com um índice por arquivo, README da pesquisa (linhas de `results.md`/`results/` e o *Status*),
       `protocol.md` (quarta emenda, só fatos), `SKILL.md` (a frase que aponta o veredito
       INCONCLUSIVE; nenhum número); `README.md` do catálogo **não** muda — o veredito não permite
-      número na linha de lean-code
+      número na linha de lean-code; em 2026-09-06 (commit da releitura S.4.2): `results.md` (tabela
+      alargada com min–max, seção da releitura, veredito SHIP com a linha citada, observação 7,
+      gasto), `results/README.md` (export 013713 e sonda 013550), README da pesquisa (linha de
+      `results.md` e *Status*), `SKILL.md` (seção `## What the catalog measured` com o Δ do grupo e
+      as condições, URL do repositório), e agora **sim** a linha de lean-code do `README.md` do
+      catálogo (Δ do grupo e condições em poucas palavras) — a linha SHIP do protocolo permite
 - [ ] V.4 `openspec archive add-lean-code-doctrine --yes` after all groups above are `[x]`
