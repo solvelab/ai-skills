@@ -84,11 +84,17 @@ perfil de linguagem: reportado como pulado, nunca como aprovado.
 A exclusão é por **caminho** (`VENDOR_PARTS`, `.min.`); `is_minified()` lê o corpo do arquivo, que
 em modo diff não existe, e não entra — KNOWN LIMIT 12 diz isso.
 
-### D3 — Uma cópia por run; mutação aplicada e desfeita em `finally`
+### D3 — Uma cópia por run; mutação aplicada e desfeita em `finally`; premissa medida antes
 
-`shutil.copytree` do repositório (35 skills, cinco árvores geradas) é o custo dominante: 27 cópias
-em 49,1 s. A cópia passa a ser feita uma vez fora do laço; para cada mutação o laço guarda o
-estado original do alvo — `read_bytes()` se existe, `None` se não — aplica a mutação com o mesmo
+A issue assume que as 27 cópias são o custo. Medido antes de escrever (`measure-cost.py`, três
+repetições): uma `copytree` do catálogo (1 375 entradas sem `.git`) custa **0,07 s**; uma run de
+`validate-skills.py` custa **1,71 s**. As 27 cópias são 1,9 s dos 49,1 s; as 27 runs do validador
+são 46,2 s. A premissa está errada: o tempo é o validador, não a cópia. A cópia única fica mesmo
+assim — pelo que compra de verdade: 27 vezes menos churn de disco por PR e um lugar só para provar a
+isolação — e o ganho de tempo registrado é o que a medida permite, ~2 s por run.
+
+A cópia passa a ser feita uma vez fora do laço; para cada mutação o laço guarda o estado original do
+alvo — `read_bytes()` se existe, `None` se não — aplica a mutação com o mesmo
 `read_text()`/`write_text()` de antes, roda o validador, e em `finally` restaura os bytes ou remove
 o arquivo criado (C11) ou o diretório criado (C7, `shutil.rmtree`). Restaurar **bytes**, não texto:
 `read_text()` normaliza `\r\n` e uma restauração por texto deixaria a cópia diferente da origem
@@ -97,8 +103,14 @@ para a mutação seguinte.
 A ordem das mutações não muda e cada uma continua vendo a cópia limpa — a asserção `CAUGHT` de cada
 caso é a mesma de antes. O que muda é a garantia: antes a isolação vinha de uma cópia nova; agora
 vem da reversão, e um `finally` que não restaure deixaria a mutação anterior vazando para a
-seguinte. A prova é que os 27 casos continuam `CAUGHT` **e** que o validador na cópia depois do
-laço fica limpo (nenhuma mutação sobrou) — S.1.
+seguinte. Depois do laço a cópia é comparada byte a byte com a origem (`filecmp.cmp(shallow=False)`
+mais o conjunto de caminhos): uma restauração perdida vira `LEAKED` e reprova. Comparar, e não rodar
+o validador de novo, porque a run custa 1,7 s e "idêntica à origem" é a afirmação mais forte. A
+prova de que a checagem dispara — restauração neutralizada de propósito — está em S.1: `LEAKED` com
+três arquivos nomeados e cinco casos `MISSED` pelas mutações empilhadas.
+
+Paralelizar as runs do validador (o custo real) fica como follow-up em E.4: é uma otimização fora do
+escopo da issue, e agora tem a medida que a justifica.
 
 ### D4 — A regex do `generate.sh` no step, antes da comparação
 
