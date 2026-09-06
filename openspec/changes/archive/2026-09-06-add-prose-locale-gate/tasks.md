@@ -368,5 +368,5 @@
 - [x] V.3 README / docs: seção dos hooks e tabela *Which layer catches what* mencionam a direção de
       prosa; `ci-step.md` documenta o step extra e a declaração; SKILL.md ganha a seção; wrappers
       regenerados e commitados (`77820e9`)
-- [ ] V.4 `openspec archive add-prose-locale-gate --yes` depois que todos os grupos acima estiverem
+- [x] V.4 `openspec archive add-prose-locale-gate --yes` depois que todos os grupos acima estiverem
       `[x]` — PR separado, como o repositório já faz

@@ -691,6 +691,25 @@ next. The skill SHALL state which layer catches what: a session hook measures
 the assistant's write, the pre-commit hook measures the human's commit, and the CI step measures the
 pull request regardless of how it was produced.
 
+The prose half of the rule SHALL be measurable too, where a repository asks for it: a declaration
+file at the repository root (`.code-locale`, one `key: value` per line) names the working language
+of its prose, and the canonical skill SHALL ship a second detector that reads comments, docstrings
+and Markdown paragraphs through the same language tables as the identifier detector — imported,
+never duplicated — and classifies each fragment by closed lists of function words for the two
+languages it knows, lists that share no word and ship beside it with their provenance. Without the
+declaration the prose direction SHALL be silent at every layer — detector, session hooks,
+pre-commit hook, CI step — and SHALL say so when asked; a declaration with a value the detector
+does not know SHALL be an error naming the file and the accepted values, never a silent pass. The
+prose detector SHALL count what it skips (short, code-like, quoted, unknown) and report those
+counts, so that zero findings is never read as full compliance; it SHALL gate only a comment or
+docstring with strong evidence of the wrong language, keep Markdown and weak evidence advisory,
+honour the same inline waiver and the same allowlist file the identifier detector honours, and
+declare in its own header what it does not measure — user-facing strings and log messages, languages
+other than the two it knows, text inside code fences. The pre-commit hook and the CI step SHALL run
+it on the added lines only where the declaration exists. The catalog itself SHALL NOT declare a
+prose language, and the skill SHALL say why: its README is English and its change records are
+Portuguese.
+
 #### Scenario: A prose rule and an identifier rule do not collide
 
 - **WHEN** a repository's convention is to write commit subjects, issues and documentation in a
@@ -748,6 +767,36 @@ pull request regardless of how it was produced.
 - **THEN** the step or the commit fails, naming the cause, instead of reporting zero findings
 - **AND** a commit whose staged diff renames a file to a name in another language is refused on the
   new path, and a staged hunk carrying non-UTF-8 bytes is measured rather than aborting the detector
+
+#### Scenario: A declared repository measures the prose direction
+
+- **WHEN** a repository carries `.code-locale` with `prose: pt-BR` and a Python file adds a comment
+  of four or more words whose function words are English and none are Portuguese
+- **THEN** the prose detector reports it as a gating finding naming the path, the line, the kind of
+  fragment, the language it reads as and the declared one, and names the exits: the inline waiver on
+  the line or the line above, and the path in the allowlist file
+- **AND** a comment of four or more Portuguese words, a comment under four words, a fragment that
+  is mostly identifiers, quoted spans and paths, and a Markdown paragraph in English produce no
+  gating finding — the first passes, the next two are counted as skipped, the last is advisory
+
+#### Scenario: Without the declaration the prose direction is silent
+
+- **WHEN** no `.code-locale` is found walking up from the scanned root to the repository boundary
+- **THEN** the prose detector, the session hooks, the pre-commit hook and the CI step report no
+  prose finding and exit zero, the identifier direction is measured exactly as before, and the
+  detector's explain mode states that the prose direction is off and how to declare it
+
+#### Scenario: A declaration the detector cannot read is an error, not a pass
+
+- **WHEN** `.code-locale` carries `prose:` with a value outside the accepted set
+- **THEN** the detector exits with the usage code, naming the file and the accepted values, and the
+  pre-commit hook refuses the commit for the same reason instead of approving an unmeasured diff
+
+#### Scenario: The function-word lists are disjoint by construction
+
+- **WHEN** the prose detector loads its two word lists, or its self-test runs
+- **THEN** a word present in both lists fails the load and the self-test, so that a word both
+  languages share can never count as evidence for either
 
 ### Requirement: A shipped enforcement script declares what escapes it
 
@@ -874,6 +923,14 @@ name — whether that line is part of the added content or already sits in the f
 the fragment the edit replaces. A denial whose first exit cannot be satisfied by following it
 produces the blind second attempt the item lists as a risk.
 
+Where the repository declares its prose language, the same artifact SHALL measure the written text
+with the shipped prose detector as well, locating the declaration by walking up from the written
+file. On the event that **precedes** the write, a comment or docstring with strong evidence of the
+wrong language SHALL deny the tool call with the same three exits in the reason; a Markdown
+paragraph or weak evidence SHALL NOT deny and reaches the assistant as advisory on the event that
+**follows** the write. Without the declaration the artifact SHALL measure prose nowhere and behave
+exactly as before.
+
 On the event that **follows** the write, the artifact SHALL keep its informative behaviour: findings,
 gating and advisory, reach the assistant as context and the tool call stands. The informative mode
 SHALL restore that behaviour for both events: with it set, nothing is denied and the advisory arrives
@@ -959,6 +1016,28 @@ write is not read as proof that no Portuguese name can land.
 - **THEN** the artifact exits silently and successfully, writing no state and requiring no
   credentials, and a payload that names no event is treated as the informative one, because in doubt
   the artifact informs and never denies
+
+#### Scenario: A comment in the wrong language is denied where the repository declares its prose
+
+- **WHEN** the repository the written file belongs to carries `.code-locale` with `prose: pt-BR`
+  and the event that precedes a write carries a Python comment of four or more English words
+- **THEN** the artifact denies the write, and the reason names the line, the fragment, the
+  language it reads as, the declared language and the three exits
+- **AND** the same write with the comment in Portuguese lands in silence, and the same write with
+  the inline waiver on the line above the comment lands in silence
+
+#### Scenario: A Markdown paragraph in the wrong language only informs
+
+- **WHEN** the same repository receives a write of a `.md` file whose paragraph reads as English
+- **THEN** the event that precedes the write denies nothing, and the event that follows it reports
+  the paragraph as advisory context
+
+#### Scenario: Without a declaration no prose is measured at the write
+
+- **WHEN** no `.code-locale` is found walking up from the written file's directory to the
+  repository boundary
+- **THEN** the artifact reports no prose finding on either event, whatever language the comment is
+  in, and the identifier findings are exactly what they were before
 
 ### Requirement: The rite gates proof that the artifact was exercised
 
@@ -1443,6 +1522,13 @@ repository's CI, exercised also under a git configuration that alters the diff's
 declare what escapes it: a file committed inside the same turn, a repository outside the working
 directory, and the event's different name inside a subagent.
 
+Where the work tree root carries the prose declaration, the artifact SHALL measure the same diff
+with the shipped prose detector as well: a comment or docstring with strong evidence of the wrong
+language blocks the end of the turn alongside any identifier finding, in one reason; a Markdown
+paragraph in the wrong language reaches the assistant as a message and never blocks; and a
+declaration the detector cannot read is named in a message rather than silencing the direction.
+Without the declaration the artifact SHALL measure prose nowhere.
+
 #### Scenario: A heredoc-written Portuguese file blocks the end of the turn
 
 - **WHEN** a turn wrote `servico_cliente.py` with `def buscar_cliente(id_usuario)` through a shell
@@ -1491,6 +1577,28 @@ directory, and the event's different name inside a subagent.
   and the turn edited a tracked file or wrote an untracked file whose name carries a non-ASCII letter
 - **THEN** the artifact blocks as it would under a blank configuration, and the reason names the
   repository-relative path exactly as it is on disk
+
+#### Scenario: A heredoc-written English comment blocks the turn in a repository declaring Portuguese prose
+
+- **WHEN** the work tree root carries `.code-locale` with `prose: pt-BR`, a turn wrote a Python file
+  whose comment reads as English through a shell heredoc, and the turn ends with the file
+  uncommitted
+- **THEN** the artifact blocks the end of the turn and the reason names the path, the line, the
+  fragment and the exits; with the same comment in Portuguese, or waived on the line above, the
+  turn ends in silence
+
+#### Scenario: A Markdown paragraph in the wrong language is a message, not a block
+
+- **WHEN** the same repository has an uncommitted `.md` file whose paragraph reads as English and
+  no gating finding
+- **THEN** the artifact emits a message naming the paragraph as advisory, does not block, and the
+  turn ends
+
+#### Scenario: Without a declaration the Stop gate measures no prose
+
+- **WHEN** the work tree root carries no `.code-locale` and the uncommitted diff adds an English
+  comment
+- **THEN** the artifact produces no prose finding and decides exactly as it did before
 
 ### Requirement: Code volume has a canonical home
 
