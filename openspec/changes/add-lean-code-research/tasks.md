@@ -31,7 +31,16 @@
       -> `--max-budget-usd <amount>`, `--disallowedTools, --disallowed-tools <tools...>`,
       `--strict-mcp-config`, `--no-session-persistence`, `--append-system-prompt <prompt>`,
       `--tools <tools...>`, `--setting-sources <sources>`, `--plugin-dir <path>`; **não** existe
-      `--config-dir`.
+      `--config-dir`. Lido de novo em 2026-09-05 para o modo `settings-sources`:
+      `--setting-sources <sources>` -> "Comma-separated list of setting sources to load (user,
+      project, local)"; `--include-hook-events` -> "Include all hook lifecycle events in the output
+      stream (only works with --output-format=stream-json)"; `--permission-mode <mode>` ->
+      choices `acceptEdits`, `auto`, `bypassPermissions`, `manual`, `dontAsk`, `plan`.
+      No binário: `BAn={on:0,"name-only":1,"user-invocable-only":2,off:3}` e
+      `_e("projectSettings")?.skillOverrides?.[a]??_e("userSettings")?.skillOverrides?.[a]` — os
+      valores de `skillOverrides` são essas quatro strings (o pedido dizia `false`/`true`; o
+      harness grava `"off"`/`"on"`) e o projeto ganha do usuário. `grep -c '**/.claude/'
+      ~/.config/git/ignore` -> `1` (por isso o `git add -f` no seed).
 
       `file ~/.local/share/claude/versions/2.1.261` -> `ELF 64-bit LSB executable`;
       `grep -oaE "CLAUDE_CONFIG_DIR" <binário> | wc -l` -> `59` (sem `-a` o grep imprime
@@ -70,6 +79,12 @@
       forma defensiva e a sonda grava as chaves observadas em `probe.json`;
       (c) se um `CLAUDE_CONFIG_DIR` sem `.claude.json` (estado de onboarding) roda headless sem
       prompt interativo — a sonda responde.
+      Em 2026-09-05 as três deixaram de estar no caminho padrão: o modo `settings-sources` (D10) não
+      usa `CLAUDE_CONFIG_DIR`; o mantenedor mediu na sessão principal que uma célula roda com
+      `--setting-sources project,local` (rc 0, 0 eventos de hook, campos `total_cost_usd`,
+      `num_turns`, `duration_ms`, `modelUsage`, `result`, `subtype`). Continuam abertas para os
+      modos `config-dir`/`home`, e uma nova fica aberta para o padrão: a sonda com `--tools ""` não
+      observa se o arm `skill` carrega `lean-code` (KNOWN LIMIT 4 do `run.py`).
 
 - [x] E.4 Escopo: só o que o proposal pede; melhorias vizinhas viram follow-ups
 
@@ -127,8 +142,54 @@
       (árvore materializada por `git archive`, não a working tree). `--prepare-arms --arms-root research/lean-code/_arms`
       -> `refusing: --arms-root research/lean-code/_arms resolves inside the repository`, rc 1.
 
-- [ ] A.2 `--probe-isolation` (parte B, paga): sentinela 3/3, eventos de hook do mantenedor 0/3,
-      `.caveman-active` ausente 3/3; saída registrada em `results/`
+- [ ] A.2 `--probe-isolation` (parte B, paga): sentinela 3/3, eventos de hook 0 (nenhum nomeando
+      `locale-rite`, `backlog-rite`, `verify-rite`, `rtk`, `caveman`, `memory-autopush`), mtime de
+      `~/.claude/.caveman-active` inalterado 3/3; saída registrada em `results/`
+
+- [x] A.3 Modo `settings-sources` (padrão): arm sem cópia de credencial nem de `CLAUDE.md`,
+      `project-settings.json` filtrado com `skillOverrides.lean-code` off/on, workspace com
+      `.claude/settings.json` + `CLAUDE.md` no commit-semente e fora dos contadores, comando com
+      `--setting-sources project,local` e `acceptEdits`, sonda por sentinela + eventos de hook +
+      mtime do marcador, matriz recusando sonda de outro `rules_sha` ou layout
+
+      Caminho real, sem gasto, em 2026-09-05: `python3 run.py --prepare-arms --arms-root
+      <scratch>/lean-dev/arms-ss --rules-ref HEAD` -> `isolation settings-sources: no credentials
+      copied, no CLAUDE.md copied; …`, `arm baseline … preflight OK`, rc 0; `ls baseline/` ->
+      `arm.json claude-snippet.md project-settings.json` (só três arquivos); chaves de
+      `project-settings.json` -> `['effortLevel', 'model', 'modelSettings', 'skillOverrides']`,
+      `skillOverrides['lean-code']` -> `off`, 17 entradas (as 16 do mantenedor mais a do arm);
+      `cat claude-snippet.md` -> `BENCH-SENTINEL: baseline`; `arms.json` ->
+      `isolation: settings-sources`, `rules_sha: 12e0487e…`, `probe: None`, `skill_installed: False`.
+      Recusas pelo caminho real: `--probe-isolation` (padrão) sobre os arms legados de A.1 ->
+      `these arms carry the config-dir/home layout; re-run --prepare-arms (default settings-sources)
+      or pass --isolation auto|config-dir|home`, rc 1; `--probe-isolation --isolation config-dir`
+      sobre os arms novos -> `these arms carry the settings-sources layout; …`, rc 1;
+      `--selftest --matrix … --arms-root …/arms-ss` sem sonda -> `refusing --matrix: the isolation
+      probe has not passed for these arms`, rc 1, e `runs-root` nunca criado.
+      Selftest, grupo `isolation` 25/25: `project-settings.json` só com as quatro chaves e sem
+      `hooks`/`enabledPlugins`; `skillOverrides[lean-code]` `off` no baseline e `on` no skill, com a
+      entrada `documentation: off` do mantenedor mantida; dir do arm sem `.credentials.json`,
+      `CLAUDE.md`, `settings.json`, `skills/`, `home/`; `claude-snippet.md` igual à linha-sentinela;
+      `arm.json` com `isolation`, `skill_override` e `rules_sha`; preflight OK nos dois arms e
+      pegando 5/5 defeitos injetados (`.credentials.json` presente, `skillOverrides on` no baseline,
+      `hooks` no settings, sentinela ausente, `~/.claude/skills/lean-code` não instalado no arm
+      skill); workspace semeado de `trace-transfer` com `git ls-tree HEAD` listando
+      `.claude/settings.json` e `CLAUDE.md`; diff vazio ao nascer (`added_lines 0`); depois de editar
+      `CLAUDE.md` (com um `# lean: x -> y`), criar `.claude/helper.py` e aplicar a referência ruim ->
+      `added=2 code=2 paths=['bank.py']` e nem `lean:` nem `helper` no texto dos detectores;
+      `is_harness_path` sim para `CLAUDE.md` e `.claude/**`, não para `src/CLAUDE.md`, `claude.py`,
+      `.claude_x/y`; semente que já tem `CLAUDE.md` -> `'# Project rules\n\nBENCH-SENTINEL:
+      baseline\n'`; comando com `--setting-sources project,local`, `--permission-mode acceptEdits`,
+      sem `bypassPermissions`, flags do protocolo mantidas; env com `CLAUDECODE` removido e
+      `HOME`/`CLAUDE_CONFIG_DIR` intactos; comando da sonda com `stream-json --verbose
+      --include-hook-events --tools ""` e setting sources, sem `bypassPermissions`; workspace da sonda
+      com a sentinela e o settings do arm; parser de stream: run limpa -> 0 eventos de hook,
+      sentinela, `cost 0.01`, chaves sem o id de sessão; run contaminada -> 3 eventos de hook, 2
+      nomeando hooks do mantenedor (`locale-rite`, `caveman-activate`); `marker_mtime` `None` quando
+      ausente, igual quando intocado, `1.0` depois de `os.utime`.
+      Grupo `refusals` 9/9: `probe_gate` recusa sem sonda, com sonda de outro `rules_sha`, com sonda
+      legada sobre arms `settings-sources`; aceita sonda passada com mesmo sha e layout compatível;
+      o comando legado continua com `bypassPermissions` e sem `--setting-sources`.
 
 ## 4. Tarefas e scorers
 
@@ -192,8 +253,9 @@
 - [x] S.1 `python3 research/lean-code/run.py --selftest` pelo caminho real, saída observada registrada
 
       `LEAN_SCORER_VENV=<scratch>/lean-dev/venv python3 research/lean-code/run.py --selftest` ->
-      `selftest: 111/111 OK  (tasks 1/1, loc 34/34, scorers 25/25, detectors 23/23, arms 15/15, export 3/3, kill 1/1, refusals 5/5, metrics 4/4)`
-      e `selftest wall time: 2.0s (target < 15s)`, rc 0 (antes da revisão: `101/101`, scorers 18/18,
+      `selftest: 140/140 OK  (tasks 1/1, loc 34/34, scorers 25/25, detectors 23/23, arms 15/15, isolation 25/25, export 3/3, kill 1/1, refusals 9/9, metrics 4/4)`
+      e `selftest wall time: 2.2s (target < 15s)`, rc 0 (antes do modo `settings-sources`: `111/111`,
+      sem o grupo `isolation` e com `refusals 5/5`; antes da revisão: `101/101`, scorers 18/18,
       detectores 20/20; as 7 variantes e os 3 silêncios do `new_dependency` são o acréscimo). Também
       pelo caminho real, sem gasto: `--prepare-arms` no scratch (A.1); depois da troca dos scorers,
       `--rescore runs-sim/sim-a` -> `rescored 18 cells` e `--classify runs-sim/sim-a` ->
@@ -215,7 +277,9 @@
       malformado); preflight pegou 6/6 defeitos injetados (`hooks`, `enabledPlugins`, sentinela
       ausente, credencial 644, `skills/lean-code` no baseline, `.caveman-active`); recusas 4/4
       (`--matrix` sem selftest, `--matrix` sem sonda, `--report` versão diferente, `--report` modelo
-      diferente); tree-kill 1/1.
+      diferente); tree-kill 1/1; modo `settings-sources` 25/25 (A.3: 5/5 defeitos injetados no
+      preflight, workspace com os dois arquivos do harness no seed e `added=2` depois da referência
+      ruim, comando e env, sonda, parser 3 eventos / 2 do mantenedor); `probe_gate` 3/3 recusas.
       Tinha de ficar em silêncio e ficou: detectores 11/11 casos negativos (inclui `pip install -r
       requirements.txt`, `npm install` em linha própria e `pip install pytest` com `pytest` declarado);
       preflight 3/3 arms limpos; `--report` com mesma versão e modelo 1/1; export sem
@@ -241,7 +305,13 @@
       próprio catálogo ensina; `INSTALL_MENTION` acusava `-r`, `npm` e um `pytest` declarado; e o E.2
       registrava `0` strings de hook no binário por um `grep` sem `-a`. Cada um virou variante ou caso
       silencioso no selftest (101 -> 111) e a redação do E.2 e do Risk 2 foi corrigida com a saída
-      observada. A sonda paga e o piloto ficam para a parte B.
+      observada. (5) Ao adicionar o modo `settings-sources` (2026-09-05), o primeiro selftest do
+      workspace falhou: `git ls-tree HEAD` listava `CLAUDE.md bank.py` e não `.claude/settings.json`
+      — o gitignore global do mantenedor (`~/.config/git/ignore`: `**/.claude/`) engolia o arquivo
+      no `git add -A`; o seed passou a `git add -f` os arquivos do harness (139/140 -> 140/140).
+      E o pedido dizia `skillOverrides[<skill>] = false/true`; o binário compara strings
+      (`on`/`name-only`/`user-invocable-only`/`off`), então o harness grava `"off"`/`"on"` e o
+      preflight exige exatamente esses valores. A sonda paga e o piloto ficam para a parte B.
 
 ## 7. Quality Gates (MANDATORY)
 

@@ -16,8 +16,9 @@ Este repositório já tem o precedente: `research/svg-animation/` mede antes, a 
 - Um harness re-executável, `stdlib` só, com `--selftest` offline que prova cada instrumento
   (contador de LOC contra o `loc.js` do upstream, scorer bom/ruim, detectores, preflight de arm,
   stripper de export, tree-kill) **antes** de qualquer gasto.
-- Arms em `CLAUDE_CONFIG_DIR` fora do repositório, sem os hooks e plugins do mantenedor, com
-  sentinela verificável, e uma sonda paga mínima que decide se o isolamento vale — não a doc.
+- Arms fora do repositório, sem os hooks e plugins do mantenedor, com sentinela verificável, e uma
+  sonda paga mínima que decide se o isolamento vale — não a doc. Três modos: `settings-sources`
+  (padrão, D10), `config-dir` e `home`.
 - Um protocolo congelado com vereditos escritos antes de rodar, para que o item 2 não possa mover
   a meta depois de ver o número.
 - Um baseline no modelo diário do mantenedor (`opus[1m]`, resolvido do `settings.json`), n=3, nove
@@ -41,6 +42,29 @@ Este repositório já tem o precedente: `research/svg-animation/` mede antes, a 
   para escrever `.caveman-active`. Se a sonda mostrar que `CLAUDE_CONFIG_DIR` não redireciona
   `skills/`, `CLAUDE.md` ou `settings.json`, o harness troca para `HOME=<arm>/home` com
   `home/.claude -> ..`, o padrão que `scripts/smoke-install-scripts.sh` já usa.
+- **D10 — Isolamento por setting sources, padrão desde 2026-09-05.** A célula roda no setup real do
+  mantenedor (`~/.claude/CLAUDE.md` e `~/.claude/skills/` de verdade), sem `CLAUDE_CONFIG_DIR`, sem
+  cópia de credencial, com `--setting-sources project,local --permission-mode acceptEdits`: em
+  2.1.261 esse flag derruba o `~/.claude/settings.json` inteiro — e com ele `hooks`,
+  `enabledPlugins` e o `SessionStart` do caveman (medido na sessão principal: rc 0, 0 eventos de
+  hook sob `--include-hook-events`, JSON com `total_cost_usd`, `num_turns`, `duration_ms`,
+  `modelUsage`, `result`, `subtype`). O arm vira três arquivos: `arm.json` (com `rules_sha` para
+  proveniência), `project-settings.json` (o filtro de sempre **mais** `skillOverrides.lean-code =
+  "off"` no baseline e `"on"` no arm skill — valores string, os que o binário compara:
+  `on`/`name-only`/`user-invocable-only`/`off`; booleano não é um deles) e `claude-snippet.md`
+  (a sentinela). Cada célula grava os dois no workspace como `.claude/settings.json` e `CLAUDE.md`,
+  commita no seed com `git add -f` (o gitignore global do mantenedor ignora `**/.claude/`) e os
+  dois caminhos saem de todos os contadores e do texto dos detectores.
+  *Por quê:* (1) a medição não rodava de um subagente — o classificador de segurança do harness
+  barra a cópia de credencial e o `bypassPermissions`; (2) nada sensível sai de `~/.claude`;
+  (3) o baseline passa a ser o usuário que existe, não uma reconstrução dele a partir de um ref.
+  *Trade-offs, escritos como limite:* o `CLAUDE.md` do usuário não fica congelado pelo arm (o
+  `rules_sha` do `arm.json` torna a deriva visível, não impossível); a skill sai do baseline só
+  pelo `skillOverrides`; a sonda roda com `--tools ""` e por isso não observa se o arm `skill`
+  carrega `lean-code` — isso fica escrito como limite, não como resultado; e "derruba hooks e
+  plugins" foi medido só em 2.1.261. `config-dir` e `home` continuam como opções explícitas
+  (`--isolation`); o layout é fixado no `--prepare-arms`, gravado em `arms.json`, e a sonda e a
+  matriz o leem de lá — a matriz recusa uma sonda de outro `rules_sha` ou de outro layout.
 - **`settings.json` do arm = o do mantenedor menos o que contamina.** Remove `hooks`,
   `enabledPlugins`, `extraKnownMarketplaces`, `statusLine`, `permissions`; mantém `model`,
   `effortLevel`, `modelSettings`, `skillOverrides`. `skillOverrides` fica porque o mantenedor roda
@@ -76,8 +100,15 @@ Este repositório já tem o precedente: `research/svg-animation/` mede antes, a 
 
 ## Risks / Trade-offs
 
-- **`CLAUDE_CONFIG_DIR` pode não redirecionar tudo.** Mitigação: a sonda paga (3 chamadas Haiku,
-  `--max-budget-usd 0.05`) decide entre `config-dir` e `home`; nenhuma célula roda antes de 3/3.
+- **`CLAUDE_CONFIG_DIR` pode não redirecionar tudo** (modos `config-dir`/`home`). Mitigação: a
+  sonda paga (3 chamadas Haiku, `--max-budget-usd 0.05`) decide entre `config-dir` e `home`;
+  nenhuma célula roda antes de 3/3.
+- **No modo padrão o baseline não está congelado.** O `~/.claude/CLAUDE.md` real pode mudar entre
+  duas runs e o arm não impede; `arm.json` grava o `rules_sha` do ref e `--report` continua
+  recusando versões de CLI e modelos diferentes, mas um `rules_sha` diferente entre stamps é
+  aviso, não recusa — quem lê o número confere. A exclusão da skill depende só do `skillOverrides`
+  do projeto; o preflight exige o valor certo por arm e, no arm `skill`, que
+  `~/.claude/skills/lean-code` exista de fato.
 - **A sonda vê hooks pelo stream, não por proxy.** O binário 2.1.261 emite
   `{type:"system",subtype:"hook_started",hook_id,hook_name,hook_event}` e `hook_response` no
   `stream-json` (`grep -oaE "hook_(started|response|progress|event_name)" <binário> | sort | uniq -c`
