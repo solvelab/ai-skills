@@ -726,6 +726,11 @@ Where one command's output distinguishes failures that need opposite remedies, t
 prescribe a table mapping each observable result to its meaning, rather than a single "expected"
 line that can only describe the success case.
 
+This applies to a skill's **examples** as much as to its instructions: an example is what a reader
+copies, so an expected-output line written there is a prescription. A stated result that describes an
+**absence** — "without errors", "no failures", "cleanly" — is not a passing value, because nothing
+observable distinguishes it from a run that failed in a way the reader did not think to look for.
+
 #### Scenario: A version probe names the version that passes
 
 - **WHEN** a skill prescribes a command whose purpose is to establish that a dependency is present at
@@ -753,4 +758,17 @@ line that can only describe the success case.
 - **THEN** the criterion is reviewed by a human, and the skill's change records that no validator
   covers this rule, because distinguishing a criterion from a shape description in prose is a
   judgement a checker would get wrong in both directions
+
+#### Scenario: An example carries the same obligation as an instruction
+
+- **WHEN** a skill's reference examples show a command followed by an expected-output line
+- **THEN** that line names an observable value, because a reader imitates the example rather than
+  re-deriving the rule from the skill body
+
+#### Scenario: An absence is not a passing value
+
+- **WHEN** a prescribed result is stated as the absence of a problem — "without errors", "no
+  failures", "disappears cleanly"
+- **THEN** it is rewritten to name what the reader sees when the step succeeded: the lines that
+  appear, the segments that are gone, the exact string printed
 

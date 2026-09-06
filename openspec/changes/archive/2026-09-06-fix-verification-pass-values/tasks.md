@@ -131,4 +131,8 @@
       Evidência: nenhuma mudança de composição ou de uso — duas seções de conteúdo e dois bumps.
       `README.md` intocado de propósito; o check H2 da higiene é o que acusaria contagem defasada, e
       está verde.
-- [ ] V.4 `openspec archive fix-verification-pass-values --yes` depois do merge do PR
+- [x] V.4 `openspec archive fix-verification-pass-values --yes` depois do merge do PR
+      Evidência: PR #168 mergeado em 2026-09-06 (`c9c2634` na master);
+      `openspec archive fix-verification-pass-values --yes` -> `skills-authoring: update`,
+      `~ 1 modified`, `Change 'fix-verification-pass-values' archived`; `openspec list` -> a change
+      saiu das ativas.
