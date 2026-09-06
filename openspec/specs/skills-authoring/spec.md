@@ -257,7 +257,9 @@ prescribes SHALL be probed against that tool before publication.
 
 Every `SKILL.md` SHALL carry exactly one of two literal declarations, placed where a reader meets it
 before the first rule: a `Verified against` block naming each tool and the version it was probed
-against, what was run, and the probe date written as the literal `Probed on YYYY-MM-DD`; or the sentence `does not depend on a tool
+against, what was run, and the probe date written as the literal `Probed on YYYY-MM-DD`, which
+SHALL be a real calendar date that is neither in the future nor earlier than the repository's first
+commit; or the sentence `does not depend on a tool
 version` followed by the reason. The date MAY be the recorded probe's when the block names the change
 or commit that recorded it. A `Verified against` block SHALL name only versions the claims were actually probed
 against, and SHALL name the part of the skill that was not probed rather than cover it by implication.
@@ -332,6 +334,19 @@ block unless it defers to a local source of truth it instructs the reader to ope
 - **WHEN** the wrap leaves `Probed on` at the end of one blockquote line and the date at the start of
   the next
 - **THEN** the validator, matching on the normalised block, stays silent
+
+#### Scenario: An impossible probe date is a defect
+
+- **WHEN** the date following `Probed on` is not a calendar date, is later than the day of the check
+  (UTC), or is earlier than the repository's first commit
+- **THEN** the validator reports it under C5 naming the rule it broke, because a date that cannot be
+  true tells the reader nothing about how old the pin is
+
+#### Scenario: Dates the block merely cites are not probe dates
+
+- **WHEN** the block names the date of a commit, release or measurement run it cites, outside the
+  `Probed on` literal
+- **THEN** the validator leaves that date alone, judging only what the block claims as its probe date
 
 ### Requirement: Authoring rules are machine-enforced
 
