@@ -653,7 +653,9 @@ of one group), and the Cursor and Copilot wrappers the README instructs users to
   skill's `SKILL.md`: linked directly, or linked from a reference file that is itself reachable. A
   `README.md` inside a `references/` subdirectory counts as an index once it is linked.
 - The generated Cursor and Copilot wrappers SHALL point at `references/` through the repository URL,
-  never through a path relative to the catalog tree.
+  never through a path relative to the catalog tree; a wrapper that links its own `SKILL.md`
+  instead of inlining it (the Copilot wrapper) SHALL point at that file through the repository
+  URL as well, for the same reason.
 
 #### Scenario: Clone or symlink install
 
@@ -682,6 +684,15 @@ of one group), and the Cursor and Copilot wrappers the README instructs users to
   alone into a project, as the README instructs
 - **THEN** every `references/` link inside it is a repository URL that resolves without the catalog
   tree, and `generate.sh` produces that URL from the canonical `references/` link
+
+#### Scenario: A wrapper copied alone links its own SKILL.md by repository URL
+
+- **WHEN** a `copilot/instructions/<name>.instructions.md` is copied alone into a project's
+  `.github/instructions/`, as the README instructs, and the assistant follows its link to the
+  canonical `SKILL.md`
+- **THEN** that link is `https://github.com/solvelab/ai-skills/blob/master/skills/<name>/SKILL.md`,
+  which resolves without the catalog tree, and no generated Copilot wrapper carries a
+  `../../skills/` path
 
 #### Scenario: A path only a clone carries is written as a URL
 

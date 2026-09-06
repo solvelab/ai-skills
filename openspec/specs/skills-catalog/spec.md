@@ -557,6 +557,12 @@ classes that were measured escaping them SHALL be covered:
   between the two `---` delimiters, extracted the same way the wrapper generator extracts it — so a
   field that appears only inside a code block in the body does not satisfy a check on the
   frontmatter.
+- The checks that read a pull request's diff SHALL read its paths NUL-separated (`git diff
+  --name-only -z`) rather than line by line, so that a path git would quote and octal-escape in
+  line mode — one carrying a non-ASCII, control or quote character — is matched verbatim by the
+  workflow-directory exemption and by the change directory it belongs to. Every reader of the
+  diff in the repository SHALL read it the same way, and each SHALL prove it in its own self-test
+  against a repository that quotes paths.
 
 The job that runs these gates SHALL hold the least privilege the gates need: read-only repository
 contents, no credential persisted past the checkout, a declared timeout, and every third-party tool
@@ -643,6 +649,15 @@ that no consumer reads SHALL be removed or wired to one.
 - **WHEN** the validate job runs on a pull request
 - **THEN** its permissions grant read-only repository contents, the checkout does not persist the
   token, the job carries a timeout, and the spec-driven CLI it runs is pinned to a probed version
+
+#### Scenario: A quoted path still registers its change
+
+- **WHEN** a pull request's diff touches `openspec/changes/<id>/` of an active change only through
+  a path git would quote in line mode — a file named `café.md`, say — and the checkout quotes
+  paths
+- **THEN** the spec-rite gate reads the path verbatim, counts the diff as touching that change,
+  and passes, instead of reporting the quoted path as an unregistered file outside the workflow's
+  directory
 
 ### Requirement: Code locale has a canonical home
 
@@ -781,6 +796,11 @@ In diff mode the path SHALL be checked only for files the diff **adds**. A file 
 SHALL NOT be reported on every diff that touches it, because renaming it is the migration policy's
 decision and not this check's.
 
+In diff mode the vendored and generated exclusion SHALL apply to the whole file the `+++` header
+names — its path and its added lines alike — and that file SHALL be counted as skipped, never as
+passing, exactly as file mode counts it. The exclusion is decided on the path, because a diff
+carries no file body for the minified test to read.
+
 A path finding SHALL name the waiver that silences it. Since a file name carries no inline comment,
 that waiver SHALL be the allowlist file the check already reads.
 
@@ -814,6 +834,14 @@ that waiver SHALL be the allowlist file the check already reads.
 - **WHEN** the scanned path lies in a vendored or generated tree, or its segments are shorter than
   the minimum length, or they are kept domain terms, or they are listed in the allowlist
 - **THEN** the check reports nothing for that path, exactly as it already behaves for identifiers
+
+#### Scenario: A vendored path in a diff is skipped, not measured
+
+- **WHEN** a unified diff adds or modifies a file under a vendored or generated tree, such as
+  `node_modules/`, whose added lines carry Portuguese identifiers
+- **THEN** the check reports nothing for that file in diff mode, counts it in the skipped
+  vendored report, and exits zero, exactly as it already does when the same file is scanned by
+  path
 
 ### Requirement: The code-locale rite is enforced at the moment of the write
 
