@@ -110,6 +110,64 @@ skill's, not this step's: `# locale-ok: <reason>` on the offending line or the o
 English name, the change's glossary (`references/glossary-protocol.md`). Doctrine and the reading
 guide: the skill's *Reviewing a diff* section.
 
+## The prose direction, where the repository declares it
+
+The identifier gate above is the whole step for a repository that has not declared its prose
+language. A repository that carries `.code-locale` at its root (`prose: pt-BR` or `prose: en`; the
+format, what is measured and what escapes are in the skill's section *Prose follows the repository*)
+adds the two steps below. The prose detector imports the identifier detector **by path**, so it must
+be downloaded beside it, together with the two word lists it reads; each file is pinned to the same
+tag and digest-checked like the first one.
+
+```yaml
+      - name: Fetch the prose detector and its word lists, pinned
+        env:
+          AI_SKILLS_TAG: v2.21.0
+          # sha256 of each file AT THE TAG — compute with the loop under "The pin"; a placeholder
+          # fails `sha256sum -c` loudly, which is the correct outcome for an unpinned gate.
+          PROSE_SHA256: <sha256 of check-prose-locale.py at the tag>
+          PT_WORDS_SHA256: <sha256 of prose-words-pt.txt at the tag>
+          EN_WORDS_SHA256: <sha256 of prose-words-en.txt at the tag>
+        run: |
+          base="https://raw.githubusercontent.com/solvelab/ai-skills/${AI_SKILLS_TAG}/skills/code-locale/references"
+          for f in check-prose-locale.py prose-words-pt.txt prose-words-en.txt; do
+            curl -fsSL -o "$f" "${base}/${f}"
+          done
+          printf '%s  %s\n' "${PROSE_SHA256}" check-prose-locale.py "${PT_WORDS_SHA256}" prose-words-pt.txt \
+            "${EN_WORDS_SHA256}" prose-words-en.txt | sha256sum -c -
+
+      - name: Prose locale on the lines this pull request adds (only where .code-locale declares it)
+        env:
+          PYTHONIOENCODING: utf-8:surrogateescape
+        run: |
+          set -o pipefail
+          if [ ! -f .code-locale ]; then
+            echo "prose direction off: no .code-locale at the repository root"; exit 0
+          fi
+          git diff --no-ext-diff --no-renames --src-prefix=a/ --dst-prefix=b/ origin/${{ github.base_ref }}...HEAD \
+            | python3 check-prose-locale.py --diff -
+```
+
+- **Both files in the same directory.** `check-prose-locale.py` reads `COMMENT_SYNTAX`, the waiver
+  regex and the allowlist from `check-identifier-locale.py` beside it — nothing is duplicated, so
+  nothing can drift; the cost is that the download must fetch both. The word lists are the evidence
+  the classifier counts and ship beside the detector for the same reason as the English list of the
+  identifier tier: the same fragment produces the same verdict on a laptop, in CI and inside the
+  write-time hook.
+- **Digests for the new files.** The value shipped above for the identifier detector was measured
+  at `v2.21.0`; the prose files land in the first tag published after this change, so their digests
+  are not written here — compute them with the loop under *The pin*, at the tag you pin, and paste
+  them in. Until then the step fails at `sha256sum -c`, which is the correct behaviour of a gate with
+  an unknown pin.
+- **`[ -f .code-locale ]` before the run.** The detector itself is silent without the declaration
+  (it prints `findings: 0` and says the direction is off); the guard only saves the download and
+  makes the reason visible in the log. A declaration the detector cannot read exits 2 and fails the
+  step, naming the file and the accepted values — never an unmeasured pass.
+- **Exit semantics.** 1 only on a gating finding (a comment or docstring with strong evidence of
+  the wrong language); a Markdown paragraph, or weak evidence, prints as advisory and exits 0. The
+  exits are the skill's: translate it, `locale-ok: <reason>` on the fragment's line or the line
+  above, or the path in `.identifier-locale-allow`.
+
 ## What this step does not cover
 
 - **Pushes to the default branch.** It runs on pull requests only. A repository that accepts direct
@@ -125,6 +183,10 @@ guide: the skill's *Reviewing a diff* section.
   waive them, or grandfather the path). A pure rename of an English-clean file is silent; a rename
   **to** a Portuguese name is reported on the path, which is why the flag is there.
 - **The advisory tier**, unless you ship the word lists and drop `--no-english`.
+- **Prose, unless `.code-locale` declares the language** — and, with it, everything the prose
+  detector's own `KNOWN LIMIT` list names: string literals and log messages, languages other than
+  Portuguese and English, function words rather than a dictionary, text inside code fences, a block
+  opened on a line the diff did not add.
 - **Everything the detector's own `KNOWN LIMIT` list names** — words that are both English and
   Portuguese, abbreviations under the minimum segment length, identifiers built at runtime, Spanish
   and Italian. A green step is a measurement of what the tiers reach, not proof of compliance.

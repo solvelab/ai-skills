@@ -45,6 +45,9 @@ KNOWN LIMIT — what this check does NOT catch. A passing run is not proof of fu
        Portuguese comment. In --diff mode this holds only for blocks whose added lines are
        contiguous in the hunk; a block opened in an added line and closed in an unchanged one keeps
        the scanner in prose state to the end of the run, which under-reports rather than over-reports.
+       The stripped fragments are not lost: `split_prose()` hands them, with their kind, to the
+       prose detector beside this file (`check-prose-locale.py`), which measures the other half of
+       the rule where a repository declares its prose language.
     8. In --markdown-fences mode, untagged fences are skipped. This is load-bearing, not an
        oversight: a fence of Portuguese commit-message examples is prose and must not be flagged.
     9. Branch names, PR titles and issue text are not files and are never scanned. They are
@@ -299,24 +302,40 @@ class PathFinding(Finding):
         )
 
 
-def strip_prose(line: str, lang: str, state: "str | None" = None) -> "tuple[str, str | None]":
-    """Remove comments and string literals — the prose layer — but keep machine-layer literals.
+def _block_kind(delimiter: str) -> str:
+    """The prose kind a block delimiter opens: the triple quotes are docstrings, the rest comments."""
+    return "docstring" if delimiter in ('\"\"\"', "'''") else "comment"
+
+
+def split_prose(line: str, lang: str, state: "str | None" = None) -> "tuple[str, str | None, list]":
+    """Split one line into its machine part and its prose fragments.
+
+    Returns (code, new_state, fragments). `code` is exactly what `strip_prose()` has always
+    returned — comments and string literals blanked, machine-layer literals kept — and `new_state`
+    is the closing delimiter of a block still open at the end of the line, or None. `fragments` is
+    what the identifier check used to throw away: a list of (kind, text) with `kind` in `comment`,
+    `docstring`, `string`, in the order they appear. A triple-quoted block that opens after code on
+    the same line is a `string`, not a `docstring`; the interior lines of any open block are yielded
+    with the kind the delimiter implies, and the caller that tracks the block decides.
 
     Character-scanned rather than regex-replaced, because a '#' inside a string is not a comment
     and a quote inside a comment does not open a string.
 
     `state` carries an open block across lines: it is the closing delimiter still being waited for,
-    or None. Returns (code, new_state). Line-at-a-time scanning was the original design and it was
-    wrong — the interior lines of a `\"\"\"` docstring or a `/* */` block carry no delimiter at all,
-    so they were read as code and every Portuguese word in them was flagged as an identifier. On one
-    real Portuguese codebase that was 4219 of 4340 findings (see issue #85).
+    or None. Line-at-a-time scanning was the original design and it was wrong — the interior lines
+    of a `\"\"\"` docstring or a `/* */` block carry no delimiter at all, so they were read as code
+    and every Portuguese word in them was flagged as an identifier. On one real Portuguese codebase
+    that was 4219 of 4340 findings (see issue #85).
     """
     line_syntax, blocks, quotes = COMMENT_SYNTAX.get(lang, (["#"], [], ['"', "'"]))
+    fragments: list = []
 
     if state is not None:                           # continuing a block opened on an earlier line
         close = line.find(state)
         if close == -1:
-            return "", state                        # the whole line is prose
+            fragments.append((_block_kind(state), line))
+            return "", state, fragments             # the whole line is prose
+        fragments.append((_block_kind(state), line[:close]))
         line = line[close + len(state):]            # resume scanning after the closer
         state = None
 
@@ -328,20 +347,29 @@ def strip_prose(line: str, lang: str, state: "str | None" = None) -> "tuple[str,
         opener = next((o for o, _c in blocks if line.startswith(o, i)), None)
         if opener is not None:
             closer = next(c for o, c in blocks if o == opener)
+            kind = _block_kind(closer)
+            if kind == "docstring" and "".join(out).strip():
+                kind = "string"                     # `x = """..."""` is a literal, not a docstring
             close = line.find(closer, i + len(opener))
             if close == -1:
-                return "".join(out), closer         # block runs past this line
+                fragments.append((kind, line[i + len(opener):]))
+                return "".join(out), closer, fragments   # block runs past this line
+            fragments.append((kind, line[i + len(opener):close]))
             out.append(" ")
             i = close + len(closer)
             continue
-        if any(line.startswith(p, i) for p in line_syntax):
+        prefix = next((p for p in line_syntax if line.startswith(p, i)), None)
+        if prefix is not None:
+            fragments.append(("comment", line[i + len(prefix):]))
             break                                   # rest of the line is prose
         matched_quote = next((q for q in quotes if line.startswith(q, i)), None)
         if matched_quote:
             close = line.find(matched_quote, i + len(matched_quote))
             if close == -1:
+                fragments.append(("string", line[i + len(matched_quote):]))
                 break                               # unterminated: treat the remainder as prose
             body = line[i + len(matched_quote):close]
+            fragments.append(("string", body))
             # A literal that is a route path or a DDL fragment IS the machine layer.
             if PATH_LITERAL.match(body) or DDL_RE.search(body):
                 out.append(" " + body.replace("/", " ") + " ")
@@ -351,7 +379,19 @@ def strip_prose(line: str, lang: str, state: "str | None" = None) -> "tuple[str,
             continue
         out.append(line[i])
         i += 1
-    return "".join(out), state
+    return "".join(out), state, fragments
+
+
+def strip_prose(line: str, lang: str, state: "str | None" = None) -> "tuple[str, str | None]":
+    """Remove comments and string literals — the prose layer — but keep machine-layer literals.
+
+    A thin wrapper over `split_prose()`: same code, same state, the fragments dropped. Kept as the
+    entry point this check and its callers have always used; the prose detector beside it
+    (`check-prose-locale.py`) reads the fragments through the shared tokenizer instead of
+    duplicating COMMENT_SYNTAX.
+    """
+    code, new_state, _fragments = split_prose(line, lang, state)
+    return code, new_state
 
 
 def segments(identifier: str) -> list[str]:

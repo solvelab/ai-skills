@@ -365,6 +365,16 @@ Silent when the write is clean. The exits are the ones the `code-locale` skill d
 for the whole session. Where the check itself is missing it exits silently instead of failing,
 because an absent gate must not present itself as an error.
 
+Since #179 the same hook measures the **other half** of the rule where a repository asks for it: a
+`.code-locale` file at the repository root with `prose: pt-BR` (or `en`), found by walking up from
+the written file, switches on
+[`check-prose-locale.py`](skills/code-locale/references/check-prose-locale.py) — comments and
+docstrings with strong evidence of the wrong language are **denied** on `PreToolUse` with the same
+exits (the `locale-ok:` line covers the comment's own line too); a Markdown paragraph, or weak
+evidence, is advisory on `PostToolUse`. Without the declaration nothing about prose is measured —
+this catalog does not declare (README in English, change records in Portuguese), and the skill's
+section *Prose follows the repository* says why.
+
 ### The locale rite, at the end of the turn (the Stop gate)
 
 The write hooks see the **tool**, not the **result**. Anything written through Bash — a heredoc,
@@ -403,15 +413,19 @@ the turn forever. Silent — no output, exit 0,
 under a second — outside a git work tree, on an empty diff, on advisory-only findings, with
 `LOCALE_RITE_MODE=inform`, and on a payload it cannot read. What it does not see is declared in its
 docstring: a file committed inside the same turn, a repository other than the one `cwd` is in, and
-the event's other name (`SubagentStop`) inside a subagent.
+the event's other name (`SubagentStop`) inside a subagent. Where the work tree root carries
+`.code-locale` (#179) the same diff is measured by the prose detector as well: a comment or docstring
+in the wrong language blocks in the same reason, a Markdown paragraph is a `systemMessage` that never
+blocks, and a declaration the detector cannot read is named in a message rather than silencing the
+direction.
 
 **Which layer catches what.** The three layers overlap on purpose; each covers a path the others
 cannot see.
 
 | What wrote the name | Layer that catches it | Effect |
 |---|---|---|
-| `Write` / `Edit` / `MultiEdit` / `NotebookEdit` | `locale-rite.py` — on `PreToolUse` (denies) and `PostToolUse` (advisory) | today the finding is **context** after the write; with #137 the write is **denied** and nothing reaches the disk |
-| Bash — heredoc, `sed -i`, a script, a generator | `locale-stop-gate.py` on `Stop` | the **turn does not end** until the diff is clean or waived |
+| `Write` / `Edit` / `MultiEdit` / `NotebookEdit` | `locale-rite.py` — on `PreToolUse` (denies) and `PostToolUse` (advisory); where the repository declares `prose:` in `.code-locale`, the prose direction too (#179) | today the finding is **context** after the write; with #137 the write is **denied** and nothing reaches the disk — a comment or docstring in the wrong language included, a Markdown paragraph only as advisory |
+| Bash — heredoc, `sed -i`, a script, a generator | `locale-stop-gate.py` on `Stop`; the prose direction too, where `.code-locale` declares it | the **turn does not end** until the diff is clean or waived; a Markdown paragraph in the wrong language is a message, never a block |
 | another assistant (Codex, Cursor, Copilot), or a human commit | the per-repository kit of the [`code-locale`](skills/code-locale/) skill — pre-commit hook and CI step (issue #139) | the **commit or the pull request** fails |
 
 The hooks run only in a Claude Code session that wired them; they enforce nothing on a pull request

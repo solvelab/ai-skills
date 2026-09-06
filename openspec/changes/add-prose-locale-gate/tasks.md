@@ -159,8 +159,8 @@
 - [ ] V.1 `openspec validate add-prose-locale-gate --strict` verde; `bash scripts/validate-rite.sh`
       verde; `python3 scripts/validate-skill-version.py` verde; runner de gates (`gates.sh`) todo
       `PASS` e `dirty-after: 0`; `agentskills validate skills/code-locale` verde
-- [ ] V.2 Descoberta do catálogo intacta: `ls -d skills/*/ | wc -l` -> 35; `validate-skills.py`
-      `skills checked: 35 findings: 0`
+- [ ] V.2 Descoberta do catálogo intacta: `ls -d skills/*/ | wc -l` -> 36; `validate-skills.py`
+      `skills checked: 36 findings: 0`
 - [ ] V.3 README / docs: seção dos hooks menciona a direção de prosa; `ci-step.md` e SKILL.md
       documentam a declaração; wrappers regenerados
 - [ ] V.4 `openspec archive add-prose-locale-gate --yes` depois que todos os grupos acima estiverem

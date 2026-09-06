@@ -85,7 +85,7 @@ Nenhuma.
   `references/check-prose-locale.py` novo, `references/prose-words-pt.txt`,
   `references/prose-words-en.txt`, `references/prose-words.SOURCE.md` novos,
   `references/pre-commit-locale.sh`, `references/ci-step.md`). A composição do catálogo não muda
-  (35 skills); a descrição da skill fica em 996/1024 caracteres, sem edição.
+  (36 skills); a descrição da skill fica em 996/1024 caracteres, sem edição.
 - Hooks: `claude/global/hooks/locale-rite.py`, `claude/global/hooks/locale-stop-gate.py` — os
   selftests atuais continuam verdes sem edição dos casos existentes.
 - Repo: `.github/workflows/ci.yml` (um step), `README.md` (seção dos hooks), wrappers gerados
