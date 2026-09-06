@@ -1221,6 +1221,18 @@ A behaviour-gain number measured on another model, another CLI version or anothe
 not the catalog's number: it MAY be cited as the upstream's, with its conditions, and SHALL NOT be
 presented as this catalog's measurement.
 
+Where the behaviour gain claimed is an **order of production** — that with the rule the model
+writes one kind of artifact before another, such as a test before the implementation it covers —
+the record SHALL name the source of the order datum. Order does not survive in the final diff,
+which shows state and not sequence, so the datum SHALL come from the session transcript; where the
+harness fell back to any other source, such as file modification times, the record SHALL mark that
+cell as a fallback and SHALL NOT publish a fallback-backed value as a measurement of order.
+
+Such a record SHALL also declare whether the measured agent was able to execute anything. A rule
+whose subject is a red-green cycle, measured in cells where the agent could not run a test, is a
+claim about the order in which artifacts were written and about the quality of what remained — not
+about the feedback loop — and the record SHALL say so in the words of what it did not cover.
+
 #### Scenario: A cost claim without backing does not ship
 
 - **WHEN** a skill would assert that one technique is cheaper than another
@@ -1269,6 +1281,20 @@ presented as this catalog's measurement.
   repository
 - **THEN** the catalog cites it with those conditions and as the upstream's number
 - **AND** SHALL NOT present it as a measurement of this catalog's skill
+
+#### Scenario: An order-of-production claim names where the order came from
+
+- **WHEN** a record states that a rule makes the model write a test before the implementation
+- **THEN** the order datum comes from the session transcript, and the record says so
+- **AND** a cell whose order was inferred from file modification times is marked as a fallback and
+  is not published as a measurement of order
+
+#### Scenario: A red-green claim declares whether the agent could run anything
+
+- **WHEN** a record measures a rule whose subject is the red-green cycle
+- **THEN** it states whether the measured cells could execute a test at all
+- **AND** where they could not, the record presents the result as order of production and quality
+  of the artifact that remained, never as a measurement of the feedback loop
 
 ### Requirement: A skill que representa objetos declara o regime antes de desenhar
 
