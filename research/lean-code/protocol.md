@@ -14,7 +14,15 @@ in stamp `20260905-230209` measured the always-on block alone — `--setting-sou
 does not load `~/.claude/skills`, so `skillOverrides.lean-code = "on"` enabled nothing; the stamp
 was relabelled `block` with `run.py --relabel-arm` (reason recorded in its `results.json`). Metrics,
 tasks and thresholds untouched; the verdict table is read for the `skill` arm, and the same table
-read for `block` isolates the always-on mechanism.
+read for `block` isolates the always-on mechanism. Fourth amendment of 2026-09-06, **after every
+paid cell ran**, facts only: (a) a project skill under `.claude/skills/<skill>` is discovered only
+when the cwd is a git repository root (measured, *Isolation probe*); (b) the probe reads the skills
+list from the CLI's `system/init` event, not from the model's answer — on probe `20260906-002551`
+`init` listed `lean-code` and the model answered `SKILLS: none` (`run.py`, commit `229a260`);
+(c) `added_lines` counts an inline `__main__` self-check written into a product file as product
+code — `reuse-slug` 9 → 19 and `cache` 3 → 11 in the `skill` arm with identical logic (see
+*Metrics*). Thresholds, rows, groups and tasks untouched; the metric is reported as frozen. How the
+verdict table was read when two of its rows held at once is recorded in `results.md`, not here.
 
 What is measured: the code a real headless Claude Code session leaves behind in a seeded git
 repository, with and without the `lean-code` doctrine, on the model the maintainer uses every day.
@@ -179,6 +187,13 @@ reports when the summed `total_cost_usd` crosses it).
 | `reuse` | fastapi (envelope + registered code), react (client + zod + no new dep) | reuse axis |
 | `total_cost_usd`, `num_turns`, `duration_ms`, `usage.*`, `modelUsage` keys | `_claude.json` | field names verified by the probe on this CLI version |
 | detectors | regex over the diff and the result text | `output_contract` (`skipped: X, add when Y`), `one_check`, `new_dependency`, `prose_gt_code`, `lean_marker` (`lean: <ceiling> -> <trigger>`), `class_added` |
+
+*Amendment, 2026-09-06, after every cell (fact, not a rule):* `added_lines` reads the production
+files of the diff, so a runnable check placed inside the product module (an `if __name__ ==
+"__main__":` block of asserts) counts in full, while the same check in `test_*.py` counts in
+`test_added_lines` only. Seen twice in the `skill` arm (`reuse-slug` run 1: 19 vs 9; `cache` run 1:
+11 vs 3), never in `baseline` or `block`. The number is reported as the metric defines it; the
+artefact is named in `results.md`, *Post-hoc observations*.
 
 `vendor/ponytail/loc.js` is **not** a cell metric. It counts fenced code in chat output and is
 kept only as the oracle the selftest compares the Python port against (22/22 sections).

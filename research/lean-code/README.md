@@ -21,8 +21,8 @@ here, not the upstream's.
 | [`fixtures/examples/`](fixtures/examples/README.md) | Eleven upstream before/after transcripts, used only to prove the LOC counter against `loc.js`. |
 | [`scorer-venv.txt`](scorer-venv.txt) | The pinned `fastapi`/`httpx`/`pydantic`/`starlette` the FastAPI scorer ran under. The venv is never committed. |
 | [`arms-block.md`](arms-block.md) | The always-on *Lean Code* block (the `personal-rules.md` section without its heading) that `--claude-block` appends to the `block` and `skill` arms' `CLAUDE.md` snippet; the baseline never sees it. |
-| [`results.md`](results.md) | **What has been measured.** Probe, pilot (shake-out only), the baseline table on the maintainer's model, the flag sanity, and the arm that has not run yet. |
-| [`results/`](results/README.md) | The files behind it: probe record, baseline defect counts with the hand-read classification, stripped export. |
+| [`results.md`](results.md) | **What has been measured.** The three arms per task with Δ, the `reuse-slug` INCONCLUSIVE → REWRITE → re-run story, the verdict read by the letter (skill **INCONCLUSIVE**, block INCONCLUSIVE), the dated post-hoc observations, the review lens on three real diffs (precision 0.76), the spend ($34.88), and what it does not cover. |
+| [`results/`](results/README.md) | The files behind it: probe records, per-arm defect counts (baseline with the hand-read classification, block, skill), stripped exports of every reported stamp. |
 
 ## Running things
 
@@ -85,16 +85,18 @@ the three files, reason recorded); report deltas 5/5.
 
 ## Status
 
-Part B ran on 2026-09-05: isolation probe PASS (Haiku, $0.0457), pilot (Haiku, n=1, shake-out only,
-$0.5571) and **the baseline on the maintainer's daily model — `opus[1m]`, resolved by the CLI to
-`claude-opus-5[1m]`, Claude Code `2.1.261`, n=3 × 9 tasks = 27 cells, $9.4529, `correct` 27/27,
-`safe` 27/27**. The numbers, the flag sanity and what they do not cover are in
-[`results.md`](results.md); the files are in `results/`. On 2026-09-05 a second matrix ran under the
-label `skill` (27 cells, $9.0828, same CLI and model) and measured the **always-on block alone**:
-`--setting-sources project,local` does not load `~/.claude/skills`, so the `skillOverrides` switch
-enabled nothing; the stamp is relabelled `block` (`--relabel-arm`, reason in its `results.json`) and
-its numbers wait for `results.md`. **The skill arm has not run** (item #146): nothing here compares
-the skill with anything, and no README or `SKILL.md` may cite a gain. Built against Lua `5.5.0`,
-node `v26.0.0`, Python 3.14 (harness) / 3.12 (scorer venv), on one machine; Claude Code
-auto-updated to `2.1.263` on 2026-09-06, so the skill arm runs the pinned `2.1.261` binary
-(`~/.local/share/claude/versions/2.1.261`, first on `PATH`) or the baseline and block are re-run.
+Everything paid has run (2026-09-05 → 2026-09-06, Claude Code `2.1.261` pinned, `opus[1m]` →
+`claude-opus-5[1m]`, one machine): isolation probes, the Haiku pilot (shake-out only), **baseline**
+(27 cells, $9.4529), **block** — the always-on block alone, relabelled from `skill` (27 cells,
+$9.0828) — and **skill** (27 cells, $9.2791; `reuse-slug` re-measured with +2 repetitions and, after
+a REWRITE of the skill's one-check rule, n=3 again, $1.2331), plus the review lens on the three real
+diffs ($1.4648). `correct` 27/27 and `safe` 27/27 in every arm. The verdict, read by the letter of
+[`protocol.md`](protocol.md) in [`results.md`](results.md): **skill INCONCLUSIVE** — every SHIP
+condition holds on the numbers as they stand (over-build group Δ −33.9 %, worst task +4.2 %,
+trailer 24/27, root cause 6/6, no new dependency) and the dispersion clause holds at the same time
+on `cache` and `csv-sum`, whose +2 repetitions have not run; **block INCONCLUSIVE** (Δ −28.6 %,
+inside the band). Until those four cells run and the table is re-read, no README or `SKILL.md`
+carries a number about the skill's effect; the skill ships for its doctrine and its review lens
+(precision 16/21 = 0.76 ≥ 0.7). Built against Lua `5.5.0`, node `v26.0.0`, Python 3.14 (harness) /
+3.12 (scorer venv); Claude Code auto-updated to `2.1.263` on 2026-09-06, so the skill stamps ran the
+pinned `2.1.261` binary first on `PATH` (`--report` refuses a version mismatch).
