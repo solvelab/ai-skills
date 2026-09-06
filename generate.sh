@@ -7,8 +7,8 @@
 #   codex/skills/<name>/AGENTS.md          @-include of the canonical SKILL.md
 #   cursor/rules/<name>.mdc                content inlined (Cursor has no file includes);
 #                                          references/ linked by repository URL
-#   copilot/instructions/<name>.instructions.md  markdown link to the canonical SKILL.md;
-#                                          references/ linked by repository URL
+#   copilot/instructions/<name>.instructions.md  SKILL.md and references/ linked by repository URL
+#                                          (the file is copied out of the clone alone)
 #   plugins/<group>/                       category-grouped Claude Code plugins (skills copied;
 #                                          group = metadata.category, git+process -> workflow)
 #
