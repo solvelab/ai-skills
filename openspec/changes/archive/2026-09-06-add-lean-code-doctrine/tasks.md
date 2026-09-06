@@ -711,4 +711,11 @@
       `results.md` e *Status*), `SKILL.md` (seção `## What the catalog measured` com o Δ do grupo e
       as condições, URL do repositório), e agora **sim** a linha de lean-code do `README.md` do
       catálogo (Δ do grupo e condições em poucas palavras) — a linha SHIP do protocolo permite
-- [ ] V.4 `openspec archive add-lean-code-doctrine --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive add-lean-code-doctrine --yes` after all groups above are `[x]`
+
+
+      ```
+      openspec archive add-lean-code-doctrine --yes
+      -> Specs updated successfully.
+      -> Change 'add-lean-code-doctrine' archived as '2026-09-06-add-lean-code-doctrine'.
+      ```

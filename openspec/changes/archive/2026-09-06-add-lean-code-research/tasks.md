@@ -508,4 +508,11 @@
       `safe` 27/27) e que **the skill arm has not run** (item #146). `grep -n "not yet measured"
       research/lean-code/results.md` -> linhas 13 e 86.
 
-- [ ] V.4 `openspec archive add-lean-code-research --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive add-lean-code-research --yes` after all groups above are `[x]`
+
+
+      ```
+      openspec archive add-lean-code-research --yes
+      -> Specs updated successfully.
+      -> Change 'add-lean-code-research' archived as '2026-09-06-add-lean-code-research'.
+      ```

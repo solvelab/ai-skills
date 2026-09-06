@@ -16,7 +16,9 @@ fallback/negative-cache/clamping → `backend-resilience`; REST negative-testing
 `api-resilience-testing`; adversarial methodology → `bug-hunter`; OpenSpec lifecycle → `openspec`;
 claim verification, the research ladder, not-found reporting and the off-script scope guard →
 `verify-before-claiming`; the identifier/prose language boundary, the untranslatable-domain-term
-exception and the identifier migration policy → `code-locale`.
+exception and the identifier migration policy → `code-locale`; code volume — the reuse-before-writing
+ladder, the root-cause rule for bug fixes, the never-simplified-away carve-outs, the `lean:` marker
+with its ledger, and the over-engineering review lens → `lean-code`.
 
 #### Scenario: Orchestrator skill references instead of restating
 
@@ -44,6 +46,13 @@ exception and the identifier migration policy → `code-locale`.
 - **THEN** the instruction is preserved unchanged and gains one clause stating that it governs prose
   only, plus a link to the canonical skill for the machine layer
 - **AND** the machine-layer rule is not reproduced inline in that skill
+
+#### Scenario: A dependency-restraint instance links to the general rung
+
+- **WHEN** a skill states a stack-specific instance of "no new dependency for what a few lines do" —
+  a stdlib-only rule for a bare container, a no-new-supply-chain rule for a sidecar
+- **THEN** the instance keeps its text and gains one line linking to `lean-code` for the general
+  rung of the ladder, rather than reproducing the ladder inline
 
 ### Requirement: Uniform frontmatter metadata
 
