@@ -68,4 +68,5 @@
       Evidence: `npx -y skills add solvelab/ai-skills --list | grep -c -E '^│    [a-z0-9-]+$'` -> `35`; nothing added, removed or renamed.
 - [x] V.3 README / docs updated where the change alters catalog composition or usage
       Evidence: `README.md` C5 sentence and selftest count updated; catalog composition unchanged.
-- [ ] V.4 `openspec archive require-probed-on-literal --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive require-probed-on-literal --yes` after all groups above are `[x]`
+      Evidence: `openspec archive require-probed-on-literal --yes` after PR #158 merged -> archived as `2026-09-06-require-probed-on-literal`, specs updated; `openspec list` -> `No active changes found`.
