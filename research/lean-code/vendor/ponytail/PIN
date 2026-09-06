@@ -1,0 +1,38 @@
+upstream: https://github.com/DietrichGebert/ponytail
+license: MIT (LICENSE in this directory, copied verbatim)
+version: 4.9.0 (package.json "version" at the pinned commit)
+commit: 974d940a1c5344210874150b98ff0d2c861fab6a
+commit_date: 2026-09-04 14:35:29 +0200
+vendored_on: 2026-09-05
+vendored_by: research/lean-code (issue #145)
+
+files (sha256, path in upstream -> path here):
+68f473557695f69a036cd6fdb5d8e9ec51aef407183416545b29823c1e3190a2  benchmarks/agentic/tasks.py -> tasks.py
+c3c346f836eec0ba759a100a5c1166be2362fcf37017470f3c9f9b872ab44234  benchmarks/loc.js           -> loc.js
+fb1bc6909ac3ef82d5c22106e32ef682b0cff66788fa915fb9b53b15c9d2f3ab  LICENSE                     -> LICENSE
+
+examples (sha256, upstream examples/<name>.md -> ../../fixtures/examples/<name>.md):
+3e0ba36601b03f6d26b9afafe791d9332d4159ac865e345840d9b187bd823f78  csv-sum.md
+1474e43fa0912bd019cea93139bdabdbbb8da969759e1940fa392ada947a553f  debounce.md
+ad4757547d5cb547d14398e150217b751a7601ef1d6298c1ba20327299d80eac  deep-clone.md
+b8467925f6db86c9d8a4038ea4148b7ff882fc77f2597d7310075c22669f3485  email-validation.md
+6a9484027698d3eef9fc383942c1b57635f607e6b4df6c877dca5556ad2df6b4  group-by.md
+38f6586e18dab81988346c31555a31dc8044c9171da0e79c548f778acf7d245f  infinite-scroll.md
+4248e9371f46d8d15358caacf99ee6b001863cdbce572bdcadb03677c3ffa398  modal-dialog.md
+599a9d2f5af00489fd7cbed813b429a7ff43abaac433c9db48495c6f457cc203  number-formatting.md
+4231ef65b39752973b0d9d3fb1f49877527545a7eac01ee77c3a47808404ce85  rate-limit.md
+1109af1dfba055d6a4e9538f90be1d5c204d601389e4148717af705c941ca3b9  react-countdown.md
+c6e6fdd2cc625fdd77c1140beea706f6c60fa638f14b9052fb02ac5890ca503b  url-params.md
+
+what is used:
+- tasks.py: TASKS entries safe-path, sql-user, csv-sum, cache, reuse-slug, trace-transfer
+  (prompt, seed, good, bad, axis, score). The other entries are present but not wired
+  (todo-null needs node at score time; the tmpl-* tier needs a cloned template repo).
+  Not modified. Loaded by run.py through importlib, never by `import tasks`.
+- loc.js: the LOC oracle. run.py --selftest runs it under node over the 22 Without/With
+  sections of the examples and requires the Python port to agree 22/22. It is not used to
+  score a cell: the cell metric is `git diff --cached --numstat HEAD` (see ../../protocol.md).
+
+reproduce the vendoring:
+  git clone https://github.com/DietrichGebert/ponytail && git -C ponytail checkout 974d940a
+  sha256sum ponytail/benchmarks/agentic/tasks.py ponytail/benchmarks/loc.js ponytail/LICENSE
