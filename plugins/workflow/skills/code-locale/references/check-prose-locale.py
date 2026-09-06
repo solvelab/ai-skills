@@ -13,9 +13,12 @@ THE DECLARATION
 
     Accepted values: pt-BR, pt, en, en-US (normalised to `pt` / `en`). Any other value is an error
     (exit 2) naming the file and the accepted values — a typo must not open or close the gate in
-    silence. The file is found by walking up from the scanned root (or --root) until a directory
-    holds `.code-locale`, `.git`, or the filesystem ends: the declaration belongs to a repository,
-    never to a directory above it. WITHOUT the file the prose direction is silent: zero findings,
+    silence. The file is found by walking up until a directory holds `.code-locale`, `.git`, or the
+    filesystem ends — from `--root` when given; else from the FIRST SCANNED PATH (its directory for
+    a file), so a path inside another repository is judged by that repository's declaration and
+    never by the caller's; else (`--diff`, `--stdin`) from the working directory. The declaration
+    belongs to a repository, never to a directory above it. It is read as UTF-8 with or without a
+    BOM, so a Windows editor cannot switch the direction off in silence. WITHOUT the file the prose direction is silent: zero findings,
     exit 0, and `--explain` says so. That silence is what makes the rule adoptable in a bilingual
     catalog and in a repository that never heard of it. `--prose <lang>` overrides the file for one
     run — the calibration mode, so a foreign tree can be measured without writing into it.
@@ -38,12 +41,16 @@ WHAT IS MEASURED, AND HOW
     own. Markdown (.md, .markdown): every paragraph outside fenced blocks and outside the YAML
     frontmatter; table rows, headings under MIN_WORDS words, link markup, inline code and badge
     lines are skipped. Each fragment is cleaned — quoted spans ('...', "...", `...`), URLs, paths,
-    identifiers (snake_case, camelCase, ALL_CAPS, dotted), numbers, #tags and @mentions removed —
+    identifiers (snake_case, camelCase, ALL_CAPS, dotted, kebab-case), numbers, #tags and @mentions
+    removed —
     and tokenized into lowercase words with their accents kept. The words are counted against two
     CLOSED lists of function words that share no entry (prose-words-pt.txt, prose-words-en.txt;
     how they were built: prose-words.SOURCE.md). Then, with `wrong` the language the repository
     did NOT declare:
 
+        a linter pragma (`noqa:`, `pylint:`, `type:`, `fmt:`, `eslint-disable`, ...) -> skipped:code
+        a copyright or license header (`Copyright (c)`, `SPDX-License-Identifier`, `Licensed under
+            the`, `Permission is hereby granted`, `All rights reserved`) -> skipped:license
         fewer than MIN_WORDS words after cleaning            -> skipped:short
         more than CODE_SHARE of the raw tokens look like code -> skipped:code
         no hit in either list                                -> skipped:unknown
@@ -56,7 +63,10 @@ WHAT IS MEASURED, AND HOW
     Thresholds after calibration (2026-09-06, issue #179; counts in the change's tasks S.3):
     MIN_WORDS = 4, WRONG_MIN = 2, STRONG_MIN = 3, CODE_SHARE = 0.5 — the values the issue proposed,
     kept because the adjudicated precision on the gating tier was above the 0.90 bar without
-    narrowing them.
+    narrowing them. The review of the change narrowed the EXTRACTION, not the thresholds: linter
+    pragmas and license headers are skipped, kebab-case tokens are stripped, a context line in a
+    diff separates two added comments. Re-measured after that on the same three corpora: 42/42
+    gating true on the Portuguese service, 0 gating on the catalog under `en`, 0 on the archive.
 
 THE EXITS — named on every finding line
     `locale-ok: <reason>` on the fragment's line or the line above (the identifier check's own
@@ -89,6 +99,13 @@ KNOWN LIMIT — what this check does NOT measure. A passing run is not proof of 
        escapes by rule 1; one that opens a line is read as a docstring even when it is a literal.
     8. A file type outside the sibling's EXT_LANG and not Markdown has no comment syntax here and is
        reported as skipped, never as passing.
+    9. A copyright or license header inside a source file is legal boilerplate that must stay
+       verbatim, in whatever language the license was written: it is `skipped:license`, never
+       measured, and a Portuguese comment hidden inside one escapes with it. LICENSE*, CHANGELOG*
+       and NOTICE* FILES (that exact stem, or `LICENSE-<name>`, with no suffix or a doc suffix) are
+       skipped whole; `changelog_parser.py` and `notices.py` are ordinary modules and are measured.
+    10. `--stdin` and `--diff -` decode stdin as UTF-8 and REPLACE undecodable bytes (a Latin-1
+       comment is measured with its accents lost, never a traceback); a file is read the same way.
 
 Exit code: 1 if any gating finding, else 0; 2 on a usage error or an unreadable declaration.
 """
@@ -122,7 +139,9 @@ CODE_SHARE = 0.5
 FRAGMENT_PREVIEW = 80
 
 MARKDOWN_SUFFIXES = {".md", ".markdown"}
-SKIP_FILE_PREFIXES = ("LICENSE", "LICENCE", "CHANGELOG", "NOTICE")
+# LICENSE, LICENCE.md, CHANGELOG.txt, NOTICES, LICENSE-MIT — the file, not a module named after it.
+SKIP_FILE_STEM_RE = re.compile(r"^(?:LICEN[CS]E|CHANGELOG|NOTICES?)(?:-[\w.]+)?$", re.I)
+SKIP_FILE_SUFFIXES = {"", ".md", ".markdown", ".txt", ".rst"}
 
 
 def load_sibling():
@@ -132,6 +151,7 @@ def load_sibling():
         raise SystemExit(f"error: {SIBLING.name} must sit beside {Path(__file__).name} — not found at {SIBLING}")
     spec = importlib.util.spec_from_file_location("check_identifier_locale", SIBLING)
     module = importlib.util.module_from_spec(spec)
+    sys.dont_write_bytecode = True                   # no __pycache__ beside the shipped files
     spec.loader.exec_module(module)
     return module
 
@@ -164,7 +184,7 @@ def find_declaration(start: Path) -> "tuple[Path | None, Path | None]":
 def load_declaration(path: Path) -> "str | None":
     """The normalised prose language (`pt`/`en`) the file declares, or None when it names none."""
     prose = None
-    for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    for lineno, raw in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
         line = raw.split("#", 1)[0].strip()
         if not line:
             continue
@@ -241,12 +261,23 @@ CAPS_RE = re.compile(r"\b[A-Z][A-Z0-9]+\b")
 DOTTED_RE = re.compile(r"\b\w+(?:\.\w+)+\b")
 NUMBER_RE = re.compile(r"\b\d[\w.]*\b")
 TAG_RE = re.compile(r"(?<!\w)[#@]\w+")
+KEBAB_RE = re.compile(r"\b\w+(?:-\w+)+\b")            # too-many-arguments, eslint-disable-next-line
 WORD_RE = re.compile(r"[A-Za-zÀ-ÿ]+")
 CODE_CHARS = set("()[]{}=<>|\\/`;")
+# A linter or type-checker directive: written for a tool, in the tool's grammar, whatever the
+# repository's prose language. `# pylint: disable=too-many-arguments` is four English function words
+# to the word lists and zero prose to a reader.
+PRAGMA_RE = re.compile(
+    r"^\s*(?:(?:noqa|pylint|type|pyright|mypy|fmt|pragma|ruff|flake8|isort|eslint|prettier|nolint|nosec|"
+    r"noinspection)\s*:|noqa\b|nosec\b|nolint\b|eslint-disable|prettier-ignore)", re.I)
+# Copyright and license boilerplate stays verbatim in the language its license was written in.
+LICENSE_RE = re.compile(
+    r"Copyright\s*(?:\(c\)|©|\d{4})|©|SPDX-License-Identifier|Licensed under the|"
+    r"Permission is hereby granted|All rights reserved", re.I)
 
 
 def clean(text: str) -> str:
-    for pattern in (QUOTED_RE, URL_RE, PATH_RE, DOTTED_RE, SNAKE_RE, CAMEL_RE, CAPS_RE, NUMBER_RE, TAG_RE):
+    for pattern in (QUOTED_RE, URL_RE, PATH_RE, DOTTED_RE, KEBAB_RE, SNAKE_RE, CAMEL_RE, CAPS_RE, NUMBER_RE, TAG_RE):
         text = pattern.sub(" ", text)
     return text
 
@@ -261,16 +292,21 @@ def looks_like_code(token: str) -> bool:
         return True
     return bool(SNAKE_RE.fullmatch(token) or CAMEL_RE.fullmatch(token) or CAPS_RE.fullmatch(token)
                 or DOTTED_RE.fullmatch(token) or NUMBER_RE.fullmatch(token) or TAG_RE.fullmatch(token)
-                or URL_RE.fullmatch(token) or PATH_RE.fullmatch(token))
+                or URL_RE.fullmatch(token) or PATH_RE.fullmatch(token) or KEBAB_RE.fullmatch(token))
 
 
 def classify(text: str, declared: str, words: "tuple[set, set]") -> "tuple[str, str | None, bool]":
     """(verdict, language read, strong) for one fragment against the declared language.
 
-    verdict is one of `skipped:short`, `skipped:code`, `skipped:unknown`, `pass`, `wrong`.
-    `language read` is `pt`/`en` when the fragment reads as the wrong one, else None; `strong` is
-    the gating tier (STRONG_MIN uncontested hits) and is only ever True with verdict `wrong`.
+    verdict is one of `skipped:short`, `skipped:code`, `skipped:license`, `skipped:unknown`, `pass`,
+    `wrong`. `language read` is `pt`/`en` when the fragment reads as the wrong one, else None;
+    `strong` is the gating tier (STRONG_MIN uncontested hits) and is only ever True with verdict
+    `wrong`.
     """
+    if PRAGMA_RE.match(text):
+        return "skipped:code", None, False
+    if LICENSE_RE.search(text):
+        return "skipped:license", None, False
     raw_tokens = text.split()
     if raw_tokens and sum(looks_like_code(t) for t in raw_tokens) > CODE_SHARE * len(raw_tokens):
         return "skipped:code", None, False
@@ -431,7 +467,7 @@ def kind_for(path: Path) -> "str | None":
 
 
 def is_skipped_file(path: Path) -> bool:
-    return path.name.upper().startswith(SKIP_FILE_PREFIXES)
+    return bool(SKIP_FILE_STEM_RE.match(path.stem)) and path.suffix.lower() in SKIP_FILE_SUFFIXES
 
 
 def path_allowlisted(rel: str, allow: set) -> bool:
@@ -458,6 +494,7 @@ def scan_text(text: str, lang: str, path: str, declared: str, allow: set, first_
     if path_allowlisted(path, allow):
         stats["files:allowlisted"] += 1
         return []
+    text = text.lstrip("\ufeff")                     # a BOM is not the first word of a paragraph
     lines = text.splitlines()
     fragments = fragments_from_markdown(text) if lang == "markdown" else fragments_from_code(text, lang)
     findings = []
@@ -484,8 +521,10 @@ def scan_diff(stream, declared: str, allow: set, words: "tuple[set, set] | None"
     """Added lines only — the adoption mode, for the same reason the sibling's --diff exists.
 
     Added lines of one hunk are scanned as a run so a block that opens and closes inside the hunk is
-    one fragment; a vendored `+++` path is skipped whole and appended to `vendored` (KNOWN LIMIT 6
-    names what a run cannot see).
+    one fragment; a context line inside the hunk enters the run as a BLANK line, so two comments
+    added around unchanged code stay two fragments (a blank ends a comment run and a paragraph, and
+    keeps an open block open) and the index->line map stays true. A vendored `+++` path is skipped
+    whole and appended to `vendored` (KNOWN LIMIT 6 names what a run cannot see).
     """
     stats = stats if stats is not None else Counter()
     findings, path, lang, lineno = [], "<diff>", None, 0
@@ -532,6 +571,8 @@ def scan_diff(stream, declared: str, allow: set, words: "tuple[set, set] | None"
                 run.append((lineno, line[1:]))
             lineno += 1
         elif not line.startswith("-"):
+            if run:
+                run.append((lineno, ""))             # a context line separates the added runs
             lineno += 1
     flush()
     return findings
@@ -631,6 +672,30 @@ def selftest() -> int:
     case("line that is mostly code is skipped:code", not found and stats["skipped:code"] == 1, str(dict(stats)))
     found, stats = run("# lru cache eviction threshold tuning\ntotal = 0\n")
     case("words in neither list are skipped:unknown", not found and stats["skipped:unknown"] == 1, str(dict(stats)))
+    found, stats = run("# pylint: disable=too-many-arguments,too-many-locals\ndef f(a, b, c, d, e, f):\n    return a\n")
+    case("linter pragma is skipped:code, never prose", not found and stats["skipped:code"] == 1, str(dict(stats)))
+    found, stats = run("# pylint: disable=too-many-arguments\n# fmt: off\n# pragma: no cover\n# mypy: ignore-errors\n# noqa\nx = 1\n")
+    case("a run of pragmas is skipped:code", not found and stats["skipped:code"] == 1, str(dict(stats)))
+    found, stats = run("# the type of the order and the total for the customer are kept\nx = 1\n")
+    case("a comment that starts with the word type is still prose", len(found) == 1 and not found[0].advisory, str(dict(stats)))
+    found, stats = run("# use the well-known re-run path for the order and the total\nx = 1\n")
+    case("kebab-case tokens are stripped, the rest is measured", len(found) == 1 and "well-known" not in clean(found[0].fragment),
+         str(dict(stats)))
+    apache = ("# Copyright (c) 2026 Example Corp.\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n"
+              "# you may not use this file except in compliance with the License.\n# You may obtain a copy of the License at\n#\n"
+              "#     http://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n"
+              "# distributed under the License is distributed on an \"AS IS\" BASIS.\nx = 1\n")
+    found, stats = run(apache)
+    case("Apache license header is skipped:license", not found and stats["skipped:license"] == 1, str(dict(stats)))
+    found, stats = run("# SPDX-License-Identifier: MIT\n# compute the total for the order and apply the discount\nx = 1\n")
+    case("SPDX line inside a comment run skips the run (KNOWN LIMIT 9)", not found and stats["skipped:license"] == 1, str(dict(stats)))
+    case("changelog_parser.py and notices.py are measured, LICENSE-MIT, NOTICE.txt and CHANGELOG.md are not",
+         not is_skipped_file(Path("changelog_parser.py")) and not is_skipped_file(Path("notices.py"))
+         and not is_skipped_file(Path("license_check.py"))
+         and all(is_skipped_file(Path(n)) for n in ("LICENSE", "LICENSE-MIT", "LICENCE.md", "NOTICE.txt", "NOTICES", "CHANGELOG.md")))
+    found, stats = run("\ufeff---\ntitle: the title of the document in english words here\n---\n\nUm parágrafo em português que fala do total do pedido e explica.\n",
+                       lang="markdown", path="bom.md")
+    case(".md with a BOM still sees its frontmatter", not found and stats["pass"] == 1, str(dict(stats)))
     found, stats = run("# compute the total for the order\n# locale-ok: upstream comment mirrored verbatim\ntotal = 0\n")
     case("waiver on the fragment's own line silences it", not found and stats["waived"] == 1, str(dict(stats)))
     found, stats = run("# locale-ok: upstream comment mirrored verbatim\ntotal = 0  # compute the total for the order and apply it\n")
@@ -665,6 +730,15 @@ def selftest() -> int:
     case("--diff reports the added comment at its real line and skips the vendored file, counted",
          len(found) == 1 and found[0].line == 2 and found[0].path == "orders/x.py" and skipped == ["node_modules/pkg/index.js"],
          f"{[f.render() for f in found]} vendored={skipped}")
+    diff = ("--- a/m.py\n+++ b/m.py\n@@ -1,1 +1,3 @@\n+# calcula o total do pedido e aplica o desconto antes\n x = 1\n"
+            "+# compute the total for the order and apply the discount before saving\n")
+    found = scan_diff(io.StringIO(diff), "pt", set(), words=words)
+    case("--diff: a context line separates two added comments, the second is reported at its real line",
+         len(found) == 1 and found[0].line == 3 and not found[0].advisory, f"{[f.render() for f in found]}")
+    diff = ("--- a/m.py\n+++ b/m.py\n@@ -1,1 +1,4 @@\n+\"\"\"Load the model once and keep it\n x = 1\n+in memory for the next requests.\"\"\"\n+y = 2\n")
+    found = scan_diff(io.StringIO(diff), "pt", set(), words=words)
+    case("--diff: a docstring open across a context line is still one fragment", len(found) == 1 and found[0].line == 1,
+         f"{[f.render() for f in found]}")
 
     # The declaration and the CLI contract, through the real entry point, in a temporary tree
     # that carries its own `.git` so the walk never reaches the runner's repository.
@@ -692,6 +766,24 @@ def selftest() -> int:
              r.returncode == 1 and "findings: 1" in r.stdout, r.stdout + r.stderr)
         r = cli("x.py", cwd=tmp / "orders")
         case("declaration found walking up from a subdirectory", r.returncode == 1, r.stdout + r.stderr)
+        with tempfile.TemporaryDirectory(prefix="prose-locale-elsewhere-") as elsewhere:
+            (Path(elsewhere) / ".git").mkdir()
+            r = cli(str(tmp / "orders" / "x.py"), cwd=Path(elsewhere))
+            case("the scanned path's repository decides, not the caller's working directory",
+                 r.returncode == 1 and "findings: 1" in r.stdout, r.stdout + r.stderr)
+            r = cli("--root", elsewhere, str(tmp / "orders" / "x.py"), cwd=Path(elsewhere))
+            case("--root still wins over the scanned path", r.returncode == 0 and "silent" in r.stdout, r.stdout + r.stderr)
+        (tmp / DECLARATION_FILE).write_bytes(b"\xef\xbb\xbfprose: pt-BR\n")
+        r = cli("orders/x.py")
+        case("declaration with a UTF-8 BOM is read, not silently ignored", r.returncode == 1, r.stdout + r.stderr)
+        (tmp / "changelog_parser.py").write_text(EN_COMMENT, encoding="utf-8")
+        r = cli("changelog_parser.py")
+        case("changelog_parser.py is a module, measured", r.returncode == 1 and "changelog_parser.py:1" in r.stdout, r.stdout + r.stderr)
+        r = subprocess.run([sys.executable, __file__, "--stdin", "--lang", "py", "--path", "orders/x.py", "--prose", "pt"],
+                           input=b"# compute the total for the order \xe9 and apply the discount before saving\n",
+                           cwd=tmp, capture_output=True, env={**os.environ, "PYTHONIOENCODING": ""})
+        case("--stdin with an undecodable byte is measured, never a traceback",
+             r.returncode == 1 and b"findings: 1" in r.stdout, (r.stdout + r.stderr).decode("utf-8", "replace"))
         r = subprocess.run([sys.executable, __file__, "--stdin", "--lang", "py", "--path", "orders/x.py", "--prose", "pt"],
                            input=PT_COMMENT, cwd=tmp, capture_output=True, text=True)
         case("--stdin with a PT comment passes", r.returncode == 0 and "findings: 0" in r.stdout, r.stdout + r.stderr)
@@ -732,8 +824,14 @@ def main(argv: "list[str] | None" = None) -> int:
         return selftest()
 
     root = Path(args.root).resolve() if args.root else Path.cwd()
+    # Without --root the declaration walk starts at the first scanned path: the file's own repository
+    # decides, not the caller's working directory (header: THE DECLARATION).
+    start = root
+    if not args.root and args.paths and not args.diff and not args.stdin:
+        first = Path(args.paths[0])
+        start = (first if first.is_dir() else first.parent).resolve()
     try:
-        declared, explanation = resolve_declaration(root, args.prose)
+        declared, explanation = resolve_declaration(start, args.prose)
     except DeclarationError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -753,6 +851,11 @@ def main(argv: "list[str] | None" = None) -> int:
     stats: Counter = Counter()
     findings: list = []
 
+    if args.diff or args.stdin:
+        try:
+            sys.stdin.reconfigure(errors="replace")  # KNOWN LIMIT 10: measured with accents lost, never a traceback
+        except (AttributeError, ValueError):
+            pass
     if args.diff:
         stream = sys.stdin if args.diff == "-" else open(args.diff, encoding="utf-8", errors="replace")
         findings.extend(scan_diff(stream, declared, allow, words=words, stats=stats))
