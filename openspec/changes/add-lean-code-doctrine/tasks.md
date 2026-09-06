@@ -127,10 +127,13 @@
         léxico existe (6 prompts contra as 36 descriptions); o roteador real é o modelo. A sessão
         interativa com a skill instalada (prompt com armadilha de over-build + bug de dois callers)
         é critério de aceite da issue e fica com o mantenedor (S.6).
-      - **Se `skillOverrides.lean-code = "on"` carrega a skill na célula.** Repousa nos valores
-        lidos do binário 2.1.261 pelo item #145 (KNOWN LIMIT 4 do harness); a sonda com `--tools ""`
-        não vê skills. O preflight novo só garante que o symlink existe e que o bloco está no
-        `CLAUDE.md` da célula.
+      - ~~**Se `skillOverrides.lean-code = "on"` carrega a skill na célula.**~~ Medido pelo mantenedor
+        em 2026-09-05 (parte B, sessão principal): **não carrega** — com `--setting-sources
+        project,local` o `~/.claude/skills` não é lido (três células da lente: "lean-code isn't in
+        the available-skills list"; leituras em `~/.claude/skills/` e `~/ai-skills/` negadas). A
+        skill de projeto (`<cwd>/.claude/skills/lean-code`) carrega; ver 4.2. O que continua sem
+        prova paga nesta worktree: uma célula do arm `skill` novo — a sonda `--probe-isolation` do
+        mantenedor (`skill_visible`) é o próximo passo pago, antes da matriz.
 
       O `--claude-block` foi provado pelo `--selftest` (arm sintético, casos presente/ausente) e pelo
       `--prepare-arms` real contra um `--arms-root` de rascunho (4.1) — nunca por uma célula.
@@ -265,6 +268,48 @@
       git diff --stat f11ba7a HEAD -- research/lean-code/results/ | wc -l   -> 0
       ```
 
+- [x] 4.2 Três arms (`baseline`/`block`/`skill`, `ARM_LAYOUT`), a skill como skill de projeto
+      (`project_skill_path` em `arm.json`; `<workspace>/.claude/skills/lean-code` copiado na seed;
+      preflight sem `~/.claude/skills`), quarto critério da sonda (`skill_visible`), gate de
+      `--matrix --arms skill`, `--report` com deltas de 1-3 stamps, `--relabel-arm`; docstring
+      (KNOWN LIMIT 4 reescrito), `protocol.md` (terceira emenda, tabela de arms, *Why `block`
+      exists*), README da pesquisa, `design.md` D10; commit `6285b73` (harness)
+
+      O fato medido pelo mantenedor (2026-09-05, Claude Code 2.1.261, `$SCR/lean-dev/probe-skill-project`:
+      `<cwd>/.claude/skills/lean-code -> <worktree>/skills/lean-code` + `settings.json` e `CLAUDE.md` do arm):
+
+      ```
+      out1.json (claude -p … --tools "" --setting-sources project,local, Haiku)
+      -> "result": "lean-code\nDONE"    "total_cost_usd": 0.017872   "num_turns": 1
+      out2.json (… --tools "Skill")
+      -> "result": "# Lean code — the best code is the code never written\n\nDONE"   "total_cost_usd": 0.0307034   "num_turns": 3
+      (as três células da lente com o mesmo --setting-sources e SEM skill de projeto: "lean-code isn't in the available-skills list";
+       leituras em ~/.claude/skills/ e ~/ai-skills/ negadas — o arm `skill` da stamp 20260905-230209 mediu só o bloco)
+      ```
+
+      O harness, offline, nesta worktree (2026-09-06):
+
+      ```
+      LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest
+      -> selftest: 183/183 OK  (… isolation 42/42, refusals 13/13, relabel 8/8, report 5/5)   wall 2.2s   (era 157/157)
+      python3 research/lean-code/run.py --prepare-arms --arms-root $SCR/lean-dev/arms-3 --rules-ref HEAD --skill lean-code --claude-block research/lean-code/arms-block.md
+      -> arm baseline     claude-snippet.md = sentinel only                                          preflight OK
+      -> arm block        claude-snippet.md = sentinel + always-on block                             preflight OK
+      -> arm skill        claude-snippet.md = sentinel + always-on block; workspace gets .claude/skills/lean-code copied from <worktree>/skills/lean-code   preflight OK
+      skill/arm.json -> "includes_block": true, "includes_skill": true, "skill_override": "on", "project_skill_path": "<worktree>/skills/lean-code"
+      block/arm.json -> "includes_block": true, "includes_skill": false, "skill_override": "off", "project_skill_path": null
+      python3 research/lean-code/run.py --prepare-arms --arms-root $SCR/lean-dev/arms-3b --rules-ref HEAD      (sem --claude-block)
+      -> note: without --claude-block only the baseline arm is prepared (block and skill carry the always-on block)
+      python3 research/lean-code/run.py --relabel-arm $SCR/lean-dev/runs/20260905-230209 skill block --reason "the skill arm measured the always-on block only: …"
+      -> relabelled 27 cells and 27 cell dirs skill -> block in …/runs/20260905-230209; reason recorded in results.json relabels
+      ls $SCR/lean-dev/runs/20260905-230209 | grep -c __block__   -> 27      grep -c __skill__   -> 0
+      python3 research/lean-code/run.py --report $SCR/lean-dev/runs/20260905-211512 $SCR/lean-dev/runs/20260905-230209 --export $SCR/lean-dev/report-baseline-block.json
+      -> === delta vs baseline (mean added_lines; the protocol's Δ) ===    9 linhas (uma por tarefa, arm block) + 1 linha de grupo
+      -> reuse-slug             block            9       9     +0.0  1.0->1.0     1.0->1.0
+      -> export keys: arms cells cells_detail claude_version delta_groups deltas isolation model relabels rules_sha spent_usd stamps summary
+      (os valores do arm `block` ficam para results.md, parte B do mantenedor — nenhum número em README ou SKILL.md)
+      ```
+
 ## 5. Simulation & Field Proof (MANDATORY)
 
 - [x] S.1 O artefato foi exercitado pelo caminho real (parte offline). **Entry point 1** — a
@@ -321,6 +366,15 @@
 
 - [x] S.3 O que escapou ou se comportou diferente do esperado:
 
+      - **O arm `skill` da stamp `20260905-230209` não tinha a skill.** `skillOverrides.lean-code =
+        "on"` com symlink em `~/.claude/skills` era a hipótese de D8; medido pelo mantenedor em
+        2026-09-05, `--setting-sources project,local` não carrega o diretório de skills do usuário
+        e as 27 células ($9,08) mediram sentinela + bloco. Passou pelo `--selftest` verde, pelo
+        preflight e pela sonda — nenhum dos três via skills (o KNOWN LIMIT 4 antigo dizia isso como
+        limite, não como risco). Corrigido em 4.2: skill de projeto copiada na seed, `skill_visible`
+        como quarto critério da sonda, gate em `--matrix --arms skill`, stamp renomeada para `block`
+        com o motivo gravado. O Claude Code também atualizou para `2.1.263` no meio (2026-09-06):
+        o arm `skill` roda o binário `2.1.261` pinado ou baseline e block são refeitos.
       - **O prompt do cache não roteava.** "add a cache for these API responses" empatava em 0,25
         com três irmãos (a description dizia "adding a dependency or a cache"; o scorer não casa
         `add` com `adding`) e lean-code ficava fora do top-3 pelo desempate alfabético. Gatilho
@@ -342,10 +396,23 @@
       - Nada mais escapou: `generate.sh` idempotente, `agentskills` verde, selftest verde, gates
         verdes.
 
-- [ ] S.4 **(mantenedor)** Matriz `--arms skill` n=3 × 9 tarefas no mesmo `claude --version` e
-      modelo do baseline; `--report <baseline> <skill>`; veredito pelo protocolo registrado em
-      `research/lean-code/results.md` **antes** de qualquer número entrar em README ou `SKILL.md`.
-      Comandos exatos no corpo do PR (`skill_arm_commands`).
+- [ ] S.4 **(mantenedor)** Arms novos + sonda (`skill_visible` 1/1 no `skill`, 0/1 em `baseline` e
+      `block`) + matriz `--arms skill` n=3 × 9 tarefas no mesmo `claude --version` do baseline
+      (`2.1.261`, binário pinado primeiro no `PATH`; ou baseline e `block` refeitos em `2.1.263`) e
+      mesmo modelo; `--report <baseline> <block> <skill>`; veredito pelo protocolo registrado em
+      `research/lean-code/results.md` (o arm `block` = stamp `20260905-230209`, renomeada) **antes**
+      de qualquer número entrar em README ou `SKILL.md`. Comandos exatos, na raiz da worktree:
+
+      ```
+      SCR=/tmp/claude-1000/-home-diegops-ai-skills/c972f399-4046-428b-8933-9a24d13f0b57/scratchpad
+      mkdir -p $SCR/lean-dev/bin-261 && ln -sfn ~/.local/share/claude/versions/2.1.261 $SCR/lean-dev/bin-261/claude
+      export PATH=$SCR/lean-dev/bin-261:$PATH && claude --version                       # -> 2.1.261 (Claude Code)
+      python3 research/lean-code/run.py --prepare-arms --arms-root $SCR/lean-dev/arms-3 --rules-ref HEAD --skill lean-code --claude-block research/lean-code/arms-block.md
+      python3 research/lean-code/run.py --probe-isolation --arms-root $SCR/lean-dev/arms-3 --model claude-haiku-4-5-20251001 --export research/lean-code/results/<stamp>-probe.json
+      LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest --matrix --arms skill --tasks all --model 'opus[1m]' --runs 3 --arms-root $SCR/lean-dev/arms-3 --runs-root $SCR/lean-dev/runs --budget-usd 15
+      python3 research/lean-code/run.py --classify $SCR/lean-dev/runs/<stamp-skill>
+      python3 research/lean-code/run.py --report $SCR/lean-dev/runs/20260905-211512 $SCR/lean-dev/runs/20260905-230209 $SCR/lean-dev/runs/<stamp-skill> --export research/lean-code/results/<stamp-skill>-export.json
+      ```
 - [ ] S.5 **(mantenedor)** Lente nos 3 diffs (`49c44d0`, `69aaf73`, `b1f527f`): achados por tag,
       `net:` 3/3, precisão ≥ 0,7 com as 5 regras de FP do protocolo
 - [ ] S.6 **(mantenedor)** Sessão interativa real com a skill instalada: um prompt com armadilha de
@@ -424,5 +491,9 @@
 - [x] V.3 README / docs updated where the change alters catalog composition or usage: README (membro
       do plugin, linha da tabela, contagens), `research/lean-code/{README,protocol}.md` (a opção
       `--claude-block` e o passo 6 da sequência), `claude/global/personal-rules.md` (seção *Lean
-      Code*); `results.md` intocado até a matriz rodar
+      Code*); em 2026-09-06, `protocol.md` (terceira emenda, tabela de três arms, *Why `block`
+      exists*, sonda, passo 6, veredito, limites), README da pesquisa (passos 2-5, selftest 183,
+      status), docstring do `run.py` (KNOWN LIMIT 4), `design.md` D10; `results.md` continua do
+      mantenedor — a frase "`skill_listed 0/3` is expected … (KNOWN LIMIT 4)" em *Isolation probe*
+      aponta agora para o limite reescrito e é dele para ajustar junto com a linha do arm `block`
 - [ ] V.4 `openspec archive add-lean-code-doctrine --yes` after all groups above are `[x]`

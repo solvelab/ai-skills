@@ -119,12 +119,56 @@ e o preflight já recusa quando não existe. A regra de FR2 vale: o mantenedor r
 de o bloco entrar no `personal-rules.md` real dele, ou mede o `rules_sha` e aceita que o baseline
 de hoje é o de `6efed496`.
 
+*Superado em parte por D10 (2026-09-06):* o caminho pelo symlink em `~/.claude/skills` não funciona
+neste modo — o diretório de skills do usuário não é carregado; ficam o `--claude-block`, o sha do
+bloco e o preflight do bloco.
+
 ### D9 — `platform-native.md` é lookup, não matriz de suporte
 
 Cada linha "you think you need X → the platform has Y" é uma pista para o degrau 3/4, não uma
 afirmação de disponibilidade. O cabeçalho diz isso e manda verificar contra o runtime pinado do
 projeto; as versões que o upstream escreve ("Python 3.9+") saem, porque `skills-authoring` proíbe
 afirmar versão não probada e nenhuma foi probada aqui. Swift sai (fora das stacks do catálogo).
+
+### D10 — Três arms: `block` isola o mecanismo always-on e `skill` carrega a skill como skill de projeto
+
+D8 supunha que `skillOverrides.lean-code = "on"` mais um symlink em `~/.claude/skills/lean-code`
+levariam a skill à célula. Medido pelo mantenedor em 2026-09-05 (Claude Code 2.1.261, sessão
+principal): com `--setting-sources project,local` o diretório de skills do usuário **não é
+carregado** — três células da lente responderam "lean-code isn't in the available-skills list" e
+tiveram leituras em `~/.claude/skills/` e `~/ai-skills/` negadas. O arm rotulado `skill` da stamp
+`20260905-230209` (27 células, $9,08) mediu portanto sentinela + bloco, e só isso.
+
+Decisão, em três partes:
+
+1. **O arm `skill` carrega a skill como skill de projeto.** `--prepare-arms` grava em `arm.json`
+   `project_skill_path` = `skills/lean-code` **deste checkout** e cada célula copia o diretório para
+   `<workspace>/.claude/skills/lean-code` antes do commit da seed. Cópia, não symlink: uma célula em
+   `acceptEdits` escreveria através de um symlink dentro do checkout, e a cópia deixa na seed o
+   texto exato que a célula viu (`git add -f` de um symlink guardaria só o alvo). `HARNESS_PATHS` já
+   exclui `.claude/`, então a cópia não entra em contador nenhum. Provado pago antes de mexer no
+   harness: num cwd com esse layout, uma célula Haiku com `--tools ""` listou exatamente `lean-code`
+   ($0,018) e uma com `--tools "Skill"` carregou a skill e devolveu o primeiro heading verbatim
+   ($0,031). O preflight deixa de exigir `~/.claude/skills/lean-code` — irrelevante neste modo — e
+   passa a exigir o caminho com `SKILL.md` no `skill` e ausente nos outros arms.
+2. **Um arm `block` entre o baseline e a skill.** É exatamente o que a stamp `20260905-230209`
+   mediu (sentinela + bloco, nenhuma skill), e isola o mecanismo que o upstream mediu — a regra
+   sempre presente, equivalente da injeção por `SessionStart` do ponytail. A stamp é renomeada com
+   `--relabel-arm skill block --reason …` (diretórios de célula, `arm` em results/summary/classify,
+   `relabels` em `results.json`), nunca descartada: são $9 de medição do mecanismo always-on no
+   modelo diário. Alternativa rejeitada: relatar a stamp como "skill, sem skill" em prosa — o
+   `--report` agregaria dois arms diferentes sob o mesmo nome.
+3. **A sonda vê a skill antes de a matriz pagar.** Quarto critério: uma chamada `--tools ""` pede a
+   lista de skills disponíveis (só a lista, nunca uma skill citada no `CLAUDE.md` — o bloco cita
+   `lean-code` em prosa); `skill_visible` 1/1 no `skill`, 0/1 em `baseline` e `block`, gravado por
+   arm em `arms.json`; `--matrix --arms skill` recusa sem 1/1. É a contaminação que o upstream
+   registrou, no sentido inverso: o arm de tratamento sem o tratamento.
+
+Consequência para o veredito: a tabela do protocolo lê o arm `skill`; lida para `block`, isola o
+mecanismo always-on e é relatada ao lado. `--report` aceita os três stamps e imprime o Δ de cada
+arm de tratamento contra o baseline. O Claude Code atualizou para `2.1.263` em 2026-09-06; o arm
+`skill` roda o binário `2.1.261` pinado (primeiro no `PATH`) ou o baseline e o `block` são
+refeitos — a recusa por versão do `--report` é a regra, não o obstáculo.
 
 ## Canonical Home & Cross-Links (MANDATORY)
 
