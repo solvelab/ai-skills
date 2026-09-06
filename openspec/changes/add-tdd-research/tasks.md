@@ -87,10 +87,14 @@
       já prevê o fallback (D2 do `design.md`) e a marca de fallback no registro, em vez de assumir a
       forma. Fecha na tarefa 3.2 e no piloto.
 
-      (b) **Se `research/lean-code/run.py` importa sem efeito colateral quando carregado de outro
-      diretório.** A leitura estática de todas as linhas em coluna zero não achou statement fora de
-      docstring/import/def/class/constante, e `main()` está guardado em `:2747` — mas isso é leitura,
-      não execução. Fecha na tarefa 3.1, que importa o módulo de fato e roda o teste de contrato.
+      (b) ~~**Se `research/lean-code/run.py` importa sem efeito colateral quando carregado de outro
+      diretório.**~~ **FECHADA em 2026-09-06, com correção.** A leitura estática dizia que sim; a
+      execução disse que não, na primeira tentativa:
+      `AttributeError: 'NoneType' object has no attribute '__dict__'` em
+      `dataclasses.py:814`, porque `@dataclass` (`research/lean-code/run.py:320`) resolve
+      `cls.__module__` por `sys.modules` e o módulo não estava registrado lá durante o
+      `exec_module`. Registrar antes de executar resolve; está no `lean()` de `research/tdd/run.py`
+      com o motivo inline e no `PIN`. É exatamente o tipo de fato que leitura não entrega.
 
       (c) **Se as seis tarefas separam os arms com n=3.** Não é probável nem improvável antes de
       rodar; é o que a matriz responde. O protocolo escreve o critério de dispersão e as repetições
@@ -115,39 +119,43 @@
 
 ## 2. Protocolo congelado
 
-- [ ] 2.1 `research/tdd/protocol.md` com o cabeçalho de congelamento: sha base, data, e a frase de
+- [x] 2.1 `research/tdd/protocol.md` com o cabeçalho de congelamento: sha base, data, e a frase de
       que os vereditos foram escritos antes de qualquer célula paga
-- [ ] 2.2 Seção `## Arms`: `baseline` e `doctrine`, com o que cada sessão vê, e a nota de que o arm
+- [x] 2.2 Seção `## Arms`: `baseline` e `doctrine`, com o que cada sessão vê, e a nota de que o arm
       `skill` é de #183
-- [ ] 2.3 Seção `## Cell`: o comando literal, incluindo `--output-format stream-json`,
+- [x] 2.3 Seção `## Cell`: o comando literal, incluindo `--output-format stream-json`,
       `--disallowedTools Bash` e o texto integral de `NO_RUN_TDD`
-- [ ] 2.4 Seção `## Metrics per cell`: `order`, `red`, `green`, `test_added_lines`, cada um com
+- [x] 2.4 Seção `## Metrics per cell`: `order`, `red`, `green`, `test_added_lines`, cada um com
       como é medido e o que o desqualifica
-- [ ] 2.5 Seção `## Verdict (written before the number)`: SHIP / INCONCLUSIVE / NO-CLAIM / REWRITE
+- [x] 2.5 Seção `## Verdict (written before the number)`: SHIP / INCONCLUSIVE / NO-CLAIM / REWRITE
       com limiares numéricos
-- [ ] 2.6 Seção do que a medição **não** cobre, com o KNOWN LIMIT do Bash bloqueado escrito por
+- [x] 2.6 Seção do que a medição **não** cobre, com o KNOWN LIMIT do Bash bloqueado escrito por
       extenso
-- [ ] 2.7 `research/tdd/arms-block.md` com o bloco de doutrina que define o arm `doctrine`
+- [x] 2.7 `research/tdd/arms-block.md` com o bloco de doutrina que define o arm `doctrine`
 
 ## 3. Harness
 
-- [ ] 3.1 `research/tdd/run.py` importa a camada genérica de `research/lean-code/run.py` via
+- [x] 3.1 `research/tdd/run.py` importa a camada genérica de `research/lean-code/run.py` via
       `load_module`; `research/tdd/PIN` grava o sha lido e a lista de símbolos
-- [ ] 3.2 Parser de `stream-json` produzindo `order`, com fallback de mtime marcado como fallback
-- [ ] 3.3 Detectores `red` e `green` executando fora da célula, no venv de `scorer-venv.txt`
-- [ ] 3.4 `--selftest` com um defeito injetado por instrumento, mais o teste de contrato dos
+- [x] 3.2 Parser de `stream-json` produzindo `order`, com fallback de mtime marcado como fallback
+- [x] 3.3 Detectores `red` e `green` executando fora da célula, no venv de `scorer-venv.txt`
+- [x] 3.4 `--selftest` com um defeito injetado por instrumento, mais o teste de contrato dos
       símbolos importados
-- [ ] 3.5 `--matrix` recusa rodar sem `--selftest` verde na mesma invocação e sem sonda passada
-- [ ] 3.6 `--report` recusa agregar stamps de versões ou modelos diferentes; `--export` remove
+- [x] 3.5 `--matrix` recusa rodar sem `--selftest` verde na mesma invocação e sem sonda passada
+- [x] 3.6 `--report` recusa agregar stamps de versões ou modelos diferentes; `--export` remove
       `session_id`, texto de resposta, uuids e caminhos absolutos de HOME
 
 ## 4. Tarefas e suítes ocultas
 
-- [ ] 4.1 Seis tarefas em `research/tdd/tasks/`, cada uma com semente commitada, prompt, referência
+- [x] 4.1 Seis tarefas em `research/tdd/tasks/`, cada uma com semente commitada, prompt, referência
       boa, referência ruim e suíte oculta
-- [ ] 4.2 `research/tdd/scorer-venv.txt` com as versões efetivamente instaladas
-- [ ] 4.3 O `--selftest` prova cada scorer contra a referência boa e a ruim antes de qualquer
+- [x] 4.2 `research/tdd/scorer-venv.txt` com as versões efetivamente instaladas
+- [x] 4.3 O `--selftest` prova cada scorer contra a referência boa e a ruim antes de qualquer
       célula paga
+
+      O instrumento pegou um defeito na referência **boa** do `slug-truncate` antes de qualquer
+      célula: `slugify("antidisestablishmentarianism", 5)` devolvia `"antid"` onde o enunciado
+      exige `""`. Corrigido; `scorers 18/18` depois disso.
 
 ## 5. Medição
 

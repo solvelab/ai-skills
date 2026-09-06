@@ -1,0 +1,9 @@
+# Scorer venv for research/tdd — pytest is the only dependency: every task is stdlib Python and the
+# hidden suite is plain pytest. The system interpreter has no pytest (probed 2026-09-06 on
+# Python 3.14.5: `python3 -c "import pytest"` -> ModuleNotFoundError), so the venv is required.
+# The venv lives in a scratch directory and is NEVER committed. Recreate it with:
+#   python3 -m venv <dir> && <dir>/bin/pip install -r research/tdd/scorer-venv.txt
+# Then point run.py at it with --scorer-venv <dir> or TDD_SCORER_VENV=<dir>.
+# Version below is the one actually installed and used on 2026-09-06, read back with
+#   <dir>/bin/python -c "import pytest; print(pytest.__version__)"
+pytest==9.1.1
