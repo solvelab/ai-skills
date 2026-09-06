@@ -77,7 +77,8 @@ Subcommands (one per invocation):
         --budget-usd.
 
   --classify RUNS/<stamp>      per-flag defect counts + per-task mean/min/max -> <stamp>-baseline-defects.md
-  --rescore  RUNS/<stamp>      recompute metrics, scores and detectors from kept workspaces (no spend)
+  --rescore  RUNS/<stamp>      recompute metrics, scores and detectors from kept workspaces (no spend);
+        returncode/killed/wall_s are carried over from the previous results.json, never recomputed
   --report   RUNS/<stamp>... --export OUT.json
         Aggregates stamps; refuses when their `claude --version` or model id differ. The export
         carries no session id, no result text, no uuids, no absolute home paths.
@@ -1300,6 +1301,27 @@ def cmd_classify(args: argparse.Namespace) -> int:
     return 0
 
 
+PROCESS_FIELDS = ("returncode", "killed", "wall_s")
+
+
+def carry_process_fields(previous: list[dict], rescored: list[dict]) -> int:
+    """score_cell knows nothing about the process that produced a cell: run_cell adds returncode,
+    killed and wall_s after scoring, and nothing under the cell directory records them. A rescore
+    that only calls score_cell therefore deletes them from results.json — which is what happened to
+    the two stamps of 2026-09-05 (rescored before this existed; their fields are gone for good, see
+    tasks.md S.3). Copy the fields from the previous results, matched by (task, arm, run), and never
+    invent one that was not there. Returns how many rescored cells received at least one field."""
+    by_key = {(c.get("task"), c.get("arm"), c.get("run")): c for c in previous}
+    carried = 0
+    for cell in rescored:
+        prev = by_key.get((cell["task"], cell["arm"], cell["run"])) or {}
+        found = {k: prev[k] for k in PROCESS_FIELDS if k in prev}
+        if found:
+            cell.update(found)
+            carried += 1
+    return carried
+
+
 def cmd_rescore(args: argparse.Namespace) -> int:
     stamp_dir = Path(args.rescore).expanduser()
     payload = load_results(stamp_dir)
@@ -1313,13 +1335,14 @@ def cmd_rescore(args: argparse.Namespace) -> int:
             continue
         cell = score_cell(tasks[tid], cell_dir, arm, payload["model"], int(r))
         rescored.append(cell)
+    carried = carry_process_fields(payload.get("results") or [], rescored)
     payload["results"] = rescored
     payload["rescored_at"] = _dt.datetime.now().isoformat(timespec="seconds")
     (stamp_dir / "results.json").write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
     rows = aggregate(rescored)
     (stamp_dir / "summary.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
     print_table(rows)
-    log(f"rescored {len(rescored)} cells in {stamp_dir}")
+    log(f"rescored {len(rescored)} cells in {stamp_dir} (process fields carried on {carried}/{len(rescored)})")
     return 0
 
 
@@ -1939,6 +1962,48 @@ def selftest_metrics(st: Selftest, tasks: dict[str, Task]) -> None:
         st.case("metrics", "missing _claude.json is an error field, not a crash", meta.get("error") is not None and text == "")
 
 
+def selftest_rescore(st: Selftest, tasks: dict[str, Task]) -> None:
+    """--rescore on a one-cell stamp: the cell is rebuilt by score_cell and the process fields the
+    matrix wrote (returncode, killed, wall_s) survive in results.json; a previous cell that never
+    had them gets none (a rescore recovers, it does not invent)."""
+    import contextlib
+    import io
+    with tempfile.TemporaryDirectory(prefix="lean-rescore-") as d:
+        stamp = Path(d) / "20000101-000000"
+        cell_dir = stamp / "trace-transfer__baseline__0"
+        repo = cell_dir / "repo"
+        seed_repo(tasks["trace-transfer"], repo)
+        tasks["trace-transfer"].bad(repo)
+        (cell_dir / "_claude.json").write_text(json.dumps(
+            {"type": "result", "subtype": "success", "is_error": False, "duration_ms": 10, "num_turns": 1,
+             "total_cost_usd": 0.01, "result": "done", "usage": {}}), encoding="utf-8")
+        (cell_dir / "_claude.stderr.txt").write_text("", encoding="utf-8")
+        previous = {"task": "trace-transfer", "arm": "baseline", "run": 0, "correct": 1,
+                    "returncode": 0, "killed": False, "wall_s": 12.3}
+        (stamp / "results.json").write_text(json.dumps(
+            {"stamp": stamp.name, "model": "selftest", "claude_version": "selftest", "arms": ["baseline"],
+             "runs": 1, "results": [previous]}), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()):
+            rc = cmd_rescore(argparse.Namespace(rescore=str(stamp), scorer_venv=None))
+        after = json.loads((stamp / "results.json").read_text(encoding="utf-8"))
+        cell = after["results"][0] if after.get("results") else {}
+        st.case("rescore", "--rescore keeps returncode/killed/wall_s from the previous results.json",
+                rc == 0 and len(after["results"]) == 1 and cell.get("returncode") == 0
+                and cell.get("killed") is False and cell.get("wall_s") == 12.3 and "rescored_at" in after,
+                str({k: cell.get(k) for k in PROCESS_FIELDS}))
+        st.case("rescore", "the cell was really rebuilt (scorer and metrics ran)",
+                "added_lines" in cell and "detectors" in cell and cell.get("subtype") == "success",
+                f"added_lines={cell.get('added_lines')} correct={cell.get('correct')}")
+        bare = [{"task": "trace-transfer", "arm": "baseline", "run": 0}]
+        fresh = [{"task": "trace-transfer", "arm": "baseline", "run": 0},
+                 {"task": "trace-transfer", "arm": "baseline", "run": 1}]
+        carried = carry_process_fields(bare + [{"task": "trace-transfer", "arm": "baseline", "run": 1,
+                                                "returncode": 0, "killed": True, "wall_s": 300.0}], fresh)
+        st.case("rescore", "a previous cell without the fields gets none; matching is per (task, arm, run)",
+                carried == 1 and not (set(fresh[0]) & set(PROCESS_FIELDS))
+                and fresh[1].get("killed") is True and fresh[1].get("wall_s") == 300.0, str(fresh))
+
+
 def cmd_selftest(args: argparse.Namespace) -> int:
     global SELFTEST_PASSED
     started = time.time()
@@ -1957,6 +2022,7 @@ def cmd_selftest(args: argparse.Namespace) -> int:
     selftest_kill(st)
     selftest_refusals(st)
     selftest_metrics(st, tasks)
+    selftest_rescore(st, tasks)
     ok = st.summary()
     elapsed = time.time() - started
     print(f"selftest wall time: {elapsed:.1f}s (target < 15s){'' if elapsed < 15 else '  SLOW'}")

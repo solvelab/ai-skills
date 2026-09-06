@@ -259,7 +259,8 @@
 - [x] B.1 Piloto Haiku n=1 nas 9 tarefas (nunca reportado como número), campos do JSON registrados
 
       Stamp `20260905-211056` no scratch (não exportado), `--model claude-haiku-4-5-20251001`
-      (`_command.txt`), `results.json`: 9 células, `killed 0`, `is_error 0`, `returncode 0` em 9/9,
+      (`_command.txt`), `results.json`: 9 células, `subtype success` 9/9, `is_error` 0/9, `duration_ms`
+      máximo 57346 (limite 300 s; `killed`/`returncode`/`wall_s` perdidos no `--rescore`, ver S.3 item 13),
       `correct` 9/9, `safe` 7/9 (`trace-transfer`: `patched only transfer; withdraw still overdraws`;
       `fivem-shop-buy`: `qty=2.5 accepted (p1 bread=2.5)`), `spent_usd 0.5571`, `model_usage_models`
       `['claude-haiku-4-5-20251001']` em 9/9. `json_keys` observadas: `api_error_status`,
@@ -276,8 +277,9 @@
       a chamada de verificação do modelo, $0.0612, mostra as mesmas duas com `canonicalModel`
       `claude-opus-5` e `claude-haiku-4-5`), `claude_version 2.1.261 (Claude Code)`, `isolation
       settings-sources`, `rules_sha 6efed496a66a215903e31bce737ffa5172a55424`, `runs 3`, 27 células,
-      `spent_usd 9.4529`, `stopped: no`, `killed 0`, `is_error 0`, `returncode 0` 27/27, `wall_s`
-      máximo 159.9 (limite 300). `--classify` (depois da correção dos detectores, ver S.3) ->
+      `spent_usd 9.4529`, `stopped: no`, `is_error` 0/27, `subtype success` 27/27, `duration_ms`
+      máximo 158792 e `duration_api_ms` máximo 159520 (limite 300 s; `killed`/`returncode`/`wall_s`
+      não estão em nenhum arquivo guardado — perdidos no `--rescore`, ver S.3 item 13). `--classify` (depois da correção dos detectores, ver S.3) ->
       `wrote …/20260905-211512-baseline-defects.md`; tabela por tarefa (`n 3`, `correct 1.0`, `safe 1.0`
       em todas): `cache 12.667 (10-17)`, `csv-sum 102 (81-127)`, `fastapi-create-item 16 (16-16)`,
       `fivem-shop-buy 40.333 (35-44)`, `react-use-orders (STRUCTURAL) 22 (21-23)`, `reuse-slug 9 (9-9)`,
@@ -397,6 +399,30 @@
       fica mais ruidoso. (12) O piloto deu `safe 0` em trace-transfer e fivem-shop-buy no Haiku — o
       scorer pegou exatamente o eixo declarado (`withdraw still overdraws`, `qty=2.5 accepted`); fica
       como prova de que os scorers mordem em saída real, nunca como número.
+      Revisão do PR (2026-09-05) — (13) `--rescore` apagava `returncode`, `killed` e `wall_s`:
+      `score_cell` monta a célula e só `run_cell` acrescenta os três campos do processo depois; o
+      `cmd_rescore` chamava só `score_cell` e sobrescrevia `payload['results']`. O `--rescore` das
+      21:38 nos dois stamps apagou os campos, e as frases `killed 0`, `returncode 0` 27/27 e `wall_s`
+      máximo 159.9 (B.1, B.2, results.md, o parágrafo de ambiente do baseline-defects) não podiam ser
+      recalculadas de arquivo nenhum. Reproduzido: `results.json` dos dois stamps, chaves das células
+      sem `wall_s`/`killed`/`returncode` em 27/27 e 9/9, `rescored_at 2026-09-05T21:38:39` e `…:40`;
+      `export.json` `cells_detail` idem. Correção: `carry_process_fields` copia os três campos do
+      `results.json` anterior por `(task, arm, run)` e nunca inventa um que não estava lá; o selftest
+      ganhou o grupo `rescore` (3 casos: um stamp de uma célula real passa pelo `cmd_rescore` e os
+      campos sobrevivem; a célula foi mesmo reconstruída; célula anterior sem os campos não ganha
+      nenhum), 146/146 -> 149/149; mutação (trocar a chamada por `carried = 0`) -> `FAILED rescore
+      --rescore keeps returncode/killed/wall_s … {'returncode': None, 'killed': None, 'wall_s': None}`,
+      148/149. `--rescore` offline dos dois stamps depois da correção: `rescored 27 cells … (process
+      fields carried on 0/27)` e `rescored 9 cells … (process fields carried on 0/9)` — antes 0/27 e
+      0/9 com os campos, depois 0/27 e 0/9: os valores originais não existem mais e não foram
+      reconstruídos. `--classify` do baseline -> `wrote …/20260905-211512-baseline-defects.md`, as 76
+      linhas geradas idênticas às do arquivo publicado; `--report --export` -> JSON idêntico ao
+      `results/20260905-211512-export.json` (diff vazio), então o export não mudou. O que os arquivos
+      guardados dizem, e passou a ser o que os textos dizem: `duration_ms` máximo 158792 (baseline) e
+      57346 (piloto), `duration_api_ms` máximo 159520, `subtype success` 27/27 e 9/9, `is_error`
+      False 27/27 e 9/9; os 36 `_claude.stderr.txt` guardados têm 0 bytes (`grep -l KILLED` -> 0 de
+      36), o único rastro que um timeout deixa fora do `results.json`. O braço da skill (#146) herda a
+      correção antes de qualquer `--rescore`.
 
 ## 7. Quality Gates (MANDATORY)
 

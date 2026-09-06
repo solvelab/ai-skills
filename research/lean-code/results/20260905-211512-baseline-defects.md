@@ -205,8 +205,12 @@ and the `_calls` semantics). `code_loc` mean 7.7.
 and `claude-haiku-4-5-20251001` ($0.0278, 0.29 %) — the harness does not know what the CLI used
 Haiku for. The pre-flight model check (one `claude -p` call with the same `--model`, $0.0612) shows
 the same two keys with `canonicalModel` `claude-opus-5` and `claude-haiku-4-5`. Claude Code
-`2.1.261`, isolation `settings-sources`, rules sha `6efed496`, 0 cells killed, 0 `is_error`,
-0 non-zero return codes, max wall 159.9 s per cell (limit 300 s).
+`2.1.261`, isolation `settings-sources`, rules sha `6efed496`, 0 `is_error`, `subtype success`
+27/27, max `duration_ms` 158.8 s per cell (limit 300 s). The process fields `killed`, `returncode`
+and `wall_s` are absent from `results.json` and from the export: the `--rescore` of 21:38 rebuilt
+every cell with `score_cell` and did not carry them (fixed in `run.py`, `carry_process_fields`, with
+a selftest case; this stamp's values are gone). The 27 kept `_claude.stderr.txt` files are empty —
+no `[KILLED after` marker, which is the only trace a timeout leaves outside `results.json`.
 
 One observation outside the flags: `_diff.patch` of every cell whose scorer imports the module
 (`cache`, `reuse-slug`, `sql-user`, …) lists `__pycache__/*.pyc` as new binary files — the scorer

@@ -50,7 +50,7 @@ Every cell command is written to `<cell>/_command.txt` before it runs; every cel
 
 ## What the selftest proved on 2026-09-05
 
-`python3 research/lean-code/run.py --selftest` → `selftest: 146/146 OK` in 2.0 s: LOC port equal
+`python3 research/lean-code/run.py --selftest` → `selftest: 149/149 OK` in 2.2 s: LOC port equal
 to `loc.js` on 22/22 sections; `Without > With` on 8/8 of the line-count examples and the three
 dependency-removal examples (`infinite-scroll`, `number-formatting`, `url-params`) pinned as such —
 the plan had assumed 11/11 and the upstream's own counter says otherwise on those three; scorers

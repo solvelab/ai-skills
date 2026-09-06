@@ -28,7 +28,8 @@ listed). `skill_listed 0/3` is expected: the probe runs with `--tools ""` (KNOWN
 
 ## Pilot — Haiku, n=1, harness shake-out only
 
-Nine cells, 9/9 completed (`killed 0`, `is_error 0`, return code 0), `correct` 9/9, `safe` 7/9
+Nine cells, 9/9 completed (`subtype success` 9/9, `is_error` 0/9, max `duration_ms` 57.3 s of the
+300 s limit), `correct` 9/9, `safe` 7/9
 (`trace-transfer`: *patched only transfer; withdraw still overdraws*; `fivem-shop-buy`: *qty=2.5
 accepted*). It confirmed the JSON field names, that every cell writes `_claude.json`, `_diff.patch`,
 `_result.txt`, `_command.txt`, and that all nine scorers run on real output. It is a different
@@ -36,8 +37,11 @@ model at n=1 and is **not reported as a number**; it is not in the export.
 
 ## Baseline — `opus[1m]`, n=3, 9 tasks — `results/20260905-211512-baseline-defects.md`
 
-27/27 cells completed, `correct` 27/27, `safe` 27/27, 0 timeouts (max wall 159.9 s of 300),
-`--budget-usd 25` not reached ($9.4529). `modelUsage` keys in every cell: `claude-opus-5[1m]`
+27/27 cells completed (`subtype success` 27/27, `is_error` 0/27, max `duration_ms` 158.8 s of the
+300 s limit), `correct` 27/27, `safe` 27/27, `--budget-usd 25` not reached ($9.4529). The process
+fields `killed`, `returncode` and `wall_s` are not in any kept file: the `--rescore` of 2026-09-05
+21:38 rebuilt every cell without carrying them (`run.py` now carries them, `carry_process_fields`;
+the two stamps rescored before that lost theirs for good — tasks.md S.3 item 13). `modelUsage` keys in every cell: `claude-opus-5[1m]`
 ($9.4251) and `claude-haiku-4-5-20251001` ($0.0278, 0.29 %).
 
 | task | n | correct | safe | added mean | min | max | tests written | flags (cells) |
