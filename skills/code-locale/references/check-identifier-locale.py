@@ -58,6 +58,10 @@ KNOWN LIMIT — what this check does NOT catch. A passing run is not proof of fu
        `--- /dev/null` header the diff itself writes. A file that already exists is never reported on
        its name: renaming it is the migration policy's decision (references/migration.md), not this
        check's. A rename appears as an add, so the new name is measured and the old one is not.
+       A `+++` path in a vendored or generated tree (VENDOR_PARTS, `.min.`) is skipped whole in
+       --diff mode — path and added lines — and reported as skipped, the same exclusion file mode
+       applies. That decision is by PATH only: a diff carries no file body, so `is_minified` never
+       runs in this mode, and a generated file outside those trees is measured as written code.
     13. A file name has nowhere to carry an inline `locale-ok:` comment, so ALLOWLIST_FILE is its only
        waiver — the path or one of its segments, one per line.
     14. An inline waiver covers ITS OWN line and the next one, nothing further. A waiver written at
@@ -609,8 +613,14 @@ def scan_markdown_fences(path: Path, allow: set, english: "set | None" = None) -
     return findings
 
 
-def scan_diff(stream, allow: set, english: "set | None" = None) -> list:
-    """Added lines only. This is what makes the rule adoptable in a legacy repository."""
+def scan_diff(stream, allow: set, english: "set | None" = None,
+              vendored: "list | None" = None) -> list:
+    """Added lines only. This is what makes the rule adoptable in a legacy repository.
+
+    A `+++` path in a vendored or generated tree is skipped whole — path tier and added lines — and
+    appended to `vendored` when the caller hands a list in, so the CLI can count it as skipped, not
+    passed, the same way file mode does (KNOWN LIMIT 12). The decision is `is_vendored()` on the path
+    alone: a diff carries no body for `is_minified()` to read."""
     findings, path, lineno, lang = [], "<diff>", 0, None
     run: list = []                                   # consecutive added lines, scanned together
     adds_file = False                                # the previous `--- ` header said /dev/null
@@ -641,6 +651,16 @@ def scan_diff(stream, allow: set, english: "set | None" = None) -> list:
             if candidate.startswith("b/"):
                 candidate = candidate[2:]
             path = candidate
+            if is_vendored(Path(path)):
+                # Same exclusion scan_path() and the file-mode CLI apply: not this project's machine
+                # layer. `lang = None` keeps every `+` line of this file out of `run`, and the path
+                # tier never runs — measured before this branch existed: a `node_modules/` hunk with
+                # `const usuario = 1` produced two gating findings in --diff mode and none by path.
+                lang = None
+                if vendored is not None:
+                    vendored.append(path)
+                adds_file = False
+                continue
             lang = EXT_LANG.get(Path(path).suffix.lower())
             if adds_file and path != "/dev/null":
                 findings.extend(scan_path(Path(path), allow, english=english))
@@ -791,6 +811,16 @@ def selftest_paths() -> list:
     print(f"  {'CLEAN  ' if not modified else 'FALSE+ '} path-clean/diff modifies existing file")
     if modified:
         failed.append("path-clean/diff modifies existing file")
+    # Diff mode applies the vendored exclusion to the whole file, not only to its path: the added
+    # lines below are Portuguese on purpose, and before issue #172 they were measured.
+    skipped: list = []
+    vendored = scan_diff(io.StringIO(
+        "--- /dev/null\n+++ b/node_modules/servicos_pedido/calculo.js\n"
+        "@@ -0,0 +1,2 @@\n+const usuario = 1;\n+function calcularFrete() {}\n"), set(), vendored=skipped)
+    ok = not vendored and skipped == ["node_modules/servicos_pedido/calculo.js"]
+    print(f"  {'CLEAN  ' if ok else 'FALSE+ '} path-clean/diff adds vendored file (skipped, counted)")
+    if not ok:
+        failed.append("path-clean/diff adds vendored file")
     return failed
 
 
@@ -817,7 +847,7 @@ def selftest() -> int:
     print(
         f"selftest OK: {len(SELFTEST_HITS)} content tiers fire, {len(SELFTEST_CLEAN)} clean cases "
         f"stay silent, {len(SELFTEST_PATH_HITS) + 1} path tiers fire, "
-        f"{len(SELFTEST_PATH_CLEAN) + 3} path cases stay silent, "
+        f"{len(SELFTEST_PATH_CLEAN) + 4} path cases stay silent, "
         f"{sum(1 for c in SELFTEST_EN_UNKNOWN if c[2])} en-unknown tiers fire, "
         f"{sum(1 for c in SELFTEST_EN_UNKNOWN if not c[2]) + 1} en-unknown cases stay silent"
     )
@@ -853,7 +883,7 @@ def main(argv: "list[str] | None" = None) -> int:
 
     if args.diff:
         stream = sys.stdin if args.diff == "-" else open(args.diff, encoding="utf-8")
-        findings.extend(scan_diff(stream, allow, english))
+        findings.extend(scan_diff(stream, allow, english, vendored=vendored))
     elif args.stdin:
         lang = EXT_LANG.get("." + (args.lang or ""), args.lang)
         if lang not in COMMENT_SYNTAX:

@@ -68,8 +68,18 @@ jobs:
           exit $fail
 
       - name: Version coherence (VERSION == plugin.json == marketplace.json)
+        # The shape check comes BEFORE the manifest comparison: a malformed value the three files
+        # share (`2.15.1dirtychange`, measured on issue #172) is "coherent" by substring and passed.
+        # Same literal as SEMVER_RE in generate.sh and scripts/set-version.sh — the readers of a
+        # version must agree on what one is; copied, not sourced, because generate.sh has side
+        # effects at the top.
         run: |
           VERSION="$(tr -d '[:space:]' < VERSION)"
+          SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+          if ! [[ "$VERSION" =~ $SEMVER_RE ]]; then
+            echo "::error::VERSION is '$VERSION' — expected MAJOR.MINOR.PATCH with an optional -prerelease suffix (the regex generate.sh and set-version.sh apply)."
+            exit 1
+          fi
           for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json; do
             if ! grep -q "\"version\": \"$VERSION\"" "$f"; then
               echo "::error::$f version does not match VERSION ($VERSION)."

@@ -26,7 +26,16 @@ padded evidence box passes the shape gate, and a single tick in the tasks.md of 
 links any diff to it. Existence and relevance are required, reviewable artifacts; the review is what
 judges them. The selftest exercises the decision rules against synthetic inputs, not the git
 plumbing that feeds them: a misconfigured checkout is caught by the CI-only base-resolution failure
-below, not by the selftest.
+below, not by the selftest. The one plumbing probe it does run is the path reader, below.
+
+Paths are read with `git diff --name-only -z` and split on NUL, the way validate-skill-version.py
+reads them (issue #132). Without `-z`, git wraps any path that carries a non-ASCII, control or quote
+character in double quotes with octal escapes (core.quotePath, default true on a fresh checkout and
+on the ubuntu runners): `"openspec/changes/<id>/specs/caf\303\251.md"` starts with a quote, not with
+`openspec/`, so it stopped being exempt AND stopped touching its own change — the gate reported S3
+against a pull request that touched the change it belonged to (measured on issue #172, 2026-09-06).
+The selftest commits such a path inside an active change of a throwaway repository and asserts the
+diff registers, so the flag cannot be dropped silently.
 
 The waiver is read from the event payload the runner already writes (GITHUB_EVENT_PATH), not from
 an environment variable handed to the step: GitHub Actions prints a step's `env:` block into the
@@ -164,10 +173,23 @@ def read_pr_body() -> str:
     return body if isinstance(body, str) else ""
 
 
-def changed_paths(root: Path, base: str) -> list[str]:
-    out = subprocess.run(["git", "-C", str(root), "diff", "--name-only", f"{base}...HEAD"],
+def split_nul_paths(out: str) -> list[str]:
+    """`git diff --name-only -z` output -> paths, verbatim. NUL is the one byte a path cannot contain,
+    so nothing here is quoted, escaped or split on a newline inside a name.
+
+    Duplicated from validate-skill-version.py rather than imported: that script loads THIS one at
+    import time (for MIN_REASON), so importing back would close a cycle, and a third module for two
+    lines is more surface than the duplicate. Each script pins its own copy with a real-repository
+    probe in --selftest, which is what keeps the two from drifting apart."""
+    return [p for p in out.split("\0") if p]
+
+
+def changed_paths(root: Path, base: str, head: str = "HEAD") -> list[str]:
+    # -z: raw names separated by NUL. The default line mode quotes and octal-escapes any name with a
+    # non-ASCII, control or quote character, which the prefix rules below would then fail to match.
+    out = subprocess.run(["git", "-C", str(root), "diff", "--name-only", "-z", f"{base}...{head}"],
                          capture_output=True, text=True, check=True).stdout
-    return [line for line in out.splitlines() if line]
+    return split_nul_paths(out)
 
 
 # ── rules ─────────────────────────────────────────────────────────────────
@@ -332,6 +354,61 @@ def selftest_reader() -> int:
     return ok
 
 
+def _probe_quoted_path() -> bool:
+    """The one git-plumbing probe of the selftest: commit a path git would quote in line mode INSIDE
+    an active change and check that the diff registers. core.quotePath is forced on so the probe
+    measures the worst case whatever the box's config says. Same shape as the probe in
+    validate-skill-version.py; what it asserts differs — there the skill is recognised, here the
+    change is."""
+    global findings
+    change = "probe-quoted"
+    quoted = f"{CHANGES}/{change}/specs/café.md"
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        env = {**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1",
+               "GIT_AUTHOR_NAME": "probe", "GIT_AUTHOR_EMAIL": "probe@localhost",
+               "GIT_COMMITTER_NAME": "probe", "GIT_COMMITTER_EMAIL": "probe@localhost"}
+
+        def git(*args: str) -> None:
+            subprocess.run(["git", "-C", tmp, "-c", "core.quotePath=true", *args],
+                           capture_output=True, text=True, check=True, env=env)
+
+        git("init", "-q", "-b", "main")
+        (root / CHANGES / change).mkdir(parents=True)
+        (root / CHANGES / change / "tasks.md").write_text("- [ ] E.1 x\n", encoding="utf-8")
+        (root / "skills/x").mkdir(parents=True)
+        (root / "skills/x/SKILL.md").write_text("---\n  version: 1.0.0\n---\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-q", "-m", "base")
+        (root / CHANGES / change / "specs").mkdir()
+        (root / quoted).write_text("delta\n", encoding="utf-8")
+        (root / "skills/x/SKILL.md").write_text("---\n  version: 1.0.1\n---\nedit\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-q", "-m", "edit")
+
+        paths = changed_paths(root, "HEAD^")
+        findings = []
+        evaluate(paths, active_changes(root), "")
+        return paths == [quoted, "skills/x/SKILL.md"] and findings == []
+
+
+def selftest_paths() -> tuple[int, int]:
+    """The reader collect-side: what the rules never see. A `-z` dropped from changed_paths() makes
+    the quoted path an offender and the change untouched at once, and no synthetic case can show it."""
+    cases = [
+        ("NUL-separated names are read verbatim, quotes and newlines included",
+         split_nul_paths(f'{CHANGES}/x/tasks.md\0skills/y/references/café "x"\n.md\0')
+         == [f"{CHANGES}/x/tasks.md", 'skills/y/references/café "x"\n.md']),
+        ("a quoted path inside an active change registers the diff on a real repository",
+         _probe_quoted_path()),
+    ]
+    ok = 0
+    for label, passed in cases:
+        print(f"  {'PATHS' if passed else 'PATHS FAIL'}  {label}")
+        ok += bool(passed)
+    return ok, len(cases)
+
+
 def selftest() -> int:
     global findings, annotate
     annotate = False
@@ -357,12 +434,14 @@ def selftest() -> int:
 
     reader_ok = selftest_reader()
     reader_total = 6
+    paths_ok, paths_total = selftest_paths()
 
     print(f"\n{caught}/{len(DEFECTS)} defect classes detected, "
           f"{quiet}/{len(SILENT)} false-positive cases stayed silent, "
-          f"{reader_ok}/{reader_total} reader cases correct")
+          f"{reader_ok}/{reader_total} reader cases correct, "
+          f"{paths_ok}/{paths_total} path-reader cases correct")
     return 0 if (caught == len(DEFECTS) and quiet == len(SILENT)
-                 and reader_ok == reader_total) else 1
+                 and reader_ok == reader_total and paths_ok == paths_total) else 1
 
 
 # ── main ──────────────────────────────────────────────────────────────────
