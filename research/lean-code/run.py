@@ -4,10 +4,26 @@ headless Claude Code session leaves behind, on the maintainer's own model and CL
 
 Ported from DietrichGebert/ponytail `benchmarks/agentic/run.py` at 974d940a (MIT, see
 vendor/ponytail/PIN): the cell shape, the git-diff metric, the good/bad selftest of every scorer
-before any spend, the tree-kill. What is new here: arms isolated by CLAUDE_CONFIG_DIR (or HOME=)
-outside the repository and proven by a paid probe, catalog tasks that execute under a pinned venv
-and under lua, conformance detectors for the doctrine's own contract, a frozen protocol with the
-verdict written before the number, and an export that carries no session ids or prose.
+before any spend, the tree-kill. What is new here: arms isolated from the maintainer's hooks and
+plugins (three modes, below) and proven by a paid probe, catalog tasks that execute under a pinned
+venv and under lua, conformance detectors for the doctrine's own contract, a frozen protocol with
+the verdict written before the number, and an export that carries no session ids or prose.
+
+Isolation modes (--isolation; the arm layout is fixed at --prepare-arms and recorded in arms.json):
+
+  settings-sources (DEFAULT since 2026-09-05)
+        No config-dir override, no credentials copy. Each cell runs in the maintainer's real setup
+        (~/.claude/CLAUDE.md, ~/.claude/skills) with `--setting-sources project,local`, which on
+        Claude Code 2.1.261 drops ~/.claude/settings.json — and with it hooks, enabledPlugins and
+        the caveman SessionStart hook (measured: 0 hook events with --include-hook-events). The arm
+        is a project settings file written into the workspace's .claude/settings.json: the
+        maintainer's model/effortLevel/modelSettings/skillOverrides plus
+        skillOverrides[<skill>] = "off" (baseline) or "on" (skill), and a CLAUDE.md sentinel line
+        committed into the seed. Permission mode acceptEdits, never bypassPermissions.
+  config-dir
+        Arm dir used as CLAUDE_CONFIG_DIR: its own settings.json, CLAUDE.md (personal-rules at the
+        ref + sentinel), skills/ symlinks and a copy of .credentials.json (mode 600).
+  home  Same layout, exported as HOME=<arm>/home with home/.claude -> the arm dir.
 
 Subcommands (one per invocation):
 
@@ -19,29 +35,46 @@ Subcommands (one per invocation):
         case, a summary with counts, exit 1 on any failure.
 
   --prepare-arms --arms-root DIR --rules-ref REF [--skill NAME] [--ponytail-dir DIR]
+                 [--isolation settings-sources|config-dir|home]
         Build DIR/<arm>/ for arms baseline and skill (skill only when skills/<NAME>/ exists at
-        REF): settings.json = ~/.claude/settings.json keeping only model, effortLevel,
-        modelSettings, skillOverrides; CLAUDE.md = claude/global/personal-rules.md at REF plus the
-        line "BENCH-SENTINEL: <arm>"; skills/ = symlinks to every skills/*/ of a tree materialised
-        from REF (baseline never gets skills/<NAME>); .credentials.json copied from ~/.claude with
-        mode 600. DIR must resolve outside the repository.
+        REF). settings-sources layout: arm.json (rules_sha kept for provenance),
+        project-settings.json (= ~/.claude/settings.json keeping only model, effortLevel,
+        modelSettings, skillOverrides, plus skillOverrides[<NAME>] = "off"/"on" per arm),
+        claude-snippet.md (the line "BENCH-SENTINEL: <arm>"); nothing else — no credentials, no
+        CLAUDE.md copy. Legacy layout (config-dir/home): settings.json filtered the same way,
+        CLAUDE.md = claude/global/personal-rules.md at REF plus the sentinel line, skills/ =
+        symlinks to every skills/*/ of a tree materialised from REF (baseline never gets
+        skills/<NAME>), .credentials.json copied from ~/.claude with mode 600. DIR must resolve
+        outside the repository.
 
   --probe-isolation --arms-root DIR --model ID [--isolation auto|config-dir|home]
-        PAID, small: 3 calls per arm with --tools "" and --max-budget-usd 0.05. Records, per call,
-        whether the arm's sentinel came back, whether the arm dir grew a .caveman-active, how many
-        stream events mention a hook, and the JSON field names the CLI emitted. Writes
-        DIR/arms.json with the isolation mode that worked (or none). --matrix refuses to run
-        until this says passed.
+        PAID, small: 3 calls per arm with --tools "" and --max-budget-usd 0.05 on
+        --output-format stream-json --verbose --include-hook-events. settings-sources arms: a
+        temp cwd carrying the sentinel CLAUDE.md and the project settings; the prompt asks for the
+        sentinel and DONE; pass = sentinel 3/3, hook events 0 (none at all, and none naming
+        locale-rite, backlog-rite, verify-rite, rtk, caveman, memory-autopush), and
+        ~/.claude/.caveman-active mtime unchanged 3/3. Legacy arms: sentinel 3/3, no
+        .caveman-active in the arm dir, hook events 0, HOOKS: no 3/3, lean-code listed 0/3 in
+        baseline and 3/3 in skill; auto tries config-dir then home. Records per call the event
+        vocabulary and the JSON field names the CLI emitted, writes the result into DIR/arms.json
+        with the rules_sha it was probed under. --matrix refuses to run until this says passed
+        for the current rules_sha.
 
   --matrix --arms a,b --tasks all|id,id --model ID --runs N --arms-root DIR --runs-root DIR
            --budget-usd X [--workers W] [--scorer-venv DIR]
         PAID. Refuses unless --selftest passed in this same invocation and the probe passed.
-        Every cell: a fresh git repo seeded from the task, then
-          claude -p "<prompt>" --model ID --output-format json --permission-mode bypassPermissions
-                 --disallowedTools Bash --strict-mcp-config --no-session-persistence
-                 --max-budget-usd 1.00 --append-system-prompt "<NO_RUN + backlog-rite waiver>"
-        with CLAUDE_CONFIG_DIR=<arm> (or HOME=<arm>/home), tree-killed after 300 s. Stops and
-        reports when the summed total_cost_usd crosses --budget-usd.
+        Every cell: a fresh git repo seeded from the task (settings-sources: plus the arm's
+        .claude/settings.json and the sentinel CLAUDE.md, committed in the seed and excluded from
+        every counter), then
+          claude -p "<prompt>" --model ID --output-format json --disallowedTools Bash
+                 --strict-mcp-config --no-session-persistence --max-budget-usd 1.00
+                 --append-system-prompt "<NO_RUN + backlog-rite waiver>"
+          + settings-sources: --setting-sources project,local --permission-mode acceptEdits,
+            env untouched except CLAUDECODE popped
+          + config-dir/home:  --permission-mode bypassPermissions with CLAUDE_CONFIG_DIR=<arm>
+            (or HOME=<arm>/home)
+        tree-killed after 300 s. Stops and reports when the summed total_cost_usd crosses
+        --budget-usd.
 
   --classify RUNS/<stamp>      per-flag defect counts + per-task mean/min/max -> <stamp>-baseline-defects.md
   --rescore  RUNS/<stamp>      recompute metrics, scores and detectors from kept workspaces (no spend)
@@ -59,9 +92,19 @@ KNOWN LIMIT — what this harness does not do.
   2. The `lean:` marker and the `skipped: … add when …` contract are detected by regex on the
      diff and on the result text — a heuristic, counted, never a judgement of quality.
   3. The interaction with the maintainer's `caveman` plugin is NOT measured: the arms strip
-     enabledPlugins on purpose. A number here says nothing about a session that runs caveman.
-  4. CLAUDE_CONFIG_DIR redirection was probed only on Claude Code 2.1.261; the probe is what
-     decides, not this docstring, and a later version has to re-run it.
+     enabledPlugins on purpose (settings-sources drops the whole user settings file). A number
+     here says nothing about a session that runs caveman.
+  4. In settings-sources mode the user's CLAUDE.md (~/.claude/CLAUDE.md, personal-rules + RTK +
+     TalkToMe on the maintainer's machine) and the user's skills dir are the REAL ones — that is
+     the point (a baseline of the user who exists), and it is also the limit: the skill is
+     excluded from the baseline only through skillOverrides[<skill>] = "off", and a rules file
+     that changes between two runs is not frozen by the arm (arm.json keeps rules_sha so the
+     drift is at least visible). Measured only on Claude Code 2.1.261: `--setting-sources
+     project,local` dropped the user hooks and plugins (0 hook events with --include-hook-events);
+     a later version has to re-run the probe. The probe in this mode runs with --tools "" and
+     therefore does not observe whether the skill arm loads <skill>; that rests on the
+     skillOverrides semantics read from the binary (values on/name-only/user-invocable-only/off).
+  4b. CLAUDE_CONFIG_DIR redirection (legacy modes) was likewise probed only on 2.1.261.
   5. Detectors read what the agent wrote, not what it meant: a test file that asserts nothing
      still counts as a check; a dependency imported but never used still counts as new.
   6. `--report` proves that two stamps share a CLI version and a model id, not that the model
@@ -116,6 +159,19 @@ PROBE_CALLS = 3
 STRIP_SETTINGS_KEYS = ("hooks", "enabledPlugins", "extraKnownMarketplaces", "statusLine", "permissions")
 KEEP_SETTINGS_KEYS = ("model", "effortLevel", "modelSettings", "skillOverrides")
 RULES_PATH = "claude/global/personal-rules.md"
+ISOLATION_MODES = ("settings-sources", "config-dir", "home")
+DEFAULT_ISOLATION = "settings-sources"
+LEGACY_ISOLATION = ("config-dir", "home")       # share one arm layout (CLAUDE_CONFIG_DIR / HOME=)
+# skillOverrides values Claude Code 2.1.261 compares against (read from the binary:
+# BAn={on:0,"name-only":1,"user-invocable-only":2,off:3}); a boolean is not one of them.
+SKILL_OVERRIDE_ON, SKILL_OVERRIDE_OFF = "on", "off"
+# the maintainer's hooks as named in ~/.claude/settings.json and the caveman plugin; the probe in
+# settings-sources mode counts stream events that mention any of them (must be 0)
+MAINTAINER_HOOK_NAMES = ("locale-rite", "backlog-rite", "verify-rite", "rtk", "caveman", "memory-autopush")
+CAVEMAN_MARKER = ".caveman-active"
+# files the harness itself commits into a settings-sources workspace; never counted, never fed to
+# the detectors
+HARNESS_PATHS = ("CLAUDE.md", ".claude/")
 
 # Identical for every arm (ported from the upstream; the second sentence is this repository's).
 NO_RUN = ("Write the implementation (include tests if you normally would for a change like this). "
@@ -123,6 +179,10 @@ NO_RUN = ("Write the implementation (include tests if you normally would for a c
           "verify -- just write the code and stop. Only the code you write is measured, not its "
           "execution. Backlog rite explicitly waived for this benchmark task: edit the files "
           "directly, without an issue, a branch or an OpenSpec change.")
+
+PROBE_PROMPT_SENTINEL_ONLY = ("Answer in exactly two lines and nothing else. Line 1: copy verbatim the "
+                              "line of your instructions that begins with 'BENCH-SENTINEL:' (or write "
+                              "'BENCH-SENTINEL: none'). Line 2: DONE")
 
 PROBE_PROMPT = ("Answer in exactly three lines and nothing else. Line 1: copy verbatim the line of "
                 "your instructions that begins with 'BENCH-SENTINEL:' (or write 'BENCH-SENTINEL: "
@@ -247,11 +307,26 @@ def load_tasks() -> dict[str, Task]:
     return tasks
 
 
-def seed_repo(task: Task, repo: Path) -> None:
+def workspace_files(arm_dir: Path) -> dict[str, str]:
+    """What a settings-sources cell adds to the seed, read from the arm dir: the project settings
+    and the sentinel CLAUDE.md. Both are committed in the base and excluded from every counter."""
+    return {".claude/settings.json": (arm_dir / "project-settings.json").read_text(encoding="utf-8"),
+            "CLAUDE.md": (arm_dir / "claude-snippet.md").read_text(encoding="utf-8")}
+
+
+def seed_repo(task: Task, repo: Path, extra_files: dict[str, str] | None = None) -> None:
     repo.mkdir(parents=True, exist_ok=True)
     task.seed(repo)
+    for name, content in (extra_files or {}).items():
+        p = repo / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        if p.exists() and p.suffix == ".md":       # a seed that already carries a CLAUDE.md keeps it
+            content = p.read_text(encoding="utf-8").rstrip("\n") + "\n\n" + content
+        p.write_text(content, encoding="utf-8")
     git(repo, "init", "-q")
     git(repo, "add", "-A")
+    if extra_files:   # -f: the maintainer's global gitignore (~/.config/git/ignore) drops **/.claude/
+        git(repo, "add", "-f", "--", *extra_files)
     git(repo, "-c", "user.email=bench@example.invalid", "-c", "user.name=bench",
         "commit", "-q", "-m", "seed", "--no-verify")
 
@@ -314,6 +389,13 @@ def _is_comment(line: str) -> bool:
     return not s or s.startswith(("#", "//", "--", "*", "/*", "*/"))
 
 
+def is_harness_path(rel: str) -> bool:
+    """The arm's project settings and the sentinel CLAUDE.md a settings-sources cell commits into
+    the seed (HARNESS_PATHS): excluded from every counter and from the detectors' text."""
+    rel = rel.replace("\\", "/")
+    return any(rel == h.rstrip("/") or rel.startswith(h) for h in HARNESS_PATHS)
+
+
 def git_diff_stats(repo: Path) -> dict:
     """Added lines of code files the agent created or modified vs the seed commit, tests split.
     added_lines is every added line (comments included) — the `+N` a PR shows; code_loc drops
@@ -327,6 +409,8 @@ def git_diff_stats(repo: Path) -> dict:
         if len(parts) != 3 or parts[0] == "-":
             continue
         n, _deleted, path = int(parts[0]), parts[1], parts[2]
+        if is_harness_path(path):
+            continue
         if Path(path).suffix not in CODE_EXT or any(k in path for k in SKIP_DIFF) or "node_modules" in path:
             continue
         if is_test_path(path):
@@ -343,6 +427,8 @@ def git_diff_stats(repo: Path) -> dict:
     for line in patch.splitlines():
         if line.startswith("+++ "):
             current = line[6:] if line.startswith("+++ b/") else line[4:]
+            continue
+        if current and is_harness_path(current):
             continue
         if line.startswith("+") and not line.startswith("+++"):
             added_text.append(line[1:])
@@ -575,6 +661,46 @@ def read_settings(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def arm_settings(settings: dict, skill_name: str, include_skill: bool) -> dict:
+    """Project settings of a settings-sources arm: the maintainer's kept keys plus the arm's own
+    skillOverrides entry — "off" so the baseline stays clean once the skill is installed under
+    ~/.claude/skills, "on" in the skill arm. Values are the strings the CLI compares against."""
+    out = filtered_settings(settings)
+    overrides = dict(out.get("skillOverrides") or {})
+    overrides[skill_name] = SKILL_OVERRIDE_ON if include_skill else SKILL_OVERRIDE_OFF
+    out["skillOverrides"] = overrides
+    return out
+
+
+def prepare_arm_settings_sources(arm_root: Path, arm: str, settings: dict, skill_name: str,
+                                 include_skill: bool, plugin_dir: str | None = None,
+                                 meta: dict | None = None) -> Path:
+    """An arm that copies nothing: project-settings.json, claude-snippet.md, arm.json."""
+    arm_dir = arm_root / arm
+    if arm_dir.exists():
+        shutil.rmtree(arm_dir)
+    arm_dir.mkdir(parents=True)
+    (arm_dir / "project-settings.json").write_text(
+        json.dumps(arm_settings(settings, skill_name, include_skill), indent=2) + "\n", encoding="utf-8")
+    (arm_dir / "claude-snippet.md").write_text(f"{SENTINEL}: {arm}\n", encoding="utf-8")
+    (arm_dir / "arm.json").write_text(json.dumps({
+        "arm": arm, "isolation": "settings-sources", "skill": skill_name, "includes_skill": include_skill,
+        "skill_override": SKILL_OVERRIDE_ON if include_skill else SKILL_OVERRIDE_OFF,
+        "plugin_dir": plugin_dir, **(meta or {})}, indent=2) + "\n", encoding="utf-8")
+    return arm_dir
+
+
+def arm_isolation(arm_dir: Path) -> str:
+    """Layout the arm was prepared in, from arm.json; arms from before the mode existed are config-dir."""
+    p = arm_dir / "arm.json"
+    if not p.exists():
+        return "config-dir"
+    try:
+        return str(json.loads(p.read_text(encoding="utf-8")).get("isolation") or "config-dir")
+    except json.JSONDecodeError:
+        return "config-dir"
+
+
 def prepare_arm(arm_root: Path, arm: str, settings: dict, credentials: bytes | None,
                 rules_text: str, skills_tree: Path, skill_name: str, include_skill: bool,
                 plugin_dir: str | None = None, meta: dict | None = None) -> Path:
@@ -604,20 +730,58 @@ def prepare_arm(arm_root: Path, arm: str, settings: dict, credentials: bytes | N
     home.mkdir()
     os.symlink("..", str(home / ".claude"))          # HOME= fallback: home/.claude -> the arm dir
     (arm_dir / "arm.json").write_text(json.dumps({
-        "arm": arm, "skill": skill_name, "includes_skill": include_skill, "skills_linked": linked,
-        "plugin_dir": plugin_dir, **(meta or {})}, indent=2) + "\n", encoding="utf-8")
+        "arm": arm, "isolation": "config-dir", "skill": skill_name, "includes_skill": include_skill,
+        "skills_linked": linked, "plugin_dir": plugin_dir, **(meta or {})}, indent=2) + "\n", encoding="utf-8")
     return arm_dir
 
 
+def settings_sources_preflight(arm_dir: Path, arm: str, skill_name: str, user_claude_dir: Path) -> list[str]:
+    """Rules of the settings-sources layout: filtered project settings carrying the arm's own
+    skillOverrides value, the sentinel snippet, nothing copied, and — for the skill arm — the skill
+    really installed under the user's skills dir (an override of "on" enables nothing otherwise)."""
+    problems: list[str] = []
+    settings_path = arm_dir / "project-settings.json"
+    if not settings_path.exists():
+        problems.append("project-settings.json missing")
+    else:
+        try:
+            ps = json.loads(settings_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            ps = None
+            problems.append("project-settings.json is not JSON")
+        if isinstance(ps, dict):
+            for k in STRIP_SETTINGS_KEYS:
+                if k in ps:
+                    problems.append(f"project-settings.json carries `{k}`")
+            want = SKILL_OVERRIDE_ON if arm == "skill" else SKILL_OVERRIDE_OFF
+            got = (ps.get("skillOverrides") or {}).get(skill_name)
+            if got != want:
+                problems.append(f"project-settings.json skillOverrides[{skill_name}] is {got!r}, not {want!r}")
+    snippet = arm_dir / "claude-snippet.md"
+    if not snippet.exists() or f"{SENTINEL}: {arm}" not in snippet.read_text(encoding="utf-8", errors="ignore"):
+        problems.append(f"claude-snippet.md lacks the line `{SENTINEL}: {arm}`")
+    for stray in (".credentials.json", "CLAUDE.md", "settings.json", "skills", "home"):
+        if (arm_dir / stray).exists():
+            problems.append(f"arm dir carries {stray} (a settings-sources arm copies nothing)")
+    if arm == "skill" and not (user_claude_dir / "skills" / skill_name).exists():
+        problems.append(f"{user_claude_dir / 'skills' / skill_name} is not installed; "
+                        f"skillOverrides {SKILL_OVERRIDE_ON!r} would enable nothing")
+    return problems
+
+
 def arm_preflight(arm_dir: Path, arm: str, skill_name: str = DEFAULT_SKILL,
-                  repo_root: Path = REPO_ROOT) -> list[str]:
-    """Problems with an arm; empty list means it may be used. Every rule names what it caught."""
+                  repo_root: Path = REPO_ROOT, user_claude_dir: Path | None = None) -> list[str]:
+    """Problems with an arm; empty list means it may be used. Every rule names what it caught.
+    The layout recorded in arm.json decides which rule set applies."""
     problems: list[str] = []
     try:
         arm_dir.resolve().relative_to(repo_root.resolve())
         problems.append(f"arm dir {arm_dir} is inside the repository")
     except ValueError:
         pass
+    if arm_isolation(arm_dir) == "settings-sources":
+        return problems + settings_sources_preflight(arm_dir, arm, skill_name,
+                                                     user_claude_dir or Path.home() / ".claude")
     settings_path = arm_dir / "settings.json"
     if not settings_path.exists():
         problems.append("settings.json missing")
@@ -646,7 +810,7 @@ def arm_preflight(arm_dir: Path, arm: str, skill_name: str = DEFAULT_SKILL,
         problems.append(f"baseline arm carries skills/{skill_name}")
     if arm == "skill" and skills.is_dir() and not (skills / skill_name).exists():
         problems.append(f"skill arm lacks skills/{skill_name}")
-    for stray in (".caveman-active",):
+    for stray in (CAVEMAN_MARKER,):
         if (arm_dir / stray).exists():
             problems.append(f"arm dir carries {stray}")
     return problems
@@ -676,20 +840,28 @@ def cmd_prepare_arms(args: argparse.Namespace) -> int:
     rules = git(REPO_ROOT, "show", f"{ref}:{RULES_PATH}")
     if rules.returncode != 0:
         sys.exit(f"cannot read {RULES_PATH} at {ref}: {rules.stderr.strip()[:200]}")
+    layout = "settings-sources" if args.isolation == "settings-sources" else "config-dir"
     home_claude = Path.home() / ".claude"
     settings = read_settings(home_claude / "settings.json")
-    cred_path = home_claude / ".credentials.json"
-    credentials = cred_path.read_bytes() if cred_path.exists() else None
-    if credentials is None:
-        log("WARN ~/.claude/.credentials.json not found; arms will carry no credentials")
-    arms_root.mkdir(parents=True, exist_ok=True)
-    tree = materialize_skills_tree(ref, arms_root / "_tree" / sha[:12])
     skill = args.skill
-    skill_present = (tree / skill).is_dir()
-    meta = {"rules_ref": ref, "rules_sha": sha, "claude_version": claude_version(),
+    arms_root.mkdir(parents=True, exist_ok=True)
+    meta = {"isolation": layout, "rules_ref": ref, "rules_sha": sha, "claude_version": claude_version(),
             "prepared_at": _dt.datetime.now().isoformat(timespec="seconds"),
             "settings_kept": [k for k in KEEP_SETTINGS_KEYS if k in settings],
             "settings_stripped": [k for k in STRIP_SETTINGS_KEYS if k in settings]}
+    if layout == "settings-sources":
+        credentials, tree = None, None
+        skill_present = git(REPO_ROOT, "cat-file", "-e", f"{ref}:skills/{skill}/SKILL.md").returncode == 0
+        meta["skill_installed"] = (home_claude / "skills" / skill).exists()
+        log(f"isolation settings-sources: no credentials copied, no CLAUDE.md copied; the user's "
+            f"{home_claude}/CLAUDE.md and skills/ are the real ones, {skill} excluded via skillOverrides")
+    else:
+        cred_path = home_claude / ".credentials.json"
+        credentials = cred_path.read_bytes() if cred_path.exists() else None
+        if credentials is None:
+            log("WARN ~/.claude/.credentials.json not found; arms will carry no credentials")
+        tree = materialize_skills_tree(ref, arms_root / "_tree" / sha[:12])
+        skill_present = (tree / skill).is_dir()
     arms = [("baseline", False)]
     if skill_present:
         arms.append(("skill", True))
@@ -699,8 +871,11 @@ def cmd_prepare_arms(args: argparse.Namespace) -> int:
         arms.append(("ponytail-ref", False))
     for arm, include in arms:
         plugin = args.ponytail_dir if arm == "ponytail-ref" else None
-        arm_dir = prepare_arm(arms_root, arm, settings, credentials, rules.stdout, tree, skill,
-                              include, plugin, meta)
+        if layout == "settings-sources":
+            arm_dir = prepare_arm_settings_sources(arms_root, arm, settings, skill, include, plugin, meta)
+        else:
+            arm_dir = prepare_arm(arms_root, arm, settings, credentials, rules.stdout, tree, skill,
+                                  include, plugin, meta)
         problems = arm_preflight(arm_dir, arm, skill)
         status = "OK" if not problems else "FAILED " + "; ".join(problems)
         log(f"arm {arm:12} {arm_dir}  preflight {status}")
@@ -711,8 +886,9 @@ def cmd_prepare_arms(args: argparse.Namespace) -> int:
             existing = json.loads(arms_json.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             existing = {}
+    keep_probe = existing.get("rules_sha") == sha and existing.get("isolation", "config-dir") == layout
     existing.update({"arms": [a for a, _ in arms], "skill": skill, **meta,
-                     "probe": existing.get("probe") if existing.get("rules_sha") == sha else None})
+                     "probe": existing.get("probe") if keep_probe else None})
     arms_json.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
     log(f"wrote {arms_json}")
     return 0
@@ -722,6 +898,8 @@ def cmd_prepare_arms(args: argparse.Namespace) -> int:
 def cell_env(arm_dir: Path, isolation: str) -> dict:
     env = dict(os.environ)
     env.pop("CLAUDECODE", None)              # a nested-session guard the CLI sets for itself
+    if isolation == "settings-sources":
+        return env                           # the real setup on purpose; the flags do the isolating
     if isolation == "home":
         env["HOME"] = str(arm_dir / "home")
         env.pop("CLAUDE_CONFIG_DIR", None)
@@ -730,15 +908,18 @@ def cell_env(arm_dir: Path, isolation: str) -> dict:
     return env
 
 
-def cell_command(prompt: str, model: str, budget_usd: float, plugin_dir: str | None = None,
-                 extra_system: str = NO_RUN) -> list[str]:
+def cell_command(prompt: str, model: str, budget_usd: float, isolation: str,
+                 plugin_dir: str | None = None, extra_system: str = NO_RUN) -> list[str]:
     exe = shutil.which("claude")
     if not exe:
         sys.exit("claude CLI not found on PATH")
-    cmd = [exe, "-p", prompt, "--model", model, "--output-format", "json",
-           "--permission-mode", "bypassPermissions", "--disallowedTools", "Bash",
-           "--strict-mcp-config", "--no-session-persistence",
-           "--max-budget-usd", f"{budget_usd:.2f}", "--append-system-prompt", extra_system]
+    cmd = [exe, "-p", prompt, "--model", model, "--output-format", "json"]
+    if isolation == "settings-sources":
+        cmd += ["--setting-sources", "project,local", "--permission-mode", "acceptEdits"]
+    else:
+        cmd += ["--permission-mode", "bypassPermissions"]
+    cmd += ["--disallowedTools", "Bash", "--strict-mcp-config", "--no-session-persistence",
+            "--max-budget-usd", f"{budget_usd:.2f}", "--append-system-prompt", extra_system]
     if plugin_dir:
         cmd += ["--plugin-dir", plugin_dir]
     return cmd
@@ -797,8 +978,8 @@ def run_cell(task: Task, arm: str, arm_dir: Path, model: str, isolation: str, ce
              run_index: int, plugin_dir: str | None) -> dict:
     cell_dir.mkdir(parents=True, exist_ok=True)
     repo = cell_dir / "repo"
-    seed_repo(task, repo)
-    cmd = cell_command(task.prompt, model, CELL_BUDGET_USD, plugin_dir)
+    seed_repo(task, repo, workspace_files(arm_dir) if isolation == "settings-sources" else None)
+    cmd = cell_command(task.prompt, model, CELL_BUDGET_USD, isolation, plugin_dir)
     (cell_dir / "_command.txt").write_text(" ".join(json.dumps(c) for c in cmd) + "\n", encoding="utf-8")
     proc = run_process(cmd, repo, cell_env(arm_dir, isolation), cell_dir / "_claude.json",
                        cell_dir / "_claude.stderr.txt", CELL_TIMEOUT_S)
@@ -814,6 +995,23 @@ def load_arms_json(arms_root: Path) -> dict:
     return json.loads(p.read_text(encoding="utf-8"))
 
 
+def probe_gate(arms_meta: dict) -> str | None:
+    """Why --matrix must refuse these arms, or None: the probe has to have passed, under the arms'
+    current rules_sha, in a mode the arm layout supports."""
+    probe = arms_meta.get("probe") or {}
+    if not probe.get("passed"):
+        return ("the isolation probe has not passed for these arms (run --probe-isolation; arms.json "
+                "probe.passed must be true)")
+    if probe.get("rules_sha") != arms_meta.get("rules_sha"):
+        return (f"the probe passed under rules_sha {probe.get('rules_sha')} but the arms are at "
+                f"{arms_meta.get('rules_sha')}; re-run --probe-isolation")
+    layout = arms_meta.get("isolation", "config-dir")
+    if (probe.get("isolation") == "settings-sources") != (layout == "settings-sources"):
+        return (f"the probe passed in {probe.get('isolation')} but the arms carry the {layout} layout; "
+                "re-run --prepare-arms and the probe")
+    return None
+
+
 def cmd_matrix(args: argparse.Namespace) -> int:
     if not SELFTEST_PASSED:
         sys.exit("refusing --matrix: --selftest did not pass in this invocation "
@@ -823,11 +1021,10 @@ def cmd_matrix(args: argparse.Namespace) -> int:
         if not outside_repo(p):
             sys.exit(f"refusing: {p} resolves inside the repository")
     arms_meta = load_arms_json(arms_root)
-    probe = arms_meta.get("probe") or {}
-    if not probe.get("passed"):
-        sys.exit("refusing --matrix: the isolation probe has not passed for these arms "
-                 "(run --probe-isolation; arms.json probe.passed must be true)")
-    isolation = probe["isolation"]
+    refusal = probe_gate(arms_meta)
+    if refusal:
+        sys.exit("refusing --matrix: " + refusal)
+    isolation = arms_meta["probe"]["isolation"]
     if args.scorer_venv:
         os.environ["LEAN_SCORER_VENV"] = str(Path(args.scorer_venv).expanduser())
     tasks = load_tasks()
@@ -1098,17 +1295,26 @@ def cmd_rescore(args: argparse.Namespace) -> int:
 
 
 # ── isolation probe (paid, small) ─────────────────────────────────────────
-def probe_command(model: str, budget_usd: float) -> list[str]:
+def probe_command(model: str, budget_usd: float, isolation: str = "config-dir") -> list[str]:
     exe = shutil.which("claude")
     if not exe:
         sys.exit("claude CLI not found on PATH")
+    if isolation == "settings-sources":
+        return [exe, "-p", PROBE_PROMPT_SENTINEL_ONLY, "--model", model, "--output-format", "stream-json",
+                "--verbose", "--include-hook-events", "--tools", "", "--setting-sources", "project,local",
+                "--strict-mcp-config", "--no-session-persistence", "--max-budget-usd", f"{budget_usd:.2f}"]
     return [exe, "-p", PROBE_PROMPT, "--model", model, "--output-format", "stream-json", "--verbose",
-            "--tools", "", "--permission-mode", "bypassPermissions", "--strict-mcp-config",
-            "--no-session-persistence", "--max-budget-usd", f"{budget_usd:.2f}"]
+            "--include-hook-events", "--tools", "", "--permission-mode", "bypassPermissions",
+            "--strict-mcp-config", "--no-session-persistence", "--max-budget-usd", f"{budget_usd:.2f}"]
 
 
 def parse_stream(path: Path) -> dict:
+    """Events of a stream-json run. Hook lifecycle events (system/hook_started, hook_response, …,
+    emitted with --include-hook-events) are listed by name, and the ones naming one of the
+    maintainer's hooks (MAINTAINER_HOOK_NAMES) are counted separately."""
     events: list[str] = []
+    hook_names: list[str] = []
+    maintainer_hook_events = 0
     result_text = ""
     result_keys: list[str] = []
     cost = None
@@ -1121,37 +1327,74 @@ def parse_stream(path: Path) -> dict:
             continue
         kind = str(ev.get("type", "?"))
         sub = ev.get("subtype")
-        events.append(f"{kind}/{sub}" if sub else kind)
+        label = f"{kind}/{sub}" if sub else kind
+        events.append(label)
+        if "hook" in label.lower():
+            hook_names.append(str(ev.get("hook_name") or ev.get("hook_event_name") or ev.get("hook_event") or "?"))
+            if any(name in line for name in MAINTAINER_HOOK_NAMES):
+                maintainer_hook_events += 1
         if kind == "result":
             result_text = str(ev.get("result") or "")
             result_keys = sorted(k for k in ev.keys() if k not in STRIP_KEYS)
             cost = ev.get("total_cost_usd")
-    return {"events": events, "result_text": result_text, "result_keys": result_keys, "cost": cost}
+    return {"events": events, "hook_names": hook_names, "maintainer_hook_events": maintainer_hook_events,
+            "result_text": result_text, "result_keys": result_keys, "cost": cost}
+
+
+def marker_mtime(path: Path) -> float | None:
+    try:
+        return path.stat().st_mtime
+    except FileNotFoundError:
+        return None
+
+
+def probe_workspace(arm_dir: Path, cwd: Path) -> Path:
+    """A throwaway cwd for one settings-sources probe call: the sentinel CLAUDE.md and the arm's
+    project settings, exactly what a cell's workspace carries, nothing else."""
+    cwd.mkdir(parents=True, exist_ok=True)
+    for name, content in workspace_files(arm_dir).items():
+        p = cwd / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content, encoding="utf-8")
+    return cwd
 
 
 def snapshot(dir_: Path) -> set[str]:
     return {str(p.relative_to(dir_)) for p in dir_.rglob("*") if "_tree" not in p.parts and "skills" not in p.parts}
 
 
-def probe_arm(arm: str, arm_dir: Path, model: str, isolation: str, out_dir: Path) -> dict:
+def probe_arm(arm: str, arm_dir: Path, model: str, isolation: str, out_dir: Path,
+              user_claude_dir: Path | None = None) -> dict:
+    marker = (user_claude_dir or Path.home() / ".claude") / CAVEMAN_MARKER
     calls = []
     for i in range(PROBE_CALLS):
-        before = snapshot(arm_dir)
-        cmd = probe_command(model, PROBE_BUDGET_USD)
+        cmd = probe_command(model, PROBE_BUDGET_USD, isolation)
         out = out_dir / f"{arm}-{isolation}-{i}.jsonl"
         err = out_dir / f"{arm}-{isolation}-{i}.stderr.txt"
         log("  " + " ".join(json.dumps(c) for c in cmd[:6]) + " ...")
-        proc = run_process(cmd, out_dir, cell_env(arm_dir, isolation), out, err, 120)
+        marker_before = marker_mtime(marker)
+        if isolation == "settings-sources":
+            cwd = probe_workspace(arm_dir, out_dir / f"{arm}-cwd-{i}")
+            before = after = set()
+            proc = run_process(cmd, cwd, cell_env(arm_dir, isolation), out, err, 120)
+        else:
+            before = snapshot(arm_dir)
+            proc = run_process(cmd, out_dir, cell_env(arm_dir, isolation), out, err, 120)
+            after = snapshot(arm_dir)
+        marker_after = marker_mtime(marker)
         parsed = parse_stream(out)
         text = parsed["result_text"]
-        after = snapshot(arm_dir)
         skills_line = next((ln for ln in text.splitlines() if ln.strip().upper().startswith("SKILLS:")), "")
         hooks_line = next((ln for ln in text.splitlines() if ln.strip().upper().startswith("HOOKS:")), "")
         calls.append({
             "call": i, "returncode": proc["returncode"], "wall_s": proc["wall_s"],
             "sentinel_ok": f"{SENTINEL}: {arm}" in text,
-            "caveman_active_absent": not (arm_dir / ".caveman-active").exists(),
+            "done_ok": "DONE" in text.upper(),
+            "caveman_active_absent": not (arm_dir / CAVEMAN_MARKER).exists(),
+            "caveman_marker_untouched": marker_before == marker_after,
             "hook_events": [e for e in parsed["events"] if "hook" in e.lower()],
+            "hook_names": parsed["hook_names"],
+            "maintainer_hook_events": parsed["maintainer_hook_events"],
             "hooks_reported": "yes" in hooks_line.lower(),
             "skill_listed": DEFAULT_SKILL in skills_line.lower(),
             "event_vocabulary": sorted(set(parsed["events"])),
@@ -1165,16 +1408,26 @@ def probe_arm(arm: str, arm_dir: Path, model: str, isolation: str, out_dir: Path
         "arm": arm, "isolation": isolation, "calls": calls,
         "sentinel": f"{sum(c['sentinel_ok'] for c in calls)}/{n}",
         "caveman_active_absent": f"{sum(c['caveman_active_absent'] for c in calls)}/{n}",
+        "caveman_marker_untouched": f"{sum(c['caveman_marker_untouched'] for c in calls)}/{n}",
         "hook_events_total": sum(len(c["hook_events"]) for c in calls),
+        "maintainer_hook_events": sum(c["maintainer_hook_events"] for c in calls),
         "hooks_reported": f"{sum(c['hooks_reported'] for c in calls)}/{n}",
         "skill_listed": f"{sum(c['skill_listed'] for c in calls)}/{n}",
         "cost_usd": round(sum(float(c["cost_usd"] or 0) for c in calls), 4),
     }
-    summary["passed"] = (sum(c["sentinel_ok"] for c in calls) == n
-                         and sum(c["caveman_active_absent"] for c in calls) == n
-                         and summary["hook_events_total"] == 0
-                         and sum(c["hooks_reported"] for c in calls) == 0
-                         and (sum(c["skill_listed"] for c in calls) == (n if arm == "skill" else 0)))
+    if isolation == "settings-sources":
+        # sentinel echoed, no hook event at all (so none of the maintainer's), the real
+        # ~/.claude/.caveman-active never rewritten (the plugin's SessionStart hook did not run)
+        summary["passed"] = (sum(c["sentinel_ok"] for c in calls) == n
+                             and summary["hook_events_total"] == 0
+                             and summary["maintainer_hook_events"] == 0
+                             and sum(c["caveman_marker_untouched"] for c in calls) == n)
+    else:
+        summary["passed"] = (sum(c["sentinel_ok"] for c in calls) == n
+                             and sum(c["caveman_active_absent"] for c in calls) == n
+                             and summary["hook_events_total"] == 0
+                             and sum(c["hooks_reported"] for c in calls) == 0
+                             and (sum(c["skill_listed"] for c in calls) == (n if arm == "skill" else 0)))
     return summary
 
 
@@ -1188,7 +1441,17 @@ def cmd_probe(args: argparse.Namespace) -> int:
         problems = arm_preflight(arms_root / arm, arm, meta.get("skill", DEFAULT_SKILL))
         if problems:
             sys.exit(f"arm {arm} failed preflight: " + "; ".join(problems))
-    modes = ["config-dir", "home"] if args.isolation == "auto" else [args.isolation]
+    layout = meta.get("isolation", "config-dir")
+    if layout == "settings-sources":
+        if args.isolation not in ("settings-sources", "auto"):
+            sys.exit(f"these arms carry the settings-sources layout; --isolation {args.isolation} needs "
+                     f"arms prepared with `--prepare-arms --isolation {args.isolation}`")
+        modes = ["settings-sources"]
+    else:
+        if args.isolation == "settings-sources":
+            sys.exit("these arms carry the config-dir/home layout; re-run --prepare-arms (default "
+                     "settings-sources) or pass --isolation auto|config-dir|home")
+        modes = ["config-dir", "home"] if args.isolation == "auto" else [args.isolation]
     out_dir = arms_root / "_probe" / now_stamp()
     out_dir.mkdir(parents=True)
     record = {"model": args.model, "claude_version": claude_version(), "rules_sha": meta.get("rules_sha"),
@@ -1200,14 +1463,20 @@ def cmd_probe(args: argparse.Namespace) -> int:
         record["rounds"].append(round_)
         record["cost_usd"] = round(record["cost_usd"] + sum(a["cost_usd"] for a in round_["arms"]), 4)
         for a in round_["arms"]:
-            log(f"  {a['arm']:10} sentinel {a['sentinel']}  caveman-absent {a['caveman_active_absent']}  "
-                f"hook-events {a['hook_events_total']}  hooks-reported {a['hooks_reported']}  "
-                f"skill-listed {a['skill_listed']}  ${a['cost_usd']}  -> {'PASS' if a['passed'] else 'FAIL'}")
+            if mode == "settings-sources":
+                log(f"  {a['arm']:10} sentinel {a['sentinel']}  hook-events {a['hook_events_total']} "
+                    f"(maintainer {a['maintainer_hook_events']})  caveman-marker-untouched "
+                    f"{a['caveman_marker_untouched']}  ${a['cost_usd']}  -> {'PASS' if a['passed'] else 'FAIL'}")
+            else:
+                log(f"  {a['arm']:10} sentinel {a['sentinel']}  caveman-absent {a['caveman_active_absent']}  "
+                    f"hook-events {a['hook_events_total']}  hooks-reported {a['hooks_reported']}  "
+                    f"skill-listed {a['skill_listed']}  ${a['cost_usd']}  -> {'PASS' if a['passed'] else 'FAIL'}")
         if all(a["passed"] for a in round_["arms"]):
             record["passed"], record["isolation"] = True, mode
             break
     meta["probe"] = {"passed": record["passed"], "isolation": record["isolation"], "at": record["at"],
-                     "model": args.model, "cost_usd": record["cost_usd"], "record": str(out_dir / "probe.json")}
+                     "rules_sha": meta.get("rules_sha"), "model": args.model, "cost_usd": record["cost_usd"],
+                     "record": str(out_dir / "probe.json")}
     (arms_root / "arms.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
     (out_dir / "probe.json").write_text(json.dumps(strip_export(record), indent=2) + "\n", encoding="utf-8")
     if args.export:
@@ -1405,6 +1674,140 @@ def selftest_arms(st: Selftest) -> None:
             and any("inside the repository" in p for p in arm_preflight(inside, "baseline")))
 
 
+def selftest_isolation(st: Selftest, tasks: dict[str, Task]) -> None:
+    """settings-sources mode: the arm copies nothing and carries its skillOverrides value; the cell
+    workspace commits the arm files in the seed and the counters ignore them; the command has the
+    setting-sources flags and acceptEdits; the probe workspace and the stream parser."""
+    settings = {"model": "opus[1m]", "effortLevel": "high", "modelSettings": {"x": {"effortLevel": "xhigh"}},
+                "skillOverrides": {"documentation": "off"}, "hooks": {"Stop": []},
+                "enabledPlugins": {"caveman@caveman": True}, "extraKnownMarketplaces": {"caveman": {}},
+                "statusLine": {"type": "command"}, "permissions": {"allow": ["Bash(ls)"]}, "theme": "dark"}
+    with tempfile.TemporaryDirectory(prefix="lean-ss-") as d:
+        root = Path(d)
+        user_dir = root / "user-claude"                       # stands in for ~/.claude
+        (user_dir / "skills" / DEFAULT_SKILL).mkdir(parents=True)
+        base = prepare_arm_settings_sources(root / "arms", "baseline", settings, DEFAULT_SKILL, False,
+                                            meta={"rules_sha": "abc123"})
+        skill = prepare_arm_settings_sources(root / "arms", "skill", settings, DEFAULT_SKILL, True)
+        ps_b = json.loads((base / "project-settings.json").read_text(encoding="utf-8"))
+        ps_s = json.loads((skill / "project-settings.json").read_text(encoding="utf-8"))
+        st.case("isolation", "project-settings.json keeps model/effortLevel/modelSettings/skillOverrides; hooks, enabledPlugins absent",
+                set(ps_b) == set(KEEP_SETTINGS_KEYS) and not any(k in ps_b for k in STRIP_SETTINGS_KEYS), str(sorted(ps_b)))
+        st.case("isolation", "skillOverrides[lean-code] is 'off' in the baseline, 'on' in the skill arm; the maintainer's entries kept",
+                ps_b["skillOverrides"][DEFAULT_SKILL] == SKILL_OVERRIDE_OFF and ps_s["skillOverrides"][DEFAULT_SKILL] == SKILL_OVERRIDE_ON
+                and ps_b["skillOverrides"]["documentation"] == "off" and ps_s["skillOverrides"]["documentation"] == "off",
+                f"baseline={ps_b['skillOverrides']} skill={ps_s['skillOverrides']}")
+        st.case("isolation", "arm dir has no .credentials.json, CLAUDE.md, settings.json, skills/ or home/",
+                not any((base / n).exists() for n in (".credentials.json", "CLAUDE.md", "settings.json", "skills", "home")),
+                ", ".join(sorted(p.name for p in base.iterdir())))
+        st.case("isolation", "claude-snippet.md is exactly the sentinel line",
+                (base / "claude-snippet.md").read_text(encoding="utf-8") == f"{SENTINEL}: baseline\n")
+        arm_json = json.loads((base / "arm.json").read_text(encoding="utf-8"))
+        st.case("isolation", "arm.json records isolation=settings-sources, skill_override and rules_sha",
+                arm_json["isolation"] == "settings-sources" and arm_json["skill_override"] == SKILL_OVERRIDE_OFF
+                and arm_json["rules_sha"] == "abc123" and arm_isolation(base) == "settings-sources")
+        st.case("isolation", "baseline + skill preflight OK",
+                arm_preflight(base, "baseline", user_claude_dir=user_dir) == [] and arm_preflight(skill, "skill", user_claude_dir=user_dir) == [],
+                "; ".join(arm_preflight(base, "baseline", user_claude_dir=user_dir) + arm_preflight(skill, "skill", user_claude_dir=user_dir)))
+        # injected defects, one per rule
+        (base / ".credentials.json").write_text("{}", encoding="utf-8")
+        st.case("isolation", "preflight catches a stray .credentials.json",
+                any("credentials" in p for p in arm_preflight(base, "baseline", user_claude_dir=user_dir)))
+        (base / ".credentials.json").unlink()
+        ps_b["skillOverrides"][DEFAULT_SKILL] = SKILL_OVERRIDE_ON
+        (base / "project-settings.json").write_text(json.dumps(ps_b), encoding="utf-8")
+        st.case("isolation", "preflight catches skillOverrides 'on' in the baseline",
+                any("skillOverrides" in p for p in arm_preflight(base, "baseline", user_claude_dir=user_dir)))
+        ps_b["skillOverrides"][DEFAULT_SKILL] = SKILL_OVERRIDE_OFF
+        ps_b["hooks"] = {"Stop": []}
+        (base / "project-settings.json").write_text(json.dumps(ps_b), encoding="utf-8")
+        st.case("isolation", "preflight catches `hooks` in project-settings.json",
+                any("hooks" in p for p in arm_preflight(base, "baseline", user_claude_dir=user_dir)))
+        ps_b.pop("hooks")
+        (base / "project-settings.json").write_text(json.dumps(ps_b), encoding="utf-8")
+        (base / "claude-snippet.md").write_text("nothing here\n", encoding="utf-8")
+        st.case("isolation", "preflight catches a missing sentinel",
+                any(SENTINEL in p for p in arm_preflight(base, "baseline", user_claude_dir=user_dir)))
+        (base / "claude-snippet.md").write_text(f"{SENTINEL}: baseline\n", encoding="utf-8")
+        st.case("isolation", "preflight of the skill arm needs <user>/skills/lean-code installed",
+                any("not installed" in p for p in arm_preflight(skill, "skill", user_claude_dir=root / "empty")))
+        st.case("isolation", "preflight clean again after repairs", arm_preflight(base, "baseline", user_claude_dir=user_dir) == [])
+
+        # the cell workspace: seed + arm files in one base commit, counters blind to them
+        repo = root / "repo"
+        seed_repo(tasks["trace-transfer"], repo, workspace_files(base))
+        tracked = git(repo, "ls-tree", "-r", "--name-only", "HEAD").stdout.split()
+        st.case("isolation", "workspace commits .claude/settings.json and CLAUDE.md in the seed commit",
+                ".claude/settings.json" in tracked and "CLAUDE.md" in tracked, " ".join(sorted(tracked)))
+        st.case("isolation", "workspace CLAUDE.md is the sentinel; .claude/settings.json equals the arm's",
+                (repo / "CLAUDE.md").read_text(encoding="utf-8") == f"{SENTINEL}: baseline\n"
+                and json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8")) == ps_b)
+        s0 = git_diff_stats(repo)
+        st.case("isolation", "fresh workspace: added_lines 0, no changed paths", s0["added_lines"] == 0 and s0["changed_paths"] == [])
+        (repo / "CLAUDE.md").write_text(f"{SENTINEL}: baseline\n# lean: x -> y\n", encoding="utf-8")
+        (repo / ".claude" / "helper.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+        tasks["trace-transfer"].bad(repo)
+        s1 = git_diff_stats(repo)
+        st.case("isolation", "CLAUDE.md and .claude/ edits excluded from added_lines, code_loc, changed_paths and detector text",
+                s1["added_lines"] == 2 and s1["code_loc"] == 2 and not any(is_harness_path(p) for p in s1["changed_paths"])
+                and "lean:" not in s1["added_text"] and "helper" not in s1["added_text"],
+                f"added={s1['added_lines']} code={s1['code_loc']} paths={s1['changed_paths']}")
+        st.case("isolation", "is_harness_path: CLAUDE.md and .claude/** yes, src/CLAUDE.md and claude.py no",
+                is_harness_path("CLAUDE.md") and is_harness_path(".claude/settings.json") and is_harness_path(".claude/a/b.py")
+                and not is_harness_path("src/CLAUDE.md") and not is_harness_path("claude.py") and not is_harness_path(".claude_x/y"))
+        fake = Task(id="fake", source="selftest", prompt="", entry="a.py", axis="safe",
+                    seed=lambda wd: _write_files(wd, {"CLAUDE.md": "# Project rules\n", "a.py": "x = 1\n"}),
+                    good=lambda wd: None, bad=lambda wd: None, score=lambda wd: {})
+        seed_repo(fake, root / "repo2", workspace_files(base))
+        txt = (root / "repo2" / "CLAUDE.md").read_text(encoding="utf-8")
+        st.case("isolation", "a seed that already has a CLAUDE.md keeps it and gets the sentinel appended",
+                txt.startswith("# Project rules") and txt.rstrip().endswith(f"{SENTINEL}: baseline"), repr(txt))
+
+        # command and env
+        cmd = cell_command("p", "m", CELL_BUDGET_USD, "settings-sources")
+        st.case("isolation", "cell command: --setting-sources project,local + acceptEdits, no bypassPermissions, protocol flags kept",
+                cmd[cmd.index("--setting-sources") + 1] == "project,local" and cmd[cmd.index("--permission-mode") + 1] == "acceptEdits"
+                and "bypassPermissions" not in cmd
+                and all(f in cmd for f in ("--disallowedTools", "Bash", "--strict-mcp-config", "--no-session-persistence",
+                                           "--output-format", "json", "--max-budget-usd", "1.00")) and NO_RUN in cmd)
+        env = cell_env(root / "nowhere", "settings-sources")
+        st.case("isolation", "cell env: CLAUDECODE popped, HOME and CLAUDE_CONFIG_DIR untouched",
+                "CLAUDECODE" not in env and env.get("HOME") == os.environ.get("HOME")
+                and env.get("CLAUDE_CONFIG_DIR") == os.environ.get("CLAUDE_CONFIG_DIR"))
+        pc = probe_command("m", PROBE_BUDGET_USD, "settings-sources")
+        st.case("isolation", "probe command: stream-json --verbose --include-hook-events --tools '' + setting sources, no bypassPermissions",
+                all(f in pc for f in ("stream-json", "--verbose", "--include-hook-events", "--tools", "", "--setting-sources", "project,local"))
+                and "bypassPermissions" not in pc and PROBE_PROMPT_SENTINEL_ONLY in pc)
+        cwd = probe_workspace(base, root / "probe-cwd")
+        st.case("isolation", "probe workspace carries the sentinel CLAUDE.md and the arm's .claude/settings.json",
+                (cwd / "CLAUDE.md").read_text(encoding="utf-8") == f"{SENTINEL}: baseline\n"
+                and json.loads((cwd / ".claude" / "settings.json").read_text(encoding="utf-8")) == ps_b)
+
+        # the stream parser on a clean and on a contaminated run
+        result = json.dumps({"type": "result", "subtype": "success", "result": f"{SENTINEL}: baseline\nDONE",
+                             "total_cost_usd": 0.01, "num_turns": 1, "duration_ms": 5,
+                             "modelUsage": {"claude-haiku-4-5-20251001": {}}, SESSION_KEY: "x"})
+        clean = root / "clean.jsonl"
+        clean.write_text('{"type":"system","subtype":"init"}\n{"type":"assistant"}\n' + result + "\n", encoding="utf-8")
+        dirty = root / "dirty.jsonl"
+        dirty.write_text('{"type":"system","subtype":"init"}\n'
+                         '{"type":"system","subtype":"hook_started","hook_id":"1","hook_name":"python3 /x/hooks/locale-rite.py","hook_event":"PreToolUse"}\n'
+                         '{"type":"system","subtype":"hook_response","hook_id":"2","hook_name":"caveman-activate","hook_event":"SessionStart"}\n'
+                         '{"type":"system","subtype":"hook_started","hook_id":"3","hook_name":"some-other-hook","hook_event":"Stop"}\n'
+                         + result + "\n", encoding="utf-8")
+        pa, pb = parse_stream(clean), parse_stream(dirty)
+        st.case("isolation", "stream parse: clean run has 0 hook events, the sentinel, cost and keys without the session id",
+                pa["hook_names"] == [] and pa["maintainer_hook_events"] == 0 and f"{SENTINEL}: baseline" in pa["result_text"]
+                and pa["cost"] == 0.01 and "total_cost_usd" in pa["result_keys"] and SESSION_KEY not in pa["result_keys"],
+                str(pa["result_keys"]))
+        st.case("isolation", "stream parse: 3 hook events, 2 naming the maintainer's hooks (locale-rite, caveman)",
+                len(pb["hook_names"]) == 3 and pb["maintainer_hook_events"] == 2
+                and pb["hook_names"][:2] == ["python3 /x/hooks/locale-rite.py", "caveman-activate"], str(pb["hook_names"]))
+        st.case("isolation", "marker mtime: None when absent, equal when untouched, differs when rewritten",
+                marker_mtime(root / "absent") is None and marker_mtime(clean) == marker_mtime(clean)
+                and (os.utime(clean, (1, 1)) or marker_mtime(clean) == 1.0))
+
+
 def selftest_export(st: Selftest) -> None:
     home = str(Path.home())
     sample = {SESSION_KEY: "abc", "result": "the whole answer", "uuid": "x",
@@ -1444,11 +1847,22 @@ def selftest_refusals(st: Selftest) -> None:
     st.case("refusals", "--report accepts identical version + model", same is None)
     st.case("refusals", "--report refuses different claude versions", diff_v is not None and "versions" in diff_v, str(diff_v))
     st.case("refusals", "--report refuses different model ids", diff_m is not None and "model" in diff_m, str(diff_m))
-    cmd = cell_command("p", "m", CELL_BUDGET_USD)
-    st.case("refusals", "cell command carries the protocol flags",
+    cmd = cell_command("p", "m", CELL_BUDGET_USD, "config-dir")
+    st.case("refusals", "legacy cell command carries the protocol flags (bypassPermissions, no setting sources)",
             all(f in cmd for f in ("--permission-mode", "bypassPermissions", "--disallowedTools", "Bash",
                                    "--strict-mcp-config", "--no-session-persistence", "--output-format", "json",
-                                   "--max-budget-usd", "1.00")) and NO_RUN in cmd)
+                                   "--max-budget-usd", "1.00")) and NO_RUN in cmd and "--setting-sources" not in cmd)
+    st.case("refusals", "probe_gate: no probe -> refuse", "has not passed" in (probe_gate({"rules_sha": "a"}) or ""))
+    st.case("refusals", "probe_gate: probe under another rules_sha -> refuse",
+            "rules_sha" in (probe_gate({"rules_sha": "b", "isolation": "settings-sources",
+                                        "probe": {"passed": True, "rules_sha": "a", "isolation": "settings-sources"}}) or ""))
+    st.case("refusals", "probe_gate: legacy probe on settings-sources arms -> refuse",
+            "layout" in (probe_gate({"rules_sha": "a", "isolation": "settings-sources",
+                                     "probe": {"passed": True, "rules_sha": "a", "isolation": "config-dir"}}) or ""))
+    st.case("refusals", "probe_gate: passed, same sha, matching layout -> None",
+            probe_gate({"rules_sha": "a", "isolation": "settings-sources",
+                        "probe": {"passed": True, "rules_sha": "a", "isolation": "settings-sources"}}) is None
+            and probe_gate({"rules_sha": "a", "probe": {"passed": True, "rules_sha": "a", "isolation": "home"}}) is None)
 
 
 def selftest_metrics(st: Selftest, tasks: dict[str, Task]) -> None:
@@ -1486,6 +1900,7 @@ def cmd_selftest(args: argparse.Namespace) -> int:
     selftest_scorers(st, tasks)
     selftest_detectors(st)
     selftest_arms(st)
+    selftest_isolation(st, tasks)
     selftest_export(st)
     selftest_kill(st)
     selftest_refusals(st)
@@ -1513,7 +1928,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--rules-ref", default="HEAD")
     ap.add_argument("--skill", default=DEFAULT_SKILL)
     ap.add_argument("--ponytail-dir")
-    ap.add_argument("--isolation", default="auto", choices=("auto", "config-dir", "home"))
+    ap.add_argument("--isolation", default=DEFAULT_ISOLATION, choices=(*ISOLATION_MODES, "auto"),
+                    help="arm layout at --prepare-arms and mode at --probe-isolation (default "
+                         f"{DEFAULT_ISOLATION}; auto = try config-dir then home on legacy arms)")
     ap.add_argument("--model")
     ap.add_argument("--arms", default="baseline")
     ap.add_argument("--tasks", default="all")
