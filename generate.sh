@@ -190,10 +190,13 @@ HEADER
     } > "$CURSOR_OUT/${name}.mdc"
 
     # --- GitHub Copilot ---
+    # The SKILL.md link is a repository URL for the same reason the references/ link below is: the
+    # file is copied alone into .github/instructions/, where `../../skills/<name>/` dangles (issue #173;
+    # rule R5 of #121 had converted only references/). blob/ for a file, tree/ for a directory.
     {
         echo "# ${name}"
         echo ""
-        echo "Follow the instructions in [SKILL.md](../../skills/${name}/SKILL.md)"
+        echo "Follow the instructions in [SKILL.md](${REPO_BLOB_URL}/skills/${name}/SKILL.md)"
         if [ "$has_refs" -eq 1 ]; then
             echo ""
             echo "Reference files: [references/](${REPO_TREE_URL}/skills/${name}/references/)"

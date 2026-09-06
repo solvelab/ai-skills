@@ -108,10 +108,27 @@
 
 ## 2. generate.sh — link do SKILL.md por URL no wrapper Copilot (D1)
 
-- [ ] 2.1 `generate.sh:196` escreve `[SKILL.md](${REPO_BLOB_URL}/skills/${name}/SKILL.md)`; os 36
+- [x] 2.1 `generate.sh:199` escreve `[SKILL.md](${REPO_BLOB_URL}/skills/${name}/SKILL.md)`; os 36
       wrappers regenerados; segundo `bash generate.sh` sem diff; nenhum outro wrapper muda
-- [ ] 2.2 `grep -c '\.\./\.\./skills' copilot/instructions/*.md` → 0 em todos; `curl -sI` de um link
+
+      ```
+      bash generate.sh   -> Generated wrappers for 36 skills: … Generated 10 category plugins in plugins/
+      git status --porcelain --untracked-files=all | <dir> | uniq -c   -> 36 copilot/instructions, 1 generate.sh
+      bash generate.sh (2ª vez); git status --porcelain --untracked-files=all | wc -l   -> 37   (mesmos 37; nada novo)
+      git diff --stat | tail -1   -> 37 files changed, 40 insertions(+), 37 deletions(-)
+      ```
+
+- [x] 2.2 `grep -c '\.\./\.\./skills' copilot/instructions/*.md` → 0 em todos; `curl -sI` de um link
       regenerado → 200
+
+      ```
+      grep -c '\.\./\.\./skills' copilot/instructions/*.md | grep -vc ':0$'   -> 0   (36 arquivos, todos :0)
+      cat copilot/instructions/backlog.instructions.md
+      -> # backlog
+      -> Follow the instructions in [SKILL.md](https://github.com/solvelab/ai-skills/blob/master/skills/backlog/SKILL.md)
+      -> Reference files: [references/](https://github.com/solvelab/ai-skills/tree/master/skills/backlog/references/)
+      curl -sI https://github.com/solvelab/ai-skills/blob/master/skills/execute-backlog/SKILL.md | head -1   -> HTTP/2 200
+      ```
 
 ## 3. Bloco de pull compartilhado (D2, D3)
 
