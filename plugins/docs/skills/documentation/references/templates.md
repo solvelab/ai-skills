@@ -219,7 +219,8 @@ curl http://localhost:8000/api/v1/health
 ### Setup guide conventions
 
 - Numbered sections with a table of contents at the top, anchors matching the numbers.
-- Prerequisites as `- [ ]` checkboxes so a reader can track them.
+- Prerequisites as `- [ ]` checkboxes so a reader can track them, and each one carries the command
+  that proves it **and the value that passes** — see the prerequisite categories below.
 - **Verify after every step.** Each action is followed by the command that confirms it worked and the
   output it should print. A setup guide with no verification is a list of hopes.
 - Group the environment template by feature area with comment dividers (`# ====`), matching the order
@@ -228,6 +229,46 @@ curl http://localhost:8000/api/v1/health
   messages and error paths in the code, not from a generic list, and add one whenever a reader hits a
   new one.
 - End with a `- [ ]` Next Steps checklist for what comes after "it runs".
+
+#### Prerequisite categories
+
+Walk this list and keep the rows this project earns — a category that does not apply is dropped, not
+filled with "N/A". Every value is read from the project's own manifests, never carried over from the
+sources that name the category.
+
+| Category | Covers | Documented as a prerequisite by |
+|---|---|---|
+| Compute | CPU, memory, and the disk the install needs | [K3s](https://docs.k3s.io/installation/requirements) (2 cores / 2 GB server, 1 core / 512 MB agent); [Grafana](https://grafana.com/docs/grafana/latest/setup-grafana/installation/) (1 core, 512 MB, 10-50 GB) |
+| Platform | architecture and operating systems supported | K3s (x86_64, armhf, arm64); Grafana (five OS families) |
+| Versions | the supported range of the platform and of every dependency | [The Good Docs Project](https://www.thegooddocsproject.dev/template/installation-guide) ("Required version for your system"); Grafana (SQLite 3, MySQL 8.0+, PostgreSQL 12+) |
+| Dependencies | packages, runtimes and CLIs the steps invoke | The Good Docs Project ("Necessary dependencies or packages") |
+| Inbound network | the ports and hostnames that must be free and reachable | K3s (6443, 8472/UDP, 51820-51821) |
+| **Outbound network** | the hostnames and ports the software must *reach* | — not named by any of these sources; add it anyway, see below |
+| Storage | persistent volumes, and the provisioner or class they need | [Portainer](https://docs.portainer.io/start/install-ce/server/kubernetes/baremetal), [Kubernetes StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes/) |
+| Identity and permissions | the uid/gid the process runs as, filesystem modes, RBAC, accounts, tokens, licences | [Elastic ECK](https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s/required-rbac-permissions) |
+| Client | browser and client-side requirements, when the product ships a web UI | Grafana (Chrome, Firefox, Safari, Edge; "JavaScript must be enabled") |
+| Operator knowledge | the skills the steps assume the reader already has | The Good Docs Project ("Specialist knowledge or skills") |
+
+**Outbound network is the row the sources leave out, and the one that fails quietest.** None of the
+five above names it. Its absence was measured on a production watchdog: the guide never said the
+cluster had to reach the alerting provider, and blocked egress there produces a healthy process, a
+green board, and no alert — the exact state the product existed to distinguish from health.
+
+#### Diagnostic tables, when one result has opposite remedies
+
+An "expected output" line can only describe success. When the same command's failures need different
+fixes, map every observable result:
+
+```markdown
+| Result | Means | Do |
+|---|---|---|
+| any HTTP code, fast | reachable — a `404` already proves the path | continue |
+| `000` after the full `--max-time` | timeout: a firewall is dropping silently | open the path |
+| `000` immediately | RST: host up, port closed | start the service |
+```
+
+Without the second and third rows a reader who sees `000` cannot tell which of two opposite actions
+they need, and the fastest wrong guess is the one they take.
 
 ---
 
