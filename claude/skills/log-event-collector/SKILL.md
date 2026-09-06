@@ -11,7 +11,7 @@ description: >-
   metrics/APM instrumentation of the monitored application.
 metadata:
   author: solvelab
-  version: 1.1.1
+  version: 1.1.2
   category: backend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

@@ -10,7 +10,7 @@ description: >-
   api-resilience-testing.
 metadata:
   author: solvelab
-  version: 2.2.4
+  version: 2.2.5
   category: testing
 license: MIT
 compatibility: Works in any environment with filesystem access.
@@ -94,3 +94,5 @@ is *Tests & Bug-Hunter*), so match the literal when grepping a change.
   against. A test written from a guessed contract passes for the wrong reason.
 - `backend-resilience` — the fallback behavior these tests assert.
 - `fivem-lua` — the trust-boundary rule (`source`, not client args) that the Lua track exercises.
+- `lean-code` — the one-check floor lives there (non-trivial logic leaves one runnable check behind); this
+  rite is everything beyond that floor, and a shorter diff never trades it away.

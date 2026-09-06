@@ -197,6 +197,9 @@ not a patch to this one.
 ## See also
 
 - `code-locale` — event type names and dedup-key field names are English even when the repo's prose is not; a domain term with no faithful translation is kept only when the item's glossary lists it.
+- `lean-code` — the stdlib-only rule above is a stack instance of a general rung ("already-installed
+  dependency solves it? never add a new one for what a few lines can do"); the general dependency-restraint
+  rung and the rest of the ladder live there.
 - `python-rest-api` — the receiving API's conventions (generic event sink, envelope, service
   tokens).
 - `backend-resilience` — the general doctrine for services calling unreliable dependencies; this
