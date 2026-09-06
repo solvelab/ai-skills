@@ -192,9 +192,10 @@ Measured on this catalog's own harness before this skill existed — `claude-opu
 re-implemented, no caller-only patch. The over-build was concentrated: a custom exception class for
 a guard 6/27, speculative input tolerance 6/27, helper decomposition of a short loop 4/27, type
 checks nobody asked for 3/27, docstring expansion 12/27, `no_check` 3/27 (the structural task),
-prose longer than the diff 1/27. Skill arm: measured in
-[`research/lean-code/results.md`](https://github.com/solvelab/ai-skills/blob/master/research/lean-code/results.md)
-— no number about this skill's effect appears anywhere else until that file carries it.
+prose longer than the diff 1/27. Skill arm: measured on 2026-09-06 in
+[`research/lean-code/results.md`](https://github.com/solvelab/ai-skills/blob/master/research/lean-code/results.md);
+the verdict read there by the letter of the protocol is INCONCLUSIVE (its dispersion clause is
+still open on two tasks), so no number about this skill's effect appears anywhere but that file.
 
 ## When this skill defers
 
