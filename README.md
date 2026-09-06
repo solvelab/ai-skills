@@ -147,7 +147,7 @@ Each skill has an AGENTS.md file with instructions for specific tasks.
 cp ~/ai-skills/cursor/rules/*.mdc /path/to/project/.cursor/rules/
 
 # GitHub Copilot — copy instruction files
-# (references/ resolve through the same repository URL; the SKILL.md link still expects the clone)
+# (the SKILL.md link and the references/ links both resolve through the repository URL)
 cp ~/ai-skills/copilot/instructions/*.instructions.md /path/to/project/.github/instructions/
 ```
 

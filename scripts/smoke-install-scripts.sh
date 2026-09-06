@@ -25,7 +25,10 @@
 # the guard's own declared blind spots — untracked files under skills/ and edits outside
 # VERSION/skills/ — are exercised only in the direction the scripts promise (regeneration runs),
 # not judged. The "update clean" case also requires the committed wrappers to match generate.sh's
-# output, which the "Wrappers in sync" CI step guarantees for the same HEAD.
+# output, which the "Wrappers in sync" CI step guarantees for the same HEAD. The shared pull block
+# (scripts/lib/git-sync.sh) is read by both scripts from the CLONE, i.e. from this checkout's HEAD:
+# an uncommitted edit to that file is not what the cases exercise, the same way case 9 runs the
+# clone's generate.sh.
 #
 # Usage: bash scripts/smoke-install-scripts.sh   (from anywhere; CI runs it on every PR)
 set -euo pipefail
@@ -278,6 +281,7 @@ want "own message precedes git's fatal line" \
     test "$(grep -nF 'Fast-forward failed' <<<"$OUT" | head -1 | cut -d: -f1)" -lt "$(grep -nF 'fatal:' <<<"$OUT" | head -1 | cut -d: -f1)"
 want "HEAD unchanged" test "$(head_of "$INSTALL")" = "$LOCAL"
 finish refuse "update: diverged, no --force (exit 1 with hint)"
+UPDATE_DIVERGED_OUT="$OUT"
 
 # ── 14. divergence: install.sh re-run gives the same refusal ──────────────
 run "$H1" bash "$ROOT/install.sh"
@@ -289,6 +293,23 @@ want_no_out "hint:"
 want_no_out "Configuring for"
 want "HEAD unchanged" test "$(head_of "$INSTALL")" = "$LOCAL"
 finish refuse "install: re-run over a diverged clone (exit 1 with hint)"
+INSTALL_DIVERGED_OUT="$OUT"
+
+# ── 14b. one divergence message, not two copies ──────────────────────────
+# Cases 13 and 14 assert that each script prints the phrases; neither compares the two outputs. The
+# block used to be duplicated in both scripts, and a fix in one did not reach the other (issue #113
+# found install.sh raw while update.sh explained). Since issue #173 it is one function in
+# scripts/lib/git-sync.sh; this case measures the equality instead of assuming it. The block is cut
+# from "Fast-forward failed" through the indented `git:` line, and its size is asserted so that two
+# empty cuts cannot pass as equal.
+divergence_block() { sed -n '/Fast-forward failed/,/^     git: /p' <<<"$1"; }
+UPDATE_MSG="$(divergence_block "$UPDATE_DIVERGED_OUT")"
+INSTALL_MSG="$(divergence_block "$INSTALL_DIVERGED_OUT")"
+OUT="$(printf 'update.sh:\n%s\ninstall.sh:\n%s\n' "$UPDATE_MSG" "$INSTALL_MSG")"
+want "update.sh block is three lines (message, hint, git detail)" test "$(wc -l <<<"$UPDATE_MSG" | tr -d ' ')" = 3
+want "install.sh block is three lines (message, hint, git detail)" test "$(wc -l <<<"$INSTALL_MSG" | tr -d ' ')" = 3
+want "the two blocks are byte-identical" test "$UPDATE_MSG" = "$INSTALL_MSG"
+finish refuse "install + update: divergence message byte-identical from both scripts"
 
 # ── 15. divergence: update --force resets to origin ───────────────────────
 run "$H1" bash "$ROOT/update.sh" --force
@@ -298,6 +319,31 @@ want_out "Wrappers regenerated"
 want "HEAD is origin/master" test "$(head_of "$INSTALL")" = "$(head_of "$AUTHOR")"
 want "local commit's file is gone" test ! -e "$INSTALL/smoke-local-note.txt"
 finish accept "update: diverged, --force (reset to origin)"
+
+# ── 16. a clone without the shared pull block: refused with the hint, by both ─
+# A clone installed before scripts/lib/git-sync.sh existed has no file to source. Both scripts
+# must say so in their own words and point at the update.sh that clone carries, instead of dying
+# on bash's `No such file or directory` under set -e. --force is not exercised here on purpose: it
+# does not read the file, so an old clone stays resettable. HEAD must not move.
+rm "$INSTALL/scripts/lib/git-sync.sh"
+BEFORE="$(head_of "$INSTALL")"
+run "$H1" bash "$ROOT/install.sh"
+want_rc 1
+want_out "scripts/lib/git-sync.sh not found"
+want_out "cd ~/ai-skills && ./update.sh"
+want_no_out "No such file or directory"
+want_no_out "Configuring for"
+INSTALL_OUT="$OUT"
+run "$H1" bash "$ROOT/update.sh"
+want_rc 1
+want_out "scripts/lib/git-sync.sh not found"
+want_out "cd ~/ai-skills && ./update.sh"
+want_no_out "No such file or directory"
+want_no_out "Wrappers regenerated"
+want "HEAD unchanged (no pull ran)" test "$(head_of "$INSTALL")" = "$BEFORE"
+OUT="$(printf 'install.sh:\n%s\nupdate.sh:\n%s\n' "$INSTALL_OUT" "$OUT")"
+finish refuse "install + update: clone without scripts/lib/git-sync.sh (exit 1 with hint)"
+git -C "$INSTALL" checkout -q -- scripts/lib/git-sync.sh
 
 # ── matrix ────────────────────────────────────────────────────────────────
 total=$((refused_total + accepted_total))
