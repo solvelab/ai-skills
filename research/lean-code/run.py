@@ -1704,6 +1704,7 @@ def parse_stream(path: Path) -> dict:
     result_text = ""
     result_keys: list[str] = []
     cost = None
+    init_skills: list[str] | None = None      # system/init carries the skills the CLI actually loaded
     for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
         try:
             ev = json.loads(line)
@@ -1719,12 +1720,14 @@ def parse_stream(path: Path) -> dict:
             hook_names.append(str(ev.get("hook_name") or ev.get("hook_event_name") or ev.get("hook_event") or "?"))
             if any(name in line for name in MAINTAINER_HOOK_NAMES):
                 maintainer_hook_events += 1
+        if kind == "system" and sub == "init" and isinstance(ev.get("skills"), list):
+            init_skills = [str(x) for x in ev["skills"]]
         if kind == "result":
             result_text = str(ev.get("result") or "")
             result_keys = sorted(k for k in ev.keys() if k not in STRIP_KEYS)
             cost = ev.get("total_cost_usd")
     return {"events": events, "hook_names": hook_names, "maintainer_hook_events": maintainer_hook_events,
-            "result_text": result_text, "result_keys": result_keys, "cost": cost}
+            "result_text": result_text, "result_keys": result_keys, "cost": cost, "init_skills": init_skills}
 
 
 SKILLS_LINE = re.compile(r"^\s*SKILLS:\s*(?P<names>.*)$", re.I | re.M)
@@ -1789,10 +1792,16 @@ def probe_skill_visibility(arm: str, arm_dir: Path, model: str, out_dir: Path, s
     proc = run_process(cmd, cwd, cell_env(arm_dir, "settings-sources"), out, err, 120)
     parsed = parse_stream(out)
     text = parsed["result_text"]
-    seen = skills_visible_in(text, skill_name)
+    # The CLI's own system/init event lists what it loaded; the model's answer is a fallback only
+    # (measured 2026-09-06: Haiku answered "SKILLS: none" in a run whose init event listed
+    # 'lean-code' — the answer is the model's memory of its context, the init event is the fact).
+    answer_has = skills_visible_in(text, skill_name)
+    init_skills = parsed.get("init_skills")
+    seen = (skill_name in init_skills) if init_skills is not None else answer_has
     expected = arm_layout(arm)[1]
     skills_line = next((ln for ln in text.splitlines() if ln.strip().upper().startswith("SKILLS:")), text.strip()[:200])
     return {"returncode": proc["returncode"], "wall_s": proc["wall_s"], "skills_line": skills_line,
+            "init_skills": init_skills, "answer_has_skill": answer_has,
             "skill_visible": seen, "expected": expected, "ok": seen == expected,
             "hook_events": [e for e in parsed["events"] if "hook" in e.lower()],
             "cost_usd": parsed["cost"], "stderr_tail": err.read_text(encoding="utf-8", errors="ignore")[-300:]}
@@ -2358,6 +2367,19 @@ def selftest_isolation(st: Selftest, tasks: dict[str, Task]) -> None:
         st.case("isolation", "skills_visible_in: `SKILLS: none`, an empty answer and a mention outside the SKILLS: line are not visible",
                 not skills_visible_in("SKILLS: none\nDONE", DEFAULT_SKILL) and not skills_visible_in("", DEFAULT_SKILL)
                 and not skills_visible_in(f"SKILLS: none\n(CLAUDE.md mentions the {DEFAULT_SKILL} skill)\nDONE", DEFAULT_SKILL))
+        with tempfile.TemporaryDirectory() as td:
+            _f = Path(td) / "probe.jsonl"
+            _f.write_text(json.dumps({"type": "system", "subtype": "init", "skills": [DEFAULT_SKILL, "simplify"]}) + "\n"
+                          + json.dumps({"type": "result", "result": "SKILLS: none\nDONE", "total_cost_usd": 0.01}) + "\n",
+                          encoding="utf-8")
+            _p = parse_stream(_f)
+            st.case("isolation", "parse_stream reads the CLI's init skills list, which outranks a model answer of `SKILLS: none`",
+                    _p["init_skills"] == [DEFAULT_SKILL, "simplify"] and not skills_visible_in(_p["result_text"], DEFAULT_SKILL),
+                    str(_p["init_skills"]))
+            _g = Path(td) / "noinit.jsonl"
+            _g.write_text(json.dumps({"type": "result", "result": f"SKILLS: {DEFAULT_SKILL}\nDONE", "total_cost_usd": 0.01}) + "\n", encoding="utf-8")
+            st.case("isolation", "parse_stream without an init event leaves init_skills None (answer is the fallback)",
+                    parse_stream(_g)["init_skills"] is None)
         st.case("isolation", "skills_visible_in: whole-word (`lean-code-extra` and `my-lean-code` are not `lean-code`)",
                 not skills_visible_in(f"SKILLS: {DEFAULT_SKILL}-extra, my-{DEFAULT_SKILL}\nDONE", DEFAULT_SKILL))
 
