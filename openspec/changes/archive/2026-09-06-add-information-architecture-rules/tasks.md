@@ -209,9 +209,15 @@
 
       Nothing to update: catalog composition is unchanged and no install form changed. The skill's
       own body and `See also` were updated in the same commit as the reference it points at.
-- [ ] V.4 `openspec archive add-information-architecture-rules --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive add-information-architecture-rules --yes` after all groups above are `[x]`
 
-      **Left unticked on purpose.** This repository archives in its own pull request — the precedent
-      is commit `0959ccc`, `docs(openspec): arquiva a change add-prose-locale-gate (#181)`, which
-      moved a finished change and nothing else. Archiving here would move the published specs before
-      a human approved the code they describe.
+      `openspec archive add-information-architecture-rules --yes` ->
+      `skills-authoring: update` / `+ 1 added` / `Totals: + 1, ~ 0, - 0, → 0` /
+      `Change 'add-information-architecture-rules' archived as
+      '2026-09-06-add-information-architecture-rules'.`
+
+      Held back from the implementation pull request on purpose, and done here instead: this
+      repository archives in its own pull request — the precedent is commit `0959ccc`,
+      `docs(openspec): arquiva a change add-prose-locale-gate (#181)`, which moved a finished change
+      and nothing else. Archiving inside #185 would have moved the published specs before a human
+      approved the code they describe. #185 merged as `885971c`.
