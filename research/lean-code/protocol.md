@@ -7,7 +7,14 @@ measured under different versions are not compared. Amendment of 2026-09-05, sti
 cell: the `safe` semantics of the two catalog scorers were refined after review (see *Tasks*); no
 threshold moved. Second amendment of 2026-09-05, still before any paid cell: the default isolation
 mode changed from `CLAUDE_CONFIG_DIR` to `--setting-sources project,local` (see *Arms* — *Why the
-default changed*); metrics, tasks and thresholds untouched.
+default changed*); metrics, tasks and thresholds untouched. Third amendment of 2026-09-06, after the
+baseline and one treatment arm had run and **before any `skill` cell**: the treatment split into
+two arms, `block` and `skill` (see *Arms* — *Why `block` exists*), because the arm labelled `skill`
+in stamp `20260905-230209` measured the always-on block alone — `--setting-sources project,local`
+does not load `~/.claude/skills`, so `skillOverrides.lean-code = "on"` enabled nothing; the stamp
+was relabelled `block` with `run.py --relabel-arm` (reason recorded in its `results.json`). Metrics,
+tasks and thresholds untouched; the verdict table is read for the `skill` arm, and the same table
+read for `block` isolates the always-on mechanism.
 
 What is measured: the code a real headless Claude Code session leaves behind in a seeded git
 repository, with and without the `lean-code` doctrine, on the model the maintainer uses every day.
@@ -18,24 +25,30 @@ judged by an LLM, anything under the maintainer's `caveman` plugin.
 
 | arm | what the session sees (default mode, `settings-sources`) | when |
 |---|---|---|
-| `baseline` | the maintainer's real `~/.claude/CLAUDE.md` (personal-rules + RTK + TalkToMe) and real `~/.claude/skills/`; project `settings.json` = the maintainer's `~/.claude/settings.json` minus `hooks`, `enabledPlugins`, `extraKnownMarketplaces`, `statusLine`, `permissions` (keeps `model`, `effortLevel`, `modelSettings`, `skillOverrides`) **plus `skillOverrides.lean-code = "off"`**, so the baseline stays clean once item #146 installs the skill under `~/.claude/skills` | item 1 (this) and item 2 |
-| `skill` | same, with `skillOverrides.lean-code = "on"` **and** the always-on *Lean Code* block appended to the cell's `CLAUDE.md` after the sentinel (`--prepare-arms --claude-block research/lean-code/arms-block.md`; the block's sha256 is recorded in `arm.json`), so the arm measures the mechanism the upstream measured — a skill the router can pick plus a rule that is always present — without the block having to enter the maintainer's real `personal-rules.md` first | item 2 |
+| `baseline` | the maintainer's real `~/.claude/CLAUDE.md` (personal-rules + RTK + TalkToMe); project `settings.json` = the maintainer's `~/.claude/settings.json` minus `hooks`, `enabledPlugins`, `extraKnownMarketplaces`, `statusLine`, `permissions` (keeps `model`, `effortLevel`, `modelSettings`, `skillOverrides`) **plus `skillOverrides.lean-code = "off"`**; `CLAUDE.md` = the sentinel line; no `.claude/skills` | item 1 (this) and item 2 |
+| `block` | same, with the always-on *Lean Code* block appended to the cell's `CLAUDE.md` after the sentinel (`--prepare-arms --claude-block research/lean-code/arms-block.md`; the block's sha256 in `arm.json`), `skillOverrides.lean-code = "off"`, no `.claude/skills` — the always-on mechanism alone, the equivalent of ponytail's `SessionStart` injection | item 2 — stamp `20260905-230209`, relabelled from `skill` |
+| `skill` | same as `block` **plus** the skill as a project skill: `skills/lean-code` of the checkout copied into the workspace as `.claude/skills/lean-code` (`project_skill_path` in `arm.json`) and `skillOverrides.lean-code = "on"` — the mechanism the upstream measured, a rule always present plus a skill the router can pick, without the block having to enter the maintainer's real `personal-rules.md` first | item 2 |
 | `ponytail-ref` | baseline plus the upstream plugin via `--plugin-dir` | optional, item 2, off by default |
 
-In the default mode an arm is three files outside the repository — `arm.json` (with the
-`rules_sha` of `--rules-ref`, for provenance, and `claude_block_sha256` when a block was given),
-`project-settings.json`, `claude-snippet.md` (the line `BENCH-SENTINEL: <arm>`; in the `skill` arm
-followed by the always-on block from `--claude-block`, verbatim) — and **nothing is copied**: no
-credentials, no `CLAUDE.md`. The preflight refuses a `baseline` snippet that carries anything beyond
-the sentinel and a `skill` snippet whose block does not hash to the value in `arm.json`
-(amendment of 2026-09-05 for item #146, before the skill arm ran; metrics, tasks and thresholds
-untouched). Each
-cell writes the two into its workspace as `.claude/settings.json` and `CLAUDE.md`, commits them in
-the seed commit (force-added: the maintainer's global gitignore drops `**/.claude/`), and runs
-`claude -p` with `--setting-sources project,local`, which on Claude Code 2.1.261 drops the user
-settings file — hooks, `enabledPlugins` and the caveman `SessionStart` hook with it (measured:
-0 hook events under `--include-hook-events`). The two harness paths are excluded from every
-counter and from the detectors' text.
+In the default mode an arm is three files outside the repository — `arm.json` (the `rules_sha` of
+`--rules-ref` for provenance, `claude_block_sha256` in `block` and `skill`, `project_skill_path` in
+`skill`), `project-settings.json`, `claude-snippet.md` (the line `BENCH-SENTINEL: <arm>`; in `block`
+and `skill` followed by the always-on block from `--claude-block`, verbatim) — and **nothing is
+copied** into the arm: no credentials, no `CLAUDE.md`, nothing from `~/.claude/skills`. The
+preflight refuses a `baseline` snippet that carries anything beyond the sentinel, a `block`/`skill`
+snippet whose block does not hash to `arm.json`, a `skill` arm whose `project_skill_path` is missing
+or has no `SKILL.md`, and a `baseline`/`block` arm that names one (amendments of 2026-09-05 and
+2026-09-06 for item #146, before any `skill` cell ran; metrics, tasks and thresholds untouched).
+Each cell writes the settings and the snippet into its workspace as `.claude/settings.json` and
+`CLAUDE.md` and, in the `skill` arm, copies the skill directory to `.claude/skills/lean-code` —
+copied, not symlinked, so an `acceptEdits` cell cannot write through into the checkout and the
+seed commit records the exact skill text the cell saw — commits all of it in the seed commit
+(force-added: the maintainer's global gitignore drops `**/.claude/`), and runs `claude -p` with
+`--setting-sources project,local`, which on Claude Code 2.1.261 drops the user settings file —
+hooks, `enabledPlugins` and the caveman `SessionStart` hook with it (measured: 0 hook events under
+`--include-hook-events`) — and does not load `~/.claude/skills` (measured, *Why `block` exists*).
+The harness paths (`CLAUDE.md`, `.claude/`) are excluded from every counter and from the
+detectors' text.
 
 Two explicit alternatives keep the earlier layout: `--isolation config-dir` (arm dir as
 `CLAUDE_CONFIG_DIR`: its own `settings.json`, `CLAUDE.md` = `personal-rules.md` at the ref +
@@ -46,6 +59,8 @@ sentinel, `skills/` symlinked from `git archive <ref>`, credentials copied with 
 `skillOverrides` is kept on purpose: it turns 16 skills off in the maintainer's real sessions; a
 baseline without it would measure a user who does not exist. Values are the strings the CLI
 compares against (`on`, `name-only`, `user-invocable-only`, `off` — read from the 2.1.261 binary).
+In this mode it governs the project skill only: the user skills it names are not loaded anyway
+(below), so it is not the isolation — the arm layout is.
 
 #### Why the default changed (2026-09-05)
 
@@ -59,12 +74,33 @@ Three reasons, written the day the mode was added, before any paid cell:
    `num_turns`, `duration_ms`, `modelUsage`, `result`, `subtype`.
 2. **No credential copies.** Nothing sensitive leaves `~/.claude`; an arm can be committed, pasted
    or deleted without a thought.
-3. **The baseline is the maintainer's real setup.** The real `~/.claude/CLAUDE.md` and the real
-   skills directory load, with only the skill under test switched off. The `config-dir` arm was a
+3. **The baseline is the maintainer's real setup.** The real `~/.claude/CLAUDE.md` loads (the
+   real skills directory does not — measured a day later, below). The `config-dir` arm was a
    reconstruction of that setup from a git ref; this is the setup itself. The cost is written in
    *What this protocol does not cover*: the user's rules file is not frozen by the arm (the
-   `rules_sha` in `arm.json` makes a drift visible, not impossible), and the skill is excluded by
-   `skillOverrides` alone.
+   `rules_sha` in `arm.json` makes a drift visible, not impossible), and the skill under test
+   reaches the cell only as a project skill, in the `skill` arm (next section).
+
+#### Why `block` exists, and what was measured about skills (2026-09-06)
+
+The upstream's mechanism is a rule that is **always present** (its skill text is copied into every
+host's `CLAUDE.md`/adapter by a `SessionStart` hook), not a skill the router chooses. The `block`
+arm carries exactly that — the eight-line *Lean Code* section of `personal-rules.md`, appended to
+the cell's `CLAUDE.md` — and nothing else, so its Δ against `baseline` is the always-on mechanism
+alone. The `skill` arm adds the skill on top; its Δ is the deliverable of item #146, and the
+difference between the two is what the router-picked skill adds over the rule.
+
+The split was forced by a measurement. Under `--setting-sources project,local` the user skills dir
+is not loaded: on 2026-09-05, Claude Code 2.1.261, three review-lens cells run that way reported
+"lean-code isn't in the available-skills list" and denied reads under `~/.claude/skills/` and
+`~/ai-skills/`, so `skillOverrides.lean-code = "on"` in the project settings enabled nothing. The 27
+cells of stamp `20260905-230209` ($9.08) therefore measured sentinel + block, and were relabelled
+`block`. A **project** skill works: with `<cwd>/.claude/skills/lean-code` pointing at the checkout's
+`skills/lean-code` (plus the same project settings and `CLAUDE.md`), a Haiku cell with `--tools ""`
+listed exactly `lean-code` as available ($0.018), and one with `--tools "Skill"` loaded it and
+returned its first heading verbatim, `# Lean code — the best code is the code never written`
+($0.031). That is the layout the `skill` arm now uses, and the probe's fourth criterion re-checks
+it before any matrix.
 
 ### Isolation probe (paid, before any matrix)
 
@@ -78,10 +114,15 @@ every hook lifecycle event in the stream (`system/hook_started`, `hook_response`
 `hook_name`, and how many of them name one of the maintainer's hooks (`locale-rite`,
 `backlog-rite`, `verify-rite`, `rtk`, `caveman`, `memory-autopush`); the mtime of the real
 `~/.claude/.caveman-active` before and after (the plugin's `SessionStart` hook rewrites it under
-`$CLAUDE_CONFIG_DIR || ~/.claude`); the JSON field names the CLI emitted. **Pass** = sentinel 3/3,
-hook events 0 (so the maintainer's 0/3), marker mtime unchanged 3/3. With `--tools ""` the probe
-cannot see whether the `skill` arm loads `lean-code`; that rests on the `skillOverrides` semantics
-read from the binary and is written as a limit, not a result.
+`$CLAUDE_CONFIG_DIR || ~/.claude`); the JSON field names the CLI emitted. A fourth call per arm,
+same flags, in the same kind of throwaway cwd (which in the `skill` arm carries
+`.claude/skills/lean-code`), asks for the comma-separated names of the skills in the
+available-skills list — only names in that list, never a skill merely mentioned in `CLAUDE.md`,
+because the block names `lean-code` in prose. **Pass** = sentinel 3/3, hook events 0 (so the
+maintainer's 0/3), marker mtime unchanged 3/3, and `skill_visible` 1/1 in `skill`, 0/1 in
+`baseline` and `block`. `--matrix --arms skill` refuses unless the last probe recorded
+`skill_visible: 1/1` for the skill arm — a probe from before the criterion (the one stamp
+`20260905-230209` ran under) does not qualify.
 
 Legacy modes (`config-dir`, `home`): the prompt also asks for the skills whose name contains
 "lean" and whether any hook or rite injected text; recorded per call: sentinel echoed;
@@ -90,9 +131,9 @@ under the arm dir. **Pass** = sentinel 3/3, `.caveman-active` absent 3/3, hook e
 yes` 0/3, `lean-code` listed 0/3 in `baseline` and 3/3 in `skill`. `--isolation auto` tries
 `config-dir` first and `home` second.
 
-In every mode the pass is recorded in `arms.json` with the `rules_sha` it was probed under, and
-`--matrix` refuses to run unless that sha is the arms' current one and the probed mode matches
-the arm layout.
+In every mode the pass is recorded in `arms.json` with the `rules_sha` it was probed under and the
+arms it covered, and `--matrix` refuses to run unless that sha is the arms' current one, the probed
+mode matches the arm layout, and every requested arm was covered.
 
 The lesson this encodes: the upstream's first agentic run had its `SessionStart` hook firing on
 every arm, so the baseline was secretly running the skill (`benchmarks/results/2026-06-18-agentic.md`,
@@ -203,15 +244,20 @@ instruction-following, not the doctrine.
    (`opus[1m]` on 2026-09-05), `n = 3`, 9 tasks, `--budget-usd 25` → `--classify` →
    `results/<stamp>-baseline-defects.md`. This is item 1's deliverable and the input to the
    skill's `proposal.md`.
-6. Item 2: `~/.claude/skills/lean-code` symlinked to the checkout (the preflight requires it), then
-   `run.py --prepare-arms --skill lean-code --claude-block research/lean-code/arms-block.md
-   --rules-ref <sha>` — `baseline` unchanged, `skill` with the block; the probe again (the arms'
-   `rules_sha` moved); arms `baseline` + `skill`, same `claude --version`, same model id, `n = 3`;
-   `--report` refuses to aggregate stamps whose version or model differ.
+6. Item 2: `run.py --prepare-arms --skill lean-code --claude-block research/lean-code/arms-block.md
+   --rules-ref <sha>` — `baseline` unchanged, `block` with the block, `skill` with the block and
+   `project_skill_path` = `skills/lean-code` of the checkout (nothing under `~/.claude/skills` is
+   needed or read); the probe again (the arms moved, and the `skill` arm needs `skill_visible`
+   1/1); arms `block` and `skill`, same `claude --version` as the baseline, same model id, `n = 3`
+   (stamp `20260905-230209` is the `block` arm, relabelled); `--report <baseline> <block> <skill>`
+   prints each treatment arm's Δ against the baseline and refuses to aggregate stamps whose
+   version or model differ.
 
 ## Verdict (written before the number)
 
 Let Δ = mean `added_lines` of `skill` relative to `baseline`, per task, over the over-build group.
+The table is read for the `skill` arm; read for `block` it isolates the always-on mechanism and is
+reported alongside, never as the skill's verdict.
 
 | verdict | condition |
 |---|---|
@@ -243,10 +289,12 @@ run on the three real diffs of 2026-09-04 (`locale-rite.py` +408, `locale-stop-g
   version or another rules file is another measurement.
 - The interaction with `caveman` (stripped) and with the maintainer's hooks (stripped) is not
   measured; a session that runs them may behave differently.
-- In the default mode the user's `~/.claude/CLAUDE.md` and `~/.claude/skills/` are the real ones,
-  not a copy frozen at a ref: a rules file that changes between two runs changes the baseline
-  (`arm.json` keeps the `rules_sha` so the drift is visible), and the skill under test is excluded
-  from the baseline by `skillOverrides` alone. That `--setting-sources project,local` drops the
-  user hooks and plugins was measured on Claude Code 2.1.261 only; another version re-runs the probe.
+- In the default mode the user's `~/.claude/CLAUDE.md` is the real one, not a copy frozen at a
+  ref: a rules file that changes between two runs changes the baseline (`arm.json` keeps the
+  `rules_sha` so the drift is visible). `~/.claude/skills/` is not loaded at all in this mode, so
+  the skill under test reaches only the `skill` arm, as a project skill. That `--setting-sources
+  project,local` drops the user hooks and plugins and skips the user skills dir was measured on
+  Claude Code 2.1.261 only; another version re-runs the probe (the harness refuses a matrix whose
+  `claude --version` differs from the arms', and a report whose stamps differ).
 - Structural scoring for React; heuristic detectors for the marker and the contract.
 - Nine tasks. A deterministic safety scorer is a floor, not a proof of security.
