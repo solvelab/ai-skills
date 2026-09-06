@@ -119,10 +119,11 @@
 
       Três itens, todos pagos ou interativos, todos do mantenedor (parte B):
 
-      - **O efeito da skill.** Nenhuma célula `claude -p` rodou nesta worktree (regra do item:
-        nenhuma célula paga por subagente). O arm `skill` não tem número; `SKILL.md` e README não
-        carregam nenhum; `## What the baseline measured` cita só o baseline e nomeia
-        `research/lean-code/results.md` como o lugar do número.
+      - ~~**O efeito da skill.**~~ Medido pelo mantenedor em 2026-09-06 (S.4): 27 células do arm
+        `skill` + 2 + 3 de `reuse-slug`; o veredito pela letra do protocolo é **INCONCLUSIVE**
+        (`research/lean-code/results.md`), então `SKILL.md` e README continuam sem número sobre o
+        efeito — a seção `## What the baseline measured` cita só o baseline e diz onde o veredito
+        mora.
       - **Se a description roteia numa sessão real.** A simulação lexical de S.1 mede se o sinal
         léxico existe (6 prompts contra as 36 descriptions); o roteador real é o modelo. A sessão
         interativa com a skill instalada (prompt com armadilha de over-build + bug de dois callers)
@@ -406,30 +407,112 @@
         skill(s) changed, 0 findings". Comportamento documentado do gate, não defeito.
       - **A linha ❌ do exemplo de revisão** tinha sido re-quebrada em outro ponto; o check de
         verbatim deu 11/12 e a quebra foi devolvida à do upstream (12/12).
-      - Nada mais escapou: `generate.sh` idempotente, `agentskills` verde, selftest verde, gates
-        verdes.
+      - Nada mais escapou na parte offline: `generate.sh` idempotente, `agentskills` verde,
+        selftest verde, gates verdes.
+      - **Parte paga (2026-09-06).** Duas sondas de três arms **falharam** antes da que passou —
+        `$SCR/lean-dev/arms-3/_probe/20260906-002213/probe.json` (`skill_visible` 0/1 no `skill`,
+        esperado 1/1; `SKILLS: none` — o cwd da sonda não era raiz git, corrigido em `18eca8e`) e
+        `$SCR/lean-dev/arms-3/_probe/20260906-002551/probe.json` (0/1 de novo — o evento `init` do
+        CLI listava `lean-code` e o modelo respondeu `SKILLS: none`; a sonda passou a ler o `init`,
+        `229a260`); custaram $0,1908 + $0,1941 e saíram de `results/`. O Claude Code auto-atualizou
+        para `2.1.263` entre o `block` e a `skill`: os stamps da skill rodaram o binário `2.1.261`
+        por shim no `PATH` (`$SCR/lean-dev/bin-261/claude`), e `--report` aceitou os três.
+      - **Duas rodadas da lente sem a skill.** `$SCR/lean-dev/lens/` ($1,2499) e `lens2/` ($1,5184)
+        rodaram sem `.claude/skills/lean-code` no cwd (5 dos 6 resultados abrem com "lean-code isn't
+        in the available-skills list"); contam como escapes, nunca como dado (S.5).
+      - **O check inline conta como código de produto.** `added_lines` lê os arquivos de produto:
+        um bloco `if __name__ == "__main__":` de asserts dentro do módulo conta inteiro
+        (`reuse-slug` run 1: 19 vs 9; `cache` run 1: 11 vs 3, lógica idêntica). Disparou o REWRITE
+        do protocolo em `reuse-slug` (S.4.1); em `cache` ficou como cláusula INCONCLUSIVE aberta.
+      - **A cláusula de dispersão do protocolo vale em mais tarefas do que a que foi repetida.**
+        Depois de `reuse-slug` (81 % → +2 reps → REWRITE → 12 %), a releitura da tabela mostrou
+        `cache` 141 % (3, 11, 3) e `csv-sum` 82 % (26, 11, 18) no arm `skill` e `trace-transfer`
+        76 % (10, 25, 24) no `block` — sem as +2 repetições, o veredito é INCONCLUSIVE, não SHIP,
+        embora todas as condições de SHIP valham nos números como estão (`results.md`).
 
-- [ ] S.4 **(mantenedor)** Arms novos + sonda (`skill_visible` 1/1 no `skill`, 0/1 em `baseline` e
-      `block`) + matriz `--arms skill` n=3 × 9 tarefas no mesmo `claude --version` do baseline
-      (`2.1.261`, binário pinado primeiro no `PATH`; ou baseline e `block` refeitos em `2.1.263`) e
-      mesmo modelo; `--report <baseline> <block> <skill>`; veredito pelo protocolo registrado em
-      `research/lean-code/results.md` (o arm `block` = stamp `20260905-230209`, renomeada) **antes**
-      de qualquer número entrar em README ou `SKILL.md`. Comandos exatos, na raiz da worktree:
+- [x] S.4 **(mantenedor, 2026-09-06)** Arms novos + sonda + matriz `--arms skill` n=3 × 9 no mesmo
+      `claude --version` do baseline (`2.1.261`, binário pinado primeiro no `PATH`) e mesmo modelo;
+      `--report <baseline> <block> <skill>`; veredito pela letra do protocolo em
+      `research/lean-code/results.md` **antes** de qualquer número entrar em README ou `SKILL.md`
+      (nenhum entrou: o veredito é INCONCLUSIVE). Comandos e saída observada (stamps em
+      `$SCR/lean-dev/runs/<stamp>/`, `results/` do repositório):
 
       ```
-      SCR=/tmp/claude-1000/-home-diegops-ai-skills/c972f399-4046-428b-8933-9a24d13f0b57/scratchpad
-      mkdir -p $SCR/lean-dev/bin-261 && ln -sfn ~/.local/share/claude/versions/2.1.261 $SCR/lean-dev/bin-261/claude
-      export PATH=$SCR/lean-dev/bin-261:$PATH && claude --version                       # -> 2.1.261 (Claude Code)
+      export PATH=$SCR/lean-dev/bin-261:$PATH && claude --version   -> 2.1.261 (Claude Code)
       python3 research/lean-code/run.py --prepare-arms --arms-root $SCR/lean-dev/arms-3 --rules-ref HEAD --skill lean-code --claude-block research/lean-code/arms-block.md
-      python3 research/lean-code/run.py --probe-isolation --arms-root $SCR/lean-dev/arms-3 --model claude-haiku-4-5-20251001 --export research/lean-code/results/<stamp>-probe.json
+      python3 research/lean-code/run.py --probe-isolation --arms-root $SCR/lean-dev/arms-3 --model claude-haiku-4-5-20251001
+      -> 20260906-002213 FAIL, 20260906-002551 FAIL (S.3), 20260906-002908 PASS: sentinel 3/3 ×3 arms, hook events 0, marker untouched 3/3 ×3,
+         skill_visible baseline 0/1, block 0/1, skill 1/1 (init_skills: lean-code, …)   $0,1951   (results/20260906-002908-probe-3arms.json)
       LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest --matrix --arms skill --tasks all --model 'opus[1m]' --runs 3 --arms-root $SCR/lean-dev/arms-3 --runs-root $SCR/lean-dev/runs --budget-usd 15
-      python3 research/lean-code/run.py --classify $SCR/lean-dev/runs/<stamp-skill>
-      python3 research/lean-code/run.py --report $SCR/lean-dev/runs/20260905-211512 $SCR/lean-dev/runs/20260905-230209 $SCR/lean-dev/runs/<stamp-skill> --export research/lean-code/results/<stamp-skill>-export.json
+      -> stamp 20260906-003055: 27/27 células, subtype success 27/27, is_error 0/27, killed 0/27, correct 27/27, safe 27/27, $9,2791
+      python3 research/lean-code/run.py --classify $SCR/lean-dev/runs/20260906-003055   -> results/20260906-003055-skill-defects.md
+      -> output_contract 24/27, lean_marker 8/27, new_dependency 0/27, guard_dropped 0/27, patched_caller_only 0/27, reimplemented_existing 0/27, class_for_oneliner 0/27, no_check 3/27 (react)
+      python3 research/lean-code/run.py --report $SCR/lean-dev/runs/20260905-211512 $SCR/lean-dev/runs/20260905-230209 $SCR/lean-dev/runs/20260906-003055 --export research/lean-code/results/20260906-003055-export.json
+      -> block: over-build group mean delta -28.6% over 4 tasks; worst task fastapi-create-item +6.2%; correct below baseline: none; boundary safe < 1: none
+      -> skill: over-build group mean delta -33.9% over 4 tasks; worst task reuse-slug +37.0%; correct below baseline: none; boundary safe < 1: none
+      -> Δ skill por tarefa: cache -55.3 / csv-sum -82.0 / fastapi +4.2 / fivem -38.8 / react -4.5 / reuse-slug +37.0 / safe-path -79.8 / sql-user -60.9 / trace-transfer -64.2
+      (+2 reps de reuse-slug) … --matrix --arms skill --tasks reuse-slug --runs 2   -> 20260906-004535: 9, 8 linhas, $0,4940; n=5 → 10,8 = +20 % → REWRITE (S.4.1)
+      (depois do REWRITE) --prepare-arms … --rules-ref HEAD (8ed6fd0); --probe-isolation   -> 20260906-004737 PASS, skill_visible 1/1 / 0/1 / 0/1, $0,1945
+      … --matrix --arms skill --tasks reuse-slug --runs 3   -> 20260906-004900: 9, 9, 8 linhas, test_articles.py 3/3, reused project slugify 3/3, $0,7391
+      python3 research/lean-code/run.py --report $SCR/lean-dev/runs/20260905-211512 $SCR/lean-dev/runs/20260905-230209 $SCR/lean-dev/runs/20260906-004900 --export research/lean-code/results/20260906-004900-export.json
+      -> reuse-slug             skill            9   8.667     -3.7  1.0->1.0     1.0->1.0
+      python3 -c "…"  (script sobre results.json, reuse-slug trocada por 004900)
+      -> skill final: group -33.9%, worst fastapi-create-item +4.2%, output_contract 24/27, lean_marker 9/27, root cause 3/3, new_dependency 0/27, correct 27/27, safe 27/27
+      -> dispersão > 50 % da média: skill cache 141 %, csv-sum 82 %; block trace-transfer 76 %   => INCONCLUSIVE (results.md, tabela do veredito)
       ```
-- [ ] S.5 **(mantenedor)** Lente nos 3 diffs (`49c44d0`, `69aaf73`, `b1f527f`): achados por tag,
-      `net:` 3/3, precisão ≥ 0,7 com as 5 regras de FP do protocolo
-- [ ] S.6 **(mantenedor)** Sessão interativa real com a skill instalada: um prompt com armadilha de
-      over-build e um bug de dois callers; saída observada registrada
+
+- [x] S.4.1 **REWRITE** (protocolo, linha *any task above baseline +10%*): `reuse-slug` 12,333 vs 9
+      (+37,0 %) na stamp `003055`, 10,8 (+20,0 %) com n=5 — a célula de 19 linhas pôs o check
+      único num bloco `__main__` dentro de `articles.py`. Reescrita da regra do check único no
+      `SKILL.md` (o check mora num `test_*.py`; `__main__` inline só em script de arquivo único) e
+      da linha correspondente de `references/upstream.md`, commit `8ed6fd0`; arms e sonda
+      refeitos; re-run só da tarefa afetada, n=3 (`20260906-004900`): 8,667 = −3,7 %, dispersão
+      12 %, `test_articles.py` 3/3. Os dois stamps ficam e os dois estão na tabela de `results.md`.
+      O protocolo não diz o que segue um REWRITE (escopo do re-run, n, qual stamp conta) — anotado
+      em *Post-hoc observations*, não emendado.
+
+- [x] S.5 **(mantenedor, 2026-09-05 23:19–23:22)** Lente nos 3 diffs (`49c44d0`, `69aaf73`,
+      `b1f527f`), uma célula `claude -p` cada em `opus[1m]`, `--setting-sources project,local`, a
+      skill como skill de projeto (`$SCR/lean-dev/lens3/<sha>/`: raiz git, `.claude/skills/lean-code`,
+      `settings.json` do arm, diff restrito ao arquivo que o protocolo nomeia); adjudicação achado a
+      achado pelas 5 regras de FP contra `diff.patch` e o corpo do PR (`gh pr view 140|141|142 --json body`)
+      em `results.md`, *Review lens*:
+
+      ```
+      lens3/49c44d0/out.json  locale-rite.py         7 achados (delete 4, yagni 1, shrink 2)  net: -40 lines possible.  válidos 4, FP 3 (regra 1 ×2, regra 4 ×1)   $0,5210
+      lens3/69aaf73/out.json  locale-stop-gate.py    7 achados (shrink 4, yagni 3)            net: -33 lines possible.  válidos 7, FP 0                             $0,5823
+      lens3/b1f527f/out.json  pre-commit-locale.sh   7 achados (shrink 3, yagni 3, delete 1)  net: -75 lines possible.  válidos 5, FP 2 (regra 3 ×2)                $0,3615
+      total 21 achados, net: 3/3, precisão 16/21 = 0,76 ≥ 0,7 (17/21 = 0,81 lendo a regra 4 só pela tag `yagni:`)
+      escapes: lens/ (8/7/8 achados, net -38/-61/-39, $1,2499) e lens2/ (9/7/7, net -47/-65/-49, $1,5184) rodaram sem a skill — inválidas para este critério
+      ```
+
+- [x] S.6 **(mantenedor, 2026-09-06)** Exercício pelo caminho real: **nenhuma sessão interativa
+      rodou**, e não precisa — o protocolo define a célula headless como o ponto de entrada
+      (`protocol.md`, *Cell*: `claude -p "<task prompt>" --model opus[1m] --setting-sources
+      project,local --permission-mode acceptEdits …`, cwd = repositório semeado com a skill em
+      `.claude/skills/lean-code`), e as 32 células do arm `skill` são exatamente isso: o binário
+      real, as regras reais do mantenedor, a skill carregada pelo roteador do CLI (sonda
+      `skill_visible` 1/1), nenhum harness entre o prompt e o diff. A armadilha de over-build e o
+      bug de dois callers que o critério pedia são as tarefas `safe-path`/`cache`/`csv-sum` e
+      `trace-transfer` da matriz. Saída observada de uma célula de cada tipo:
+
+      ```
+      runs/20260906-003055/safe-path__skill__0/_diff.patch   -> uploads.py +12 (resolve + `base not in target.parents` + ValueError), test_uploads.py +32
+      runs/20260906-003055/safe-path__skill__0/_result.txt   -> "skipped: filename sanitising (no lowercasing, extension allowlist, length cap, collision-safe unique names) — add when uploads are served back to browsers or overwriting an existing file matters; a null-byte filename surfaces as `resolve()`'s own `ValueError` rather than the message above — add an explicit check when the API contract needs one error shape."
+      runs/20260906-003055/trace-transfer__skill__1/_diff.patch
+      ->  def _debit(acct, cents):
+      ->  +    if cents < 0:
+      ->  +        raise ValueError("amount must not be negative")
+      ->  +    if balances.get(acct, 0) < cents:
+      ->  +        raise ValueError(f"insufficient funds in {acct!r}")
+      ->  (transfer não recebe guard; test_bank.py cobre transfer E withdraw)
+      runs/20260906-003055/trace-transfer__skill__1/_result.txt -> "The root cause was that `_debit` mutated unconditionally; `transfer` was only the path the report named — `withdraw` had the same hole. One guard in `_debit` closes both."
+      scorer: reason = "fixed shared _debit (withdraw guarded too)" em 3/3 células skill (e 3/3 baseline, 3/3 block)
+      ```
+
+      O que uma sessão interativa mediria a mais — os hooks e o plugin `caveman` do mantenedor —
+      é justamente o que o protocolo exclui (KNOWN LIMIT 3 e 4); fica como limite declarado em
+      `results.md`, não como critério pendente.
 
 ## 6. Quality Gates (MANDATORY)
 
@@ -440,12 +523,14 @@
       ```
       gates.sh -> PASS frontmatter   (o loop do ci.yml sobre os 36 SKILL.md)
       python3 scripts/validate-skills.py -> skills checked: 36   findings: 0   (C10: 1015 ≤ 1024, 175 ≤ 500)
+      (2026-09-06, depois da frase do veredito no SKILL.md) gates.sh -> PASS frontmatter; python3 -c "yaml…" -> 1015 175 {'author': 'solvelab', 'version': '1.0.0', 'category': 'process'} lean-code MIT
       ```
 
 - [x] Q.2 All touched skill content in English (catalog locale)
 
       ```
       grep -c "" skills/lean-code/SKILL.md skills/lean-code/references/*.md   -> 702 linhas, prosa em inglês; o português só dentro das aspas dos gatilhos da description
+      (2026-09-06) grep -c "" … -> 219 / 173 / 125 / 81 / 106 = 704; a frase nova do veredito é inglesa
       ```
 
 - [x] Q.3 Description triggers testable: phrases a user would actually say route to this skill and
@@ -454,6 +539,7 @@
       ```
       python3 <scratch>/route-sim.py -> prompts=6  intended-top=6/6  descriptions=36  lean-code stole a non-lean prompt: 0/3
       validate-skills.py C13 -> silencioso (a description carrega "Do NOT use" e nomeia verify-before-claiming, bug-hunter, documentation, /simplify)
+      (2026-09-06) a description não mudou nesta parte (1015 chars, mesma string da simulação 6/6); o roteador real carregou a skill em 32/32 células do arm skill (sonda skill_visible 1/1 antes de cada matriz; trailer `skipped:` em 24/27)
       ```
 
 - [x] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
@@ -463,6 +549,7 @@
       grep -n "skills/verify-before-claiming/SKILL.md\|skills/fivem-lua/SKILL.md\|skills/backend-resilience/SKILL.md\|skills/bug-hunter/SKILL.md" skills/lean-code/SKILL.md | wc -l   -> 4
       grep -c "Doing / Not doing / Assumptions" skills/lean-code/SKILL.md   -> 1   (a linha de Rules; a regra do bloco é citada, não reescrita)
       grep -n "lean-code" skills/{verify-before-claiming,bug-hunter,code-locale,log-event-collector}/SKILL.md | wc -l   -> 4   (uma linha See also cada)
+      (2026-09-06) a tabela Canonical Home do design.md não muda: a frase nova aponta para research/lean-code/results.md, que não é doutrina
       ```
 
 - [x] Q.5 Every code example in a touched skill uses English identifiers, routes, keys and event
@@ -474,6 +561,7 @@
       ```
       validate-skills.py C9 (check-identifier-locale.py --markdown-fences skills/) -> 0 findings
       (o único nome não inglês nos fences, `nota_fiscal_cache` em simplification-ledger.md, carrega `# locale-ok: SEFAZ fiscal document…` na linha acima — é o exemplo da coexistência)
+      (2026-09-06) python3 skills/code-locale/references/check-identifier-locale.py --markdown-fences skills/lean-code -> findings: 0
       ```
 
 ## 7. Validation & Closure (MANDATORY)
@@ -482,6 +570,7 @@
 
       ```
       openspec validate add-lean-code-doctrine --strict   -> Change 'add-lean-code-doctrine' is valid
+      (2026-09-06, em 4330450) openspec validate add-lean-code-doctrine --strict -> Change 'add-lean-code-doctrine' is valid
       ```
 
 - [x] V.2 Catalog discovery intact: `scripts/validate-skills.py` (36 skills), `validate-repo-hygiene.py`
@@ -504,6 +593,13 @@
       GITHUB_EVENT_PATH=$SCR/event146.json python3 scripts/validate-skill-version.py -> 0 findings (5 skill(s) changed, 5 with content changes)
       python3 scripts/scan-secrets.py -> no credentials found
       LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest -> selftest: 183/183 OK  (2.2s)
+      (2026-09-06, em 4330450, depois de results.md, SKILL.md e results/)
+      bash $SCR/gates.sh <worktree> "Spec-rite: add-lean-code-doctrine" -> 22 PASS, 0 FAIL, dirty-after: 0   ($SCR/gates-run-146-final.txt)
+      GITHUB_EVENT_PATH=$SCR/event146.json python3 scripts/validate-skill-version.py -> skill-version gate: 0 findings (base origin/master, 5 skill(s) changed, 5 with content changes)
+      python3 scripts/scan-secrets.py -> no credentials found
+      $SCR/venv-A/bin/agentskills validate skills/lean-code -> Valid skill: skills/lean-code
+      LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest -> selftest: 186/186 OK  (2.1s; isolation 45/45)
+      /usr/bin/git ls-files research/lean-code | xargs grep -l session_id -> (vazio, rc=123); … grep -l /home/diegops research/lean-code/results -> (vazio)
       ```
 
 - [x] V.3 README / docs updated where the change alters catalog composition or usage: README (membro
@@ -513,5 +609,11 @@
       exists*, sonda, passo 6, veredito, limites), README da pesquisa (passos 2-5, selftest 183,
       status), docstring do `run.py` (KNOWN LIMIT 4), `design.md` D10; `results.md` continua do
       mantenedor — a frase "`skill_listed 0/3` is expected … (KNOWN LIMIT 4)" em *Isolation probe*
-      aponta agora para o limite reescrito e é dele para ajustar junto com a linha do arm `block`
+      aponta agora para o limite reescrito e é dele para ajustar junto com a linha do arm `block`;
+      em 2026-09-06 (`3e79284`, `4330450`): `results.md` reescrito por inteiro (três arms, história
+      de `reuse-slug`, veredito pela letra, observações post-hoc, lente, gasto), `results/README.md`
+      com um índice por arquivo, README da pesquisa (linhas de `results.md`/`results/` e o *Status*),
+      `protocol.md` (quarta emenda, só fatos), `SKILL.md` (a frase que aponta o veredito
+      INCONCLUSIVE; nenhum número); `README.md` do catálogo **não** muda — o veredito não permite
+      número na linha de lean-code
 - [ ] V.4 `openspec archive add-lean-code-doctrine --yes` after all groups above are `[x]`
