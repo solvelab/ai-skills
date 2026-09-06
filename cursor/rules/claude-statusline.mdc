@@ -133,9 +133,30 @@ echo '{"model":{"display_name":"Opus 4.8"},"workspace":{"current_dir":"/tmp"},"c
   | ~/.claude/statusline.sh | sed 's/\x1b\[[0-9;]*m//g'
 ```
 
-Also test the empty case (`"current_usage": null`, no git repo) to confirm optional
-segments disappear cleanly. To exercise the git line, run it from inside a repo with
-staged and modified files.
+That input produces exactly three lines — measured against `references/statusline.sh`:
+
+```
+🤖 Opus 4.8 | ⚡ medium | 🧠 thinking enabled | ⏱️  1h 26m | 💰 $2.47
+📝 +1347 -156 | ↑ In 135k $0.10 · ♻️ 95% · ↓ Out 2k $0.05
+📊 ctx ▓▓▓▓▓░░░ 63% | 🚦 5h ▓▓▓▓░░░░ 57% | 7d ▓▓▓▓▓▓░░ 84%
+```
+
+Anything else is a defect: fewer lines means a segment silently returned empty, and a `jq` error on
+stderr means the input shape moved. Re-measure with the command above rather than trusting this
+block if you edited the script — the numbers here are what it printed, not what it ought to print.
+
+Also test the empty case (`"current_usage": null`, `"thinking": {"enabled": false}`, run outside a
+git repo). It must collapse to **two** lines, and the difference is what you check:
+
+```
+🤖 Opus 4.8 | ⚡ medium | 🧠 thinking disabled | 💰 $0.00
+📊 ctx ▓▓▓▓▓░░░ 63%
+```
+
+The `📝` token line is gone entirely, the `🚦` rate-limit segment has left the `📊` line, and the
+`⏱️` duration has left the header. A segment that renders as a bare separator (`|` with nothing
+after it) or as `$0.00` where it should be absent is the failure this case exists to catch. To
+exercise the git line, run it from inside a repo with staged and modified files.
 
 ---
 

@@ -155,7 +155,8 @@ docker compose build
 # Expected: Successfully built all images
 
 docker compose up -d
-# Expected: All containers start without errors
+# Expected: every service line ends in "Started" — a line ending in "Error" or
+#           "Exited" names the container that failed
 
 docker compose ps
 # Expected: All services show "Up" status
