@@ -1,0 +1,217 @@
+---
+name: lean-code
+description: >-
+  Governs how much code a change leaves behind: reuse before writing (this codebase, the stdlib,
+  the platform, an installed dependency), root-cause fixes over symptom patches, no speculative
+  abstraction, and a review lens for over-engineering. Use when implementing a feature,
+  refactoring, fixing a bug, adding a dependency or a cache, or reviewing a diff for bloat; and
+  when the user says "simplest solution", "YAGNI", "over-engineered", "what can we delete", "less
+  code", "do we need this", "add a cache", "faz o mais simples", "não precisa disso", "menos
+  código", "o que dá pra apagar", "tá over". Never trims validation at a trust boundary, error handling that prevents
+  data loss, or the one runnable check behind non-trivial logic. Do NOT use to decide whether a
+  fact or a scope is true (that is verify-before-claiming), to break code already written (that is
+  bug-hunter), to trim docs prose (that is documentation), or in place of the built-in /simplify,
+  which cleans a finished diff — this lens runs before it.
+metadata:
+  author: solvelab
+  version: 1.0.0
+  category: process
+license: MIT
+compatibility: >-
+  Doctrine only; no runtime. The ledger needs grep. Upstream effect measured on Claude Code
+  2.1.177/Haiku 4.5; the catalog's own measurement is in research/lean-code/results.md.
+---
+
+# Lean code — the best code is the code never written
+
+> **Not version-bound**: this skill does not depend on a tool version — it is doctrine (a ladder, a
+> root-cause rule, carve-outs, a review lens) and a grep-based ledger. The platform lookup in
+> `references/platform-native.md` names no runtime version on purpose; verify each row against the
+> project's pinned runtime. Declared on 2026-09-05.
+
+Lean is about what **remains** after the change, never about speed: the diff that ships is the
+smallest one that is correct once the problem is understood, and everything it did not build is
+named rather than silently dropped. You have seen every over-engineered codebase and been paged at
+3am for one. The best code is the code never written.
+
+- **Platform-native lookup** — "you think you need X → the platform has Y", by layer:
+  `references/platform-native.md`
+- **The simplification ledger** — harvesting every `lean:` marker, tagging the ones with no
+  trigger: `references/simplification-ledger.md`
+- **Review and fix examples** — the lens line by line, a before/after, a marker with its ledger
+  row, a root-cause fix: `references/review-examples.md`
+- **Provenance** — the upstream, its licence, what is verbatim, what was rewritten, what was
+  dropped, and the upstream's numbers with their conditions: `references/upstream.md`
+
+## The ladder
+
+Stop at the first rung that holds:
+
+1. **Does this need to exist at all?** Speculative need = skip it, say so in one line. (YAGNI)
+2. **Already in this codebase?** A helper, util, type, or pattern that already lives here → reuse it. Look before you write; re-implementing what's a few files over is the most common slop.
+3. **Stdlib does it?** Use it.
+4. **Native platform feature covers it?** `<input type="date">` over a picker lib, CSS over JS, DB constraint over app code.
+5. **Already-installed dependency solves it?** Use it. Never add a new one for what a few lines can do.
+6. **Can it be one line?** One line.
+7. **Only then:** the minimum code that works.
+
+The ladder is a reflex, not a research project — but it runs *after* you
+understand the problem, not instead of it. Read the task and the code it
+touches first, trace the real flow end to end, then climb. Two rungs work →
+take the higher one and move on. The first lazy solution that works is the
+right one — once you actually know what the change has to touch.
+
+## Bug fix = root cause, not symptom
+
+**Bug fix = root cause, not symptom.** A report names a symptom. Before you
+edit, grep every caller of the function you're about to touch. The lazy fix IS
+the root-cause fix: one guard in the shared function is a smaller diff than a
+guard in every caller — and patching only the path the ticket names leaves
+every sibling caller still broken. Fix it once, where all callers route through.
+
+## Rules
+
+- No unrequested abstractions: no interface with one implementation, no factory for one product, no config for a value that never changes.
+- No boilerplate, no scaffolding "for later", later can scaffold for itself.
+- Deletion over addition. Boring over clever, clever is what someone decodes at 3am.
+- Fewest files possible. Shortest working diff wins — but only once you understand the problem. The smallest change in the wrong place isn't lazy, it's a second bug.
+- Complex request? Do not ship a smaller version on your own authority. The doubt about whether the full request is needed is a line under *Assumptions* in the Doing / Not doing / Assumptions block that `verify-before-claiming` owns (`skills/verify-before-claiming/SKILL.md`, *Off-script guard*); the user answers it, and the requested version is what ships when they confirm. Never stall on an answer you can default — default to what was asked, and name the leaner alternative in that block.
+- Two stdlib options, same size? Take the one that's correct on edge cases. Lazy means writing less code, not picking the flimsier algorithm.
+- Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) with a `lean:` comment naming the ceiling and upgrade trigger, in the form `# lean: <ceiling> -> <upgrade trigger>` (`# lean: global lock -> per-account locks if throughput matters`).
+
+## What the delivery looks like
+
+Code first. Then the trailer, always:
+
+```text
+[code] → skipped: [X], add when [Y].
+```
+
+The trailer is mandatory, not optional courtesy: what the ladder skipped is part of the delivery,
+and a reviewer who cannot see it cannot judge the rung you stopped at. No essays, no feature tours,
+no design notes. If the explanation is longer than the code, delete the explanation, every paragraph
+defending a simplification is complexity smuggled back in as prose.
+
+There is no hard line cap on the trailer: the sources and labels that `verify-before-claiming`
+requires inline are part of the answer, not prose to cut. Explanation the user explicitly asked for
+(a report, a walkthrough, per-phase notes) is not debt, give it in full; the rule is only against
+unrequested prose.
+
+## Never simplified away
+
+Never simplify away: input validation at trust boundaries, error handling
+that prevents data loss, security measures, accessibility basics, anything
+explicitly requested. User insists on the full version → build it, no
+re-arguing.
+
+The trust boundary itself has a canonical home: the client is never trusted and the actor comes
+from the connection, not the payload (`fivem-lua`, `skills/fivem-lua/SKILL.md`); a value from an
+unreliable dependency is clamped, validated for shape and given a safe default (`backend-resilience`,
+`skills/backend-resilience/SKILL.md`). The ladder shortens what is built on the safe side of that
+line; it never moves the line.
+
+Never lazy about understanding the problem. The ladder shortens the
+solution, never the reading. Trace the whole thing first — every file the
+change touches, the actual flow — before picking a rung. Laziness that skips
+comprehension to ship a small diff is the dangerous kind: it dresses up as
+efficiency and ships a confident wrong fix. Read fully, then be lazy.
+
+A constant that models the physical world stays a knob. Hardware is never the ideal on paper: a
+real clock drifts, a real sensor reads off, a servo driver runs a few percent fast. Leave the
+calibration knob, not just less code, the physical world needs tuning a minimal model can't see.
+
+Lazy code without its check is unfinished. Non-trivial logic (a branch, a
+loop, a parser, a money/security path) leaves ONE runnable check behind, the
+smallest thing that fails if the logic breaks: an `assert`-based
+`demo()`/`__main__` self-check or one small `test_*.py`. No frameworks, no
+fixtures, no per-function suites unless asked. Trivial one-liners need no
+test, YAGNI applies to tests too. One check is the floor; what lies beyond it — forged input,
+partial failure, two things at once — is the adversarial rite of `bug-hunter`
+(`skills/bug-hunter/SKILL.md`), which runs after the change and is never traded for a shorter diff.
+
+## Reviewing a diff
+
+Review diffs for unnecessary complexity. One line per finding: location, what to cut, what replaces
+it. The diff's best outcome is getting shorter.
+
+Format: `L<line>: <tag> <what>. <replacement>.`, or `<file>:L<line>: ...` for multi-file diffs.
+
+Tags:
+
+- `delete:` dead code, unused flexibility, speculative feature. Replacement: nothing.
+- `stdlib:` hand-rolled thing the standard library ships. Name the function.
+- `native:` dependency or code doing what the platform already does. Name the feature.
+- `yagni:` abstraction with one implementation, config nobody sets, layer with one caller.
+- `shrink:` same logic, fewer lines. Show the shorter form.
+
+❌ "This EmailValidator class might be more complex than necessary, have you considered whether all
+these validation rules are needed at this stage?"
+
+✅ `L12-38: stdlib: 27-line validator class. "@" in email, 1 line, real validation is the confirmation mail.`
+
+More ❌/✅ pairs, one per tag: `references/review-examples.md`.
+
+End with the only metric that matters: `net: -<N> lines possible.` If there is nothing to cut, say
+`Lean already. Ship.` and stop.
+
+Scope: over-engineering and complexity only. Correctness bugs, security holes, and performance are
+explicitly out of scope. Route them to a normal review pass, not this one. A single smoke test or
+`assert`-based self-check is the minimum, not bloat, never flag it for deletion. Does not apply the
+fixes, only lists them.
+
+**Repo-wide.** The same lens over a whole tree instead of a diff: hunt for dependencies the stdlib
+or platform already ships, single-implementation interfaces, factories with one product, wrappers
+that only delegate, files exporting one thing, dead flags and config, hand-rolled stdlib. Rank
+findings biggest cut first, one line each: `<tag> <what to cut>. <replacement>. [path]`. End with
+`net: -<N> lines, -<M> deps possible.`, or `Lean already. Ship.`
+
+The harness's built-ins sit on either side of this lens: `/simplify` applies cleanups to a finished
+diff and `/code-review` hunts bugs; this lens runs before either, while the diff can still get
+shorter instead of cleaner.
+
+## Marking a deliberate simplification
+
+One marker per comment, one grammar, ASCII separator so the ledger can split it:
+
+```python
+_cache: dict[str, bytes] = {}  # lean: unbounded dict -> lru_cache(maxsize) when memory shows up in a profile
+```
+
+- `# lean: <ceiling> -> <upgrade trigger>` — the ceiling is the limit you accepted, the trigger is
+  the observation that makes it wrong. A marker with no `->` is a `no-trigger` row in the ledger.
+- The marker trails the code line it simplifies. A `locale-ok:` waiver (`code-locale`) sits on the
+  line **above** the name it covers, because that waiver reaches its own line and the next one; the
+  two never share a comment.
+- Harvesting, the row format and the clean-ledger footer: `references/simplification-ledger.md`.
+
+## What the baseline measured
+
+Measured on this catalog's own harness before this skill existed — `claude-opus-5[1m]`, Claude Code
+`2.1.261`, `n=3` × 9 tasks = 27 cells, `correct` 27/27, `safe` 27/27: no guard dropped, nothing
+re-implemented, no caller-only patch. The over-build was concentrated: a custom exception class for
+a guard 6/27, speculative input tolerance 6/27, helper decomposition of a short loop 4/27, type
+checks nobody asked for 3/27, docstring expansion 12/27, `no_check` 3/27 (the structural task),
+prose longer than the diff 1/27. Skill arm: measured in
+[`research/lean-code/results.md`](https://github.com/solvelab/ai-skills/blob/master/research/lean-code/results.md)
+— no number about this skill's effect appears anywhere else until that file carries it.
+
+## When this skill defers
+
+- **Whether a fact, an API or a scope is true** — `verify-before-claiming`: the Doing / Not doing /
+  Assumptions block is where rung 1 lands; this skill never drops a requested piece on its own.
+- **The item's scope and acceptance criteria** — `execute-backlog`: scope is law; the ladder works
+  inside it.
+- **Everything beyond the one runnable check** — `bug-hunter`.
+- **Prose, docs and README size** — `documentation`: this skill governs code volume only.
+
+## See also
+
+- `verify-before-claiming` — the "how much" counterpart of this skill's "what remains": it decides
+  whether the work is the work that was asked for.
+- `bug-hunter` — the adversarial rite that starts where the one-check floor ends.
+- `code-locale` — the other inline marker (`locale-ok:`) and the migration ledger for names.
+- `log-event-collector` — a stack instance of rung 5 (stdlib-only when the deploy target is a bare
+  container).
+- `fivem-lua`, `backend-resilience` — the trust-boundary rules the carve-outs point at.
+
+Adapted from DietrichGebert/ponytail v4.9.0 (MIT) — see `references/upstream.md`.
