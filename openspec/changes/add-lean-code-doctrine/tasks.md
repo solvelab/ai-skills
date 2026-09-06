@@ -618,6 +618,15 @@
       $SCR/venv-A/bin/agentskills validate skills/lean-code -> Valid skill: skills/lean-code
       LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest -> selftest: 186/186 OK  (2.1s; isolation 45/45)
       /usr/bin/git ls-files research/lean-code | xargs grep -l session_id -> (vazio, rc=123); … grep -l /home/diegops research/lean-code/results -> (vazio)
+      (2026-09-06, em b6c9ecf, revisão do PR: guarda da lente alargada em 6831e24, README da pesquisa sem número; PATH com o 2.1.261 na frente, `claude --version` -> 2.1.261 (Claude Code))
+      bash $SCR/gates.sh <worktree> "Spec-rite: add-lean-code-doctrine" -> 22 PASS, 0 FAIL, dirty-after: 0
+      (a primeira passada antes do commit reprovou C12 em `upstream.md` — caminho inline `research/lean-code/results.md` — corrigido para a URL do repositório no mesmo commit)
+      GITHUB_EVENT_PATH=$SCR/event146.json python3 scripts/validate-skill-version.py -> skill-version gate: 0 findings (base origin/master, 5 skill(s) changed, 5 with content changes)
+      python3 scripts/scan-secrets.py -> no credentials found
+      $SCR/venv-A/bin/agentskills validate skills/lean-code -> Valid skill: skills/lean-code
+      LEAN_SCORER_VENV=$SCR/lean-dev/venv python3 research/lean-code/run.py --selftest -> selftest: 186/186 OK  (2.0s; isolation 45/45)
+      /usr/bin/git ls-files research/lean-code | xargs grep -l session_id -> (vazio, rc=123)
+      openspec validate add-lean-code-doctrine --strict -> Change 'add-lean-code-doctrine' is valid
       ```
 
 - [x] V.3 README / docs updated where the change alters catalog composition or usage: README (membro
