@@ -157,8 +157,9 @@ End with the only metric that matters: `net: -<N> lines possible.` If there is n
 
 Scope: over-engineering and complexity only. Correctness bugs, security holes, and performance are
 explicitly out of scope. Route them to a normal review pass, not this one. A single smoke test or
-`assert`-based self-check is the minimum, not bloat, never flag it for deletion. Does not apply the
-fixes, only lists them.
+`assert`-based self-check — and any single case inside a selftest, a mutant or an injected-defect
+check — is the minimum, not bloat, never flag it for deletion: the check is the product. Does not
+apply the fixes, only lists them.
 
 **Repo-wide.** The same lens over a whole tree instead of a diff: hunt for dependencies the stdlib
 or platform already ships, single-implementation interfaces, factories with one product, wrappers
