@@ -878,7 +878,8 @@ A second gate checks the **content** of the skills themselves.
 `skills/*/SKILL.md` and every `*.md` under its `references/`, recursively — referenced paths exist (C1), cross-skill references name a
 real skill (C2), code blocks parse (C3, bash/yaml/json/lua/python), the description states no policy
 the body contradicts (C4), every skill states what it was verified against — with a `Probed on
-<date>` line — or that it does not depend on a tool version (C5), fence tags match their content
+<date>` line whose date could actually be true — or that it does not depend on a tool version (C5),
+fence tags match their content
 (C6), no generated wrapper is orphaned from a canonical source (C7), no meta section sits in a
 `SKILL.md` body where it cannot affect routing (C8), code examples use English identifiers (C9),
 the parsed `description` and `compatibility` stay within the Agent Skills limits (C10), every
@@ -913,7 +914,7 @@ as operational detail, never as a build failure.
 
 ```bash
 python3 scripts/validate-skills.py           # 0 findings expected
-python3 scripts/selftest-validate-skills.py  # 24/24 defect classes detected
+python3 scripts/selftest-validate-skills.py  # 27/27 defect classes detected
 python3 scripts/scan-secrets.py              # gate: no credentials in the working tree
 python3 scripts/scan-secrets.py --history    # audit: what the published history still contains
 ```
