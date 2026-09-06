@@ -14,7 +14,10 @@
 #
 # `--tool` is validated before anything is cloned or pulled, so a typo never leaves a clone
 # behind. On a re-run over an existing ~/ai-skills the pull is fast-forward only: a clone that
-# diverged from origin is refused with the same message and recovery hint update.sh gives.
+# diverged from origin is refused with the same message and recovery hint update.sh gives — the
+# same because it is the same code: scripts/lib/git-sync.sh, sourced from the clone itself (this
+# script runs via `curl | bash`, so the clone is the only place both scripts can read it from). A
+# clone that predates that file is refused with the hint to run the update.sh it carries, once.
 #
 # WHAT THE GUARD DOES NOT COVER: this script never inspects the working tree. Uncommitted edits in
 # ~/ai-skills are neither refused nor discarded here (a fast-forward pull that touches the same
@@ -173,14 +176,16 @@ fi
 # Clone or pull the repository
 if [ -d "$INSTALL_DIR" ]; then
     echo "📦 ~/ai-skills already exists. Pulling latest changes..."
-    # Same contract as update.sh: fast-forward only, own message first, git's `fatal:` line as an
-    # indented detail (advice.diverging=false drops the nine `hint:` lines that precede it).
-    if ! PULL_ERR="$(git -C "$INSTALL_DIR" -c advice.diverging=false pull --ff-only --quiet 2>&1)"; then
-        echo "  ❌ Fast-forward failed — local changes diverge from origin."
-        echo "     Re-run with --force to discard them: cd ~/ai-skills && ./update.sh --force"
-        [ -z "$PULL_ERR" ] || printf '     git: %s\n' "$PULL_ERR"
+    # The pull block is shared with update.sh and read from the clone it is about to sync (see the
+    # header). A clone older than that file has its own update.sh, which still carries the block.
+    SYNC_LIB="$INSTALL_DIR/scripts/lib/git-sync.sh"
+    if [ ! -f "$SYNC_LIB" ]; then
+        echo "  ❌ $SYNC_LIB not found — this clone predates it."
+        echo "     Bring it forward once with the updater it carries: cd ~/ai-skills && ./update.sh"
         exit 1
     fi
+    . "$SYNC_LIB"
+    pull_ff_only "$INSTALL_DIR" || exit 1
 else
     echo "📦 Cloning ai-skills into ~/ai-skills..."
     git clone "$REPO_URL" "$INSTALL_DIR"

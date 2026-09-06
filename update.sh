@@ -19,6 +19,11 @@
 # that ran is proof that those two paths were clean in the index, nothing more.
 # There is no interactive prompt on purpose: the README runs this script via `curl | bash`, where
 # stdin is the script itself.
+#
+# The fast-forward pull and its divergence message are shared with install.sh: scripts/lib/git-sync.sh,
+# sourced from the clone itself, because under `curl | bash` the clone is the only place both scripts
+# can read it from. A clone that predates that file is refused with the hint to run the update.sh it
+# carries, once; `--force` never needs the file.
 set -euo pipefail
 
 INSTALL_DIR="$HOME/ai-skills"
@@ -58,14 +63,16 @@ if [ "$FORCE" -eq 1 ]; then
     echo "  ⚠️  --force: discarding local changes, resetting to $UPSTREAM"
     git -C "$INSTALL_DIR" reset --hard "$UPSTREAM" --quiet
 else
-    # advice.diverging=false drops git's nine `hint:` lines; the `fatal:` line is kept as an
-    # indented detail because on a network failure it is the only useful information.
-    if ! PULL_ERR="$(git -C "$INSTALL_DIR" -c advice.diverging=false pull --ff-only --quiet 2>&1)"; then
-        echo "  ❌ Fast-forward failed — local changes diverge from origin."
-        echo "     Re-run with --force to discard them: cd ~/ai-skills && ./update.sh --force"
-        [ -z "$PULL_ERR" ] || printf '     git: %s\n' "$PULL_ERR"
+    # The pull block is shared with install.sh and read from the clone it is about to sync (see the
+    # header). --force does not need it: a clone older than that file must still be resettable.
+    SYNC_LIB="$INSTALL_DIR/scripts/lib/git-sync.sh"
+    if [ ! -f "$SYNC_LIB" ]; then
+        echo "  ❌ $SYNC_LIB not found — this clone predates it."
+        echo "     Bring it forward once with the updater it carries: cd ~/ai-skills && ./update.sh"
         exit 1
     fi
+    . "$SYNC_LIB"
+    pull_ff_only "$INSTALL_DIR" || exit 1
 fi
 
 AFTER=$(git -C "$INSTALL_DIR" rev-parse HEAD)
