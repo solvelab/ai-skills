@@ -180,7 +180,7 @@ collected".
 *sync* session against SQLite keeps passing, because a single test never has concurrency. The block
 only appears under load, in production. If you are on the async lane, the override must be async too.
 
-Verified against `SQLAlchemy 2.0.51` and `pytest-asyncio 1.4.0`.
+Verified against `SQLAlchemy 2.0.51` and `pytest-asyncio 1.4.0`. Probed on 2026-08-06 (change `add-async-lane-rule`, commit `c27ca79`).
 
 Outbound calls follow the same rule — `backend-resilience` ships `safe_call` and `safe_call_async` for
 exactly this reason. The DB half and the HTTP half of one request must be in the same lane.

@@ -20,9 +20,10 @@ compatibility: Works in any environment with filesystem access.
 # Observability
 
 > **Verified against**: `fastapi 0.141.1` · `prometheus-client 0.26.0` · `structlog 26.1.0` ·
-> `opentelemetry-api 1.44.0` · `opentelemetry-instrumentation-fastapi 0.65b0`. Every construct below
-> was run: ids generated and preserved, route templates labelled, raw paths kept out of the registry,
-> counters and histograms exposed on `/metrics`.
+> `opentelemetry-api 1.44.0` · `opentelemetry-instrumentation-fastapi 0.65b0`. Every construct
+> below was run: ids generated and preserved, route templates labelled, raw paths kept out of the
+> registry, counters and histograms exposed on `/metrics`. Probed on 2026-08-06 (change
+> `add-observability-skill`, commit `60eb0be`).
 
 A service that degrades safely and silently has traded a crash for a mystery. `backend-resilience`
 says what to do when a dependency fails; this skill is how anyone finds out that it did.
