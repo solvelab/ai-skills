@@ -264,4 +264,20 @@
       `grep -n "## Read in this order\|## Status" research/tdd/README.md` -> ambas presentes; a
       linha de status diz **Measured on 2026-09-06. Verdict: NO-CLAIM.** e nomeia modelo
       `opus[1m]`, CLI `2.1.263`, 36 células, `$6.7351`.
-- [ ] V.4 `openspec archive add-tdd-research --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive add-tdd-research --yes` after all groups above are `[x]`
+
+      Segurado fora do PR #187 de propósito: arquivar junto moveria o delta de `skills-catalog`
+      para a spec publicada antes de alguém aprovar o trabalho que ela descreve. Feito em 2026-09-06,
+      depois do merge de `6d85973`, pela issue #188.
+
+      `openspec archive add-tdd-research --yes` ->
+      `Applying changes to openspec/specs/skills-catalog/spec.md:` / `  ~ 1 modified` /
+      `Specs updated successfully.` /
+      `Change 'add-tdd-research' archived as '2026-09-06-add-tdd-research'.`
+
+      `openspec list` -> `No active changes found.`
+
+      Conferência de presença no requisito publicado (o delta foi escrito como substituição
+      completa): `grep -c "^#### Scenario:"` no requisito -> **10** — os oito que já existiam mais
+      `An order-of-production claim names where the order came from` e `A red-green claim declares
+      whether the agent could run anything`.
