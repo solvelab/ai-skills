@@ -214,6 +214,12 @@ CASES: list[tuple[str, str, object]] = [
     # offset mutants that survive on `text.find("\n---\n", 4)` and `text[4:end]` — both the mutated
     # and the original path answer with an A1 finding here, one calling it absent and the other
     # calling it not a mapping — and that is written down rather than papered over (issue #225).
+    # A name that sorts BEFORE the file stem. Every mismatch case in this suite happened to sort
+    # after it, so `name != agent` and `name > agent` answered identically and the comparison had no
+    # witness — found by reading the survivors of the mutation run, not by reading the code.
+    ("a name that differs from the file stem and sorts before it", "A2",
+     lambda r: (r / "agents" / "example-agent.md").write_text(
+         replace("name: example-agent", "name: aaa"), encoding="utf-8")),
     ("frontmatter delimiters with nothing between them", "A1",
      lambda r: (r / "agents" / "example-agent.md").write_text(
          "---\n---\n\nA body with no frontmatter fields at all, long enough to clear the minimum.\n"
