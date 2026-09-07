@@ -71,11 +71,23 @@ def sized(desc_len: int, body_len: int, name: str = "example-agent") -> str:
     this helper existed: the 33 cases produced body lengths 17, 85 and 163 only, and `BODY_MAX` had
     no witness at all (issue #225, findings 5 and 6).
     """
-    body = "## When to invoke\n\n"
-    body += "x" * max(body_len - len(body), 0)
+    # The gate measures `body.strip()`, so the length is built on the STRIPPED form. Measured on the
+    # first version of this helper: asking for 19 produced 17 once stripped, which is why the mutant
+    # `BODY_MIN = 20 -> 19` still survived a suite that looked like it had a witness there.
+    head = "## When to invoke"                       # 17 characters
+    if body_len >= 20:
+        stripped = head + "\n\n" + "x" * (body_len - 19)
+    elif body_len == 19:
+        stripped = head + "\nx"
+    else:
+        stripped = "x" * body_len
+    # The padding never ends in whitespace, or `.strip()` would give back a shorter body than asked.
+    assert len(stripped) == body_len and stripped == stripped.strip(), (len(stripped), body_len)
+    # No blank line between the frontmatter closer and the body: the body's first characters are the
+    # heading itself, so an off-by-one in the frontmatter split shows up as a broken heading.
     return (f"---\nname: {name}\n"
             f'description: "{"d" * desc_len}"\n'
-            "model: inherit\ncolor: blue\ntools: [\"Read\"]\n---\n\n" + body + "\n")
+            "model: inherit\ncolor: blue\ntools: [\"Read\"]\n---\n" + stripped + "\n")
 
 
 # (label, expected check id, how to plant it)
