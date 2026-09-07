@@ -42,6 +42,8 @@ read-only commands. Then attack along these lines, and say which produced nothin
   not idempotent; a cache that keeps a failure.
 - **Absence**: the dependency down, the file missing, the field absent versus present-and-null.
 - **The siblings**: every other call site of what was changed.
+- **The invariant**: something the function must satisfy for *every* input, not just the ones you
+  listed. Where you find one, it goes in its own section of the report — not as another attack.
 
 The methodology you are applying is the `bug-hunter` skill. Read it for the stack track that matches
 the change; do not restate it in your answer.
@@ -62,12 +64,23 @@ TESTS TO WRITE
      WHEN:  <the attack>
      THEN:  <the assertion that fails today>
 
+INVARIANTS WORTH GENERALIZING
+<n>. <the property, stated in one sentence, that must hold for EVERY input>
+     OVER:  path:line — the function it holds for
+     WHY:   <the input space that is too large to enumerate>
+
 TRIED AND FOUND NOTHING
 - <the line of attack, one per line>
 ```
 
 Rank attacks most severe first. `CONFIDENCE: plausible` is honest and useful; a confirmed label on a
 path you did not read is not.
+
+`INVARIANTS WORTH GENERALIZING` is empty far more often than not, and an empty section with the word
+`none` in it is the correct answer. A property belongs there only when it is statable in one sentence
+and the function's input space is too large to list — a parser, a clamp, a key builder. Glue, I/O and
+single-branch code have no invariant to state, and proposing one there sends the caller to write a
+generator that re-runs the example they already have.
 
 ## What you must not return
 

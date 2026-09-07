@@ -13,7 +13,9 @@ Reference files (`references/…` below) live at https://github.com/solvelab/ai-
 > classes, the anti-forge lens, the closure checklist). The stack tracks under `references/` name
 > `pytest`, `busted` and Mono.Cecil as the runners a track uses and prescribe no version-specific
 > flag; the versions belong to the stack skills that own the code (`python-rest-api`, `fivem-lua`,
-> `assettoserver-plugin`). Declared on 2026-09-05.
+> `assettoserver-plugin`). Declared on 2026-09-05. The one exception is
+> `references/track-python-pytest.md`, which names `cosmic-ray 8.7.0` and `hypothesis 6.167.1`
+> because the numbers this skill publishes were measured with those two; both probed on 2026-09-07.
 
 A repeatable rite: after implementing a change, actively **try to break it** — don't just confirm the
 happy path. Hunt for the bug before it ships.
@@ -26,7 +28,9 @@ happy path. Hunt for the bug before it ships.
 
 ## Universal checklist (any change, any stack)
 
-- **Boundaries**: zero, negative, max, just-over-max, empty, null/None, wrong type.
+- **Boundaries**: zero, negative, max, just-over-max, empty, null/None, wrong type. Pin the
+  *value*, not only the rejection — a suite asserting that a limit fires, without asserting where
+  it sits, survives the limit being moved (measured in *Score*, below).
 - **Shape, not just size**: a *small* input with a hostile *structure* — 1000 levels of nesting, a
   deeply recursive object, a self-referencing graph. Size limits do not catch these.
 - **Fragmented input**: the input arrives in pieces — a line still being written, a chunked body, a
@@ -61,6 +65,62 @@ Each came from a defect found by other means, that this checklist as written wou
 
 When you add a scenario because something escaped, add the row too. A checklist that never grows is a
 checklist that stopped finding things.
+
+## Enumerate, generate, score
+
+The checklist above is **enumeration**: the scenarios a person can list. It is the default and it
+always applies. Two other activities exist beside it, each conditional, each with a ceiling — reach
+for them when their condition holds, not because they sound rigorous.
+
+### Generate — inputs from an invariant instead of a list
+
+Use a property-based generator when you can state, in one sentence, something that must hold for
+**every** input: a parser that must not lose a character, a clamp whose output must stay in range, a
+dedup key that must map two different occurrences to two keys. Not for glue, I/O or a single branch —
+there is no invariant to state there, and the generator only re-runs the example you already wrote.
+For a REST surface the generator is schema-driven and lives in `api-resilience-testing`; this layer
+is for the function under the endpoint.
+
+The yield on mature code is not the one the literature advertises. Measured on this catalog's own
+tokenizer (`skills/code-locale/references/check-identifier-locale.py`, 2026-09-07): four invariants
+at 3000 generated cases each — 12000 inputs — found **zero** defects. A fifth invariant, "the code
+layer is positional", failed on the three-character input `"'"`, and the failure turned out to be a
+**wrong assumption about the contract**, not a bug: the function collapses a string literal to a
+single space instead of blanking it in place, and no caller reads columns. That is the real return
+here — being forced to state the invariant precisely enough to run it, and discovering where you were
+wrong about your own function. Expect that, and treat any defect as a bonus.
+
+A case the generator fails on becomes an ordinary example test in the suite. The seed is not the
+record; the frozen case is.
+
+`lean: enumeration only -> add a property when a function has an invariant statable in one sentence
+and an input space too large to enumerate.`
+
+### Score — break the code and ask whether the suite noticed
+
+A green suite proves the cases its author chose. Mutation testing changes the code underneath it and
+counts how many changes the suite fails to notice; every survivor marks something that is covered on
+paper and untested in fact.
+
+Measured here on 2026-09-07: 205 mutants over `scripts/validate-agents.py` in this repository, with
+its own `scripts/selftest-validate-agents.py` (33 cases, green) as the runner, `cosmic-ray 8.7.0`,
+default operator set. **151 killed, 54 survived — a score of 73.7%**, on a validator an adversarial
+agent had already hardened once. Of the 54 survivors, 13 are `|` inside type annotations and have no
+runtime effect; **20 sit on the limit constants and the boundary comparisons** — `DESCRIPTION_MAX`,
+`BODY_MAX`, the frontmatter offsets, the `<=` chains. Editing `DESCRIPTION_MAX` from 5000 to 5001
+leaves the suite reporting `33/33 cases passed`.
+
+The class those survivors point at is **Boundaries** — the first item of the checklist above. The
+suite tested *that* the limit fires and never *where* it sits. Enumeration named the class correctly;
+only scoring revealed it had been named and not actually tested. That is the gap this layer exists to
+close, and it is why the Boundaries item now says to pin the value.
+
+Scope the run to the module the change touched, never the whole repository: the rite's unit is one
+implemented change, and a repository-wide run spends hours re-deriving the same answer about code
+nobody edited.
+
+`lean: skip it -> run it when the change is a gate, a parser, or anything whose constants and
+comparisons carry the behaviour, and a suite already exists for it to score.`
 
 ## Stack tracks (read the one that matches what you changed)
 
