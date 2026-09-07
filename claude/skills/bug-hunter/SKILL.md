@@ -7,10 +7,11 @@ description: >-
   it, anti-forge, or asks to test edge cases/atomicity/races of a specific change. Stack-agnostic
   methodology with opt-in stack tracks in references/ (Python/pytest, FiveM/Lua, .NET plugin loaded
   by a host runtime). Do NOT use for designing a full API test suite from scratch — that is
-  api-resilience-testing.
+  api-resilience-testing, nor for deciding whether the test is written before the code (that is
+  tdd, which runs before the change while this rite runs after it).
 metadata:
   author: solvelab
-  version: 2.2.5
+  version: 2.3.0
   category: testing
 license: MIT
 compatibility: Works in any environment with filesystem access.

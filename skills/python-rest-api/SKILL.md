@@ -14,7 +14,7 @@ description: >-
   use to test, break or audit an existing endpoint (that is `api-resilience-testing`).
 metadata:
   author: solvelab
-  version: 1.4.2
+  version: 1.5.0
   category: backend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -329,6 +329,8 @@ Ruff: `target-version` matching the runtime, `line-length = 100`, `select = ["E"
 - `api-resilience-testing` — the negative/fuzz/contract methodology this baseline is tested against.
 - `bug-hunter` — per-change adversarial rite; its pytest track, the file
   `skills/bug-hunter/references/track-python-pytest.md` in the `bug-hunter` skill, assumes this stack.
+- `tdd` — when the test is written relative to the code, for a repo that runs the red-green cycle;
+  its pytest track links this stack rather than repeating it.
 - `backend-resilience` — fallback/negative-cache doctrine for calls this service makes to others.
 - `conventional-commit` — commit format used by these services' semantic-release pipelines.
 - `react-api-client` — the frontend counterpart consuming this envelope/code registry.

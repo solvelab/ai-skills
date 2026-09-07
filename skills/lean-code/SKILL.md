@@ -14,7 +14,7 @@ description: >-
   which cleans a finished diff — this lens runs before it.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: process
 license: MIT
 compatibility: >-
@@ -129,6 +129,8 @@ product file stays the minimum. No frameworks, no fixtures, no per-function suit
 test, YAGNI applies to tests too. One check is the floor; what lies beyond it — forged input,
 partial failure, two things at once — is the adversarial rite of `bug-hunter`
 (`skills/bug-hunter/SKILL.md`), which runs after the change and is never traded for a shorter diff.
+*When* that check is written — before the code or after it — is not decided here: `tdd`
+(`skills/tdd/SKILL.md`) owns the order, and it does not change how much this floor demands.
 
 ## Reviewing a diff
 

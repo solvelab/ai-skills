@@ -14,7 +14,7 @@ description: >-
   PRs, for deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.8.3
+  version: 1.9.0
   category: process
 license: MIT
 compatibility: >-

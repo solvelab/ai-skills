@@ -48,7 +48,7 @@ The CLI detects your installed agents (Claude Code, Codex, Cursor, Copilot, and 
 ### Option B — Claude Code plugin marketplace
 
 The marketplace ships **per-domain plugins** so a project enables only coherent sets — plus the
-full `ai-skills` bundle for whoever really wants all 36. What each plugin ships. The published
+full `ai-skills` bundle for whoever really wants all 37. What each plugin ships. The published
 description of each plugin is derived by `generate.sh` from `plugins/<group>/skills/` and checked
 against that tree by `scripts/validate-repo-hygiene.py` (H3); this table is **hand-maintained** and
 mirrors it — no gate compares it with the tree (H3's declared KNOWN LIMIT), so review it when a skill
@@ -58,7 +58,7 @@ changes category:
 |---|---|
 | `ai-skills-workflow` | `backlog`, `code-locale`, `conventional-commit`, `execute-backlog`, `lean-code`, `openspec`, `openspec-drivezone`, `verify-before-claiming` |
 | `ai-skills-backend` | `backend-resilience`, `log-event-collector`, `observability`, `python-rest-api` |
-| `ai-skills-testing` | `api-resilience-testing`, `bug-hunter` |
+| `ai-skills-testing` | `api-resilience-testing`, `bug-hunter`, `tdd` |
 | `ai-skills-fivem` | `fivem-fallback`, `fivem-lua` |
 | `ai-skills-nui` | `fivem-nui-react` |
 | `ai-skills-frontend` | `react-api-client`, `svg-animation` |
@@ -92,7 +92,7 @@ one accept, zero manual steps):
 ```
 
 Pick the groups that match the project (a FiveM repo takes `ai-skills-fivem`, an R3F game takes
-`ai-skills-game`, ...) — dumping all 36 skills into every project is noise, not help.
+`ai-skills-game`, ...) — dumping all 37 skills into every project is noise, not help.
 
 **B3 — user-level (whole machine)** — same snippet in `~/.claude/settings.json` enables the plugin
 for every project on the machine.
@@ -613,6 +613,7 @@ Project v2 in the org/user. Full details live in the skills themselves:
 | **backend-resilience** | external call, timeout, deadline, 5xx, dependency down, config fetch, retry, backoff, jitter, fallback, negative cache | Stack-agnostic resilience doctrine, ordered timeout → deadline → bounded retry → negative cache + single-flight → fallback → surface — idempotent-only retries with jittered backoff, response-shape validation, clamping, observable degradation (Python examples) |
 | **api-resilience-testing** | "test/harden/break/audit/review the API", "negative testing", "fuzz", "API robustness", "API security", invalid payloads, status codes, auth, OpenAPI | Tests REST APIs beyond the happy path (negative/fuzz/contract/security); produces an endpoint map, scenarios, suggested tests, a resilience checklist and a measured baseline-behavior table so the checklist asserts codes the stack really returns |
 | **bug-hunter** | "bug hunt", "adversarial test", break it, anti-forge, edge cases of a change | Per-change adversarial testing rite — universal checklist + opt-in stack tracks (Python/pytest, FiveM/Lua, .NET plugin) |
+| **tdd** | "TDD", "test-driven", "red-green", "write the test first", "teste primeiro", "escreve o teste antes", a request naming a boundary | Decides **when** the test is written: the failing test before the code, what makes that first test legitimate (one that would pass without the implementation tests nothing), the boundaries a stated request earns, and when the cycle does not apply. Opt-in — it does not invert the catalog's implement-then-test flow |
 | **log-event-collector** | log tailer, log-to-event parser, file offset, log rotation, partial lines, backpressure, event dedup/idempotency, shutdown flush | Doctrine for a log-tailing collector sidecar — byte-offset persistence that never advances past the last complete line, rotation guard, atomic state, occurrence-keyed dedup, multi-line correlation, backpressure, exactly-once shutdown flush, golden log fixture |
 
 ### FiveM

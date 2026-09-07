@@ -1,0 +1,122 @@
+---
+description: >-
+  Decides WHEN a test is written relative to the code it covers: for a change with behaviour worth naming, the first artifact is a test that fails for the right reason, and only then the code that makes it pass. Use when starting a change whose request names a behaviour or a boundary — an empty input, an exclusive edge, a rejected value, a bug report — when a repo or team runs the red-green cycle, or the user says "TDD", "test-driven", "red-green", "write the test first", "failing test first", "teste primeiro", "escreve o teste antes", "ciclo vermelho-verde". Carries the cycle, what makes the first test legitimate, the boundaries a request earns, and when the cycle does NOT apply. Opt-in: the catalog's flow implements first and tests after, and this skill does not invert it. Do NOT use to break code already written or hunt edge cases after the fact (that is bug-hunter), to design a REST negative/fuzz suite (that is api-resilience-testing), or to decide how much test a change owes (that floor is lean-code).
+alwaysApply: false
+---
+
+Reference files (`references/…` below) live at https://github.com/solvelab/ai-skills/tree/master/skills/tdd/references/
+
+
+# TDD — the test comes first, and it has to fail
+
+> **Not version-bound**: this skill does not depend on a tool version — it is doctrine (an order,
+> a legitimacy test, a set of boundaries, and the cases where it does not apply). The stack track
+> names `pytest` without pinning it; verify the invocation against the project's pinned version.
+> Declared on 2026-09-06.
+
+> **No measured gain is claimed here, and that is a decision.** This doctrine was measured on this
+> catalog's own harness — [`research/tdd/`](https://github.com/solvelab/ai-skills/blob/master/research/tdd), six tasks, two arms, n=3 — and the measurement
+> established that it changes behaviour completely: the arm carrying it wrote the test first, and
+> that test failed on the untouched seed, in every cell. It did **not** establish a gain in
+> correctness, because the control arm already solved every task; there was no headroom to measure.
+> Under the pre-registered protocol that reading is **NO-CLAIM**, and its NO-CLAIM row forbids a
+> figure in any skill or README. So this skill carries none. Read
+> [`results.md`](https://github.com/solvelab/ai-skills/blob/master/research/tdd/results.md) for what was and was not established, and
+> [`protocol.md`](https://github.com/solvelab/ai-skills/blob/master/research/tdd/protocol.md) for the thresholds that were fixed before the
+> numbers existed.
+
+A test written after the code confirms what you already built. A test written before it decides
+what to build. That is the whole of it — the rest is knowing which changes earn the cycle and what
+makes the first test worth anything.
+
+## The cycle
+
+1. **Red.** Write the test for the behaviour the request names, in its own file under the
+   project's test directory. Run it. It must fail, and it must fail because the behaviour is
+   missing — not because of an import error, a typo or a fixture that was never wired.
+2. **Green.** Write the smallest change that turns it green, and nothing beyond it.
+3. **Tidy.** Refactor with the test as the guard. No new behaviour enters here; behaviour that is
+   not in a test is behaviour nobody asked for.
+
+The test names the behaviour the request describes, never the shape of the implementation you
+already have in mind. A test that asserts *how* the code works rather than *what it does* has to be
+rewritten every time the code is, and it stops being a guard.
+
+## What makes the first test legitimate
+
+**A test that would pass before the implementation exists is a test of nothing.** This is the one
+failure mode worth guarding against, because it is invisible: the suite is green, the file is
+named `test_*`, and no behaviour is pinned.
+
+Two ways it happens, both common:
+
+- The assertion is vacuous — `assert result is not None` against a function that returns a
+  placeholder, or `assert True` left from a scaffold.
+- The test exercises a path the seed already satisfies, and the behaviour actually requested sits
+  in a branch the test never reaches.
+
+The check is mechanical: **run the test before writing the implementation.** If it passes, it is
+not testing the thing you were asked to build. Where you cannot run it, read it against the code
+as it stands and name which line would fail.
+
+## The boundaries a stated request earns
+
+When the request states a boundary, that boundary gets its own case. These are the ones that get
+lost when the implementation is written first, because the implementation reads as obviously
+correct and the boundary never comes to mind:
+
+- the empty input, and the input of exactly one
+- the inclusive versus the exclusive edge — a range that ends *at* a value versus *before* it
+- zero, and negative values where they are meaningful
+- the value that cannot be parsed, and what is raised for it
+- a reported bug: the symptom the report names **and** the behaviour that is actually correct,
+  which are often not the same thing. A patch that silences the reported crash while returning a
+  plausible wrong answer passes a test written from the report alone.
+
+One behaviour per test. A test that asserts four things tells you one of them broke.
+
+## When the cycle does not apply
+
+Saying this plainly is half the doctrine, because a cycle applied everywhere becomes a suite nobody
+reads:
+
+- **A trivial one-liner with no behaviour to name.** A rename, a constant, a formatting change, a
+  pass-through. YAGNI applies to tests too.
+- **Work already covered by the floor.** Non-trivial logic owes one runnable check regardless of
+  order — that floor, and what counts as trivial, belong to `lean-code`
+  (`skills/lean-code/SKILL.md`) and are not restated here. This skill decides *when* that check is
+  written, not *how much* test the change owes.
+- **Exploration.** A spike whose output is knowledge, not code that ships. Write the test when the
+  shape is decided, not while you are still finding it.
+- **Everything after the change.** Forged input, partial failure, two things at once, races — that
+  is the adversarial rite of `bug-hunter` (`skills/bug-hunter/SKILL.md`), which runs afterwards and
+  is a different job.
+
+TDD is not a licence for an inflated suite. The cycle produces the tests the requested behaviour
+earns and stops.
+
+## This is opt-in, and it does not move the default
+
+The catalog's backlog execution flow (`skills/execute-backlog/SKILL.md`, step 7 then step 8)
+implements first and tests after. That is still the default. This skill is what a repository, a
+team or a maintainer opts into when they run the cycle — it does not silently invert the flow, and
+nothing here should be read as a mandate on work that did not ask for it.
+
+## Stack track
+
+- **Python / pytest** — the mechanics: where the first test goes, running it red, and the
+  invocation that proves it failed for the right reason:
+  `references/track-python-pytest.md`
+
+## See also
+
+- `lean-code` — the floor of one runnable check behind non-trivial logic, and what counts as
+  trivial. This skill decides when that check is written; it never redefines how much is owed.
+- `bug-hunter` — the adversarial rite that runs **after** the change. The boundary is temporal:
+  this skill governs what is written before, that one what is done to it afterwards.
+- `api-resilience-testing` — a full REST negative, fuzz and contract suite, which is a design job
+  rather than a per-change cycle.
+- `python-rest-api` — the Python testing stack itself (fixtures, the integration marker, the golden
+  OpenAPI snapshot, the fuzz gate). The track here links that mechanism instead of repeating it.
+- `execute-backlog` — the execution flow whose default order this skill does not change.
+- [`research/tdd/`](https://github.com/solvelab/ai-skills/blob/master/research/tdd) — the measurement, its protocol and its NO-CLAIM verdict.

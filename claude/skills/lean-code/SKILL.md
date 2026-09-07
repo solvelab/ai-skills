@@ -14,7 +14,7 @@ description: >-
   which cleans a finished diff — this lens runs before it.
 metadata:
   author: solvelab
-  version: 1.0.0
+  version: 1.1.0
   category: process
 license: MIT
 compatibility: >-
