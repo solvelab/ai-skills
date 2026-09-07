@@ -116,6 +116,34 @@ CASES: list[tuple[str, str, object]] = [
         (r / "plugins" / "testing" / "agents").mkdir(parents=True),
         (r / "plugins" / "testing" / "agents" / "ghost.md").write_text(
             GOOD.format(name="ghost"), encoding="utf-8"))),
+
+    # ── The eight attacks the bug-hunter-analyst agent found against the first version (issue #205).
+    # Two of them were false GREEN, and those two are the reason this block exists: a gate that
+    # crashes is loud, a gate that passes a bad agent is not.
+    ("name declared with no value", "A1", lambda r: (r / "agents" / "example-agent.md").write_text(
+        replace("name: example-agent", "name:"), encoding="utf-8")),
+    ("tools declared as an explicit null", "A1",
+     lambda r: (r / "agents" / "example-agent.md").write_text(
+         replace('tools: ["Read", "Grep"]', "tools: ~"), encoding="utf-8")),
+    ("description declared as null", "A1", lambda r: (r / "agents" / "example-agent.md").write_text(
+        replace("description: >-\n  Use this agent when a well formed example is needed. Typical "
+                "triggers include the self-test of the\n  validator and nothing else at all.",
+                "description: null"), encoding="utf-8")),
+    ("a directory named like an agent file", "A7",
+     lambda r: (r / "agents" / "ghost.md").mkdir()),
+    ("bytes that are not UTF-8", "A1",
+     lambda r: (r / "agents" / "broken.md").write_bytes(b"---\nname: broken\n\xff\xfe---\n")),
+    ("a dangling symlink", "A1",
+     lambda r: (r / "agents" / "dangling.md").symlink_to(r / "nowhere" / "missing.md")),
+    ("a lone surrogate in name", "A2", lambda r: (r / "agents" / "example-agent.md").write_text(
+        replace("name: example-agent", 'name: "\\uD800"'), encoding="utf-8")),
+    ("a YAML anchor and alias in the frontmatter", "A1",
+     lambda r: (r / "agents" / "example-agent.md").write_text(
+         replace('tools: ["Read", "Grep"]', "tools: &t [\"Read\"]\nextra: *t"), encoding="utf-8")),
+    ("a generated copy that drifted from its source", "A7", lambda r: (
+        (r / "plugins" / "testing" / "agents").mkdir(parents=True),
+        (r / "plugins" / "testing" / "agents" / "example-agent.md").write_text(
+            replace("color: blue", "color: red"), encoding="utf-8"))),
 ]
 
 
@@ -137,7 +165,12 @@ def main() -> int:
             build(root)
             plant(root)
             code, out = run(root)
-            if code == 0:
+            if "Traceback (most recent call last)" in out:
+                # A gate that ends by exception reports nothing about the inputs after the bad one.
+                # Checked for every case, not only the ones we thought could crash (issue #205).
+                print(f"  CRASH  {check}  {label}  — the validator raised instead of reporting:\n{out}")
+                failures += 1
+            elif code == 0:
                 print(f"  MISSED {check}  {label}  — the validator accepted it")
                 failures += 1
             elif f"[{check}" not in out:
@@ -145,6 +178,35 @@ def main() -> int:
                 failures += 1
             else:
                 print(f"  OK     {check}  {label}")
+
+        # A tab after the hashes is a heading every Markdown renderer accepts, so the gate accepts it
+        # too (issue #205, attack 8). A gate that rejects what the tool accepts teaches the author to
+        # ignore the gate.
+        shutil.rmtree(root)
+        build(root)
+        (root / "agents" / "example-agent.md").write_text(
+            replace("## When to invoke", "##\tWhen to invoke"), encoding="utf-8")
+        code, out = run(root)
+        if code != 0:
+            print(f"  FAIL   A6  a tab after the heading hashes was rejected\n{out}")
+            failures += 1
+        else:
+            print("  OK     A6  a tab after the heading hashes is accepted")
+
+        # The canonical directory is gone and a generated copy is still published: the state A7 owns,
+        # and the one the early return used to hide by never running the check (issue #205, attack 2).
+        shutil.rmtree(root)
+        build(root)
+        (root / "plugins" / "testing" / "agents").mkdir(parents=True)
+        shutil.copy2(root / "agents" / "example-agent.md",
+                     root / "plugins" / "testing" / "agents" / "example-agent.md")
+        shutil.rmtree(root / "agents")
+        code, out = run(root)
+        if code == 0 or "[A7" not in out:
+            print(f"  MISSED A7  a missing canonical directory silenced the orphan check\n{out}")
+            failures += 1
+        else:
+            print("  OK     A7  a missing canonical directory does not silence the orphan check")
 
         # A conforming generated copy is NOT an orphan: the same file with a source present passes.
         shutil.rmtree(root)
@@ -159,7 +221,7 @@ def main() -> int:
         else:
             print("  OK     A7  a generated copy with a source is not an orphan")
 
-    total = len(CASES) + 2
+    total = len(CASES) + 4
     print(f"\n{total - failures}/{total} cases passed")
     return 1 if failures else 0
 
