@@ -98,6 +98,10 @@
 - [x] V.3 Composition unchanged. `README.md:670` already reads `enumerate / generate / score` for
       this skill and names the three tracks, which stays accurate now that all three answer both
       layers
-- [ ] V.4 `openspec archive extend-bug-hunter-tracks-to-lua-and-dotnet --yes` — left for after the
-      merge, as in #224, #208 and #195; the pull request reports the change as active and names this
-      as what closes it
+- [x] V.4 `openspec archive extend-bug-hunter-tracks-to-lua-and-dotnet --yes` — run after PR #231
+      merged (`dbbf9df`), under issue #233. Output: `Applying changes to
+      openspec/specs/skills-catalog/spec.md: ~ 1 modified`, `Totals: + 0, ~ 1, - 0, → 0`, archived as
+      `2026-09-07-extend-bug-hunter-tracks-to-lua-and-dotnet`. Measured either side: `skills-catalog`
+      stays at **39 requirements** and goes from **183 to 185 scenarios**, the two new ones being
+      *A track whose ecosystem has no tool for a layer* and *A tool named but not run*. No existing
+      scenario was lost.
