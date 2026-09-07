@@ -62,10 +62,28 @@ changes category:
 | `ai-skills-fivem` | `fivem-fallback`, `fivem-lua` |
 | `ai-skills-nui` | `fivem-nui-react` |
 | `ai-skills-frontend` | `react-api-client`, `svg-animation` |
-| `ai-skills-game` | `assettoserver-csp-lua`, `assettoserver-plugin`, `r3f-animation`, `r3f-assets`, `r3f-fundamentals`, `r3f-geometry`, `r3f-interaction`, `r3f-lighting`, `r3f-materials`, `r3f-physics`, `r3f-postprocessing`, `r3f-shaders` |
-| `ai-skills-devops` | `assettoserver-ops`, `helm-migration`, `k8s-tune-resources` |
+| `ai-skills-game` | `r3f-animation`, `r3f-assets`, `r3f-fundamentals`, `r3f-geometry`, `r3f-interaction`, `r3f-lighting`, `r3f-materials`, `r3f-physics`, `r3f-postprocessing`, `r3f-shaders` |
+| `ai-skills-assettoserver` | `assettoserver-csp-lua`, `assettoserver-ops`, `assettoserver-plugin` |
+| `ai-skills-devops` | `helm-migration`, `k8s-tune-resources` |
 | `ai-skills-docs` | `documentation` |
 | `ai-skills-tooling` | `claude-statusline` |
+
+> **Migration — the AssettoServer skills moved (v3.0.0).** They used to ride in two groups that
+> projects install for other reasons. A skill installed through a plugin **cannot be disabled
+> individually** (the assistant's per-skill visibility setting does not apply to plugin skills), so a
+> group that mixes domains forces every consumer to carry the half it did not ask for. Measured on one
+> 31-repository workspace: 30 repositories were loading `assettoserver-ops` and none of them ran
+> Assetto Corsa.
+>
+> | You had | You now also need | Why |
+> |---|---|---|
+> | `ai-skills-game` for `assettoserver-plugin` / `assettoserver-csp-lua` | `ai-skills-assettoserver` | `game` now ships only the ten `r3f-*` skills |
+> | `ai-skills-devops` for `assettoserver-ops` | `ai-skills-assettoserver` | `devops` now ships only Helm and Kubernetes |
+> | `ai-skills-game` for React Three Fiber | nothing — same plugin, same name | it just stopped shipping two skills you were not using |
+> | `ai-skills-devops` for Helm/Kubernetes | nothing — same plugin, same name | same |
+>
+> No plugin name changed, so no `enabledPlugins` entry stops matching. What changes is what two of
+> them ship.
 
 **B1 — manual**, inside Claude Code:
 
@@ -711,9 +729,11 @@ typecheck against `three@0.185` · `@react-three/fiber@9.7` · `@react-three/dre
 and illustrative fragments carry a `// excerpt` marker. Each skill states the stack it was verified
 against, and flags the R3F v10 `state.gl` → `state.renderer` rename that is coming.
 
-The `ai-skills-game` plugin bundles every skill in this table plus `assettoserver-plugin` and
-`assettoserver-csp-lua` from the AssettoServer table above (`assettoserver-ops` ships with
-`ai-skills-devops`); the exact list is in its published description.
+The `ai-skills-game` plugin ships exactly the skills in this table and nothing else. The three
+AssettoServer skills moved to their own `ai-skills-assettoserver` plugin, because a project that
+wants React Three Fiber does not want an Assetto Corsa server and cannot decline it: a skill
+installed through a plugin cannot be disabled individually. The exact list is in each plugin's
+published description, derived from the tree.
 
 | Skill | Covers |
 |-------|--------|

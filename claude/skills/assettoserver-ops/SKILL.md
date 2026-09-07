@@ -11,8 +11,8 @@ description: >-
   backend receiving events (python-rest-api), or for FiveM servers.
 metadata:
   author: solvelab
-  version: 1.3.2
-  category: devops
+  version: 1.4.0
+  category: assettoserver
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---
