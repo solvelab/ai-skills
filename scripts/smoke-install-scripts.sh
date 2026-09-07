@@ -104,7 +104,14 @@ head_of() { git -C "$1" rev-parse HEAD; }
 git init -q --bare "$ORIGIN"
 git -C "$ORIGIN" symbolic-ref HEAD refs/heads/master
 git -C "$ROOT" push -q "$ORIGIN" HEAD:refs/heads/master
-git clone -q "$ORIGIN" "$AUTHOR"
+# --no-hardlinks: a clone from a LOCAL path hardlinks the object store, and git's own commit-graph
+# maintenance writes temporaries into that same store. The two race, and the loser is the clone:
+# `fatal: hardlink different from source at .../objects/info/commit-graphs/tmp_graph_XXXXXX`, seen in
+# CI on pull request #240 and gone on a re-run with nothing changed (issue #242). A gate that fails on
+# its own teaches people to re-run without reading, which is how a real red gets dismissed.
+# Measured cost, five clones each way on this repository's own store (git 2.47.3, 8760 packed objects,
+# 4.7 MB): 79 ms with hardlinks, 94 ms without. Fifteen milliseconds a clone. Do not remove it as free.
+git clone -q --no-hardlinks "$ORIGIN" "$AUTHOR"
 SKILL_COUNT="$(find "$AUTHOR/skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')"
 echo "smoke: origin=$ORIGIN head=$(head_of "$AUTHOR" | cut -c1-7) skills=$SKILL_COUNT"
 

@@ -188,7 +188,12 @@ if [ -d "$INSTALL_DIR" ]; then
     pull_ff_only "$INSTALL_DIR" || exit 1
 else
     echo "📦 Cloning ai-skills into ~/ai-skills..."
-    git clone "$REPO_URL" "$INSTALL_DIR"
+    # --no-hardlinks is a no-op against a real remote and closes a race against a local path, which
+    # is exactly how scripts/smoke-install-scripts.sh drives this script (AI_SKILLS_REPO_URL points at
+    # a local bare repo). A local clone hardlinks the object store while git's commit-graph
+    # maintenance writes temporaries into it; the clone loses with
+    # `fatal: hardlink different from source at .../commit-graphs/tmp_graph_XXXXXX` (issue #242).
+    git clone --no-hardlinks "$REPO_URL" "$INSTALL_DIR"
 fi
 
 echo ""
