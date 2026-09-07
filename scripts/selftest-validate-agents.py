@@ -209,6 +209,15 @@ CASES: list[tuple[str, str, object]] = [
      lambda r: (r / "agents" / "example-agent.md").write_text(sized(200, 19), encoding="utf-8")),
     ("a body one character over the maximum", "A6",
      lambda r: (r / "agents" / "example-agent.md").write_text(sized(200, 10001), encoding="utf-8")),
+    # The degenerate document the frontmatter split is least tested on: delimiters present, nothing
+    # between them. It is a legitimate malformed input the suite lacked. It does NOT kill the four
+    # offset mutants that survive on `text.find("\n---\n", 4)` and `text[4:end]` — both the mutated
+    # and the original path answer with an A1 finding here, one calling it absent and the other
+    # calling it not a mapping — and that is written down rather than papered over (issue #225).
+    ("frontmatter delimiters with nothing between them", "A1",
+     lambda r: (r / "agents" / "example-agent.md").write_text(
+         "---\n---\n\nA body with no frontmatter fields at all, long enough to clear the minimum.\n"
+         "\n## When to invoke\n\n- Never. This file exists for the self-test.\n", encoding="utf-8")),
 ]
 
 
