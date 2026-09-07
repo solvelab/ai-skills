@@ -90,8 +90,15 @@ def sized(desc_len: int, body_len: int, name: str = "example-agent") -> str:
             "model: inherit\ncolor: blue\ntools: [\"Read\"]\n---\n" + stripped + "\n")
 
 
-# (label, expected check id, how to plant it)
-CASES: list[tuple[str, str, object]] = [
+# (label, expected check id, how to plant it[, fragment the finding must carry])
+#
+# The fourth element is optional and is asserted IN ADDITION to the check id, never instead of it —
+# a defect caught by the right message under the wrong check is still a defect. Use it wherever a
+# check owns more than one message: without it, two paths through the same check are
+# indistinguishable, which is what let four offset mutants survive the measurement in issue #225.
+# Same shape as `scripts/selftest-validate-skills.py`, which reads its own optional element with
+# `entry[2] if len(entry) > 2`; one idea, one format (issue #232).
+CASES: list[tuple] = [
     ("no frontmatter at all", "A1",
      lambda r: (r / "agents" / "example-agent.md").write_text("just a body\n", encoding="utf-8")),
     ("frontmatter that does not parse", "A1",
@@ -209,21 +216,33 @@ CASES: list[tuple[str, str, object]] = [
      lambda r: (r / "agents" / "example-agent.md").write_text(sized(200, 19), encoding="utf-8")),
     ("a body one character over the maximum", "A6",
      lambda r: (r / "agents" / "example-agent.md").write_text(sized(200, 10001), encoding="utf-8")),
-    # The degenerate document the frontmatter split is least tested on: delimiters present, nothing
-    # between them. It is a legitimate malformed input the suite lacked. It does NOT kill the four
-    # offset mutants that survive on `text.find("\n---\n", 4)` and `text[4:end]` — both the mutated
-    # and the original path answer with an A1 finding here, one calling it absent and the other
-    # calling it not a mapping — and that is written down rather than papered over (issue #225).
     # A name that sorts BEFORE the file stem. Every mismatch case in this suite happened to sort
     # after it, so `name != agent` and `name > agent` answered identically and the comparison had no
     # witness — found by reading the survivors of the mutation run, not by reading the code.
     ("a name that differs from the file stem and sorts before it", "A2",
      lambda r: (r / "agents" / "example-agent.md").write_text(
          replace("name: example-agent", "name: aaa"), encoding="utf-8")),
+    # ── The two documents that separate the frontmatter split offsets (issue #232) ───────────
+    # Both are legitimate malformed inputs, and both are asserted BY MESSAGE. Asserting `[A1` alone
+    # cannot tell these paths apart, which is exactly why four offset mutants survived the #225
+    # measurement with the suite green.
+    #
+    # Delimiters present with nothing between them: from offset 4 the closing delimiter is NOT found,
+    # so the finding is "no YAML frontmatter"; from the mutated offset 3 it IS found, the frontmatter
+    # is empty, and the finding becomes "not a mapping". Measured 2026-09-07.
     ("frontmatter delimiters with nothing between them", "A1",
      lambda r: (r / "agents" / "example-agent.md").write_text(
          "---\n---\n\nA body with no frontmatter fields at all, long enough to clear the minimum.\n"
-         "\n## When to invoke\n\n- Never. This file exists for the self-test.\n", encoding="utf-8")),
+         "\n## When to invoke\n\n- Never. This file exists for the self-test.\n", encoding="utf-8"),
+     "no YAML frontmatter"),
+    # Frontmatter opening with an empty line puts the closing delimiter at index 4 exactly, so it is
+    # found from offset 4 ("not a mapping") and missed from the mutated offset 5 ("no YAML
+    # frontmatter"). The document above cannot stand in for this one: from both 4 and 5 it misses.
+    ("frontmatter that opens with an empty line", "A1",
+     lambda r: (r / "agents" / "example-agent.md").write_text(
+         "---\n\n---\n\n## When to invoke\n\n- Never. This file exists for the self-test, and "
+         "carries enough body to clear the minimum.\n", encoding="utf-8"),
+     "not a mapping"),
 ]
 
 
@@ -240,7 +259,9 @@ def main() -> int:
         else:
             print("  CLEAN  a conforming agent produces zero findings")
 
-        for label, check, plant in CASES:
+        for case in CASES:
+            label, check, plant = case[0], case[1], case[2]
+            fragment = case[3] if len(case) > 3 else ""
             shutil.rmtree(root)
             build(root)
             plant(root)
@@ -255,6 +276,12 @@ def main() -> int:
                 failures += 1
             elif f"[{check}" not in out:
                 print(f"  WRONG  {check}  {label}  — detected, but by another check:\n{out}")
+                failures += 1
+            elif fragment and fragment not in out:
+                # The check fired, but by the other path through it. Print what WAS produced, so the
+                # failure is readable without re-running the case by hand.
+                print(f"  OTHER  {check}  {label}  — expected the finding to carry "
+                      f"{fragment!r}, got:\n{out}")
                 failures += 1
             else:
                 print(f"  OK     {check}  {label}")
