@@ -123,52 +123,124 @@
 
 ## 2. Implementação
 
-- [ ] 2.1 Resolver o transcript: `transcript_path` do payload quando presente; fallback derivando de
+- [x] 2.1 Resolver o transcript: `transcript_path` do payload quando presente; fallback derivando de
       `session_id`; nenhum dos dois disponível ⇒ segmento omitido (D3)
-- [ ] 2.2 Ler a cauda do transcript e acumular `message.usage` por `requestId` num cache keyed por
+- [x] 2.2 Ler a cauda do transcript e acumular `message.usage` por `requestId` num cache keyed por
       `session_id`, guardando fatos por chamada e não uma soma (D2)
-- [ ] 2.3 Somar as contagens por modelo, preservando o significado atual de `↑ In`, `♻️` e `↓ Out`
-- [ ] 2.4 Ratear `cost.total_cost_usd` entre entrada e saída pela proporção que as taxas dão, marcar
+- [x] 2.3 Somar as contagens por modelo, preservando o significado atual de `↑ In`, `♻️` e `↓ Out`
+- [x] 2.4 Ratear `cost.total_cost_usd` entre entrada e saída pela proporção que as taxas dão, marcar
       as duas parcelas como derivadas, e garantir que somem exatamente ao total (D4)
-- [ ] 2.5 Remover o bloco do acumulador e a escrita/poda de `~/.claude/statusline-usage/`
-- [ ] 2.6 Corrigir `price_rates()` para o uso que sobra: Sonnet 5 a $2/$10, cache write 1h a 2×,
+- [x] 2.5 Remover o bloco do acumulador e a escrita/poda de `~/.claude/statusline-usage/`
+- [x] 2.6 Corrigir `price_rates()` para o uso que sobra: Sonnet 5 a $2/$10, cache write 1h a 2×,
       cache read do Fable 5.1 a 0.025×; modelo desconhecido ⇒ rateio omitido, nunca chutado
-- [ ] 2.7 Tratar os três casos de degradação de D3 sem quebrar o render
+- [x] 2.7 Tratar os três casos de degradação de D3 sem quebrar o render
 
 ## 3. Documentação e espelhos
 
-- [ ] 3.1 `references/fields.md`: reescrever a nota da linha 26 e o que a linha 38 promete, com o
+- [x] 3.1 `references/fields.md`: reescrever a nota da linha 26 e o que a linha 38 promete, com o
       motivo medido
-- [ ] 3.2 `SKILL.md`: descrição, bloco `Verified against`, e a nota de que
+- [x] 3.2 `SKILL.md`: descrição, bloco `Verified against`, e a nota de que
       `~/.claude/statusline-usage/` pode ser apagado
-- [ ] 3.3 `./generate.sh` para regenerar `claude/`, `codex/`, `cursor/`, `copilot/`, `plugins/`
+- [x] 3.3 `./generate.sh` para regenerar `claude/`, `codex/`, `cursor/`, `copilot/`, `plugins/`
 
 ## 4. Simulation & Field Proof (MANDATORY)
 
-- [ ] S.1 O artefato foi EXERCITADO pelo caminho do usuário — o script alimentado por stdin com o
+- [x] S.1 O artefato foi EXERCITADO pelo caminho do usuário — o script alimentado por stdin com o
       payload real, e o resultado comparado com `💰` — com o entry point e um fragmento da saída
       OBSERVADA registrados aqui
-- [ ] S.2 Matriz de casos como contagens, não adjetivos: n/n transcripts dentro de ±1%, n/n casos de
-      degradação que renderizaram, n/n modelos cobertos
-- [ ] S.3 O que escapou à simulação, nomeado — ou a afirmação explícita de que nada escapou
+
+      Entry point: `bash skills/claude-statusline/references/statusline.sh < payload.json`, que é
+      exatamente o que o Claude Code faz (`settings.json` -> `statusLine.command`, stdin). `HOME`
+      apontado para um diretório temporário para não tocar o estado real.
+
+      Saída observada na sessão `0dd79f69` (`💰 $354.90` no payload):
+
+      ```
+      🤖 Opus 5 (1M context) | 🔥 high | 🧠 thinking enabled | ⏱️  1h 0m | 💰 $354.90
+      🔗 ai-skills | 🌱 backlog/213-… | ✚ 1 | ↑ In 453.8M ~$330.91 · ♻️ 98% · ↓ Out 785k ~$23.99
+      📊 ctx ▓▓▓░░░░░ 42% | 🚦 5h ░░░░░░░░ 10% | 7d ▓░░░░░░░ 20%
+      ```
+
+      `330.91 + 23.99 = 354.90`, idêntico ao `💰`. As contagens batem com o transcript deduplicado
+      por `requestId`: `1800 + 4.627.645 + 449.162.172 = 453.791.617` de entrada e `785.229` de
+      saída.
+
+- [x] S.2 Matriz de casos como contagens, não adjetivos
+
+      - **4/4** transcripts com `~In + ~Out` **exatamente** igual a `💰` (não ±1%): `67d687d7`
+        `$65.65`, `3dd26d41` `$397.68`, `0dd79f69` `$354.90`, `c972f399` `$643.60`.
+      - **2/4** multi-modelo (`c972f399` com quatro modelos, `3dd26d41` com dois); **2/4** de
+        modelo único.
+      - **4/4** idempotentes: a linha renderizada pelo cursor é byte a byte a mesma da releitura
+        fria.
+      - **4/4** renders quentes abaixo do teto de 50 ms: 38, 41, 41, 47 ms — e **planos** em relação
+        ao tamanho (41 ms num transcript de 40 MB, 41 ms num de 4.5 MB), que é a prova de que o
+        cursor funciona. Frio escala com o arquivo: 97 ms (4.5 MB), 123 ms (6.5 MB), 193 ms (14 MB),
+        589 ms (40 MB) — pago uma vez por sessão, e só quando a sessão já tem transcript grande.
+      - **4/4** degradações renderizaram sem quebrar: sem `transcript_path` (segmento omitido),
+        caminho ilegível (omitido), transcript sem `message.usage` (omitido), modelo desconhecido
+        (contagens exibidas, `~$` escondido).
+      - **2/2** propriedades incrementais: cursor == releitura completa
+        (`↑ In 454.8M ~$331.32 · ♻️ 98% · ↓ Out 785k ~$23.58` nos dois caminhos); linha truncada não
+        consumida (cursor parou em `6.583.780` de `6.583.888` bytes e a chamada foi contada uma vez
+        só depois de completada).
+      - **5/6** ramos de `price_rates()` exercitados por um modelo real (`Opus`, `Fable`); os de
+        `Sonnet 5`, `Sonnet` e `Haiku` não têm transcript local para exercitar.
+
+- [x] S.3 O que escapou à simulação, nomeado
+
+      Cinco coisas, nenhuma coberta:
+
+      1. **Nenhum payload veio do Claude Code.** Todos foram montados à mão a partir de transcripts
+         reais. A presença de `transcript_path` no payload ao vivo continua não observada — é a
+         questão aberta 1 do `design.md`, e é o fallback por `session_id` que a cobre.
+      2. **Nenhum transcript com linhas de subagente.** Os quatro têm `isSidechain: false` em todas
+         as linhas de usage, então o comportamento com sidechains não foi exercitado.
+      3. **`/compact` não foi observado.** A troca de inode é tratada em código e testada por
+         construção sintética, não por um `/compact` real.
+      4. **A corrida entre dois renders simultâneos não foi provada, só estreitada.** O guarda
+         recusa mover o cursor para trás relendo o offset gravado, mas a janela entre essa releitura
+         e a escrita continua aberta. Um intervalo relido duas vezes contaria duas vezes.
+      5. **Três ramos da tabela de taxas nunca rodaram** (Sonnet 5, Sonnet 4.6, Haiku) — o efeito
+         seria no rateio, nunca no total, que vem do host.
 
 ## 5. Quality Gates (MANDATORY)
 
-- [ ] Q.1 Frontmatter da `claude-statusline` intacto: `name` == diretório, description dobrada,
+- [x] Q.1 Frontmatter da `claude-statusline` intacto: `name` == diretório, description dobrada,
       `metadata.author: solvelab`, versão semver bumpada, category no conjunto controlado,
       `license: MIT`, `compatibility`
-- [ ] Q.2 Conteúdo em inglês na skill; nenhum identificador novo em português no script
-- [ ] Q.3 Triggers da description continuam testáveis e sem colisão com outras skills
-- [ ] Q.4 Zero doutrina duplicada: nenhum preço de modelo no script; a skill aponta para
+- [x] Q.2 Conteúdo em inglês na skill; nenhum identificador novo em português no script
+- [x] Q.3 Triggers da description continuam testáveis e sem colisão com outras skills
+- [x] Q.4 Zero doutrina duplicada: nenhum preço de modelo no script; a skill aponta para
       `claude-api` conforme a tabela Canonical Home do `design.md`
-- [ ] Q.5 `python3 scripts/validate-skills.py`, `python3 scripts/validate-repo-hygiene.py` e
-      `python3 scripts/validate-skill-version.py` verdes
+- [x] Q.5 Gates do repositório verdes
+
+      `python3 scripts/validate-skills.py` -> `skills checked: 38   findings: 0`
+      `python3 scripts/selftest-validate-skills.py` -> `27/27 defect classes detected`
+      `python3 scripts/validate-repo-hygiene.py` -> `repo hygiene: 0 findings`
+      `python3 scripts/validate-skill-version.py` -> `skill-version gate: 0 findings (1 skill(s)
+      changed, 1 with content changes)` — `claude-statusline` 1.3.0 -> 2.0.0
+      `python3 scripts/validate-agents.py` -> `agents checked: 3   findings: 0`
+      `python3 scripts/scan-secrets.py` -> `scanned 1005 files … no credentials found`
+      `python3 skills/code-locale/references/check-identifier-locale.py --selftest` -> `selftest OK`
+      `python3 skills/code-locale/references/check-prose-locale.py --selftest` -> `selftest OK: 46 cases`
+      `bash scripts/smoke-install-scripts.sh` -> `19/19 cases passed`
+      `npx -y @anthropic-ai/claude-code@2.1.246 plugin validate . --strict` -> `✔ Validation passed`
+
+      **Não rodado**: `agentskills validate` — o binário não está instalado nesta máquina
+      (`command not found`); CI o instala e é lá que esse gate roda.
 
 ## 6. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `openspec validate refactor-statusline-token-accounting --strict` verde
-- [ ] V.2 `bash scripts/validate-rite.sh` -> `rite gate OK`
-- [ ] V.3 Descoberta do catálogo intacta: `npx skills add . --list` encontra as skills na contagem
-      esperada
-- [ ] V.4 README/docs atualizados se a composição do catálogo ou o uso mudarem
+- [x] V.1 `openspec validate refactor-statusline-token-accounting --strict` ->
+      `Change 'refactor-statusline-token-accounting' is valid`
+- [x] V.2 `bash scripts/validate-rite.sh` -> `Totals: 4 passed, 0 failed (4 items)` / `rite gate OK`
+- [x] V.3 Descoberta do catálogo intacta: `npx -y skills add . --list` lista as mesmas **38** skills
+      versionadas que `master` lista, `claude-statusline` entre elas. As 6 entradas a mais no diff
+      (`openspec-apply-change`, `openspec-archive-change`, `openspec-explore`, `openspec-propose`,
+      `openspec-sync-specs`, `openspec-update-change`) vêm de `.claude/`, que é gitignored — não
+      aparecem num worktree limpo de `master` nem neste branch quando lido do git.
+- [x] V.4 README/docs: a composição do catálogo não mudou (38 skills antes e depois, nenhuma
+      adicionada ou removida), então o README não tem o que atualizar. O que mudou é interno à
+      `claude-statusline` e está no seu `SKILL.md` e em `references/fields.md`.
 - [ ] V.5 `openspec archive refactor-statusline-token-accounting --yes` depois do merge

@@ -263,7 +263,16 @@ if [ -n "$TRANSCRIPT" ] && [ -r "$TRANSCRIPT" ]; then
     OFF="$NOW_SIZE"
   fi
 
+  # Two renders can overlap (refreshInterval plus a manual repaint). Both read the same cursor and
+  # write the same record, which is harmless — but a slow one finishing last would move the cursor
+  # BACKWARDS, and the range between the two offsets would then be counted twice. Re-read the stored
+  # offset and refuse to regress: double counting is the defect this whole block exists to remove.
   if [ -n "${SESSION_ID:-}" ]; then
+    STORED_OFF=0
+    [ -r "$usage_state" ] && IFS="$US" read -r STORED_OFF _ < "$usage_state" 2>/dev/null || true
+    case "${STORED_OFF:-}" in ''|*[!0-9]*) STORED_OFF=0 ;; esac
+  fi
+  if [ -n "${SESSION_ID:-}" ] && [ "$OFF" -ge "$STORED_OFF" ]; then
     if [ ! -e "$usage_state" ]; then
       mkdir -p "${usage_state%/*}" 2>/dev/null
       find "${usage_state%/*}" -maxdepth 1 -type f -mtime +30 -delete 2>/dev/null || true
