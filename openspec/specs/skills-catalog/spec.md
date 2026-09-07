@@ -20,6 +20,11 @@ A reference file is part of its skill, never a catalog entry of its own, and nev
 The composition is not a frozen count. It changes by proposal, and the README index is the
 human-readable view of it.
 
+The repository publishes a second class of artifact — an agent, under `agents/` — and an agent is
+never a catalog skill. Discovery over the catalog SHALL keep finding exactly the set of
+`skills/<name>/SKILL.md` files, and a published total of the form `all N` SHALL keep counting
+skills, so that adding or removing an agent never moves a number that describes skills.
+
 #### Scenario: npx discovery lists the full catalog
 
 - **WHEN** `npx skills add <repo> --list` runs against the repository root
@@ -38,6 +43,13 @@ human-readable view of it.
 - **WHEN** a new skill is added
 - **THEN** it is written to `skills/<name>/SKILL.md`, its wrappers are produced by `./generate.sh`,
   and it gains a README row — never hand-written into a generated tree
+
+#### Scenario: An agent is not counted as a catalog skill
+
+- **WHEN** the repository publishes agents alongside skills
+- **THEN** catalog discovery still finds exactly the `skills/<name>/SKILL.md` set and the published
+  `all N` total is unchanged by the presence of agents
+- **AND** the agents are published under their own capability, with their own member list
 
 ### Requirement: Generic doctrine is reusable outside FiveM
 

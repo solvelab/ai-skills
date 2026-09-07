@@ -339,4 +339,4 @@
       agentes, `agents/` na árvore de estrutura e na tabela de pastas, e o parágrafo que declara
       agente como Claude-Code-only logo abaixo da tabela multi-ferramenta.
 
-- [ ] V.4 `openspec archive add-agents-layer --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive add-agents-layer --yes` after all groups above are `[x]`
