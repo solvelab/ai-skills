@@ -42,12 +42,11 @@ each side of the limit and one at the value itself. A suite that proves only tha
 leaves the limit's position unmeasured, so moving the constant breaks nothing and the check is
 covered on paper and untested in fact.
 
+
 The self-test SHALL be able to assert **which finding** a case produced, not only which check owns
 it, and SHALL do so wherever a check can produce more than one message. A check with several
 messages that is proved only by its id cannot distinguish two paths through it, and a defect that
 moves a case from one message to the other passes unnoticed.
-
-
 #### Scenario: An agent without a declared tool set fails the gate
 
 - **WHEN** an agent omits `tools`, or names a write tool while its contract says it returns what to
@@ -66,6 +65,36 @@ moves a case from one message to the other passes unnoticed.
 - **THEN** a self-test proves each of its rules fails a violating agent and passes a conforming one,
   so the gate is not trusted on its own word
 
+#### Scenario: A required field present but null fails the gate
+
+- **WHEN** an agent declares a required field with no value, or an explicit null
+- **THEN** the validator reports it as missing, and every check that field feeds still runs
+
+#### Scenario: Malformed input is reported, not fatal
+
+- **WHEN** the canonical directory contains a directory named like an agent file, a file that cannot
+  be decoded, or a dangling symlink
+- **THEN** each is reported as a finding naming the path, the remaining agents are still checked, and
+  the run still exits non-zero
+
+#### Scenario: A value of the wrong shape does not end the run
+
+- **WHEN** a scalar field is declared as a sequence or a mapping, or a value nests deeply enough to
+  exhaust the parser
+- **THEN** it is reported as a finding naming the path and the field, and an agent placed after it is
+  still checked
+
+#### Scenario: A heading that is not rendered as one does not satisfy the body rule
+
+- **WHEN** the invocation section's hashes stand alone on their line, or the only such heading lies
+  inside a fenced code block
+- **THEN** the validator reports the section as missing
+
+#### Scenario: A limit is proved at its own value
+
+- **WHEN** the gate enforces a minimum or a maximum
+- **THEN** the self-test carries an accepted case at the limit, a rejected case one past it, and an
+  accepted case one inside it, so a changed constant fails a test
 
 #### Scenario: Two paths through one check are told apart
 
