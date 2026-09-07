@@ -1994,6 +1994,15 @@ measured against code in this repository before publication, with the conditions
 stated, and a measurement that came out unfavourable SHALL be published as measured rather than
 replaced by a citation.
 
+Every stack track SHALL answer both conditional layers rather than omitting them. Where the track's
+ecosystem offers a usable tool, the track SHALL carry the probed command; where it offers none, the
+track SHALL carry the probe that establishes the absence — the command and its output — and what the
+rite does in its place. Silence in a track reads as "the layer does not exist here", which is a
+claim, and an unprobed one.
+
+A tool a track names without having run it SHALL be marked as unprobed at the point it is named. A
+pointer stated as a prescription is the failure this requirement exists to prevent.
+
 #### Scenario: A generation technique is prescribed
 
 - **WHEN** the rite prescribes generating inputs instead of listing them
@@ -2015,4 +2024,17 @@ replaced by a citation.
   catalog's conventions
 - **THEN** the stack track names that command as the wrong one, with the failure it produces, beside
   the command that works
+
+#### Scenario: A track whose ecosystem has no tool for a layer
+
+- **WHEN** a stack track's ecosystem offers no usable tool for generating or for scoring
+- **THEN** the track records the probe that establishes it — the command run and what it answered —
+  and states what the rite does instead there
+- **AND** the track does not leave the layer unmentioned, because silence claims the layer does not
+  apply
+
+#### Scenario: A tool named but not run
+
+- **WHEN** a track points a reader at a tool this catalog has not executed
+- **THEN** the tool is marked as unprobed where it is named, rather than presented as prescribed
 

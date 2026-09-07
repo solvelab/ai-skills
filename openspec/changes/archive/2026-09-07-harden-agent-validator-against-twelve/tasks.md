@@ -130,6 +130,12 @@
       `.claude/skills/`; this change adds, removes and renames none
 - [x] V.3 No composition or usage change. `README.md:592` describes what the agent gate checks and
       names no count, so it stays accurate as written
-- [ ] V.4 `openspec archive harden-agent-validator-against-twelve --yes` — left for after the merge,
-      the way #224, #208, #203, #195 and the rest of this repository's rites have closed; the pull
-      request reports the change as active and names this as what closes it
+- [x] V.4 `openspec archive harden-agent-validator-against-twelve --yes` — run after PR #229 merged
+      (`7ad4aad`), under issue #233. Output: `Applying changes to openspec/specs/agents-catalog/spec.md:
+      ~ 2 modified`, `Totals: + 0, ~ 2, - 0, → 0`, archived as
+      `2026-09-07-harden-agent-validator-against-twelve`. Measured either side: `agents-catalog` stays
+      at **5 requirements** — the five titles are byte-identical before and after, which is the real
+      risk of a MODIFIED — and goes from **16 to 20 scenarios**, the four new ones being *A file the
+      discovery pattern would miss is still judged*, *A value of the wrong shape does not end the
+      run*, *A heading that is not rendered as one does not satisfy the body rule* and *A limit is
+      proved at its own value*. No existing scenario was lost (set difference, both directions).
