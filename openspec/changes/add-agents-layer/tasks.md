@@ -82,6 +82,10 @@
       - Converter as duas chamadas de `Explore` em `backlog` e `execute-backlog` para agentes
         próprios: declarado fora de escopo na issue #198.
       - Um quarto agente. A lista é fechada aqui; outro passa pelos três testes num item próprio.
+      - Os três achados que o `skill-auditor` produziu sobre `skills/react-api-client/` na prova de
+        campo (cadências de polling sem regra, claim de concorrência não medido, e o bloco
+        `Verified against` sem versão de React numa skill sobre React). São de outra skill e
+        viram item próprio; corrigi-los aqui seria escopo que a proposta não pediu.
       - `UNSCOPED_COUNT_CLAIM` cobre `topics|skills`; passa a cobrir `agents` nesta change, e não
         foram acrescentados outros substantivos.
       - A entrada FULL do marketplace e o manifesto raiz continuam dizendo `all N` só de skills, e
@@ -210,6 +214,25 @@
       Os seis campos do contrato saíram na ordem, a evidência é citável e confere com o arquivo
       (`grep -n "A7 layout"` -> 141 e 149), e o NOTES é um caveat real que o chamador usaria.
 
+      **Segundo despacho, com o contrato conferido:** `ai-skills:skill-auditor` contra
+      `skills/react-api-client/` devolveu as quatro seções na ordem (SKILL, READ, FINDINGS, CLEAN,
+      NOT JUDGED) e **três achados reais**, nenhum deles pisando no território dos checks mecânicos:
+
+          1. unbacked-claim  skills/react-api-client/SKILL.md:84 — as cadências de polling
+             (wallet 10s, presence 15s, ranking 30s) são números para copiar, sem a regra que os
+             produz nem marca de observação não verificada.
+          2. unbacked-claim  SKILL.md:40 / references/api-client.md:69-78 — a afirmação de
+             single-flight no refresh é uma propriedade de concorrência, e o bloco `Verified against`
+             registra só um typecheck.
+          3. drifted-pin     SKILL.md:20-26 — o bloco pina typescript, axios e zustand e **não nomeia
+             versão de React**, numa skill cujo assunto declarado é React e que afirma o
+             double-mount do StrictMode.
+
+      A seção NOT JUDGED nomeou o que ele não pôde fechar (não há lockfile no repositório para
+      conferir os pins, e checar o registro npm seria egress fora do escopo da auditoria) — que é
+      exatamente a metade do contrato que diz ao chamador quanto da skill foi de fato examinado.
+      Os três achados são de outra skill e ficam como follow-up, não são corrigidos por esta change.
+
       **Controle:** o mesmo mecanismo com um agente built-in (`Explore`) devolveu
       `/home/diegops/ai-skills/scripts/validate-agents.py` em segundos, o que separa "o despacho
       aninhado funciona headless" de qualquer lentidão de tarefa (ver S.3).
@@ -221,8 +244,9 @@
       (bundle FULL e plugin por domínio). Agentes resolvidos por nome: **3/3** no bundle FULL,
       **2/2** nos dois plugins por domínio carregados.
 
-      **Despacho:** agentes despachados e que devolveram o contrato: **1/1** medido
-      (`grounding-researcher`), mais **1/1** de controle com agente built-in.
+      **Despacho:** agentes despachados e que devolveram o contrato: **2/3**
+      (`grounding-researcher` e `skill-auditor`), mais **1/1** de controle com agente built-in.
+      `bug-hunter-analyst` não foi medido dentro do orçamento desta sessão — ver S.3(b).
 
       **Gate `validate-agents.py`:** classes de defeito que tinham de reprovar e reprovaram
       **20/20**; casos que tinham de passar e passaram **2/2** (o agente conforme, e a cópia gerada
@@ -252,11 +276,14 @@
       é defeito do artefato — é o motivo de a prova de campo ter sido feita em sessões novas, e vale
       registrar porque quem editar um agente e tentar usá-lo no mesmo turno vai bater nisso.
 
-      (b) **Um despacho de `skill-auditor` não voltou dentro do orçamento.** Auditar
+      (b) **Um dos três agentes não foi despachado, e o custo do `skill-auditor` é alto.** Auditar
       `skills/lean-code/` (236 linhas mais references) contra `skills-authoring/spec.md` (47 KB) num
-      modelo `sonnet` passou de 420 s sem produzir saída. O controle com agente built-in voltou em
-      segundos no mesmo mecanismo, então o que isso mede é o tamanho da tarefa, não a fiação. Fica
-      registrado como observação de custo do `skill-auditor`, e não convertido em "tudo verde".
+      modelo `sonnet` passou de 420 s sem produzir saída; a mesma auditoria sobre uma skill menor
+      (`react-api-client`, 99 linhas) em `haiku` voltou completa e útil. O controle com agente
+      built-in voltou em segundos no mesmo mecanismo, então o que isso mede é o tamanho da tarefa e
+      não a fiação — mas é um custo real do `skill-auditor` e fica registrado, não arredondado.
+      `bug-hunter-analyst` ficou **sem medição de despacho** nesta sessão: passa o gate e é
+      descoberto pelos dois caminhos de plugin, e é só isso que está afirmado sobre ele.
 
       (c) **O `color` é exigido pelo validador porque o documento do harness o chama de
       obrigatório**, não porque um agente sem ele tenha sido observado falhando no runtime. Está em
