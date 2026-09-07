@@ -251,4 +251,4 @@
       Nada a atualizar: a composição do catálogo não muda e o `README` já descreve o gate sem
       enumerar os checks. O que mudou é o rigor do validador, documentado no cabeçalho dele.
 
-- [ ] V.4 `openspec archive harden-agent-validator --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive harden-agent-validator --yes` after all groups above are `[x]`

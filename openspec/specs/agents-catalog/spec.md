@@ -14,6 +14,13 @@ rejects an orphan wrapper skill.
 The canonical directory SHALL be flat. A subdirectory changes the name under which the agent is
 invoked, so grouping by domain would be paid for in the name the user types.
 
+The check SHALL compare the generated copy with its canonical source by **content**, not by name
+alone: a copy that has drifted from the source — hand-edited, or left behind by a stale generator run
+— is published content with no canonical source, which is the state this requirement exists to
+refuse. The check SHALL also run when the canonical directory is absent, because a missing
+`agents/` with generated copies still present is itself that state, and a validator that returns
+early there cannot see the very regression it owns.
+
 #### Scenario: An agent in a generated tree without a source is rejected
 
 - **WHEN** a file exists under `plugins/<group>/agents/` with no matching `agents/<name>.md`
@@ -31,6 +38,18 @@ invoked, so grouping by domain would be paid for in the name the user types.
 - **WHEN** a new agent is added
 - **THEN** it is written to `agents/<name>.md`, its plugin copies are produced by the generator, and
   it gains a README row — never hand-written into a generated tree
+
+#### Scenario: A generated copy that drifted from its source is reported
+
+- **WHEN** a file under `plugins/<group>/agents/` differs in content from `agents/<name>.md`
+- **THEN** the validator reports it, naming both paths
+
+#### Scenario: A missing canonical directory does not silence the orphan check
+
+- **WHEN** the canonical directory does not exist and generated copies do
+- **THEN** the orphan check still runs and reports every copy as having no source
+- **AND** a repository that legitimately publishes no agents still reports zero findings, because the
+  check ran and found nothing — not because it was skipped
 
 ### Requirement: The agent layer declares that it is not portable
 
@@ -59,6 +78,16 @@ the file name, a description naming the conditions that route work to it, the mo
 and SHALL declare `tools` explicitly. Omitting `tools` grants every tool, so the declaration is the
 difference between a stated privilege and an unstated one.
 
+A required field declared with no value SHALL be treated as absent. A key present and null satisfies
+a membership test while stating nothing, and `tools` declared null is equivalent at run time to
+omitting it — the case the privilege rule above exists to refuse.
+
+The gate SHALL NOT end by unhandled exception on malformed input. A directory carrying the file
+suffix, a file that cannot be decoded, a dangling symlink, an unencodable character in a field, and
+an anchor or alias in the frontmatter SHALL each become a reported finding that names the path, and
+the remaining agents SHALL still be checked. A gate that crashes on the first bad input reports
+nothing about the inputs after it.
+
 The body SHALL carry a section naming the situations that invoke the agent, and SHALL state the
 output contract: the shape the caller receives and what the agent must not return. An agent whose
 work would produce a file SHALL return what to write rather than write it, unless writing inside the
@@ -85,6 +114,18 @@ rather than by those tests, is a defect.
 - **WHEN** the agent validator ships
 - **THEN** a self-test proves each of its rules fails a violating agent and passes a conforming one,
   so the gate is not trusted on its own word
+
+#### Scenario: A required field present but null fails the gate
+
+- **WHEN** an agent declares a required field with no value, or an explicit null
+- **THEN** the validator reports it as missing, and every check that field feeds still runs
+
+#### Scenario: Malformed input is reported, not fatal
+
+- **WHEN** the canonical directory contains a directory named like an agent file, a file that cannot
+  be decoded, or a dangling symlink
+- **THEN** each is reported as a finding naming the path, the remaining agents are still checked, and
+  the run still exits non-zero
 
 ### Requirement: A published agent count names its members
 
