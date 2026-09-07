@@ -157,8 +157,8 @@
 
 ## 6. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `openspec validate update-statusline-display-edges --strict` verde
-- [ ] V.2 `bash scripts/validate-rite.sh` -> `rite gate OK`
-- [ ] V.3 Descoberta do catálogo intacta
-- [ ] V.4 README/docs atualizados se a composição do catálogo ou o uso mudarem
-- [ ] V.5 `openspec archive update-statusline-display-edges --yes`
+- [x] V.1 `openspec validate update-statusline-display-edges --strict` -> `Change 'update-statusline-display-edges' is valid`
+- [x] V.2 `bash scripts/validate-rite.sh` -> `rite evidence gate: 0 findings` / `rite gate OK`
+- [x] V.3 Descoberta do catálogo intacta: `npx -y skills add . --list` lista as mesmas 38 skills versionadas; `agentskills validate` sobre `skills/*/` -> exit 0
+- [x] V.4 A composição do catálogo não mudou (38 skills antes e depois). O que mudou é interno à `claude-statusline` e está no seu `SKILL.md` e em `references/fields.md`.
+- [x] V.5 `openspec archive update-statusline-display-edges --yes` — arquivada na mesma diff do PR, forma que `validate-spec-rite.py` aceita (S1)
