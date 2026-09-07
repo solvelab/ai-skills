@@ -18,7 +18,9 @@ claim verification, the research ladder, not-found reporting and the off-script 
 `verify-before-claiming`; the identifier/prose language boundary, the untranslatable-domain-term
 exception and the identifier migration policy → `code-locale`; code volume — the reuse-before-writing
 ladder, the root-cause rule for bug fixes, the never-simplified-away carve-outs, the `lean:` marker
-with its ledger, and the over-engineering review lens → `lean-code`.
+with its ledger, and the over-engineering review lens → `lean-code`; test order — writing the failing
+test before the code it covers, what makes such a test legitimate, and when the cycle does not apply
+→ `tdd`.
 
 #### Scenario: Orchestrator skill references instead of restating
 
@@ -53,6 +55,13 @@ with its ledger, and the over-engineering review lens → `lean-code`.
   a stdlib-only rule for a bare container, a no-new-supply-chain rule for a sidecar
 - **THEN** the instance keeps its text and gains one line linking to `lean-code` for the general
   rung of the ladder, rather than reproducing the ladder inline
+
+#### Scenario: Two skills that touch the same subject at different times
+
+- **WHEN** one skill governs what is written before a change and another governs what is done to it
+  afterwards
+- **THEN** each names the other and the boundary between them, so neither restates the other's rule
+- **AND** the canonical map carries one entry per rule, not one per subject
 
 ### Requirement: Uniform frontmatter metadata
 
