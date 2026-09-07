@@ -1,7 +1,7 @@
 {
   "name": "ai-skills",
   "displayName": "AI Skills",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Reusable AI skills for coding assistants — all 38 skills across 11 per-domain plugins: assettoserver: AssettoServer dedicated-server operation, C# plugins and CSP Lua online scripts; backend: Backend service conventions, dependency resilience, observability and log-event collection; devops: Kubernetes/Helm migration and cluster resource tuning; docs: Three-tier project documentation generation; fivem: FiveM/CitizenFX Lua conventions and Lua-side resilience patterns; frontend: React SPA API-client conventions and physically-grounded SVG/CSS animation; game: React Three Fiber conventions for 3D on the web; nui: FiveM/RedM NUI React conventions — Lua↔React bridge, CEF rendering quirks, tokens design system; testing: Adversarial testing rite and REST negative/fuzz/contract testing; tooling: AI-assistant developer tooling — Claude Code status line setup and customization; workflow: Commit format, OpenSpec spec-driven workflow, the backlog rite, the anti-guessing rite, the code-locale rule, the lean-code doctrine and the artifact-boundary rule for delegation.",
   "author": {
     "name": "didevlab",
