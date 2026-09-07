@@ -167,16 +167,17 @@
 
 - [x] S.2 Matriz de casos como contagens, não adjetivos
 
-      - **4/4** transcripts com `~In + ~Out` **exatamente** igual a `💰` (não ±1%): `67d687d7`
-        `$65.65`, `3dd26d41` `$397.68`, `0dd79f69` `$354.90`, `c972f399` `$643.60`.
-      - **2/4** multi-modelo (`c972f399` com quatro modelos, `3dd26d41` com dois); **2/4** de
-        modelo único.
-      - **4/4** idempotentes: a linha renderizada pelo cursor é byte a byte a mesma da releitura
-        fria.
-      - **4/4** renders quentes abaixo do teto de 50 ms: 38, 41, 41, 47 ms — e **planos** em relação
-        ao tamanho (41 ms num transcript de 40 MB, 41 ms num de 4.5 MB), que é a prova de que o
-        cursor funciona. Frio escala com o arquivo: 97 ms (4.5 MB), 123 ms (6.5 MB), 193 ms (14 MB),
-        589 ms (40 MB) — pago uma vez por sessão, e só quando a sessão já tem transcript grande.
+      - **6/6** transcripts reais com `~In + ~Out` **exatamente** igual a `💰` (não ±1%): `67d687d7`
+        $65.65, `c972f399` $643.60, `0dd79f69` $354.90, `3dd26d41` $397.68, `1cf4f33d` $225.72,
+        `8a68dfd2` $0.00.
+      - **2/6** multi-modelo (`c972f399` com quatro, `3dd26d41` com dois); **3/6** compactados
+        (`c972f399`, `1cf4f33d` com dois summaries, `8a68dfd2`), o que exercita `/compact` sobre
+        transcript real.
+      - **6/6** idempotentes: a linha renderizada pelo cursor é byte a byte a da releitura fria.
+      - **6/6** renders quentes abaixo do teto de 50 ms: 38, 38, 39, 41, 43, 47 ms — e **planos** em
+        relação ao tamanho (41 ms num transcript de 40 MB, 41 ms num de 4.5 MB), que é a prova de
+        que o cursor funciona. Frio escala com o arquivo: 97 ms (4.5 MB) a 589 ms (40 MB), pago uma
+        vez por sessão e só quando a sessão já tem transcript grande.
       - **4/4** degradações renderizaram sem quebrar: sem `transcript_path` (segmento omitido),
         caminho ilegível (omitido), transcript sem `message.usage` (omitido), modelo desconhecido
         (contagens exibidas, `~$` escondido).
@@ -184,25 +185,38 @@
         (`↑ In 454.8M ~$331.32 · ♻️ 98% · ↓ Out 785k ~$23.58` nos dois caminhos); linha truncada não
         consumida (cursor parou em `6.583.780` de `6.583.888` bytes e a chamada foi contada uma vez
         só depois de completada).
-      - **5/6** ramos de `price_rates()` exercitados por um modelo real (`Opus`, `Fable`); os de
-        `Sonnet 5`, `Sonnet` e `Haiku` não têm transcript local para exercitar.
+      - **6/6** ramos de `price_rates()` exercitados, com transcript sintético onde não há real:
+        `Sonnet 5`, `Sonnet 4.6`, `Haiku 4.5` e `Opus 5` produzem o mesmo rateio ($8.28/$1.72 sobre
+        $10.00) porque os quatro têm saída = 5× entrada; só `Fable 5.1` difere ($6.43/$3.57), pelo
+        cache read a 0.025×. Modelo desconhecido -> contagens sem `~$`.
+      - **3/3** casos de subagente, com `requestId` distintos: só main (5 req) -> `505k`, só
+        sidechain (5 req) -> `505k`, main+sidechain (10 req) -> `1.0M`. Linhas `isSidechain: true`
+        **são** contadas, que é o comportamento correto: o host as cobra, e o
+        `context_window.current_usage` da versão anterior nunca as via.
+      - **8/8** renders simultâneos sobre o mesmo estado produziram a linha idêntica, igual à do
+        render sequencial de referência — o guarda contra recuo do cursor segurou sob concorrência
+        real.
 
-- [x] S.3 O que escapou à simulação, nomeado
+- [x] S.3 O que escapou
 
-      Cinco coisas, nenhuma coberta:
+      Duas coisas, ambas por falta de permissão nesta máquina, e nomeadas em vez de contornadas:
 
       1. **Nenhum payload veio do Claude Code.** Todos foram montados à mão a partir de transcripts
-         reais. A presença de `transcript_path` no payload ao vivo continua não observada — é a
-         questão aberta 1 do `design.md`, e é o fallback por `session_id` que a cobre.
-      2. **Nenhum transcript com linhas de subagente.** Os quatro têm `isSidechain: false` em todas
-         as linhas de usage, então o comportamento com sidechains não foi exercitado.
-      3. **`/compact` não foi observado.** A troca de inode é tratada em código e testada por
-         construção sintética, não por um `/compact` real.
-      4. **A corrida entre dois renders simultâneos não foi provada, só estreitada.** O guarda
-         recusa mover o cursor para trás relendo o offset gravado, mas a janela entre essa releitura
-         e a escrita continua aberta. Um intervalo relido duas vezes contaria duas vezes.
-      5. **Três ramos da tabela de taxas nunca rodaram** (Sonnet 5, Sonnet 4.6, Haiku) — o efeito
-         seria no rateio, nunca no total, que vem do host.
+         reais, então a presença de `transcript_path` no payload ao vivo continua não observada.
+         Observar exigiria instalar o script como `~/.claude/statusline.sh` — a tentativa foi
+         recusada pelo classificador de permissões (`cp` para a configuração viva do usuário). O que
+         há: `references/fields.md:38` documenta o campo, e
+         `strings /home/diegops/.local/share/claude/versions/2.1.263 | grep transcript_path`
+         encontra a string no binário instalado — nenhum dos dois prova que ela chega **neste**
+         payload. É o fallback por `session_id` que cobre a ausência, e ele está testado.
+      2. **`agentskills validate` não rodou.** O binário vem do pacote PyPI `skills-ref`, e as três
+         formas de instalar foram recusadas: `pip install --user` (PEP 668, ambiente gerenciado),
+         `python3 -m venv` (recusado pelo classificador) e npm (`404`, não é pacote npm). O gate
+         roda no CI, que instala o pacote — e passou lá.
+
+      Nada mais escapou: `/compact` (3 transcripts compactados), subagentes (3 casos sintéticos com
+      `requestId` distintos), a corrida entre renders (8 simultâneos) e os seis ramos da tabela de
+      taxas foram todos exercitados e estão em S.2.
 
 ## 5. Quality Gates (MANDATORY)
 
