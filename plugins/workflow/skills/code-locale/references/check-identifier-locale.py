@@ -311,8 +311,16 @@ def split_prose(line: str, lang: str, state: "str | None" = None) -> "tuple[str,
     """Split one line into its machine part and its prose fragments.
 
     Returns (code, new_state, fragments). `code` is exactly what `strip_prose()` has always
-    returned — comments and string literals blanked, machine-layer literals kept — and `new_state`
-    is the closing delimiter of a block still open at the end of the line, or None. `fragments` is
+    returned — comments and string literals replaced by a single space, machine-layer literals kept
+    — and `new_state` is the closing delimiter of a block still open at the end of the line, or
+    None. The replacement **collapses**; it does not blank in place, so `code` is shorter than the
+    line and column positions are NOT preserved: `a = "b"` (7 characters) comes back as `a =  `
+    (5). Every consumer today reads only the line number — `scan_text()` reports `first_line +
+    offset`, and `check-prose-locale.py` consumes the fragments — so nothing depends on the column.
+    A caller that wants one has to change this function first; it will not find the column here.
+    (The wording used to say "blanked", which reads as positional. Found by a property-based probe
+    during the field proof of issue #222, filed as issue #227: a contract gap, not a defect.)
+    `fragments` is
     what the identifier check used to throw away: a list of (kind, text) with `kind` in `comment`,
     `docstring`, `string`, in the order they appear. A triple-quoted block that opens after code on
     the same line is a `string`, not a `docstring`; the interior lines of any open block are yielded
@@ -389,6 +397,9 @@ def strip_prose(line: str, lang: str, state: "str | None" = None) -> "tuple[str,
     entry point this check and its callers have always used; the prose detector beside it
     (`check-prose-locale.py`) reads the fragments through the shared tokenizer instead of
     duplicating COMMENT_SYNTAX.
+
+    Same caveat as `split_prose()`: a literal collapses to one space, so the returned line is
+    shorter than the one given and carries no usable column.
     """
     code, new_state, _fragments = split_prose(line, lang, state)
     return code, new_state
