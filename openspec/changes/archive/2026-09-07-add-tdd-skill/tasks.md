@@ -215,4 +215,35 @@
       Tabela de plugins (`README.md:61`) -> `ai-skills-testing` passa a listar
       `api-resilience-testing`, `bug-hunter`, `tdd`. Tabela de skills backend/testing ganha a linha
       de `tdd`. Duas contagens paradas em `:51` e `:95` corrigidas de 36 para 37, apontadas por H2.
-- [ ] V.4 `openspec archive add-tdd-skill --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive add-tdd-skill --yes` after all groups above are `[x]`
+
+      Segurado fora do PR #191 de propósito: arquivar junto moveria as specs publicadas antes de
+      alguém aprovar o que elas descrevem. Feito em 2026-09-07, depois do merge de `517f66f`, pela
+      issue #192.
+
+      **O comando recusou na primeira tentativa, e estava certo:**
+
+      `openspec archive add-tdd-skill --yes` ->
+      `skills-authoring MODIFIED failed for header "### Requirement: Single canonical home per rule"
+      - current spec contains scenario(s) not present in the modified block: "A prose-language rule
+      keeps its text and gains a scope clause", "A dependency-restraint instance links to the
+      general rung". Refresh the change spec before archiving to avoid dropping scenarios.` ->
+      `Aborted. No files were changed.`
+
+      O delta fora escrito a partir do **texto** do requisito (`spec.md:11-21`, o mapa canônico) e
+      dos três cenários que aquela leitura mostrou — os outros dois estavam abaixo da janela lida.
+      Um bloco MODIFIED substitui o requisito inteiro, então arquivar teria apagado os dois. O
+      delta foi refeito com os cinco cenários publicados copiados verbatim mais o novo, e só então:
+
+      `openspec archive add-tdd-skill --yes` -> `+ 1 added`, `Totals: + 1, ~ 1, - 0, → 0`,
+      `Specs updated successfully.`,
+      `Change 'add-tdd-skill' archived as '2026-09-07-add-tdd-skill'.`
+
+      `openspec list` -> `No active changes found.`
+
+      Conferência de contagem depois do comando, não antes:
+      `Single canonical home per rule` -> **6** cenários (os 5 publicados mais
+      `Two skills that touch the same subject at different times`);
+      `Test order has a canonical home` -> **4**;
+      `A published cost claim carries re-runnable backing` -> **10**, intacto.
+      O mapa canônico nomeia `tdd` (`grep -c "test order — writing the failing"` -> `1`).
