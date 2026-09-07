@@ -20,7 +20,9 @@ exception and the identifier migration policy → `code-locale`; code volume —
 ladder, the root-cause rule for bug fixes, the never-simplified-away carve-outs, the `lean:` marker
 with its ledger, and the over-engineering review lens → `lean-code`; test order — writing the failing
 test before the code it covers, what makes such a test legitimate, and when the cycle does not apply
-→ `tdd`.
+→ `tdd`; which artifact a cross-cutting rule becomes — skill, hook, CI script or agent — and when
+dispatching a subagent pays for itself, including model/effort tiering, least-privilege `tools` and
+the output contract → `agent-delegation`.
 
 #### Scenario: Orchestrator skill references instead of restating
 
@@ -62,6 +64,15 @@ test before the code it covers, what makes such a test legitimate, and when the 
   afterwards
 - **THEN** each names the other and the boundary between them, so neither restates the other's rule
 - **AND** the canonical map carries one entry per rule, not one per subject
+
+#### Scenario: A rule that lives outside the catalog is given a home inside it
+
+- **WHEN** a cross-cutting rule is stated only outside `skills/` — in the maintainer's personal
+  rules, in a comment inside a shipped hook, or in an archived change
+- **THEN** the rule is moved into the skill the canonical map names for it, and each outside
+  location is reduced to a link with at most a one-line summary
+- **AND** a location that is published as an example rather than as a contract is reduced the same
+  way, because two published statements of one rule are two sources that can diverge
 
 ### Requirement: Uniform frontmatter metadata
 

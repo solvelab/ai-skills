@@ -269,4 +269,4 @@
       `README.md`: tabela de plugins (`ai-skills-workflow` ganha `agent-delegation`), tabela de skills
       de processo (linha nova) e as contagens `all 37` -> `all 38`.
 
-- [ ] V.4 `openspec archive add-agent-delegation-skill --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive add-agent-delegation-skill --yes` after all groups above are `[x]`
