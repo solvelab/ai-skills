@@ -50,6 +50,46 @@ have to be written by hand — for every limit the code enforces, a case on each
 value**, because a suite that proves a clamp fires and never where it sits survives the clamp being
 moved.
 
+### The witness, worked
+
+The whole of it, for a module with one limit. `scripts/probe-lua-track.sh` extracts these two blocks
+from this file and runs them, so what you read is what executes.
+
+```lua
+-- clamp.lua — a pure module with a limit, the kind this track says to test off-game
+local M = {}
+local MIN, MAX = 1, 100
+function M.clamp(value)
+  if type(value) ~= "number" then return nil, "not a number" end
+  if value < MIN then return MIN end
+  if value > MAX then return MAX end
+  return value
+end
+return M
+```
+
+```lua
+-- spec/clamp_spec.lua — a case on each side of the limit, and one AT the value
+local clamp = require("clamp").clamp
+
+describe("clamp", function()
+  it("accepts the value at the minimum", function() assert.are.equal(1, clamp(1)) end)
+  it("raises a value one under the minimum", function() assert.are.equal(1, clamp(0)) end)
+  it("accepts the value at the maximum", function() assert.are.equal(100, clamp(100)) end)
+  it("lowers a value one over the maximum", function() assert.are.equal(100, clamp(101)) end)
+  it("rejects a non-number", function()
+    local ok, err = clamp("x")
+    assert.is_nil(ok); assert.are.equal("not a number", err)
+  end)
+end)
+```
+
+The two cases at the value are the ones that earn their place. Measured 2026-09-07: moving `MAX` from
+100 to 101 turns *accepts the value at the maximum* red — `Expected objects to be equal. Passed in:
+(number) 101 Expected: (number) 100` — while widening `>` to `>=` leaves all five green, because for
+a clamp that returns the maximum either way that change is equivalent. Read survivors by class, never
+as a count: this is what that means with no mutation tool to do it for you.
+
 The runner is `busted`, and installing it is two steps, not one — the second is the one people lose
 an afternoon to:
 
