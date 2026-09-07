@@ -91,6 +91,10 @@
       `.claude/skills/`; nothing added, removed or renamed
 - [x] V.3 Composition unchanged; the README paragraph on the gates names no script list, so it
       stays accurate
-- [ ] V.4 `openspec archive make-lua-track-verifiable --yes` — left for after the merge, as in
-      #236, #233 and #224; the pull request reports the change as active and names this as what
-      closes it
+- [x] V.4 `openspec archive make-lua-track-verifiable --yes` — run after PR #240 merged (`7eca86e`),
+      under issue #244. Output: `Applying changes to openspec/specs/skills-catalog/spec.md: ~ 1
+      modified`, `Totals: + 0, ~ 1, - 0, → 0`, archived as `2026-09-07-make-lua-track-verifiable`.
+      Measured either side: `skills-catalog` stays at **39 requirements** with every title identical,
+      and goes from **185 to 188 scenarios** — *A declared absence carries its re-measurement*,
+      *A published method is executable from the text* and *A check that cannot run says so*. No
+      existing scenario lost, checked by set difference in both directions.

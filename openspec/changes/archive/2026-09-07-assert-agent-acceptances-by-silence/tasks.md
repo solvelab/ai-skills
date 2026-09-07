@@ -74,5 +74,9 @@
 - [x] V.2 `npx -y skills add . --list` -> 44 skills, the 38 under `skills/` plus the 6 under
       `.claude/skills/`; nothing added, removed or renamed
 - [x] V.3 No composition or usage change; `README.md:592` names no counts and stays accurate
-- [ ] V.4 `openspec archive assert-agent-acceptances-by-silence --yes` — left for after the merge,
-      as in #236, #233 and #224; the pull request reports the change as active
+- [x] V.4 `openspec archive assert-agent-acceptances-by-silence --yes` — run after PR #241 merged
+      (`c44cd46`), under issue #244. Output: `Applying changes to
+      openspec/specs/agents-catalog/spec.md: ~ 1 modified`, `Totals: + 0, ~ 1, - 0, → 0`, archived as
+      `2026-09-07-assert-agent-acceptances-by-silence`. Measured either side: `agents-catalog` stays
+      at **5 requirements** with every title identical, and goes from **21 to 22 scenarios**, the new
+      one being *An acceptance is proved by silence*. No existing scenario lost.

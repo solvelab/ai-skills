@@ -129,6 +129,11 @@ The self-test SHALL be able to assert **which finding** a case produced, not onl
 it, and SHALL do so wherever a check can produce more than one message. A check with several
 messages that is proved only by its id cannot distinguish two paths through it, and a defect that
 moves a case from one message to the other passes unnoticed.
+
+An acceptance in that self-test SHALL be proved by the **absence of a finding**, not by the exit code
+alone. A gate that exits successfully while reporting something is the case an exit-code assertion
+cannot see, and it is the case an accepting block exists to rule out. A failed acceptance SHALL name
+the check that fired, so the failure is readable without re-running it by hand.
 #### Scenario: An agent without a declared tool set fails the gate
 
 - **WHEN** an agent omits `tools`, or names a write tool while its contract says it returns what to
@@ -183,6 +188,12 @@ moves a case from one message to the other passes unnoticed.
 - **WHEN** a check can report more than one message and a case exists for each path
 - **THEN** the self-test asserts the message the case expects, in addition to the check id, so a
   defect that swaps one path for the other fails a case
+
+#### Scenario: An acceptance is proved by silence
+
+- **WHEN** a self-test case exists to show that a conforming input produces no finding
+- **THEN** it asserts that the validator reported none, not merely that it exited successfully
+- **AND** when it fails, the message names the check that fired
 
 ### Requirement: A published agent count names its members
 
