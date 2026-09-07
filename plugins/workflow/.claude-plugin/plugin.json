@@ -1,7 +1,7 @@
 {
   "name": "ai-skills-workflow",
   "displayName": "AI Skills — workflow",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "Commit format, OpenSpec spec-driven workflow, the backlog rite, the anti-guessing rite, the code-locale rule, the lean-code doctrine and the artifact-boundary rule for delegation (9 skills: agent-delegation, backlog, code-locale, conventional-commit, execute-backlog, lean-code, openspec, openspec-drivezone, verify-before-claiming) (1 agent: grounding-researcher)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
