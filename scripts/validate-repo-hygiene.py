@@ -10,6 +10,9 @@ trees. Nothing looked at the repository as a whole, which is how each of these g
   H3 plugin descriptions match the tree (game said "10 topics" over 12 skills, workflow named 5 of
                                          7, and H2 only ever matched `all N`; see #114)
 
+  H4 plugin agent lists match the tree (a published `(N agents: ...)` names exactly the
+     agents under plugins/<group>/agents/)
+
 Exit 1 on any finding. Run from the repo root.
 Modes: (default) check the tree   |   --selftest inject one defect per check and assert detection.
 """
@@ -36,10 +39,14 @@ COUNT_CLAIM = re.compile(r"\ball (\d+)\b")
 # heading shape `(React Three Fiber — 10 topics)`: a number and its noun right before the closing
 # parenthesis. It says nothing about which set it counts, so it cannot be checked against the tree;
 # the shape itself is the finding. `(all 35 skills)` is exempt here because COUNT_CLAIM owns it.
-UNSCOPED_COUNT_CLAIM = re.compile(r"(?<!all )\b(\d+) (?:topics|skills)\)")
+UNSCOPED_COUNT_CLAIM = re.compile(r"(?<!all )\b(\d+) (?:topics|skills|agents)\)")
 
 # The shape generate.sh publishes for every plugin group: "<theme> (<N> skill(s): a, b, c)".
 MEMBERSHIP_CLAIM = re.compile(r"\((\d+) skills?: ([^)]*)\)")
+# The agents ride in a SEPARATE parenthetical, published right after the skills one. They are not
+# folded into MEMBERSHIP_CLAIM because its name group is `[^)]*`: anything added inside that
+# parenthesis would be read as more skill names and H3 would compare the wrong set.
+AGENT_MEMBERSHIP_CLAIM = re.compile(r"\((\d+) agents?: ([^)]*)\)")
 MARKETPLACE = ".claude-plugin/marketplace.json"
 PLUGIN_SOURCE_PREFIX = "./plugins/"
 
@@ -129,6 +136,47 @@ def plugin_groups(root: Path) -> dict[str, set[str]]:
             for g in sorted(base.iterdir()) if (g / "skills").is_dir()}
 
 
+def plugin_agents(root: Path) -> dict[str, set[str]]:
+    """Agents published per group, by file stem. A group with no agents/ simply has no entry."""
+    base = root / "plugins"
+    if not base.is_dir():
+        return {}
+    return {g.name: {a.stem for a in (g / "agents").glob("*.md")}
+            for g in sorted(base.iterdir()) if (g / "agents").is_dir()}
+
+
+def _agent_membership_finding(rel: str, group: str, description: str, expected: set[str]) -> None:
+    """H4 — the agents parenthetical, judged the same way H3 judges the skills one.
+
+    Absence is a finding only when the group HAS agents: a group that publishes none has nothing to
+    name, and demanding an empty list would put `(0 agents: )` into every other description.
+    """
+    m = AGENT_MEMBERSHIP_CLAIM.search(description)
+    if not m:
+        if expected:
+            add("H4 plugin agent membership",
+                f"{rel} ({group}) ships {len(expected)} agent(s) and publishes no "
+                "`(N agents: <names>)` list — regenerate with ./generate.sh")
+        return
+    if not expected:
+        add("H4 plugin agent membership",
+            f"{rel} ({group}) publishes an agent list but plugins/{group}/agents/ does not exist — "
+            "regenerate with ./generate.sh")
+        return
+    claimed_count = int(m.group(1))
+    names = {n.strip() for n in m.group(2).split(",") if n.strip()}
+    extra, missing = sorted(names - expected), sorted(expected - names)
+    if extra or missing:
+        add("H4 plugin agent membership",
+            f"{rel} ({group}) names {len(names)} agent(s) but plugins/{group}/agents/ has "
+            f"{len(expected)} — in excess: {extra or 'none'}; missing: {missing or 'none'}; "
+            "regenerate with ./generate.sh")
+    if claimed_count != len(names):
+        add("H4 plugin agent membership",
+            f"{rel} ({group}) says {claimed_count} agent(s) but lists {len(names)} names; "
+            "regenerate with ./generate.sh")
+
+
 def _membership_finding(rel: str, group: str, description: str, expected: set[str]) -> None:
     m = MEMBERSHIP_CLAIM.search(description)
     if not m:
@@ -166,14 +214,16 @@ def check_plugin_membership(root: Path) -> None:
     not compared with the tree here and is review-only; H2 covers only its counts.
     """
     groups = plugin_groups(root)
+    agents = plugin_agents(root)
     for group, expected in groups.items():
         rel = f"plugins/{group}/.claude-plugin/plugin.json"
         p = root / rel
         if not p.is_file():
             add("H3 plugin description membership", f"{rel} is missing — regenerate with ./generate.sh")
             continue
-        _membership_finding(rel, group, json.loads(p.read_text(encoding="utf-8")).get("description", ""),
-                            expected)
+        description = json.loads(p.read_text(encoding="utf-8")).get("description", "")
+        _membership_finding(rel, group, description, expected)
+        _agent_membership_finding(rel, group, description, agents.get(group, set()))
 
     mp = root / MARKETPLACE
     if not mp.is_file():
@@ -193,6 +243,8 @@ def check_plugin_membership(root: Path) -> None:
         seen.add(group)
         _membership_finding(f"{MARKETPLACE} entry `{entry.get('name')}`", group,
                             entry.get("description", ""), groups[group])
+        _agent_membership_finding(f"{MARKETPLACE} entry `{entry.get('name')}`", group,
+                                  entry.get("description", ""), agents.get(group, set()))
     for group in sorted(set(groups) - seen):
         add("H3 plugin description membership",
             f"{MARKETPLACE} has no entry with source {PLUGIN_SOURCE_PREFIX}{group} — the group "

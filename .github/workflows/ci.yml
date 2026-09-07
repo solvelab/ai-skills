@@ -128,6 +128,19 @@ jobs:
       - name: Skill validator self-test (the gate is itself gated)
         run: python3 scripts/selftest-validate-skills.py
 
+      - name: Agent content checks (frontmatter, limits, When to invoke, orphans)
+        # The sibling of the skill validator for the other published artifact. Unlike skills, agents
+        # have no reference validator upstream (there is no agentskills equivalent for them), so the
+        # limits it enforces come from the agent format the harness documents — recorded in the
+        # add-agents-layer change, group E.2 — and this file is where a change to that format lands.
+        run: python3 scripts/validate-agents.py
+
+      - name: Agent validator self-test (the gate is itself gated)
+        # Plants one defect at a time in a throwaway tree and asserts the check that OWNS it fires —
+        # a defect caught by the wrong check fails here too, which is how a broad regex is stopped
+        # from quietly covering for a rule it was never meant to.
+        run: python3 scripts/selftest-validate-agents.py
+
       - name: Agent Skills reference validator (skills-ref, pinned, blocking)
         # README.md says the catalog follows the open Agent Skills standard; this is the standard's
         # own validator (PyPI `skills-ref`, binary `agentskills` — not `skills-ref`), installed on

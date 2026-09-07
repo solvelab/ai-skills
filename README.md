@@ -455,13 +455,18 @@ ai-skills/
 │   ├── fivem-lua/SKILL.md
 │   ├── fivem-fallback/SKILL.md
 │   └── r3f-*/SKILL.md                        # React Three Fiber skills, one per topic
+├── agents/                                   # ★ Canonical agents (Claude Code only, flat)
+│   ├── grounding-researcher.md               # frontmatter + system prompt + output contract
+│   ├── bug-hunter-analyst.md
+│   └── skill-auditor.md
 ├── .claude-plugin/
 │   ├── plugin.json                           # Claude Code plugin manifest (version-pinned)
 │   └── marketplace.json                      # Claude Code marketplace catalog
 ├── plugins/                                  # Per-domain plugins (10 of the 11 marketplace entries)
 │   └── <group>/                              # backend, devops, docs, fivem, frontend, game, nui, testing, tooling, workflow
 │       ├── .claude-plugin/plugin.json        # ai-skills-<group> manifest
-│       └── skills/                           # Generated: copies of the group's skills
+│       ├── skills/                           # Generated: copies of the group's skills
+│       └── agents/                           # Generated: copies of the group's agents (3 of 10 groups)
 ├── openspec/                                 # Spec-driven rite: specs/, changes/, schemas/skills-rite/
 ├── research/                                 # Measurements behind a skill (e.g. svg-animation)
 ├── claude/
@@ -492,6 +497,7 @@ ai-skills/
 | Folder | Purpose |
 |--------|---------|
 | `skills/` | **Canonical skills** — self-contained `SKILL.md` per skill, open Agent Skills standard. Edit here. |
+| `agents/` | **Canonical agents** — one `<name>.md` per agent, flat (a subdirectory would change the name the agent is invoked under). Claude Code only; no wrapper tree. Edit here. |
 | `.claude-plugin/` | Claude Code plugin + marketplace manifests |
 | `plugins/` | Per-domain plugins (`ai-skills-<group>`), 10 of the 11 marketplace entries — each carries its own `.claude-plugin/plugin.json` and a generated `skills/` copy of the group |
 | `openspec/` | Spec-driven rite: `specs/` (current truth), `changes/` (active + `archive/`), `schemas/skills-rite/` (the forked schema) |
@@ -529,6 +535,8 @@ skills/documentation/SKILL.md    ← ★ Single source of truth (self-contained)
 | **Cursor** | `cursor/rules/<name>.mdc` | Content inlined (no include support) |
 | **GitHub Copilot** | `copilot/instructions/<name>.instructions.md` | Markdown link reference |
 
+**Agents are the exception to that table.** A subagent dispatched into its own context is a Claude Code concept: Codex, Cursor and Copilot have no equivalent, so `agents/<name>.md` is copied into the plugin trees and into **no** wrapper tree. Inventing a stand-in for a tool that cannot dispatch would publish behaviour that does not exist. Everything under `skills/` stays portable.
+
 ---
 
 ## 🧩 How Skills Work
@@ -538,6 +546,35 @@ skills/documentation/SKILL.md    ← ★ Single source of truth (self-contained)
 A skill is a markdown instruction file that an AI reads before performing a task. It contains patterns, rules, and examples that guide the AI to produce consistent, high-quality output.
 
 Think of skills as reusable expertise — instead of explaining your documentation style every time, you write it once and every AI tool follows it automatically.
+
+### What is an agent?
+
+An agent is a **separate worker**, not a document the assistant reads. A skill is knowledge injected
+into the context that needs it; an agent runs a task in a context of its own, with its own tool
+permissions, and hands back one narrow answer. The distinction is the whole point: an agent holds no
+doctrine — it executes work under doctrine that lives in a skill, a hook or a script.
+
+The catalog admits an agent only when the work passes three tests, **all three**:
+
+1. **Reading weight** — it reads far more than it reports, so isolating it buys context back.
+2. **Separable context** — it needs the task and the tree, not the conversation that led here.
+3. **Checkable output contract** — the answer can be trusted without redoing the work.
+
+Two out of three means the calling loop does the work itself. The full doctrine — those tests, the
+three refused anti-patterns, model and effort tiering, and least-privilege `tools` — is the
+[`agent-delegation`](skills/agent-delegation/SKILL.md) skill, and every agent below carries the
+written reason it was admitted.
+
+| Agent | What it does | Why it is an agent, not a skill or a script |
+|---|---|---|
+| **grounding-researcher** | Establishes ONE fact and reports the rung that answered, the evidence line, and the rungs it could not reach. Read-only; returns `not found` rather than a plausible substitute. | Climbing the research ladder can mean twenty reads — a lockfile, a vendored source, a `--help` — for one line of answer (weight). It needs the question and the tree, not the conversation (separable). Its output is a fixed five-field block (contract). |
+| **bug-hunter-analyst** | Attacks an implemented change on paper and returns the ranked attacks plus the exact tests to write, including the lines of attack that found nothing. | Reading a diff, its callers and its siblings is heavy; the report is short (weight). The change is the input (separable). Attacks and test cases are a checkable list (contract). It has **no write tools**: it returns what to write, and the calling loop writes it. |
+| **skill-auditor** | Audits one skill against `openspec/specs/skills-authoring` on the judgements `scripts/validate-skills.py` cannot make — restated doctrine, misleading cross-references, unbacked claims, drifted version pins. Advisory, never a gate. | A skill plus its references plus the spec is a large read for a short defect table (weight, contract). It is advisory by construction: the thirteen mechanical checks remain the authority, and this agent covers only what they explicitly do not. |
+
+Agents are gated the way skills are: `scripts/validate-agents.py` checks frontmatter, limits, the
+`When to invoke` section, an explicit `tools` declaration and the no-orphan law, and
+`scripts/selftest-validate-agents.py` gates that validator in turn — a defect caught by the *wrong*
+check fails the self-test too.
 
 ### How each tool discovers skills
 
