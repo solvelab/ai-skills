@@ -87,12 +87,13 @@
       `selftest-validate-skills` 27 -> **28/28**; findings reproduced before the fix and re-run
       after it, **9/9** now reported; the pre-fix regression proof, **1/1**; mutation over
       `scripts/validate-agents.py` under the conditions of the first measurement (`cosmic-ray
-      8.7.0`, the self-test as runner, default operators): **205 mutants / 54 survivors** before,
-      **229 / 46** after — survivors on the limit constants and on the boundary comparisons
-      **20 -> 0**, with 4 survivors remaining on the frontmatter split offsets and 16 on `|` in type
-      annotations, which have no runtime effect.
-- [x] S.3 What escaped or behaved differently than expected is named here. **Two escapes, both mine,
-      both caught by the layers this catalog just published.** (1) The discovery helper
+      8.7.0`, the self-test as runner, default operators): **205 mutants / 54 survivors / 73.7%**
+      before, **229 / 45 / 80.3%** after. Survivors on the limit constants and on the `<=` boundary
+      chains: **20 -> 0**. Of the 45 that remain, 16 are `|` in type annotations and have no runtime
+      effect, 4 are the frontmatter split offsets, and 25 are elsewhere — 8 of them on
+      `if end == -1` and 3 on `if __name__ == "__main__"`.
+- [x] S.3 What escaped or behaved differently than expected is named here. **Three escapes, all mine,
+      all caught by a layer rather than by review.** (1) The discovery helper
       `agent_files()` filtered on `is_file()`, which is False for a dangling symlink, so it silently
       stopped judging the very input A1 owns; the existing self-test caught it immediately
       (`51/52`, `MISSED A1 a dangling symlink`) and the helper now documents why the filter is not
@@ -101,7 +102,11 @@
       the mutant `BODY_MIN = 20 -> 19` survived the second measurement. **The suite did not catch
       that; the mutation score did**, which is the exact claim the `bug-hunter` scoring layer makes,
       landing on the change written immediately after it. Fixed, asserted on the stripped form, and
-      the mutant is dead in the third run.
+      the mutant is dead from the third run on. (3) `name != agent` survived mutation to
+      `name > agent`, because every mismatch case in the suite happened to carry a name that sorts
+      AFTER the file stem, so the two operators answered identically; a case whose name sorts before
+      it was added and the mutant died. All three were found by a layer, not by reading the diff, and
+      all three are recorded here rather than quietly repaired.
 
 ## 7. Quality Gates (MANDATORY)
 
