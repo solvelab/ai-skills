@@ -190,5 +190,19 @@
       `python3 skills/documentation/references/check-doc-structure.py skills/documentation/`
       -> `findings: 0 in 4 file(s); rules run: R1,R2,R3,R4,R6,R7`.
       Catálogo inteiro: `findings: 241` -> `234` (R1 80 -> 77, R2 142 -> 138, R6 19 inalterado).
-- [ ] V.4 `openspec archive update-documentation-references-to-the-rules --yes` after all groups
+- [x] V.4 `openspec archive update-documentation-references-to-the-rules --yes` after all groups
       above are `[x]`
+
+      Segurado fora do PR #194 de propósito: arquivar junto moveria a spec publicada antes de alguém
+      aprovar o que ela descreve. Feito em 2026-09-07, depois do merge de `2f6bfd8`, pela issue #195.
+
+      `openspec archive update-documentation-references-to-the-rules --yes` ->
+      `Totals: + 1, ~ 0, - 0, → 0` / `Specs updated successfully.` /
+      `Change '...' archived as '2026-09-07-update-documentation-references-to-the-rules'.`
+
+      `openspec list` -> `No active changes found.`
+
+      Conferência depois do comando, não antes: `skills-authoring` passa de **19** para **20**
+      requisitos; o novo, *A published checkable rule holds on the skill that publishes it*, está
+      presente e carrega **3** cenários. O delta era ADDED, não MODIFIED, então não havia o risco de
+      derrubar cenário que fez o archive de `add-tdd-skill` recusar em #192 — e a contagem confirma.
