@@ -84,6 +84,13 @@ MUTATIONS = {
  "C10 frontmatter limits": ("skills/r3f-geometry/SKILL.md",
      lambda s: s.replace("description: >-", "description: >-\n  " + "Use when the user says so. " * 44, 1),
      ("C10 frontmatter limits", "description is")),
+ # Nesting, not size: 500 nested flow sequences are about 1 KB, and PyYAML answers with a
+ # RecursionError, which is NOT a subclass of YAMLError — so the handler beside it did not catch it
+ # and the whole run ended by traceback. Same defect, same construct and same input as
+ # scripts/validate-agents.py; fixed and pinned in both in the same change (issue #225, finding 4).
+ "C10 frontmatter limits (nesting exhausts the parser)": ("skills/r3f-geometry/SKILL.md",
+     lambda s: s.replace("license: MIT", "license: MIT\nprobe: " + "[" * 500 + "]" * 500, 1),
+     ("C10 frontmatter limits", "nesting exhausts")),
  # A reference file nobody links. The path does not exist in the catalog, so the loop below starts
  # from an empty string — this is the one mutation that CREATES a file instead of editing one.
  "C11 orphan reference": ("skills/r3f-geometry/references/orphan-probe.md",

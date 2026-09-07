@@ -63,6 +63,21 @@ def replace(old: str, new: str) -> str:
     return GOOD.format(name="example-agent").replace(old, new, 1)
 
 
+def sized(desc_len: int, body_len: int, name: str = "example-agent") -> str:
+    """A conforming agent whose description and stripped body are EXACTLY the lengths asked for.
+
+    The limits are the point: a suite that only ever produces 62, 133 or 163 characters proves that
+    a limit fires and never where it sits, so moving the constant breaks nothing. Measured before
+    this helper existed: the 33 cases produced body lengths 17, 85 and 163 only, and `BODY_MAX` had
+    no witness at all (issue #225, findings 5 and 6).
+    """
+    body = "## When to invoke\n\n"
+    body += "x" * max(body_len - len(body), 0)
+    return (f"---\nname: {name}\n"
+            f'description: "{"d" * desc_len}"\n'
+            "model: inherit\ncolor: blue\ntools: [\"Read\"]\n---\n\n" + body + "\n")
+
+
 # (label, expected check id, how to plant it)
 CASES: list[tuple[str, str, object]] = [
     ("no frontmatter at all", "A1",
@@ -144,6 +159,44 @@ CASES: list[tuple[str, str, object]] = [
         (r / "plugins" / "testing" / "agents").mkdir(parents=True),
         (r / "plugins" / "testing" / "agents" / "example-agent.md").write_text(
             replace("color: blue", "color: red"), encoding="utf-8"))),
+    # ── issue #225: the twelve findings of the #222 field proof ──────────────────────────────
+    ("hashes alone on their line, heading text in the paragraph below", "A6",
+     lambda r: (r / "agents" / "example-agent.md").write_text(
+         replace("## When to invoke", "##\nWhen to invoke"), encoding="utf-8")),
+    ("the only invocation heading lives inside a fenced block", "A6",
+     lambda r: (r / "agents" / "example-agent.md").write_text(
+         replace("## When to invoke", "## Something else\n\n```md\n## When to invoke\n```"),
+         encoding="utf-8")),
+    ("model declared as a sequence", "A4",
+     lambda r: (r / "agents" / "example-agent.md").write_text(
+         replace("model: inherit", "model: [inherit]"), encoding="utf-8")),
+    ("color declared as a mapping", "A4",
+     lambda r: (r / "agents" / "example-agent.md").write_text(
+         replace("color: blue", "color: {a: b}"), encoding="utf-8")),
+    ("frontmatter nested deeply enough to exhaust the parser", "A1",
+     lambda r: (r / "agents" / "example-agent.md").write_text(
+         replace('tools: ["Read", "Grep"]', "tools: " + "[" * 500 + "]" * 500), encoding="utf-8")),
+    ("a tools entry that is whitespace only", "A5",
+     lambda r: (r / "agents" / "example-agent.md").write_text(
+         replace('tools: ["Read", "Grep"]', 'tools: ["Read", "   "]'), encoding="utf-8")),
+    ("a canonical file whose suffix differs only in case", "A1",
+     lambda r: (r / "agents" / "rogue.MD").write_text("garbage with no frontmatter\n",
+                                                      encoding="utf-8")),
+    ("an orphan nested below plugins/<group>/agents/", "A7", lambda r: (
+        (r / "plugins" / "testing" / "agents" / "sub").mkdir(parents=True),
+        (r / "plugins" / "testing" / "agents" / "sub" / "ghost.md").write_text(
+            GOOD.format(name="ghost"), encoding="utf-8"))),
+    ("a name whose value ends in a newline", "A2",
+     lambda r: (r / "agents" / "example-agent.md").write_text(
+         replace("name: example-agent", 'name: "example-agent\n"'), encoding="utf-8")),
+    ("a description one character under the minimum", "A3",
+     lambda r: (r / "agents" / "example-agent.md").write_text(sized(9, 200), encoding="utf-8")),
+    ("a description one character over the maximum", "A3",
+     lambda r: (r / "agents" / "example-agent.md").write_text(sized(5001, 200), encoding="utf-8")),
+    ("a body one character under the minimum", "A6",
+     lambda r: (r / "agents" / "example-agent.md").write_text(sized(200, 19), encoding="utf-8")),
+    ("a body one character over the maximum", "A6",
+     lambda r: (r / "agents" / "example-agent.md").write_text(sized(200, 10001), encoding="utf-8")),
 ]
 
 
@@ -221,7 +274,62 @@ def main() -> int:
         else:
             print("  OK     A7  a generated copy with a source is not an orphan")
 
-    total = len(CASES) + 4
+        # ── issue #225 ── The accepting side of every limit. A rejected case one past the limit
+        # proves the check fires; only a case AT the value proves where the limit sits. Without
+        # these, moving a constant by one breaks no test — 20 of the 54 mutants that survived the
+        # 2026-09-07 measurement sat exactly here.
+        for label, text in (
+            ("a description of exactly DESCRIPTION_MIN characters", sized(10, 200)),
+            ("a description of exactly DESCRIPTION_MAX characters", sized(5000, 200)),
+            ("a body of exactly BODY_MIN characters", sized(200, 20)),
+            ("a body of exactly BODY_MAX characters", sized(200, 10000)),
+        ):
+            shutil.rmtree(root)
+            build(root)
+            (root / "agents" / "example-agent.md").write_text(text, encoding="utf-8")
+            code, out = run(root)
+            if code != 0:
+                print(f"  FAIL   {label} was rejected\n{out}")
+                failures += 1
+            else:
+                print(f"  OK     {label} is accepted")
+
+        # A name of exactly 50 characters is legal; the file is renamed so `name != agent` cannot
+        # mask the regex. The rejecting side (51) is covered by NAME_RE itself and by the
+        # trailing-newline case in CASES.
+        shutil.rmtree(root)
+        build(root)
+        long_name = "a" + "b" * 48 + "c"
+        (root / "agents" / "example-agent.md").unlink()
+        (root / "agents" / f"{long_name}.md").write_text(sized(200, 200, name=long_name),
+                                                         encoding="utf-8")
+        code, out = run(root)
+        if code != 0:
+            print(f"  FAIL   A2  a name of exactly 50 characters was rejected\n{out}")
+            failures += 1
+        else:
+            print("  OK     A2  a name of exactly 50 characters is accepted")
+
+        # ── issue #225, finding 12 ── The property every crash guard rests on: the run REACHES the
+        # agent after the bad one. Every case above plants exactly one agent, so a gate that died on
+        # the first input looked identical to one that judged it. This is what let the A4 crash stay
+        # invisible through issue #205's hardening.
+        shutil.rmtree(root)
+        build(root)
+        (root / "agents" / "example-agent.md").write_text(
+            replace("model: inherit", "model: [inherit]"), encoding="utf-8")
+        (root / "agents" / "zz-broken.md").write_text("no frontmatter at all\n", encoding="utf-8")
+        code, out = run(root)
+        if "Traceback (most recent call last)" in out:
+            print(f"  CRASH  a defective first agent ended the run\n{out}")
+            failures += 1
+        elif "zz-broken" not in out:
+            print(f"  MISSED the agent after the defective one was never checked\n{out}")
+            failures += 1
+        else:
+            print("  OK     a defective agent does not hide the one after it")
+
+    total = len(CASES) + 4 + 5 + 1
     print(f"\n{total - failures}/{total} cases passed")
     return 1 if failures else 0
 

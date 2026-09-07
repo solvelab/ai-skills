@@ -46,11 +46,19 @@ ROOT = Path(__file__).resolve().parent.parent
 AGENTS = ROOT / "agents"
 GENERATED = ROOT / "plugins"
 
-NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$")
-# Any whitespace after the hashes, not only an ASCII space: `##\tWhen to invoke` is a heading every
+# `\Z`, not `$`: `$` matches BEFORE a final newline, so `name: "<50 chars>\n"` — a value of 51
+# characters — used to satisfy a rule whose message promises 3-50 (measured 2026-09-07).
+NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]\Z")
+# Spaces and tabs after the hashes, not any whitespace: `##\tWhen to invoke` is a heading every
 # Markdown renderer accepts, and a gate that rejects what the tool accepts teaches the author to
-# ignore the gate (issue #205, attack 8).
-WHEN_TO_INVOKE = re.compile(r"^#{2,}\s+When to invoke\s*$", re.M | re.I)
+# ignore the gate (issue #205, attack 8). `\s` was too wide — it includes `\n`, so `##` alone on its
+# line with `When to invoke` in the paragraph below matched, and an agent with no heading at all
+# passed A6 clean (reproduced 2026-09-07, issue #225 finding 1).
+WHEN_TO_INVOKE = re.compile(r"^#{2,}[ \t]+When to invoke[ \t]*$", re.M | re.I)
+# A heading inside a fenced block is not rendered as a heading, so it does not satisfy the rule
+# either. The sibling validator already strips fences before its own citation scan; same construct,
+# same treatment (issue #225, finding 2).
+FENCE = re.compile(r"^([ \t]*)(`{3,}|~{3,}).*?^\1\2[ \t]*$", re.M | re.S)
 
 if yaml is not None:
     class _NoAliasLoader(yaml.SafeLoader):
@@ -132,6 +140,14 @@ def check_file(path: Path) -> None:
     except yaml.YAMLError as exc:                    # noqa: BLE001 - the parser's message is the finding
         add(agent, "A1 frontmatter", f"YAML does not parse: {exc}")
         return
+    except RecursionError:
+        # Raised by the parser, but NOT a subclass of YAMLError, so it used to escape the handler
+        # above and end the run by traceback — 500 nested flow sequences in ~1 KB is enough
+        # (reproduced 2026-09-07, issue #225 finding 2). Caught around the parse call only: a
+        # RecursionError in our own checks is a defect and must still surface.
+        add(agent, "A1 frontmatter",
+            "YAML nesting exhausts the parser — the payload is small and its structure is not")
+        return
     if not isinstance(meta, dict):
         add(agent, "A1 frontmatter", "frontmatter is not a mapping")
         return
@@ -164,28 +180,63 @@ def check_file(path: Path) -> None:
                 f"{len(desc)} characters — the accepted range is "
                 f"{DESCRIPTION_MIN}-{DESCRIPTION_MAX}")
 
-    model = meta.get("model")
-    if model is not None and model not in MODELS:
-        add(agent, "A4 model/color", f"`model: {model}` is not one of {sorted(MODELS)}")
-    color = meta.get("color")
-    if color is not None and color not in COLORS:
-        add(agent, "A4 model/color", f"`color: {color}` is not one of {sorted(COLORS)}")
+    # The shape is checked BEFORE the membership test, never around it: `model: [inherit]` used to
+    # raise `TypeError: cannot use 'list' as a set element` and end the run, taking every
+    # alphabetically later agent with it (reproduced 2026-09-07, issue #225 finding 3). Wrapping the
+    # test in a handler instead would turn that crash into a silent pass for the field it owns.
+    # `!!set` does not reach here: CPython converts an unhashable set key to a frozenset, so only a
+    # list or a mapping ever did.
+    for field, allowed in (("model", MODELS), ("color", COLORS)):
+        value = meta.get(field)
+        if value is None:
+            continue
+        if not isinstance(value, str):
+            add(agent, "A4 model/color",
+                f"`{field}` is a {type(value).__name__}, not one of {sorted(allowed)}")
+        elif value not in allowed:
+            add(agent, "A4 model/color", f"`{field}: {value}` is not one of {sorted(allowed)}")
 
     tools = meta.get("tools")
     if tools is not None:
         if not isinstance(tools, list) or not tools:
             add(agent, "A5 tools", "`tools` must be a non-empty list — omitting it grants every "
                                    "tool, so the declaration is the privilege")
-        elif not all(isinstance(t, str) and t for t in tools):
-            add(agent, "A5 tools", "every entry of `tools` must be a non-empty string")
+        elif not all(isinstance(t, str) and t.strip() for t in tools):
+            # `.strip()`: `"   "` is truthy, so three spaces used to pass as a tool name — a
+            # privilege stated in form and absent in substance (issue #225, finding 11).
+            add(agent, "A5 tools", "every entry of `tools` must be a non-blank string")
 
     stripped = body.strip()
     if not BODY_MIN <= len(stripped) <= BODY_MAX:
         add(agent, "A6 body", f"{len(stripped)} characters — the accepted range is "
                               f"{BODY_MIN}-{BODY_MAX}")
-    if not WHEN_TO_INVOKE.search(body):
+    if not WHEN_TO_INVOKE.search(FENCE.sub("", body)):
         add(agent, "A6 body", "no `## When to invoke` section — a description routes to the agent, "
                               "this section tells the agent what the caller expected")
+
+
+def is_markdown(path: Path) -> bool:
+    """Suffix comparison, case-folded.
+
+    `glob("*.md")` is case-sensitive on the CI filesystem, so `agents/rogue.MD` holding anything at
+    all used to be discovered by nothing and reported by nothing — exit 0, and the summary still said
+    `agents checked: 1` (reproduced 2026-09-07, issue #225 finding 8). Discovery is the first gate:
+    what it misses is unchecked, not approved.
+    """
+    return path.suffix.lower() == ".md"
+
+
+def agent_files(directory: Path) -> list:
+    """The canonical directory is flat by rule, so this stays one level deep on purpose.
+
+    A subdirectory there is a finding of its own (A7 above), not a place to look for agents.
+
+    Deliberately NOT filtered by `is_file()`: a dangling symlink and a directory carrying the suffix
+    are exactly the malformed inputs A1 and A7 own, and `is_file()` is False for both — filtering
+    here would make the gate accept them by never looking (the shape the old `glob("*.md")` had, and
+    the one the self-test's dangling-symlink case pins).
+    """
+    return sorted(p for p in directory.iterdir() if is_markdown(p))
 
 
 def check_layout() -> None:
@@ -210,8 +261,10 @@ def check_layout() -> None:
                 f"agents/{sub.name}/ is a directory — the canonical directory is flat, because a "
                 "subdirectory changes the name the agent is invoked under")
 
-    canonical = {p.stem: p for p in AGENTS.glob("*.md") if p.is_file()} if AGENTS.is_dir() else {}
-    for generated in sorted(GENERATED.glob("*/agents/*.md")):
+    canonical = {p.stem: p for p in agent_files(AGENTS) if p.is_file()} if AGENTS.is_dir() else {}
+    for generated in sorted(GENERATED.glob("*/agents/**/*")):
+        if not is_markdown(generated) or not generated.is_file():
+            continue
         rel = generated.relative_to(ROOT)
         source = canonical.get(generated.stem)
         if source is None:
@@ -239,7 +292,7 @@ def main() -> int:
     # No early return when agents/ is missing: check_layout() owns exactly that state (issue #205,
     # attack 2). A repository that legitimately publishes no agents still reports zero findings —
     # because the check ran, not because it was skipped.
-    files = sorted(AGENTS.glob("*.md")) if AGENTS.is_dir() else []
+    files = sorted(agent_files(AGENTS)) if AGENTS.is_dir() else []
     for path in files:
         check_file(path)
     check_layout()
