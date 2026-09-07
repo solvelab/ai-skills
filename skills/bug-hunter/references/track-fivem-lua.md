@@ -48,8 +48,23 @@ the Python track and worth saying out loud: nothing will generate the case you d
 nothing will tell you the suite is thin. The boundary witnesses the scoring layer would have found
 have to be written by hand — for every limit the code enforces, a case on each side and one **at the
 value**, because a suite that proves a clamp fires and never where it sits survives the clamp being
-moved. The runner is `busted`, which does install cleanly (`luarocks install busted` ->
-`busted 2.3.0-1 is now installed`, Lua 5.5, 2026-09-07).
+moved.
+
+The runner is `busted`, and installing it is two steps, not one — the second is the one people lose
+an afternoon to:
+
+```bash
+luarocks --local install busted          # busted 2.3.0-1 is now installed
+eval "$(luarocks path --bin)"            # WITHOUT this: `command not found: busted`
+busted --verbose
+```
+
+`--local` puts the binary in `~/.luarocks/bin`, which is not on `PATH`. Probed on 2026-09-07 against
+`luarocks 3.13.0` and Lua 5.5.0, driving a five-case spec over a pure clamp module: `5 successes / 0
+failures`, and moving the clamp's own constant from 100 to 101 turned the case that asserts the value
+red — which is the witness this section exists to demand. In the same run, `>` widened to `>=`
+survived every case, and that one is correct: for a clamp that returns the maximum either way the
+mutant is equivalent, which is why survivors are read by class and never as a percentage.
 
 ## Exit criteria
 

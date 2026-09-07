@@ -19,7 +19,12 @@
       `luarocks install lua-quickcheck --check-lua-versions` ->
       `lua-quickcheck supports only Lua 5.1 and Lua 5.2 but not Lua 5.5.` For the scoring layer,
       `luarocks search mutmut`, `luarocks search mutation-testing` and `luarocks search luamutant`
-      each returned a header and an empty result set.
+      each returned a header and an empty result set. Re-verified after the fact, on the maintainer's
+      request that the install be proved usable and not merely present: `busted --version` -> `2.3.0`,
+      and a five-case spec over a pure clamp module -> `5 successes / 0 failures / 0 errors`. The
+      install alone is NOT enough — `--local` puts the binary in `~/.luarocks/bin`, off `PATH`, and a
+      shell without `eval "$(luarocks path --bin)"` answers `command not found: busted`. That second
+      step was missing from the track as first written and is now in it.
 - [x] E.3 Anything that could NOT be probed is written down as an open question — never stated as
       fact, never filled with a plausible substitute. Two. **Stryker.NET was not run**: no .NET SDK
       is present (`command -v dotnet` -> absent), so the .NET track names it only as the tool a
@@ -58,12 +63,17 @@
       Ecosystem probes run: **5/5** answered (`lua -v`, `luarocks --version`, the `busted` install,
       the `lua-quickcheck` version check, the three empty mutation searches). Tools this change
       prescribes without having run them: **0/0**.
-- [x] S.3 Nothing escaped and nothing behaved unexpectedly in the artifact. One expectation of mine
-      was wrong and is recorded because it changed the change: I expected `lua-quickcheck` to be
-      installable and the Lua track to end up with a prescribed generator. LuaRocks refused it for
-      the installed Lua and named the supported versions, which is what turned the section from a
-      prescription into a probed declaration — the better outcome, and one I would have guessed
-      wrong.
+- [x] S.3 One expectation of mine was wrong and is recorded because it changed the change: I expected
+      `lua-quickcheck` to be installable and the Lua track to end up with a prescribed generator.
+      LuaRocks refused it for the installed Lua and named the supported versions, which is what turned
+      the section from a prescription into a probed declaration — the better outcome, and one I would
+      have guessed wrong. **And one escape, in this change's own text**: the track first said the
+      runner "installs cleanly" and stopped there. It does install; it does not RUN, because
+      `~/.luarocks/bin` is not on `PATH`. Caught only when the install was exercised end to end
+      afterwards — `command not found: busted` — which is the same lesson as issue #95: present is not
+      the same as working. The `PATH` step and a proved five-case run are now in the track, and moving
+      the clamp constant from 100 to 101 was verified to turn the value witness red while `>` widened
+      to `>=` survived as a genuinely equivalent mutant.
 
 ## 4. Quality Gates (MANDATORY)
 
