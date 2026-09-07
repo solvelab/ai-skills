@@ -12,6 +12,7 @@ Needs only python3 and PyYAML (which validate-agents.py itself needs). Run from 
 """
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
@@ -51,6 +52,27 @@ def run(root: Path) -> tuple[int, str]:
     p = subprocess.run([sys.executable, str(root / "scripts" / "validate-agents.py")],
                        capture_output=True, text=True)
     return p.returncode, p.stdout + p.stderr
+
+
+def accepts(root: Path, label: str) -> bool:
+    """An acceptance is proved by SILENCE, not by a zero exit.
+
+    The baseline check at the top of main() has always read the output as well as the code; the
+    accepting blocks below read only the code, so a validator that exited zero while reporting
+    something would satisfy them — the one case an accepting block exists to rule out (issue #239).
+    Same rigour as the baseline, in one place, so the file no longer holds two.
+
+    Prints the check that fired, read as the first bracketed token of a finding line, because
+    "was rejected" plus the whole run makes the reader go find it by hand.
+    """
+    code, out = run(root)
+    if code == 0 and "findings: 0" in out:
+        print(f"  OK     {label} is accepted")
+        return True
+    hit = re.search(r"\[([A-Z]\d+)", out)
+    which = hit.group(1) if hit else "no check id in the output"
+    print(f"  FAIL   {label} was not accepted cleanly — {which}:\n{out}")
+    return False
 
 
 def drop(field: str) -> str:
@@ -252,12 +274,9 @@ def main() -> int:
         root = Path(tmp) / "repo"
 
         build(root)
-        code, out = run(root)
-        if code != 0 or "findings: 0" not in out:
-            print(f"  FAIL   a conforming agent was rejected\n{out}")
-            failures += 1
-        else:
-            print("  CLEAN  a conforming agent produces zero findings")
+        # The baseline is an acceptance like the others, and now judged by the same helper — its
+        # condition is where that helper's rigour came from (issue #239).
+        failures += not accepts(root, "a conforming agent produces zero findings")
 
         for case in CASES:
             label, check, plant = case[0], case[1], case[2]
@@ -293,12 +312,7 @@ def main() -> int:
         build(root)
         (root / "agents" / "example-agent.md").write_text(
             replace("## When to invoke", "##\tWhen to invoke"), encoding="utf-8")
-        code, out = run(root)
-        if code != 0:
-            print(f"  FAIL   A6  a tab after the heading hashes was rejected\n{out}")
-            failures += 1
-        else:
-            print("  OK     A6  a tab after the heading hashes is accepted")
+        failures += not accepts(root, "A6  a tab after the heading hashes")
 
         # The canonical directory is gone and a generated copy is still published: the state A7 owns,
         # and the one the early return used to hide by never running the check (issue #205, attack 2).
@@ -321,12 +335,7 @@ def main() -> int:
         (root / "plugins" / "testing" / "agents").mkdir(parents=True)
         shutil.copy2(root / "agents" / "example-agent.md",
                      root / "plugins" / "testing" / "agents" / "example-agent.md")
-        code, out = run(root)
-        if code != 0:
-            print(f"  FAIL   a generated copy WITH a canonical source was called an orphan\n{out}")
-            failures += 1
-        else:
-            print("  OK     A7  a generated copy with a source is not an orphan")
+        failures += not accepts(root, "A7  a generated copy with a source is not an orphan")
 
         # ── issue #225 ── The accepting side of every limit. A rejected case one past the limit
         # proves the check fires; only a case AT the value proves where the limit sits. Without
@@ -341,12 +350,7 @@ def main() -> int:
             shutil.rmtree(root)
             build(root)
             (root / "agents" / "example-agent.md").write_text(text, encoding="utf-8")
-            code, out = run(root)
-            if code != 0:
-                print(f"  FAIL   {label} was rejected\n{out}")
-                failures += 1
-            else:
-                print(f"  OK     {label} is accepted")
+            failures += not accepts(root, label)
 
         # A name of exactly 50 characters is legal; the file is renamed so `name != agent` cannot
         # mask the regex. The rejecting side (51) is covered by NAME_RE itself and by the
@@ -357,12 +361,7 @@ def main() -> int:
         (root / "agents" / "example-agent.md").unlink()
         (root / "agents" / f"{long_name}.md").write_text(sized(200, 200, name=long_name),
                                                          encoding="utf-8")
-        code, out = run(root)
-        if code != 0:
-            print(f"  FAIL   A2  a name of exactly 50 characters was rejected\n{out}")
-            failures += 1
-        else:
-            print("  OK     A2  a name of exactly 50 characters is accepted")
+        failures += not accepts(root, "A2  a name of exactly 50 characters")
 
         # ── issue #225, finding 12 ── The property every crash guard rests on: the run REACHES the
         # agent after the bad one. Every case above plants exactly one agent, so a gate that died on
