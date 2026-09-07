@@ -409,6 +409,14 @@ def check_limits(skill: str, text: str) -> None:
     except _yaml.YAMLError as exc:
         add(skill, "C10 frontmatter limits", f"frontmatter does not parse as YAML: {str(exc)[:90]}")
         return
+    except RecursionError:
+        # Raised by the parser on deeply nested flow sequences, and NOT a subclass of YAMLError, so
+        # it escaped the handler above and ended the run by traceback. Same defect, same construct,
+        # same input as scripts/validate-agents.py — fixed in the same change on purpose, because
+        # patching only the caller a report named leaves the sibling fatal (issue #225, finding 4).
+        add(skill, "C10 frontmatter limits",
+            "frontmatter nesting exhausts the YAML parser — the payload is small, its structure is not")
+        return
     if not isinstance(data, dict):
         return                                       # the CI frontmatter loop reports the shape
     for field, limit in FRONTMATTER_LIMITS:
@@ -590,7 +598,7 @@ def check_anti_trigger(skill: str, text: str) -> None:
         return                                       # C4 already reports the missing frontmatter
     try:
         data = _yaml.safe_load(fm[1])
-    except _yaml.YAMLError:
+    except (_yaml.YAMLError, RecursionError):
         return                                       # C10 already reports the parse failure
     desc = data.get("description") if isinstance(data, dict) else None
     if not isinstance(desc, str):
