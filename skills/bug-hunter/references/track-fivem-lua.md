@@ -19,6 +19,38 @@ smoke.
 - **StateBag races**: concurrent writers to the same networked state don't corrupt it — drive it with
   a burst of writers, not a pair.
 
+## Generating and scoring here: what the ecosystem actually offers
+
+Probed on 2026-09-07 with `luarocks 3.13.0`, because the two conditional layers of the rite are
+worth nothing if the reader has to discover on their own that the tools do not exist.
+
+**Generate — no.** The ecosystem's property-based library is `lua-quickcheck`, and LuaRocks answers
+directly:
+
+```bash
+luarocks install lua-quickcheck --check-lua-versions
+# lua-quickcheck supports only Lua 5.1 and Lua 5.2 but not Lua 5.5.
+```
+
+CfxLua is 5.4-based, so the library does not reach the runtime this track targets. Re-run that one
+line before believing this paragraph — it is a fact with a date, and a rock supporting 5.4 could
+appear.
+
+**Score — nothing to reach.** There is no mutation-testing rock. Three exact-name searches returned a
+header and an empty result set:
+
+```bash
+luarocks search mutmut ; luarocks search mutation-testing ; luarocks search luamutant
+```
+
+**So what this track does instead.** Enumeration is the whole rite here, which makes it weaker than
+the Python track and worth saying out loud: nothing will generate the case you did not think of, and
+nothing will tell you the suite is thin. The boundary witnesses the scoring layer would have found
+have to be written by hand — for every limit the code enforces, a case on each side and one **at the
+value**, because a suite that proves a clamp fires and never where it sits survives the clamp being
+moved. The runner is `busted`, which does install cleanly (`luarocks install busted` ->
+`busted 2.3.0-1 is now installed`, Lua 5.5, 2026-09-07).
+
 ## Exit criteria
 
 Everything unit-testable is covered off-game and green; what can't be unit-tested has a **documented
