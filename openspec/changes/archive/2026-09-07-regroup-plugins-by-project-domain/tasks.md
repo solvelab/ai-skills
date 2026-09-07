@@ -243,4 +243,4 @@
 - [x] V.3 README atualizado na tabela de plugins, na nota do bloco r3f e na tabela de migração
       Tabela de plugins, nota do bloco r3f e tabela de migração, as três no `README.md`.
 
-- [ ] V.4 `openspec archive regroup-plugins-by-project-domain --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive regroup-plugins-by-project-domain --yes` after all groups above are `[x]`

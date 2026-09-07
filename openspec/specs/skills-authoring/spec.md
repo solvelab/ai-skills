@@ -78,7 +78,8 @@ the output contract → `agent-delegation`.
 
 Every `skills/<name>/SKILL.md` SHALL carry: `name` (== directory), `description` (folded block scalar),
 `metadata.author: solvelab`, `metadata.version` (semver), `metadata.category` from the controlled set
-{backend, testing, fivem, game, devops, docs, git, process, nui, frontend, tooling}, `license: MIT`,
+{backend, testing, fivem, game, assettoserver, devops, docs, git, process, nui, frontend,
+tooling}, `license: MIT`,
 and `compatibility`.
 
 The controlled set is the one the CI frontmatter check enforces. When the two disagree, the gate is
