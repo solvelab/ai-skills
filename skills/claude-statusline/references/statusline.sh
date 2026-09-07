@@ -9,7 +9,7 @@ input=$(cat)
 # NOTE: the separator is \x1f, not \t. Tab is an IFS *whitespace* character, so bash
 # collapses runs of it and drops empty fields — one absent value would shift every
 # later field left. \x1f is non-whitespace, so empty fields are preserved.
-IFS=$'\x1f' read -r MODEL DIR COST CTX EFFORT THINKING RL5 RL7 DUR ADDED REMOVED SESSION_ID TRANSCRIPT <<< "$(jq -r '[
+IFS=$'\x1f' read -r MODEL DIR COST CTX EFFORT THINKING RL5 RL7 DUR ADDED REMOVED SESSION_ID TRANSCRIPT API_DUR <<< "$(jq -r '[
   (.model.display_name // "Claude"),
   (.workspace.current_dir // .cwd // "."),
   (.cost.total_cost_usd // 0),
@@ -22,7 +22,8 @@ IFS=$'\x1f' read -r MODEL DIR COST CTX EFFORT THINKING RL5 RL7 DUR ADDED REMOVED
   (.cost.total_lines_added // 0),
   (.cost.total_lines_removed // 0),
   (.session_id // ""),
-  (.transcript_path // "")
+  (.transcript_path // ""),
+  (.cost.total_api_duration_ms // 0)
 ] | map(tostring) | join("\u001f")' <<< "$input")"
 
 # ANSI colors
@@ -52,10 +53,13 @@ bar() {
 }
 
 # human <n> — 1234 -> 1.2k, 1500000 -> 1.5M
+# The k branch TRUNCATES rather than rounds. %.0f would round 999500..999999 up to "1000k", a label
+# this function's own thresholds exclude — 1000k is where the M branch starts. The M branch keeps
+# %.1f because its ceiling is open, so rounding can never carry it out of its own band.
 human() {
   local n=$1
   if   [ "$n" -ge 1000000 ]; then awk "BEGIN{printf \"%.1fM\", $n/1000000}"
-  elif [ "$n" -ge 1000 ];    then awk "BEGIN{printf \"%.0fk\", $n/1000}"
+  elif [ "$n" -ge 1000 ];    then awk "BEGIN{printf \"%dk\", int($n/1000)}"
   else printf '%s' "$n"; fi
 }
 
@@ -91,7 +95,7 @@ meter() {
   printf '%s %s%s%s %s%s%%%s' "$label" "$col" "$(bar "$p" 8)" "$C_RESET" "$col" "$p" "$C_RESET"
 }
 
-# effort_render <level> — icon + escalating color per effort tier.
+# effort_render <level> <session-duration-ms> — icon + escalating color per effort tier.
 # NOTE: "ultracode" is not a distinct level — it reports as `xhigh` (same as /effort xhigh),
 # so 🚀 xhigh is how an ultracode turn shows up here.
 effort_render() {
@@ -102,10 +106,14 @@ effort_render() {
     xhigh)  printf '🚀 %sxhigh%s'  "$C_EFF_XHIGH" "$C_RESET" ;;
     max)
       # ultracode-style shimmer: a bright point sweeps across the label, one step per second.
-      # The status line refreshes at most 1×/s (refreshInterval), so this is a 1-fps pulse,
-      # not a smooth sub-second gradient — the frame is derived from wall-clock seconds.
-      local lbl="max" i ch col out="" frame
-      frame=$(( $(date +%s) % ${#lbl} ))
+      # The status line refreshes at most 1×/s (refreshInterval), so this is a 1-fps pulse, not a
+      # smooth sub-second gradient. The frame comes from cost.total_duration_ms — the session clock
+      # the HOST advances on every render — and never from date(1): a render must be a function of
+      # its payload, or the cheapest check that exists for this script (feed a known payload, diff
+      # the output) reports differences that mean nothing.
+      local lbl="max" i ch col out="" frame secs="${2%%.*}"
+      case "${secs:-}" in ''|*[!0-9]*) secs=0 ;; esac
+      frame=$(( (secs / 1000) % ${#lbl} ))
       for ((i = 0; i < ${#lbl}; i++)); do
         ch="${lbl:i:1}"
         if [ "$i" -eq "$frame" ]; then col="$C_HI"; else col="$C_EFF_MAX"; fi
@@ -121,7 +129,7 @@ cd "$DIR" 2>/dev/null
 # ---------- Line 1: identity — model | effort | thinking ----------
 line1=()
 line1+=("🤖 ${C_MODEL}${MODEL}${C_RESET}")
-[ "$EFFORT" != "-" ] && line1+=("$(effort_render "$EFFORT")")
+[ "$EFFORT" != "-" ] && line1+=("$(effort_render "$EFFORT" "$DUR")")
 case "$THINKING" in
   enabled)  line1+=("🧠 ${C_THINK_ON}thinking enabled${C_RESET}") ;;
   disabled) line1+=("🧠 ${C_THINK_OFF}thinking disabled${C_RESET}") ;;
@@ -328,6 +336,17 @@ else
 fi
 [ "$RL5" != "-" ] && line3+=("🚦 $(meter 5h "$RL5")")
 [ "$RL7" != "-" ] && line3+=("$(meter 7d "$RL7")")
+# 🌐 api — share of the session clock spent waiting on the model. Both numbers are the host's
+# (cost.total_api_duration_ms over cost.total_duration_ms), so this reports rather than estimates.
+# It lives on line 3 and not beside ⏱️ because line 1 is full: measured at 79 columns before this
+# change, so any segment added there overflows an 80-column terminal. Here the four meters come to
+# 80 exactly at typical values.
+API_MS=${API_DUR%%.*}
+if [ "${API_MS:-0}" -gt 0 ] 2>/dev/null && [ "${DUR_MS:-0}" -gt 0 ] 2>/dev/null; then
+  API_PCT=$(( API_MS * 100 / DUR_MS ))
+  [ "$API_PCT" -gt 100 ] && API_PCT=100
+  line3+=("🌐 $(meter api "$API_PCT")")
+fi
 
 join "${line1[@]}"
 [ "${#line2[@]}" -gt 0 ] && join "${line2[@]}"

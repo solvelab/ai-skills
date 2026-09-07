@@ -4,7 +4,7 @@ description: >-
   Configure or customize the Claude Code status line — the shell-script status bar at the bottom of the CLI that shows model, effort tier, context usage, git state, cost (the session total the host reports, split into input and output shares), rate limits and prompt-cache health. Use when the user wants to set up, change, share, or debug their Claude Code status line / status bar, mentions statusLine in settings.json or a statusline.sh script, wants a context/token/cost/git/effort indicator in the CLI, or shares a status-line gist to install. Ships a ready-made 3-line script (references/statusline.sh) and the full list of available JSON fields (references/fields.md). Do NOT use for shell prompt themes (PS1, starship, powerlevel10k) or non-Claude-Code status bars.
 metadata:
   author: solvelab
-  version: 2.0.0
+  version: 2.1.0
   category: tooling
 license: MIT
 compatibility: Works in Claude Code (CLI, desktop, IDE). Requires `jq` on PATH. Bash script targets macOS/Linux (incl. WSL); Git Bash on Windows.
@@ -70,8 +70,11 @@ rate-limit meters hidden on non-subscription accounts, empty lines suppressed):
 
 - **Line 1 — identity + session**: model · **effort tier** (distinct icon + escalating color
   per level: `🐢 low` / `⚡ medium` / `🔥 high` / `🚀 xhigh` / `💥 max`; `max` shimmers a
-  1-fps sweep when `refreshInterval` is set) · thinking on/off · session duration (adaptive
-  `Dd Hh` / `Hh Mm` / `Mm Ss`) · **cumulative session cost**. Note: `ultracode` is not a
+  1-fps sweep when `refreshInterval` is set — the frame comes from `cost.total_duration_ms`, the
+  session clock the host advances, never from `date`, so a render stays a function of its payload)
+  · thinking on/off · session duration (adaptive `Dd Hh` / `Hh Mm` / `Mm Ss`) · **cumulative
+  session cost**. This line measures 79 columns at typical values, so it has no room for another
+  segment. Note: `ultracode` is not a
   distinct effort level — it reports as `xhigh`, so an ultracode turn shows as `🚀 xhigh`.
 - **Line 2 — place + tokens**: clickable GitHub repo link (OSC 8) · branch (short SHA when
   detached) · `●` staged / `✚` modified counts · worktree when in one · lines added/removed ·
@@ -88,7 +91,10 @@ rate-limit meters hidden on non-subscription accounts, empty lines suppressed):
   The counts are what the transcript records, **not** what was billed: measured 2026-09-07 they ran
   13.5%–93.7% below the host's own ledger on one session, and why was not determined.
 - **Line 3 — meters**: all progress bars together — context-window, then 5h/7d rate limits
-  (Pro/Max only). Each bar is colored green <50, yellow 50–79, red ≥80.
+  (Pro/Max only), then `🌐 api`, the share of the session clock spent waiting on the model
+  (`cost.total_api_duration_ms` over `cost.total_duration_ms`, both the host's, shown only when
+  both are present). Each bar is colored green <50, yellow 50–79, red ≥80. Four meters come to 80
+  columns at typical values, 83 with all four saturated.
 
 Steps:
 
