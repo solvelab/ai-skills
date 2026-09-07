@@ -10,7 +10,12 @@
 #   copilot/instructions/<name>.instructions.md  SKILL.md and references/ linked by repository URL
 #                                          (the file is copied out of the clone alone)
 #   plugins/<group>/                       category-grouped Claude Code plugins (skills copied;
-#                                          group = metadata.category, git+process -> workflow)
+#                                          group = metadata.category, git+process -> workflow;
+#                                          agents copied per the AGENT_GROUP map below)
+#
+# Agents (agents/<name>.md) are Claude-Code-only: they are copied into the plugin trees and
+# into NO other wrapper tree, because Codex, Cursor and Copilot have no dispatched-subagent
+# concept and inventing an equivalent would publish behaviour that does not exist.
 #
 # Usage: ./generate.sh
 
@@ -18,6 +23,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS="${SCRIPT_DIR}/skills"
+AGENTS="${SCRIPT_DIR}/agents"
 CLAUDE_OUT="${SCRIPT_DIR}/claude/skills"
 CODEX_OUT="${SCRIPT_DIR}/codex/skills"
 CURSOR_OUT="${SCRIPT_DIR}/cursor/rules"
@@ -54,6 +60,16 @@ declare -A GROUP_THEME=(
   [tooling]="AI-assistant developer tooling — Claude Code status line setup and customization"
 )
 
+# Which plugin group publishes each agent. This map lives HERE and not in the agent's frontmatter
+# because the harness whitelists the fields an agent file may carry (name, description, model, color,
+# tools); an extra key is risk with no gain. The cost is a second source of truth, paid for by the
+# pre-write guard below, which refuses an unmapped agent before a single file is written.
+declare -A AGENT_GROUP=(
+  [grounding-researcher]="workflow"
+  [bug-hunter-analyst]="testing"
+  [skill-auditor]="tooling"
+)
+
 group_of() {
   case "$1" in
     git|process) echo "workflow" ;;
@@ -78,6 +94,20 @@ for skill_md in "$SKILLS"/*/SKILL.md; do
     exit 1
   }
 done
+
+# Same guarantee for agents, and for the same reason: an agent with no group would either be
+# dropped silently or land in a directory nobody publishes. Checked before the first write and
+# before `rm -rf plugins/`, so a missing mapping leaves the tree exactly as it was.
+if [ -d "$AGENTS" ]; then
+  for agent_md in "$AGENTS"/*.md; do
+    [ -f "$agent_md" ] || continue
+    agent_name="$(basename "$agent_md" .md)"
+    [[ -v AGENT_GROUP[$agent_name] ]] || {
+      echo "❌ generate.sh: no AGENT_GROUP for agent '${agent_name}' (agents/${agent_name}.md) — add its plugin group to AGENT_GROUP in generate.sh. Nothing was written." >&2
+      exit 1
+    }
+  done
+fi
 
 mkdir -p "$CURSOR_OUT" "$COPILOT_OUT"
 
@@ -233,6 +263,16 @@ for skill_md in "$SKILLS"/*/SKILL.md; do
   find "$PLUGINS_OUT/$group/skills/$name" -name __pycache__ -type d -prune -exec rm -rf {} +
 done
 
+if [ -d "$AGENTS" ]; then
+  for agent_md in "$AGENTS"/*.md; do
+    [ -f "$agent_md" ] || continue
+    agent_name="$(basename "$agent_md" .md)"
+    agent_group="${AGENT_GROUP[$agent_name]}"
+    mkdir -p "$PLUGINS_OUT/$agent_group/agents"
+    cp --no-preserve=mode "$agent_md" "$PLUGINS_OUT/$agent_group/agents/${agent_name}.md"
+  done
+fi
+
 # "<theme> (<N> skills: <names>)" — names sorted under LC_ALL=C so the output is identical on every
 # machine and a second run produces no diff. The theme lookup is guarded a second time on purpose,
 # even though the pre-write check above already refused any group without one: the old
@@ -247,6 +287,16 @@ group_description() {
   names="$(ls -1 "$PLUGINS_OUT/$group/skills" | LC_ALL=C sort | paste -sd, - | sed 's/,/, /g')"
   count="$(ls -1 "$PLUGINS_OUT/$group/skills" | wc -l | tr -d ' ')"
   printf '%s (%s %s: %s)' "${GROUP_THEME[$group]}" "$count" "$([ "$count" -eq 1 ] && echo skill || echo skills)" "$names"
+  # The agents go in a SEPARATE parenthetical, never inside the one above: the H3 membership regex
+  # in scripts/validate-repo-hygiene.py captures `[^)]*` after "N skills:", so anything added inside
+  # that parenthesis would be swallowed into the skill-name list and the check would compare the
+  # wrong set. A sibling check reads this second parenthetical against plugins/<g>/agents/.
+  if [ -d "$PLUGINS_OUT/$group/agents" ]; then
+    local anames acount
+    anames="$(ls -1 "$PLUGINS_OUT/$group/agents" | sed 's/\.md$//' | LC_ALL=C sort | paste -sd, - | sed 's/,/, /g')"
+    acount="$(ls -1 "$PLUGINS_OUT/$group/agents" | wc -l | tr -d ' ')"
+    printf ' (%s %s: %s)' "$acount" "$([ "$acount" -eq 1 ] && echo agent || echo agents)" "$anames"
+  fi
 }
 
 plugin_count=0

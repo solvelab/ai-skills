@@ -18,7 +18,7 @@
     {
       "name": "ai-skills-workflow",
       "source": "./plugins/workflow",
-      "description": "Commit format, OpenSpec spec-driven workflow, the backlog rite, the anti-guessing rite, the code-locale rule, the lean-code doctrine and the artifact-boundary rule for delegation (9 skills: agent-delegation, backlog, code-locale, conventional-commit, execute-backlog, lean-code, openspec, openspec-drivezone, verify-before-claiming)",
+      "description": "Commit format, OpenSpec spec-driven workflow, the backlog rite, the anti-guessing rite, the code-locale rule, the lean-code doctrine and the artifact-boundary rule for delegation (9 skills: agent-delegation, backlog, code-locale, conventional-commit, execute-backlog, lean-code, openspec, openspec-drivezone, verify-before-claiming) (1 agent: grounding-researcher)",
       "category": "productivity"
     },
     {
@@ -30,7 +30,7 @@
     {
       "name": "ai-skills-testing",
       "source": "./plugins/testing",
-      "description": "Adversarial testing rite and REST negative/fuzz/contract testing (3 skills: api-resilience-testing, bug-hunter, tdd)",
+      "description": "Adversarial testing rite and REST negative/fuzz/contract testing (3 skills: api-resilience-testing, bug-hunter, tdd) (1 agent: bug-hunter-analyst)",
       "category": "productivity"
     },
     {
@@ -72,7 +72,7 @@
     {
       "name": "ai-skills-tooling",
       "source": "./plugins/tooling",
-      "description": "AI-assistant developer tooling — Claude Code status line setup and customization (1 skill: claude-statusline)",
+      "description": "AI-assistant developer tooling — Claude Code status line setup and customization (1 skill: claude-statusline) (1 agent: skill-auditor)",
       "category": "productivity"
     }
   ]
