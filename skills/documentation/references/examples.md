@@ -4,6 +4,12 @@ Real-world examples of good documentation output for each tier. Use these as ref
 
 ---
 
+## Contents
+
+- [README.md Example Snippet](#readmemd-example-snippet)
+- [docs/SETUP.md Example Snippet](#docssetupmd-example-snippet)
+- [docs/TECHNICAL.md Example Snippet](#docstechnicalmd-example-snippet)
+
 ## README.md Example Snippet
 
 ```markdown

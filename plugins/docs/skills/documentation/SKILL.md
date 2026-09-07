@@ -10,7 +10,7 @@ description: >-
   same commit as the code. Do NOT use for non-software documentation tasks.
 metadata:
   author: solvelab
-  version: 3.2.0
+  version: 3.3.0
   category: docs
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
@@ -25,6 +25,20 @@ compatibility: Works in Claude Code, Claude.ai, and any environment with filesys
 
 Write documentation a reader can act on and a script can verify. Templates and full worked examples
 live in `references/` — read them when you are about to generate output, not before.
+
+## Contents
+
+- [Analyze before documenting](#analyze-before-documenting)
+- [Decide which documents exist](#decide-which-documents-exist)
+- [One purpose per page](#one-purpose-per-page)
+- [Organization is checkable too](#organization-is-checkable-too)
+- [Every claim must be checkable](#every-claim-must-be-checkable)
+- [Keeping it true](#keeping-it-true)
+- [AGENTS.md — the repo's instructions for coding agents](#agentsmd--the-repos-instructions-for-coding-agents)
+- [README](#readme)
+- [Writing style](#writing-style)
+- [Updating existing documentation](#updating-existing-documentation)
+- [See also](#see-also)
 
 ## Analyze before documenting
 
@@ -53,7 +67,7 @@ the report to write when it cannot be found are `verify-before-claiming`.
 | Condition | Document |
 |---|---|
 | Any project | `README.md` |
-| A `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md` or `.clinerules` exists, **or** the user asked to document the repo for AI tools | `AGENTS.md` |
+| An agent-instruction file already exists, or the user asked to document the repo for AI tools | `AGENTS.md` |
 | Setup takes more than ~5 commands, or has environment prerequisites | `docs/SETUP.md` |
 | Architecture a reader cannot infer from the tree (services, flows, integrations) | `docs/TECHNICAL.md` |
 | REST/GraphQL API with no generated spec published | `docs/API.md` |
@@ -159,7 +173,9 @@ Documentation rot is the default outcome; the only reliable fix is process, not 
 
 When AI agents work in the repo, the conventions they need live in `AGENTS.md` at the root — an open
 spec (donated to the Linux Foundation's Agentic AI Foundation in December 2025) that most agent tools
-now read. Anthropic's `CLAUDE.md` serves the same role for Claude Code; when both exist, keep one
+now read. The files that count as an agent-instruction file already present in a repo are
+`CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md` and `.clinerules`; any one of them is
+the signal that this document is owed. Anthropic's `CLAUDE.md` serves the same role for Claude Code; when both exist, keep one
 canonical and have the other point at it rather than maintaining two.
 
 Content that measurably helps: **architecture overview, where the important files are, and how to
