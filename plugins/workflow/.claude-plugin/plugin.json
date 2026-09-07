@@ -2,7 +2,7 @@
   "name": "ai-skills-workflow",
   "displayName": "AI Skills — workflow",
   "version": "2.33.0",
-  "description": "Commit format, OpenSpec spec-driven workflow, the backlog rite, the anti-guessing rite, the code-locale rule and the lean-code doctrine (8 skills: backlog, code-locale, conventional-commit, execute-backlog, lean-code, openspec, openspec-drivezone, verify-before-claiming)",
+  "description": "Commit format, OpenSpec spec-driven workflow, the backlog rite, the anti-guessing rite, the code-locale rule, the lean-code doctrine and the artifact-boundary rule for delegation (9 skills: agent-delegation, backlog, code-locale, conventional-commit, execute-backlog, lean-code, openspec, openspec-drivezone, verify-before-claiming)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
   "license": "MIT"

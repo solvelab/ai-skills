@@ -11,7 +11,7 @@ description: >-
   tdd, which runs before the change while this rite runs after it).
 metadata:
   author: solvelab
-  version: 2.3.0
+  version: 2.4.0
   category: testing
 license: MIT
 compatibility: Works in any environment with filesystem access.
@@ -97,5 +97,8 @@ is *Tests & Bug-Hunter*), so match the literal when grepping a change.
 - `fivem-lua` — the trust-boundary rule (`source`, not client args) that the Lua track exercises.
 - `lean-code` — the one-check floor lives there (non-trivial logic leaves one runnable check behind); this
   rite is everything beyond that floor, and a shorter diff never trades it away.
+- `agent-delegation` — deciding to hand this analysis to a subagent, and what such a subagent may
+  hold: it governs the dispatch, this skill governs the method. Delegating the analysis is never
+  performing it.
 - `tdd` — the other side of the same change in time: it governs the test written **before** the
   code, this rite what is done to the code **after** it. Neither restates the other.

@@ -77,12 +77,8 @@ dependency → one line → only then the minimum code that works. The ladder ru
 - Rationale: this is a human–AI interaction where I am the author and idealizer; the AI is a tool. Git artifacts must not attribute authorship to the AI.
 
 ## Model & Effort Tiering (token economy + quality)
-Match effort and model to task **difficulty** — do not max everything (maxing trivial work wastes tokens, the opposite of the goal).
-- **Trivial / conversational:** session model, effort `low`/`medium`.
-- **Planning / hard reasoning / architecture decisions:** Opus 4.8 (Fable 5 only for the hardest), effort `high`/`xhigh`; `max` only when correctness outweighs cost.
-- **Mechanical or parallel subtasks** (search, file reads, trivial edits, lint, broad sweeps): delegate to a subagent on a cheaper model (Haiku 4.5 / Sonnet 4.6) + effort `low`. Subagents have separate context, so a cheaper model there does NOT invalidate the main loop's prompt cache.
-- **Reasoning-heavy subtasks:** keep a capable model — a cheaper model that gets it wrong means rework = more tokens + worse result.
-- Apply this when spawning Agent/Workflow subagents (`model`/`effort` per call); don't switch the main session model mid-task (cache invalidation) — use a subagent instead.
+Match model and effort to the **difficulty** of the work, and move cheap parallel work into a subagent instead of downgrading the main loop — full doctrine, the three delegation tests and the artifact boundary live in the `agent-delegation` skill.
+- My local binding of that criterion, today: Opus 4.8 for planning and architecture (Fable 5 only for the hardest), Haiku 4.5 / Sonnet 4.6 + effort `low` for mechanical or parallel subtasks, session model at `low`/`medium` for conversational work.
 
 ---
 

@@ -213,6 +213,10 @@ id, one CLI version, one machine, two days, small counts with wide spreads) are 
 - `verify-before-claiming` — the "how much" counterpart of this skill's "what remains": it decides
   whether the work is the work that was asked for.
 - `bug-hunter` — the adversarial rite that starts where the one-check floor ends.
+- `agent-delegation` — the "which kind of thing" counterpart of this skill's "how much": once
+  something must exist, it decides where the rule lives (a CI script, a hook or a skill) and, apart
+  from that, whether one piece of work runs in the calling loop or in a subagent. Rung 1 here — does
+  this need to exist at all — outranks both of its questions.
 - `code-locale` — the other inline marker (`locale-ok:`) and the migration ledger for names.
 - `log-event-collector` — a stack instance of rung 5 (stdlib-only when the deploy target is a bare
   container).

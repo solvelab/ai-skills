@@ -48,7 +48,7 @@ The CLI detects your installed agents (Claude Code, Codex, Cursor, Copilot, and 
 ### Option B — Claude Code plugin marketplace
 
 The marketplace ships **per-domain plugins** so a project enables only coherent sets — plus the
-full `ai-skills` bundle for whoever really wants all 37. What each plugin ships. The published
+full `ai-skills` bundle for whoever really wants all 38. What each plugin ships. The published
 description of each plugin is derived by `generate.sh` from `plugins/<group>/skills/` and checked
 against that tree by `scripts/validate-repo-hygiene.py` (H3); this table is **hand-maintained** and
 mirrors it — no gate compares it with the tree (H3's declared KNOWN LIMIT), so review it when a skill
@@ -56,7 +56,7 @@ changes category:
 
 | Plugin | Ships |
 |---|---|
-| `ai-skills-workflow` | `backlog`, `code-locale`, `conventional-commit`, `execute-backlog`, `lean-code`, `openspec`, `openspec-drivezone`, `verify-before-claiming` |
+| `ai-skills-workflow` | `agent-delegation`, `backlog`, `code-locale`, `conventional-commit`, `execute-backlog`, `lean-code`, `openspec`, `openspec-drivezone`, `verify-before-claiming` |
 | `ai-skills-backend` | `backend-resilience`, `log-event-collector`, `observability`, `python-rest-api` |
 | `ai-skills-testing` | `api-resilience-testing`, `bug-hunter`, `tdd` |
 | `ai-skills-fivem` | `fivem-fallback`, `fivem-lua` |
@@ -92,7 +92,7 @@ one accept, zero manual steps):
 ```
 
 Pick the groups that match the project (a FiveM repo takes `ai-skills-fivem`, an R3F game takes
-`ai-skills-game`, ...) — dumping all 37 skills into every project is noise, not help.
+`ai-skills-game`, ...) — dumping all 38 skills into every project is noise, not help.
 
 **B3 — user-level (whole machine)** — same snippet in `~/.claude/settings.json` enables the plugin
 for every project on the machine.
@@ -650,6 +650,7 @@ Project v2 in the org/user. Full details live in the skills themselves:
 | **execute-backlog** | /execute-backlog <n>, "implement issue #N", "pick up this ticket" | Drives an existing backlog item to a validated PR: completeness gate, plan approved before code, branch-per-item, repo-discovered validations, `Closes #n` linking, board moved to review — never merges or closes issues itself |
 | **verify-before-claiming** | "you invented that", "don't guess", "achismo", "pesquisa antes", "de onde tirou", "cite the source", "that flag does not exist", "out of scope" | Anti-guessing rite — cheapest-first research ladder (session context → this repo → the installed dependency → the tool itself → version-pinned docs → web search → the user), verified/inferred/unknown claim labelling, a not-found report that logs the commands it ran, the knowledge-cutoff rule (the lockfile wins), and the off-script scope guard |
 | **code-locale** | naming a variable/function/route/column/event/config key, reviewing names in a diff, "código em português", "identificador em inglês", "should this be in English", "naming convention", "ubiquitous language" | Which natural language each artifact is written in — prose follows the repo, anything a machine parses is English and ASCII; the untranslatable-domain-term exception (CPF, boleto, nota fiscal) gated by the item's glossary or an inline `locale-ok:` reason; the anti-corruption layer for foreign payloads; new-code-only migration with expand/contract for contract-bearing names; ships a stdlib-only detector with `--diff` mode that this repo's CI runs and any project can wire into pre-commit |
+| **agent-delegation** | choosing where a new rule lives, "should this be a skill or a hook", "write an agent for this", "delegate this", "spawn a subagent", "which model for this", "isso vira skill ou hook", "cria um agente pra isso" | Two questions kept apart. **Where the rule lives** — a deterministic script, a hook, or a skill, walked in that order because each row costs more than the one above it, and a row never replaces the row above it. **Where the work runs** — the calling loop or a subagent, which holds no rule and only executes under one; admitted by three tests that must all hold (reading weight, separable context, checkable output contract) and refused by three anti-patterns (one agent per skill, an agent in place of a validator, an agent holding a write the caller should hold). Plus model/effort tiering written as a criterion rather than a list of model names, and least-privilege `tools` with a written output contract for every agent defined |
 | **lean-code** | implementing/refactoring/fixing/reviewing a diff for bloat, adding a dependency or a cache, "simplest solution", "YAGNI", "over-engineered", "what can we delete", "faz o mais simples", "menos código", "o que dá pra apagar" | How much code a change leaves behind — the reuse-before-writing ladder (this codebase → stdlib → platform → installed dependency → one line → the minimum that works, after the problem is understood), root-cause fixes over symptom patches, no speculative abstraction, a `skipped: … add when …` trailer on every delivery, carve-outs that are never simplified away (trust boundary, data loss, security, the one runnable check), a `lean:` marker with a grep-able ledger, and a review lens (`delete:` `stdlib:` `native:` `yagni:` `shrink:`) that ends with `net: -N lines possible.`; adapted from DietrichGebert/ponytail (MIT), its effect measured on this catalog's own harness (`research/lean-code/`): −34.4 % mean `added_lines` over the pre-registered over-build group, `correct`/`safe` 31/31 — `claude-opus-5[1m]`, Claude Code 2.1.261, 9 tasks, n=3 (n=5 on two tasks), 2026-09-05/06; conditions and min–max in `research/lean-code/results.md` |
 
 ### DevOps & docs

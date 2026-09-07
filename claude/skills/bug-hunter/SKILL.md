@@ -11,7 +11,7 @@ description: >-
   tdd, which runs before the change while this rite runs after it).
 metadata:
   author: solvelab
-  version: 2.3.0
+  version: 2.4.0
   category: testing
 license: MIT
 compatibility: Works in any environment with filesystem access.
