@@ -9,7 +9,7 @@ input=$(cat)
 # NOTE: the separator is \x1f, not \t. Tab is an IFS *whitespace* character, so bash
 # collapses runs of it and drops empty fields — one absent value would shift every
 # later field left. \x1f is non-whitespace, so empty fields are preserved.
-IFS=$'\x1f' read -r MODEL DIR COST CTX EFFORT THINKING RL5 RL7 DUR ADDED REMOVED IN_TOK CACHE_W CACHE_R OUT_TOK SESSION_ID PROMPT_ID <<< "$(jq -r '[
+IFS=$'\x1f' read -r MODEL DIR COST CTX EFFORT THINKING RL5 RL7 DUR ADDED REMOVED SESSION_ID TRANSCRIPT <<< "$(jq -r '[
   (.model.display_name // "Claude"),
   (.workspace.current_dir // .cwd // "."),
   (.cost.total_cost_usd // 0),
@@ -21,12 +21,8 @@ IFS=$'\x1f' read -r MODEL DIR COST CTX EFFORT THINKING RL5 RL7 DUR ADDED REMOVED
   (.cost.total_duration_ms // 0),
   (.cost.total_lines_added // 0),
   (.cost.total_lines_removed // 0),
-  (.context_window.current_usage.input_tokens // 0),
-  (.context_window.current_usage.cache_creation_input_tokens // 0),
-  (.context_window.current_usage.cache_read_input_tokens // 0),
-  (.context_window.current_usage.output_tokens // 0),
   (.session_id // ""),
-  (.prompt_id // "")
+  (.transcript_path // "")
 ] | map(tostring) | join("\u001f")' <<< "$input")"
 
 # ANSI colors
@@ -63,14 +59,20 @@ human() {
   else printf '%s' "$n"; fi
 }
 
-# price_rates <model-name> — echoes "IN_RATE OUT_RATE" in $/1M tokens, or "" if unknown.
-# Opus 4.8's 1M context has NO >200k long-context premium — flat rates.
+# price_rates <model-name> — echoes "IN_RATE OUT_RATE CACHE_READ_MULT" ($/1M, multiplier), or ""
+# when the model is unknown. These decide the PROPORTION between the input and output segments and
+# nothing else: the absolute figure is the host's `cost.total_cost_usd` (see the token block below),
+# so a stale rate mis-splits by a few points and can never print a part larger than the whole.
+# Canonical home for these numbers is the bundled `claude-api` skill (model table +
+# shared/prompt-caching.md); they are mirrored here only because the split has to be computed
+# locally. Cache writes are priced from the TTL the transcript reports, 1.25x (5m) / 2x (1h).
 price_rates() {
   case "$1" in
-    *Fable*|*Mythos*) echo "10 50" ;;
-    *Opus*)           echo "5 25" ;;
-    *Sonnet*)         echo "3 15" ;;
-    *Haiku*)          echo "1 5" ;;
+    *Fable*|*Mythos*) echo "10 50 0.025" ;;   # cache reads are 0.025x on Fable 5.1, not 0.1x
+    *Opus*)           echo "5 25 0.1" ;;
+    *"Sonnet 5"*)     echo "2 10 0.1" ;;
+    *Sonnet*)         echo "3 15 0.1" ;;      # Sonnet 4.6 and earlier
+    *Haiku*)          echo "1 5 0.1" ;;
     *)                echo "" ;;
   esac
 }
@@ -167,94 +169,152 @@ esac
 if [ "${ADDED:-0}" -gt 0 ] 2>/dev/null || [ "${REMOVED:-0}" -gt 0 ] 2>/dev/null; then
   line2+=("📝 ${C_GREEN}+${ADDED}${C_RESET} ${C_RED}-${REMOVED}${C_RESET}")
 fi
-# tokens — ↑ In (session total) · ♻️ cache health % · ↓ Out (session total)
+# tokens — ↑ In (session) · ♻️ cache health % · ↓ Out (session)
 #
-# context_window.current_usage.* is the CURRENT turn, not a running total, and
-# context_window.total_input_tokens stopped being cumulative in v2.1.132 — so the
-# session total is accumulated here. The state file is keyed by session_id (stable
-# per session) and a turn is committed only when prompt_id changes, because the
-# status line re-renders many times per turn and a naive += would multiply.
-# Costs are committed per turn at that turn's rates, so switching model mid-session
-# does not reprice history.
-usage_state="${HOME}/.claude/statusline-usage/${SESSION_ID:-nosession}"
-# Separator is \x1f, never \t: tab is IFS-whitespace, so bash collapses runs of it and
-# drops empty fields, shifting every later field left and corrupting the record.
-US=$'\x1f'
+# SOURCE: the session transcript, NOT the payload's context_window.current_usage.
 #
-# WHY THE KEY IS THE USAGE TUPLE, NOT prompt_id:
-# context_window.current_usage is the usage of the LAST API CALL, not of the turn. One
-# turn makes many calls (every tool round-trip is one), so the values change repeatedly
-# within a single prompt_id and are NOT monotonic — captured from a live session:
-#   prompt 3bbcb90f  out=627 -> 480 -> 587      (same prompt, three API calls)
-#   prompt 3bbcb90f  out=1854 -> 633            (same again)
-# Banking on prompt_id therefore keeps only the last call of each turn and discards the
-# rest. Banking when the tuple CHANGES captures every call; identical consecutive renders
-# (the status line repaints without new data) bank nothing.
-CUM_IN=0; CUM_CW=0; CUM_CR=0; CUM_OUT=0; CUM_IN_COST=0; CUM_OUT_COST=0
-LAST_IN=0; LAST_CW=0; LAST_CR=0; LAST_OUT=0; LAST_IN_COST=0; LAST_OUT_COST=0
-if [ -n "${SESSION_ID:-}" ] && [ -r "$usage_state" ]; then
-  IFS="$US" read -r CUM_IN CUM_CW CUM_CR CUM_OUT CUM_IN_COST CUM_OUT_COST \
-                    LAST_IN LAST_CW LAST_CR LAST_OUT LAST_IN_COST LAST_OUT_COST \
-                    < "$usage_state" 2>/dev/null || true
-  case "${LAST_OUT_COST:-}" in
-    ''|*[!0-9.]*)
-      CUM_IN=0; CUM_CW=0; CUM_CR=0; CUM_OUT=0; CUM_IN_COST=0; CUM_OUT_COST=0
-      LAST_IN=0; LAST_CW=0; LAST_CR=0; LAST_OUT=0; LAST_IN_COST=0; LAST_OUT_COST=0 ;;
-  esac
+# WHY NOT THE PAYLOAD. current_usage is the usage of the LAST API CALL, and the status line
+# re-renders at most 1x/s (refreshInterval) — a cadence unrelated to when calls happen. Accumulating
+# it therefore samples a stream it does not control: a render landing mid-stream banks the same
+# input tuple twice, and a call that starts and finishes between two renders is never seen at all.
+# Measured 2026-09-07 against the host's own ledger, on a single-model session: cache writes +11.5%,
+# cache reads +2.0%, fresh input -92.7%, output -54.5%; on a four-model session the total was -35.4%.
+# No fixed sign, no stable magnitude — nothing a multiplier could correct.
+#
+# WHAT THE TRANSCRIPT GIVES. It writes one `type:"assistant"` row per content block, each carrying
+# the full message.usage (including the cache_creation TTL split the payload does not expose) and a
+# requestId. Deduplicating by requestId yields exactly one record per API call — measured, 1513 rows
+# -> 901 calls. No sampling is involved.
+#
+# WHAT THIS IS NOT: the session's billed total. The transcript counts less than the host bills
+# (-13.5% to -93.7% on the measured session) and WHY was not determined, so these are counts of what
+# the transcript records, not of what was charged. 💰 on line 1 is `cost.total_cost_usd`, the only
+# live authoritative figure, and it is left exactly as the host reports it.
+#
+# COSTS ARE A SHARE OF THAT TOTAL, never an independent product. price_rates() decides only the
+# input/output proportion, so `~In + ~Out` equals 💰 by construction — the defect this replaced was
+# a locally computed part that could exceed the whole. The parts print with a leading ~ to say they
+# are derived. A session that used several models is split at the CURRENT model's ratio; that is an
+# approximation of the ratio only, never of the total.
+#
+# STATE. `~/.claude/statusline-usage/<session_id>` holds a resumable read cursor for an append-only
+# file: byte offset, running sums, the last requestId seen and the transcript's inode. Re-reading it
+# is idempotent and it can be rebuilt by deleting the file — unlike the accumulator it replaced,
+# whose state was a sum that could not be re-derived. Files older than 30 days are pruned on the
+# first write of a new session. A record that does not parse is discarded whole.
+SESS_IN=0; SESS_CW5=0; SESS_CW1H=0; SESS_CR=0; SESS_OUT=0
+
+if [ -z "$TRANSCRIPT" ] || [ ! -r "$TRANSCRIPT" ]; then
+  # fields.md documents transcript_path, but fall back to the session id rather than trust it:
+  # the transcript is filed as ~/.claude/projects/<slug>/<session_id>.jsonl.
+  TRANSCRIPT=""
+  [ -n "${SESSION_ID:-}" ] && TRANSCRIPT=$(find "$HOME/.claude/projects" -maxdepth 2 \
+    -name "${SESSION_ID}.jsonl" 2>/dev/null | head -1)
 fi
 
-# price the CURRENT api call (fresh input full price, cache write 1.25x, cache read 0.1x)
-TURN_IN_COST=0; TURN_OUT_COST=0
-RATES=$(price_rates "$MODEL")
-if [ -n "$RATES" ]; then
-  read -r IN_RATE OUT_RATE <<< "$RATES"
-  TURN_IN_COST=$(awk "BEGIN{printf \"%.6f\", (${IN_TOK:-0}*$IN_RATE + ${CACHE_W:-0}*$IN_RATE*1.25 + ${CACHE_R:-0}*$IN_RATE*0.1)/1000000}")
-  TURN_OUT_COST=$(awk "BEGIN{printf \"%.6f\", ${OUT_TOK:-0}*$OUT_RATE/1000000}")
-fi
-
-# the tuple changed => the previous api call is finished => bank it
-if [ "${IN_TOK:-0}" != "${LAST_IN:-0}" ] || [ "${CACHE_W:-0}" != "${LAST_CW:-0}" ] \
-   || [ "${CACHE_R:-0}" != "${LAST_CR:-0}" ] || [ "${OUT_TOK:-0}" != "${LAST_OUT:-0}" ]; then
-  CUM_IN=$(( ${CUM_IN:-0} + ${LAST_IN:-0} ))
-  CUM_CW=$(( ${CUM_CW:-0} + ${LAST_CW:-0} ))
-  CUM_CR=$(( ${CUM_CR:-0} + ${LAST_CR:-0} ))
-  CUM_OUT=$(( ${CUM_OUT:-0} + ${LAST_OUT:-0} ))
-  CUM_IN_COST=$(awk "BEGIN{printf \"%.6f\", ${CUM_IN_COST:-0} + ${LAST_IN_COST:-0}}")
-  CUM_OUT_COST=$(awk "BEGIN{printf \"%.6f\", ${CUM_OUT_COST:-0} + ${LAST_OUT_COST:-0}}")
-fi
-
-if [ -n "${SESSION_ID:-}" ]; then
-  if [ ! -e "$usage_state" ]; then
-    mkdir -p "${usage_state%/*}" 2>/dev/null
-    find "${usage_state%/*}" -maxdepth 1 -type f -mtime +30 -delete 2>/dev/null || true
+if [ -n "$TRANSCRIPT" ] && [ -r "$TRANSCRIPT" ]; then
+  usage_state="${HOME}/.claude/statusline-usage/${SESSION_ID:-nosession}"
+  # Separator is \x1f, never \t: tab is IFS-whitespace, so bash collapses runs of it and drops
+  # empty fields, shifting every later field left and corrupting the record.
+  US=$'\x1f'
+  OFF=0; LAST_RID=""; INODE=""
+  if [ -r "$usage_state" ]; then
+    IFS="$US" read -r OFF SESS_IN SESS_CW5 SESS_CW1H SESS_CR SESS_OUT LAST_RID INODE \
+      < "$usage_state" 2>/dev/null || true
+    case "${OFF}${SESS_IN}${SESS_CW5}${SESS_CW1H}${SESS_CR}${SESS_OUT}" in
+      ''|*[!0-9]*) OFF=0; SESS_IN=0; SESS_CW5=0; SESS_CW1H=0; SESS_CR=0; SESS_OUT=0
+                   LAST_RID=""; INODE="" ;;
+    esac
   fi
-  mkdir -p "${usage_state%/*}" 2>/dev/null
-  { printf '%s' "$CUM_IN"
-    for v in "$CUM_CW" "$CUM_CR" "$CUM_OUT" "$CUM_IN_COST" "$CUM_OUT_COST" \
-             "${IN_TOK:-0}" "${CACHE_W:-0}" "${CACHE_R:-0}" "${OUT_TOK:-0}" \
-             "$TURN_IN_COST" "$TURN_OUT_COST"; do printf '%s%s' "$US" "$v"; done
-    printf '\n'
-  } > "$usage_state" 2>/dev/null || true
+
+  NOW_INODE=$(stat -c %i "$TRANSCRIPT" 2>/dev/null || echo "")
+  NOW_SIZE=$(stat -c %s "$TRANSCRIPT" 2>/dev/null || echo 0)
+  # a replaced or truncated transcript invalidates the cursor; rebuild from zero
+  if [ "$NOW_INODE" != "$INODE" ] || [ "$NOW_SIZE" -lt "$OFF" ]; then
+    OFF=0; SESS_IN=0; SESS_CW5=0; SESS_CW1H=0; SESS_CR=0; SESS_OUT=0; LAST_RID=""
+  fi
+
+  # Only consume the chunk when the file ends with a newline: a torn final line would be dropped by
+  # jq, and advancing past it would lose that call's tokens permanently. Waiting one render costs
+  # nothing, since another render always follows.
+  if [ "$NOW_SIZE" -gt "$OFF" ] && [ "$(tail -c 1 "$TRANSCRIPT" | od -An -c | tr -d ' ')" = "\n" ]; then
+    delta=$(tail -c "+$((OFF + 1))" "$TRANSCRIPT" 2>/dev/null \
+      | jq -r 'select(.message.usage) | [
+            .requestId // "",
+            (.message.usage.input_tokens // 0),
+            (.message.usage.cache_creation.ephemeral_5m_input_tokens
+              // .message.usage.cache_creation_input_tokens // 0),
+            (.message.usage.cache_creation.ephemeral_1h_input_tokens // 0),
+            (.message.usage.cache_read_input_tokens // 0),
+            (.message.usage.output_tokens // 0)
+          ] | @tsv' 2>/dev/null \
+      | LC_ALL=C awk -F'\t' -v prev="$LAST_RID" '
+          BEGIN { seen[prev] = 1 }
+          !seen[$1]++ { i += $2; w5 += $3; w1 += $4; r += $5; o += $6 }
+          { last = $1 }
+          END { printf "%d %d %d %d %d %s", i, w5, w1, r, o, last }')
+    if [ -n "$delta" ]; then
+      read -r D_IN D_CW5 D_CW1H D_CR D_OUT D_RID <<< "$delta"
+      SESS_IN=$((SESS_IN + D_IN)); SESS_CW5=$((SESS_CW5 + D_CW5))
+      SESS_CW1H=$((SESS_CW1H + D_CW1H)); SESS_CR=$((SESS_CR + D_CR))
+      SESS_OUT=$((SESS_OUT + D_OUT))
+      [ -n "$D_RID" ] && LAST_RID="$D_RID"
+    fi
+    OFF="$NOW_SIZE"
+  fi
+
+  # Two renders can overlap (refreshInterval plus a manual repaint). Both read the same cursor and
+  # write the same record, which is harmless — but a slow one finishing last would move the cursor
+  # BACKWARDS, and the range between the two offsets would then be counted twice. Re-read the stored
+  # offset and refuse to regress: double counting is the defect this whole block exists to remove.
+  if [ -n "${SESSION_ID:-}" ]; then
+    STORED_OFF=0
+    [ -r "$usage_state" ] && IFS="$US" read -r STORED_OFF _ < "$usage_state" 2>/dev/null || true
+    case "${STORED_OFF:-}" in ''|*[!0-9]*) STORED_OFF=0 ;; esac
+  fi
+  if [ -n "${SESSION_ID:-}" ] && [ "$OFF" -ge "$STORED_OFF" ]; then
+    if [ ! -e "$usage_state" ]; then
+      mkdir -p "${usage_state%/*}" 2>/dev/null
+      find "${usage_state%/*}" -maxdepth 1 -type f -mtime +30 -delete 2>/dev/null || true
+    fi
+    mkdir -p "${usage_state%/*}" 2>/dev/null
+    { printf '%s' "$OFF"
+      for v in "$SESS_IN" "$SESS_CW5" "$SESS_CW1H" "$SESS_CR" "$SESS_OUT" \
+               "$LAST_RID" "$NOW_INODE"; do printf '%s%s' "$US" "$v"; done
+      printf '\n'
+    } > "$usage_state" 2>/dev/null || true
+  fi
 fi
 
-# displayed totals = banked turns + the turn in flight
-SESS_IN=$(( ${CUM_IN:-0} + ${IN_TOK:-0} ))
-SESS_CW=$(( ${CUM_CW:-0} + ${CACHE_W:-0} ))
-SESS_CR=$(( ${CUM_CR:-0} + ${CACHE_R:-0} ))
-SESS_OUT=$(( ${CUM_OUT:-0} + ${OUT_TOK:-0} ))
-TOTAL_IN=$(( SESS_IN + SESS_CW + SESS_CR ))
+SESS_CW=$((SESS_CW5 + SESS_CW1H))
+TOTAL_IN=$((SESS_IN + SESS_CW + SESS_CR))
 if [ "$TOTAL_IN" -gt 0 ]; then
-  CACHE_PCT=$(( SESS_CR * 100 / TOTAL_IN ))
+  CACHE_PCT=$((SESS_CR * 100 / TOTAL_IN))
   if   [ "$CACHE_PCT" -ge 80 ]; then CACHE_COL="$C_GREEN"
   elif [ "$CACHE_PCT" -ge 40 ]; then CACHE_COL="$C_YELLOW"
   else CACHE_COL="$C_RED"; fi
   seg_in="${C_IN}↑ In${C_RESET} $(human "$TOTAL_IN")"
   seg_out="${C_OUT}↓ Out${C_RESET} $(human "$SESS_OUT")"
+  RATES=$(price_rates "$MODEL")
   if [ -n "$RATES" ]; then
-    IN_COST=$(awk "BEGIN{printf \"%.2f\", ${CUM_IN_COST:-0} + $TURN_IN_COST}")
-    OUT_COST=$(awk "BEGIN{printf \"%.2f\", ${CUM_OUT_COST:-0} + $TURN_OUT_COST}")
-    seg_in="$seg_in ${C_COST}\$${IN_COST}${C_RESET}"
-    seg_out="$seg_out ${C_COST}\$${OUT_COST}${C_RESET}"
+    read -r IN_RATE OUT_RATE CR_MULT <<< "$RATES"
+    # Split 💰 by the weight each side carries, then take the output side as the remainder so the
+    # two printed figures sum to the printed total exactly, whatever the rounding does.
+    split=$(awk "BEGIN{
+      wi = ($SESS_IN + $SESS_CW5*1.25 + $SESS_CW1H*2 + $SESS_CR*$CR_MULT) * $IN_RATE;
+      wo = $SESS_OUT * $OUT_RATE;
+      t  = wi + wo;
+      if (t <= 0) { print \"\"; exit }
+      total = $COST + 0;
+      ic = int(total * (wi / t) * 100 + 0.5) / 100;
+      oc = int(total * 100 + 0.5) / 100 - ic;
+      printf \"%.2f %.2f\", ic, oc
+    }")
+    if [ -n "$split" ]; then
+      read -r IN_COST OUT_COST <<< "$split"
+      seg_in="$seg_in ${C_COST}~\$${IN_COST}${C_RESET}"
+      seg_out="$seg_out ${C_COST}~\$${OUT_COST}${C_RESET}"
+    fi
   fi
   line2+=("$seg_in ${C_DIM}·${C_RESET} ♻️ ${CACHE_COL}${CACHE_PCT}%${C_RESET} ${C_DIM}·${C_RESET} $seg_out")
 fi
