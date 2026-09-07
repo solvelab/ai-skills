@@ -14,7 +14,7 @@ description: >-
   use to test, break or audit an existing endpoint (that is `api-resilience-testing`).
 metadata:
   author: solvelab
-  version: 1.4.2
+  version: 1.5.0
   category: backend
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

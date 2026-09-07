@@ -107,7 +107,9 @@ it can discover there (tests/lint/build/typecheck).
    record what you observed, with the case matrix as counts. A green selftest and a green pipeline
    shipped two defects that only an end-to-end run surfaced (measured 2026-08-26, issue #95). Where
    the repo's spec rite carries a simulation group, this is what fills it; breaking the artifact on
-   purpose afterwards is `bug-hunter`, a different job.
+   purpose afterwards is `bug-hunter`, a different job. Where the repository or the user runs the
+   red-green cycle, this step moves ahead of step 7 and its doctrine is `tdd`; the order above stays
+   the default until they say so.
 9. **Validate** — discover and run the repo's checks (`references/validation-matrix.md`); fix
    findings; re-run until green or report honest blockers. A repo that wires an identifier-locale
    check is running one of its own discovered commands — never invent one where none exists.

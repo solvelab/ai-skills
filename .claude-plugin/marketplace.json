@@ -12,7 +12,7 @@
     {
       "name": "ai-skills",
       "source": "./",
-      "description": "FULL bundle (all 36 skills). Prefer the per-domain plugins — enable only what fits the project.",
+      "description": "FULL bundle (all 37 skills). Prefer the per-domain plugins — enable only what fits the project.",
       "category": "productivity"
     },
     {
@@ -30,7 +30,7 @@
     {
       "name": "ai-skills-testing",
       "source": "./plugins/testing",
-      "description": "Adversarial testing rite and REST negative/fuzz/contract testing (2 skills: api-resilience-testing, bug-hunter)",
+      "description": "Adversarial testing rite and REST negative/fuzz/contract testing (3 skills: api-resilience-testing, bug-hunter, tdd)",
       "category": "productivity"
     },
     {
