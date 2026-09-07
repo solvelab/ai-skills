@@ -4,7 +4,7 @@ description: >-
   Configure or customize the Claude Code status line — the shell-script status bar at the bottom of the CLI that shows model, effort tier, context usage, git state, cost (the session total the host reports, split into input and output shares), rate limits and prompt-cache health. Use when the user wants to set up, change, share, or debug their Claude Code status line / status bar, mentions statusLine in settings.json or a statusline.sh script, wants a context/token/cost/git/effort indicator in the CLI, or shares a status-line gist to install. Ships a ready-made 3-line script (references/statusline.sh) and the full list of available JSON fields (references/fields.md). Do NOT use for shell prompt themes (PS1, starship, powerlevel10k) or non-Claude-Code status bars.
 metadata:
   author: solvelab
-  version: 2.1.0
+  version: 2.2.0
   category: tooling
 license: MIT
 compatibility: Works in Claude Code (CLI, desktop, IDE). Requires `jq` on PATH. Bash script targets macOS/Linux (incl. WSL); Git Bash on Windows.
@@ -112,12 +112,22 @@ Steps:
    ```
    Add `"refreshInterval": 1` (seconds; 1 is the documented minimum) only if you want the
    animated `💥 max` effort shimmer — it re-runs the whole script every second even while
-   idle, so skip it otherwise. In large repos, cache `git status` by `session_id` first (the
-   script runs `git status` each tick).
+   idle, so skip it otherwise. The script already caches `git status` by session and directory
+   (below), so a large repo does not pay for it on every tick.
 
-**State it writes.** `~/.claude/statusline-usage/<session_id>`, one small `\x1f`-separated record
-per session: a byte offset into the transcript, the running token sums, the last `requestId` seen
-and the transcript's inode. It is a resumable read cursor over an append-only file — delete it and
+**State it writes.** Two small `\x1f`-separated records per session, both under
+`~/.claude/statusline-usage/`.
+
+`<session_id>.git` caches the two working-tree counts — capture time, directory, staged, modified —
+for **2 seconds**. `git status --porcelain` was the one expensive call on line 2: measured at 9 ms
+against 1 ms each for `git remote get-url`, `git symbolic-ref` and `git rev-parse --git-dir` in a
+1032-file repository, and the only one that grows with the tree. Caching the two counts rather than
+the porcelain text leaves the hit path with zero forks and drops a whole render from 43 ms to 29 ms
+(20 runs each). The counters can therefore lag a working-tree change by up to 2 seconds. **The
+branch is never cached** — it is 1 ms, and it says what a command would act on.
+
+`<session_id>` holds the token cursor: a byte offset into the transcript, the running token sums,
+the last `requestId` seen and the transcript's inode. It is a resumable read cursor over an append-only file — delete it and
 the next render rebuilds it from the transcript. Files older than 30 days are pruned on the first
 write of a new session. Upgrading from a version before 2.0.0 leaves the old records behind; they
 are ignored (the inode check rejects them) and the directory can be emptied.
