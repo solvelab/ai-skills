@@ -14,7 +14,7 @@ description: >-
   for the plan-approval gate of a backlog item (that is execute-backlog).
 metadata:
   author: solvelab
-  version: 1.1.1
+  version: 1.2.0
   category: process
 license: MIT
 compatibility: >-
@@ -208,6 +208,9 @@ When a guess ships and someone catches it, add the row **and** the incident that
 - `documentation` — the same read-first discipline applied to what goes on a page.
 - `execute-backlog` — the backlog-rite bookkeeping for an approved scope deviation.
 - `backlog` — the GitHub-metadata instance of *No invention*.
+- `agent-delegation` — where a delegated researcher's output contract is required to point at this
+  skill's ladder and not-found report instead of reproducing them, so a subagent's answer arrives
+  labelled with the rung it reached.
 - `openspec` — where a claim about *what will be built* is recorded and gated.
 - `lean-code` — the "how much" counterpart of the off-script guard: once the scope is the one that was
   asked for, that skill decides how much code is left behind, and its rung 1 ("does this need to
