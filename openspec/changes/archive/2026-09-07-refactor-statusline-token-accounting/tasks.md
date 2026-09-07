@@ -267,4 +267,9 @@
 - [x] V.4 README/docs: a composição do catálogo não mudou (38 skills antes e depois, nenhuma
       adicionada ou removida), então o README não tem o que atualizar. O que mudou é interno à
       `claude-statusline` e está no seu `SKILL.md` e em `references/fields.md`.
-- [ ] V.5 `openspec archive refactor-statusline-token-accounting --yes` depois do merge
+- [x] V.5 `openspec archive refactor-statusline-token-accounting --yes` — arquivada **na mesma
+      diff do PR**, a pedido do usuário e antes do merge. É uma das três formas que
+      `scripts/validate-spec-rite.py` aceita para registrar um diff (S1: change ativa, arquivo
+      arquivado no mesmo diff, ou dispensa escrita), e o caso está no selftest dele
+      (`"archived in the same diff"`). O delta vai para `openspec/specs/skills-catalog/spec.md`
+      neste mesmo PR, não num commit posterior.
