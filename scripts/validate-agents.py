@@ -11,6 +11,12 @@ Implements the mechanically checkable half of openspec/specs/agents-catalog:
   A6 body within 20-10000 characters and carrying a "When to invoke" section
   A7 no orphan agent in a generated tree, and the canonical directory is flat
 
+HARDENED against the eight attacks the bug-hunter-analyst agent found against the first version
+(issue #205). Two of them were false GREEN, not crashes: a required field declared null passed every
+check, and a missing canonical directory returned before the orphan check ever ran. The rest were
+unhandled exceptions on malformed input, an unbounded YAML alias expansion, an A7 that compared names
+and not content, and a heading rule that rejected a tab a Markdown renderer accepts.
+
 WHAT THIS DOES NOT COVER, on purpose:
   - Whether the output contract in the body is honoured at run time. That is a judgement, and a
     judgement is not sold as a gate (skills/agent-delegation/SKILL.md).
@@ -41,7 +47,30 @@ AGENTS = ROOT / "agents"
 GENERATED = ROOT / "plugins"
 
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$")
-WHEN_TO_INVOKE = re.compile(r"^##+ +When to invoke *$", re.M | re.I)
+# Any whitespace after the hashes, not only an ASCII space: `##\tWhen to invoke` is a heading every
+# Markdown renderer accepts, and a gate that rejects what the tool accepts teaches the author to
+# ignore the gate (issue #205, attack 8).
+WHEN_TO_INVOKE = re.compile(r"^#{2,}\s+When to invoke\s*$", re.M | re.I)
+
+if yaml is not None:
+    class _NoAliasLoader(yaml.SafeLoader):
+        """SafeLoader that refuses YAML anchors and aliases.
+
+        `safe_load` blocks unsafe tag construction, not alias amplification: nested anchors doubling a
+        list at each level expand exponentially and exhaust the runner (issue #205, attack 4). A size
+        or time ceiling does not stop a small payload that expands hugely, and is machine-dependent.
+        Agent frontmatter has no legitimate use for an anchor, so the class is removed instead of
+        bounded.
+        """
+
+        def compose_node(self, parent, index):                 # noqa: D102 - PyYAML hook
+            if self.check_event(yaml.events.AliasEvent):
+                event = self.peek_event()
+                raise yaml.YAMLError(
+                    f"YAML alias `*{event.anchor}` is not accepted in agent frontmatter "
+                    "(anchors and aliases are refused; write the value out)")
+            return super().compose_node(parent, index)
+
 
 REQUIRED = ("name", "description", "model", "color", "tools")
 MODELS = {"inherit", "opus", "sonnet", "haiku"}
@@ -53,8 +82,16 @@ BODY_MIN, BODY_MAX = 20, 10000
 findings: list[str] = []
 
 
+def _printable(s: str) -> str:
+    """Replace characters stdout cannot encode — a lone surrogate from a `\\uD800` escape in the
+    frontmatter reaches here as a valid Python str and only fails at `print`, after the summary line
+    is already out (issue #205, attack 5). Sanitising at the recording boundary covers every finding,
+    present and future; sanitising at each interpolation covers only the sites that exist today."""
+    return s.encode("utf-8", "replace").decode("utf-8", "replace")
+
+
 def add(agent: str, check: str, msg: str) -> None:
-    findings.append(f"{agent}\n   [{check}] {msg}")
+    findings.append(_printable(f"{agent}\n   [{check}] {msg}"))
 
 
 def split(text: str) -> tuple[str | None, str]:
@@ -69,7 +106,21 @@ def split(text: str) -> tuple[str | None, str]:
 
 def check_file(path: Path) -> None:
     agent = path.stem
-    text = path.read_text(encoding="utf-8")
+    if path.is_dir():
+        # A directory carrying the .md suffix is a LAYOUT defect and A7 owns it; reporting it here
+        # too would print two findings for one problem. Not silently skipped: A7's own scan sees
+        # every directory under agents/ (issue #205, attack 3).
+        return
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, FileNotFoundError, PermissionError, OSError) as exc:
+        # Bytes that are not UTF-8, a dangling symlink (which `is_file()` also rejects, so the guard
+        # above must not be widened to it), an unreadable file: each was an unhandled exception that
+        # ended the run and left every alphabetically later agent unchecked (issue #205, attack 6).
+        add(agent, "A1 frontmatter",
+            f"{path.relative_to(ROOT)} could not be read as UTF-8 text: "
+            f"{type(exc).__name__}: {exc}")
+        return
     raw, body = split(text)
 
     if raw is None:
@@ -77,7 +128,7 @@ def check_file(path: Path) -> None:
         return
 
     try:
-        meta = yaml.safe_load(raw)
+        meta = yaml.load(raw, Loader=_NoAliasLoader)
     except yaml.YAMLError as exc:                    # noqa: BLE001 - the parser's message is the finding
         add(agent, "A1 frontmatter", f"YAML does not parse: {exc}")
         return
@@ -86,8 +137,15 @@ def check_file(path: Path) -> None:
         return
 
     for field in REQUIRED:
-        if field not in meta:
-            add(agent, "A1 frontmatter", f"missing `{field}` — required for every agent")
+        # Presence is a VALUE, not a key. `name:` with nothing after it, `~` and `null` all satisfy a
+        # membership test while stating nothing, and every check below is guarded by `is not None` —
+        # so an agent with all five fields null used to pass the whole gate clean. `tools: ~` was the
+        # sharpest case: null is equivalent at run time to omitting it, which grants every tool
+        # (issue #205, attack 1).
+        if meta.get(field) is None:
+            add(agent, "A1 frontmatter",
+                f"missing `{field}` — required for every agent"
+                f"{' (declared with no value, which states nothing)' if field in meta else ''}")
 
     name = meta.get("name")
     if name is not None:
@@ -131,24 +189,46 @@ def check_file(path: Path) -> None:
 
 
 def check_layout() -> None:
-    """A7 — the canonical directory is flat, and nothing is published without a source there.
+    """A7 — the canonical directory is flat, nothing is published without a source there, and no
+    generated copy has drifted from the source it claims.
 
     Flat because a subdirectory changes the name under which the agent is invoked. Orphan because an
     agent living only in a generated tree escapes this validator, the generator and the README while
     still installing for users — the same law scripts/validate-skills.py applies to wrapper skills.
-    """
-    for sub in sorted(p for p in AGENTS.iterdir() if p.is_dir()):
-        add(sub.name, "A7 layout",
-            f"agents/{sub.name}/ is a directory — the canonical directory is flat, because a "
-            "subdirectory changes the name the agent is invoked under")
 
-    canonical = {p.stem for p in AGENTS.glob("*.md")}
+    Runs even when `agents/` is absent: a missing canonical directory with generated copies still
+    present is exactly the state this check owns, and the early return that used to skip it here made
+    the one check that would catch that regression the one that never ran (issue #205, attack 2).
+
+    Content, not just the name: `generate.sh` copies with `cp --no-preserve=mode`, so a published copy
+    is byte-identical to its source. A copy that differs was hand-edited or left by a stale generator
+    run, and is published content whose canonical source says something else (issue #205, attack 7).
+    """
+    if AGENTS.is_dir():
+        for sub in sorted(p for p in AGENTS.iterdir() if p.is_dir()):
+            add(sub.name, "A7 layout",
+                f"agents/{sub.name}/ is a directory — the canonical directory is flat, because a "
+                "subdirectory changes the name the agent is invoked under")
+
+    canonical = {p.stem: p for p in AGENTS.glob("*.md") if p.is_file()} if AGENTS.is_dir() else {}
     for generated in sorted(GENERATED.glob("*/agents/*.md")):
-        if generated.stem not in canonical:
-            rel = generated.relative_to(ROOT)
+        rel = generated.relative_to(ROOT)
+        source = canonical.get(generated.stem)
+        if source is None:
             add(generated.stem, "A7 layout",
                 f"{rel} has no source at agents/{generated.stem}.md — regenerate with "
                 "./generate.sh, or delete it")
+            continue
+        try:
+            drifted = source.read_bytes() != generated.read_bytes()
+        except OSError as exc:
+            add(generated.stem, "A7 layout",
+                f"{rel} could not be compared with its source: {type(exc).__name__}: {exc}")
+            continue
+        if drifted:
+            add(generated.stem, "A7 layout",
+                f"{rel} differs from its canonical source agents/{generated.stem}.md — the published "
+                "copy has drifted; regenerate with ./generate.sh")
 
 
 def main() -> int:
@@ -156,11 +236,10 @@ def main() -> int:
         print("❌ PyYAML is not installed — the agent frontmatter cannot be parsed. "
               "This is a SKIPPED check, not a pass.", file=sys.stderr)
         return 1
-    if not AGENTS.is_dir():
-        print("agents/ not found — nothing to check.")
-        return 0
-
-    files = sorted(AGENTS.glob("*.md"))
+    # No early return when agents/ is missing: check_layout() owns exactly that state (issue #205,
+    # attack 2). A repository that legitimately publishes no agents still reports zero findings —
+    # because the check ran, not because it was skipped.
+    files = sorted(AGENTS.glob("*.md")) if AGENTS.is_dir() else []
     for path in files:
         check_file(path)
     check_layout()
