@@ -95,7 +95,7 @@ jobs:
         # first-line check stays on the file itself: it is what guarantees the awk has a block to
         # start from.
         run: |
-          CATEGORIES="backend testing fivem game devops docs git process nui frontend tooling"
+          CATEGORIES="backend testing fivem game assettoserver devops docs git process nui frontend tooling"
           fail=0
           for f in skills/*/SKILL.md; do
             dir="$(basename "$(dirname "$f")")"

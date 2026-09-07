@@ -13,8 +13,8 @@ description: >-
   fivem-lua), or general .NET services.
 metadata:
   author: solvelab
-  version: 1.4.1
-  category: game
+  version: 1.5.0
+  category: assettoserver
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
 ---

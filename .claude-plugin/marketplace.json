@@ -42,13 +42,19 @@
     {
       "name": "ai-skills-game",
       "source": "./plugins/game",
-      "description": "React Three Fiber and AssettoServer game-dev conventions (12 skills: assettoserver-csp-lua, assettoserver-plugin, r3f-animation, r3f-assets, r3f-fundamentals, r3f-geometry, r3f-interaction, r3f-lighting, r3f-materials, r3f-physics, r3f-postprocessing, r3f-shaders)",
+      "description": "React Three Fiber conventions for 3D on the web (10 skills: r3f-animation, r3f-assets, r3f-fundamentals, r3f-geometry, r3f-interaction, r3f-lighting, r3f-materials, r3f-physics, r3f-postprocessing, r3f-shaders)",
+      "category": "productivity"
+    },
+    {
+      "name": "ai-skills-assettoserver",
+      "source": "./plugins/assettoserver",
+      "description": "AssettoServer dedicated-server operation, C# plugins and CSP Lua online scripts (3 skills: assettoserver-csp-lua, assettoserver-ops, assettoserver-plugin)",
       "category": "productivity"
     },
     {
       "name": "ai-skills-devops",
       "source": "./plugins/devops",
-      "description": "Kubernetes/Helm migration, cluster resource tuning and AssettoServer operations (3 skills: assettoserver-ops, helm-migration, k8s-tune-resources)",
+      "description": "Kubernetes/Helm migration and cluster resource tuning (2 skills: helm-migration, k8s-tune-resources)",
       "category": "productivity"
     },
     {
