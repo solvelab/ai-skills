@@ -35,6 +35,27 @@ the **host's instantiation path**, not just your logic.
 - **Version-contract check**: the plugin was compiled against the upstream source tag matching the
   runtime release that will load it (build fails hard when the checkout is missing/wrong).
 
+## Generating and scoring here: the scoring question is already answered
+
+**Score — by the Cecil assert set, not by mutating the source.** Mutation testing scores a suite over
+logic: it breaks the code and asks whether the tests noticed. The failure class this track exists for
+is a different one — code that compiles, passes its unit tests, and then dies inside the host — and a
+mutation score over the sources says nothing about whether the **published assembly** survives the
+host's reflection path. The scoring instrument for that class is already prescribed above: the
+Mono.Cecil asserts read from the shipped DLL, plus the `plugin-rite-status.json` proof the deploy
+gate refuses to skip. What that instrument does **not** cover is the plugin's own logic, where a
+suite can still be thin; nothing here measures that today.
+
+`Stryker.NET` is the tool a reader will reach for to close that half. **This catalog has not run it**
+— no .NET SDK was present when this track was written (`command -v dotnet` -> absent, 2026-09-07) —
+so it is a pointer, not a prescription, and no command for it is given here. If you run it, scope it
+to the project the change touched, the way the Python track scopes its session, and add what you
+measured to this file.
+
+**Generate — unprobed.** Property-based generation applies to the pure parts of a plugin, the parser
+and the clamp, the same as anywhere else. No generator was probed on this stack, so none is named:
+the condition in the stack-agnostic SKILL.md still holds, and the tooling is left to the reader.
+
 ## Rite proof
 
 On a green run, write a machine-readable proof next to the artifact —

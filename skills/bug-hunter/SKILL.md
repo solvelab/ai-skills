@@ -11,7 +11,7 @@ description: >-
   tdd, which runs before the change while this rite runs after it).
 metadata:
   author: solvelab
-  version: 2.5.0
+  version: 2.6.0
   category: testing
 license: MIT
 compatibility: Works in any environment with filesystem access.
@@ -26,6 +26,8 @@ compatibility: Works in any environment with filesystem access.
 > `assettoserver-plugin`). Declared on 2026-09-05. The one exception is
 > `references/track-python-pytest.md`, which names `cosmic-ray 8.7.0` and `hypothesis 6.167.1`
 > because the numbers this skill publishes were measured with those two; both probed on 2026-09-07.
+> `references/track-fivem-lua.md` names `luarocks 3.13.0` and `busted 2.3.0-1` for the same reason —
+> the absence it reports was established with that client, on 2026-09-07.
 
 A repeatable rite: after implementing a change, actively **try to break it** — don't just confirm the
 happy path. Hunt for the bug before it ships.
