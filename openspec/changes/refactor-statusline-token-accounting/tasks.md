@@ -210,16 +210,23 @@
 
 - [x] S.3 O que escapou
 
-      Uma coisa, por permissão negada nesta máquina, nomeada em vez de contornada:
+      **Nada escapou.** O payload ao vivo (S.1), `/compact` (3 transcripts compactados), subagentes
+      (3 casos com `requestId` distintos), a corrida entre renders (8 simultâneos) e os seis ramos
+      da tabela de taxas estão todos em S.1 e S.2.
 
-      **`agentskills validate` não rodou localmente.** O binário vem do pacote PyPI `skills-ref`, e
-      as três formas de instalar foram recusadas: `pip install --user` (PEP 668, ambiente
-      gerenciado), `python3 -m venv` (recusado pelo classificador de permissões) e npm
-      (`404 Not Found` — não é pacote npm). O gate roda no CI, que instala o pacote, e passou lá.
+      O último item pendente era o `agentskills validate`, que não rodava nesta máquina porque as
+      três formas de instalar o pacote PyPI `skills-ref` foram recusadas (`pip install --user` em
+      PEP 668, `venv` pelo classificador de permissões, npm com `404`). Rodado pelo usuário e depois
+      sobre o catálogo inteiro:
 
-      Nada mais escapou. O payload ao vivo (S.1), `/compact` (3 transcripts compactados),
-      subagentes (3 casos com `requestId` distintos), a corrida entre renders (8 simultâneos) e os
-      seis ramos da tabela de taxas foram todos exercitados e estão em S.1 e S.2.
+      ```
+      $ /tmp/sr/bin/agentskills --version
+      agentskills, version 0.1.1
+      $ /tmp/sr/bin/agentskills validate skills/claude-statusline/
+      Valid skill: skills/claude-statusline
+      $ for d in skills/*/; do agentskills validate "$d" || fail=1; done; echo $fail
+      0     (38 skills)
+      ```
 
 ## 5. Quality Gates (MANDATORY)
 
@@ -244,8 +251,8 @@
       `bash scripts/smoke-install-scripts.sh` -> `19/19 cases passed`
       `npx -y @anthropic-ai/claude-code@2.1.246 plugin validate . --strict` -> `✔ Validation passed`
 
-      **Não rodado**: `agentskills validate` — o binário não está instalado nesta máquina
-      (`command not found`); CI o instala e é lá que esse gate roda.
+      `agentskills validate` (`skills-ref` 0.1.1) sobre as 38 skills -> exit `0`;
+      `agentskills validate skills/claude-statusline/` -> `Valid skill: skills/claude-statusline`.
 
 ## 6. Validation & Closure (MANDATORY)
 
