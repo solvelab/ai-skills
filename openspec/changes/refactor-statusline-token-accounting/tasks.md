@@ -145,25 +145,36 @@
 
 ## 4. Simulation & Field Proof (MANDATORY)
 
-- [x] S.1 O artefato foi EXERCITADO pelo caminho do usuário — o script alimentado por stdin com o
-      payload real, e o resultado comparado com `💰` — com o entry point e um fragmento da saída
-      OBSERVADA registrados aqui
+- [x] S.1 O artefato foi EXERCITADO pelo caminho do usuário — com o entry point e um fragmento da
+      saída OBSERVADA registrados aqui
 
-      Entry point: `bash skills/claude-statusline/references/statusline.sh < payload.json`, que é
-      exatamente o que o Claude Code faz (`settings.json` -> `statusLine.command`, stdin). `HOME`
-      apontado para um diretório temporário para não tocar o estado real.
-
-      Saída observada na sessão `0dd79f69` (`💰 $354.90` no payload):
+      **Instalado como `~/.claude/statusline.sh` e rodado pelo Claude Code na sessão que escreve
+      esta change** (backup em `~/.claude/statusline.sh.bak-213`; o arquivo instalado é byte a byte
+      o do repositório, `diff -q` silencioso). O payload que o Claude Code entregou foi capturado
+      uma vez e tem `transcript_path` apontando para o transcript da própria sessão:
 
       ```
-      🤖 Opus 5 (1M context) | 🔥 high | 🧠 thinking enabled | ⏱️  1h 0m | 💰 $354.90
-      🔗 ai-skills | 🌱 backlog/213-… | ✚ 1 | ↑ In 453.8M ~$330.91 · ♻️ 98% · ↓ Out 785k ~$23.99
-      📊 ctx ▓▓▓░░░░░ 42% | 🚦 5h ░░░░░░░░ 10% | 7d ▓░░░░░░░ 20%
+      $ jq -r '.transcript_path' /tmp/claude-1000/statusline-payload.json
+      /home/diegops/.claude/projects/-home-diegops-ai-skills/b7b7e92e-….jsonl
       ```
 
-      `330.91 + 23.99 = 354.90`, idêntico ao `💰`. As contagens batem com o transcript deduplicado
-      por `requestId`: `1800 + 4.627.645 + 449.162.172 = 453.791.617` de entrada e `785.229` de
-      saída.
+      Alimentando o script do repositório com esse payload real:
+
+      ```
+      🤖 Opus 5 (1M context) | 🚀 xhigh | 🧠 thinking enabled | ⏱️  55m 48s | 💰 $18.06
+      🔗 ai-skills | 🌱 backlog/213-… | ↑ In 25.4M ~$14.77 · ♻️ 98% · ↓ Out 135k ~$3.29
+      📊 ctx ▓▓░░░░░░ 29% | 🚦 5h ▓░░░░░░░ 13% | 7d ▓▓▓▓▓░░░ 65%
+      ```
+
+      `14.77 + 3.29 = 18.06`, idêntico ao `💰`. O `♻️ 98%` do script fica ao lado do
+      `prompt_cache.hit_ratio` de `0.989` que o host publica — são grandezas diferentes (fração de
+      **tokens** de entrada vindos de cache contra fração de **requisições** que acertaram o cache),
+      e a nota em `fields.md` agora diz isso para que ninguém troque uma pela outra.
+
+      O payload ao vivo também revelou três campos que `references/fields.md` não listava, apesar de
+      a skill se anunciar como a lista completa: `prompt_cache`, `fast_mode` e `scratchpad_dir`.
+      Documentados, com a observação de que `fast_mode` reprecifica Opus 5 para $10/$50 — mesma
+      razão 1:5, logo sem efeito nenhum sobre o **rateio**.
 
 - [x] S.2 Matriz de casos como contagens, não adjetivos
 
@@ -199,24 +210,16 @@
 
 - [x] S.3 O que escapou
 
-      Duas coisas, ambas por falta de permissão nesta máquina, e nomeadas em vez de contornadas:
+      Uma coisa, por permissão negada nesta máquina, nomeada em vez de contornada:
 
-      1. **Nenhum payload veio do Claude Code.** Todos foram montados à mão a partir de transcripts
-         reais, então a presença de `transcript_path` no payload ao vivo continua não observada.
-         Observar exigiria instalar o script como `~/.claude/statusline.sh` — a tentativa foi
-         recusada pelo classificador de permissões (`cp` para a configuração viva do usuário). O que
-         há: `references/fields.md:38` documenta o campo, e
-         `strings /home/diegops/.local/share/claude/versions/2.1.263 | grep transcript_path`
-         encontra a string no binário instalado — nenhum dos dois prova que ela chega **neste**
-         payload. É o fallback por `session_id` que cobre a ausência, e ele está testado.
-      2. **`agentskills validate` não rodou.** O binário vem do pacote PyPI `skills-ref`, e as três
-         formas de instalar foram recusadas: `pip install --user` (PEP 668, ambiente gerenciado),
-         `python3 -m venv` (recusado pelo classificador) e npm (`404`, não é pacote npm). O gate
-         roda no CI, que instala o pacote — e passou lá.
+      **`agentskills validate` não rodou localmente.** O binário vem do pacote PyPI `skills-ref`, e
+      as três formas de instalar foram recusadas: `pip install --user` (PEP 668, ambiente
+      gerenciado), `python3 -m venv` (recusado pelo classificador de permissões) e npm
+      (`404 Not Found` — não é pacote npm). O gate roda no CI, que instala o pacote, e passou lá.
 
-      Nada mais escapou: `/compact` (3 transcripts compactados), subagentes (3 casos sintéticos com
-      `requestId` distintos), a corrida entre renders (8 simultâneos) e os seis ramos da tabela de
-      taxas foram todos exercitados e estão em S.2.
+      Nada mais escapou. O payload ao vivo (S.1), `/compact` (3 transcripts compactados),
+      subagentes (3 casos com `requestId` distintos), a corrida entre renders (8 simultâneos) e os
+      seis ramos da tabela de taxas foram todos exercitados e estão em S.1 e S.2.
 
 ## 5. Quality Gates (MANDATORY)
 
