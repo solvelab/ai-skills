@@ -36,39 +36,58 @@
 
 ## 2. The two tracks
 
-- [ ] 2.1 `references/track-fivem-lua.md`: both layers answered, each statement carrying the command
+- [x] 2.1 `references/track-fivem-lua.md`: both layers answered, each statement carrying the command
       that produced it, and what the rite does where the ecosystem offers nothing
-- [ ] 2.2 `references/track-dotnet-plugin.md`: the scoring question answered by what the track
+- [x] 2.2 `references/track-dotnet-plugin.md`: the scoring question answered by what the track
       already prescribes for its failure class, and Stryker.NET named as unprobed
-- [ ] 2.3 `skills/bug-hunter/SKILL.md`: version 2.5.0 -> 2.6.0 and the version block records this
+- [x] 2.3 `skills/bug-hunter/SKILL.md`: version 2.5.0 -> 2.6.0 and the version block records this
       probe; `./generate.sh` run
 
 ## 3. Simulation & Field Proof (MANDATORY)
 
-- [ ] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
-      observed output are recorded (or: this change touches no runtime artifact)
-- [ ] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
-      silent and did, known escapes that stayed silent
-- [ ] S.3 What escaped or behaved differently than expected is named here — or it is stated
-      explicitly that nothing did
+- [x] S.1 The artifact was exercised through its real entry point. The two tracks were staged into
+      the live plugin cache and read by a fresh process; the cache was restored afterwards.
+      `claude -p` loading `Skill(ai-skills-testing:bug-hunter)` and asked what the Lua track
+      prescribes -> `No. lua-quickcheck only supports Lua 5.1/5.2, CfxLua is 5.4-based, so library
+      not reach runtime (probed luarocks 3.13.0, 2026-09-07)`; the same session asked about the .NET
+      track -> `Not prescribed. Track calls it a pointer, not a prescription — catalog never ran it
+      (no .NET SDK present, command -v dotnet absent, 2026-09-07), no command given`.
+- [x] S.2 Case matrix measured, as counts: questions the loaded skill had to answer from the track
+      and answered correctly, **4/4** — the generation refusal with its reason, the scoring absence
+      with the three searches, what the rite does instead, and the unprobed status of Stryker.NET.
+      Ecosystem probes run: **5/5** answered (`lua -v`, `luarocks --version`, the `busted` install,
+      the `lua-quickcheck` version check, the three empty mutation searches). Tools this change
+      prescribes without having run them: **0/0**.
+- [x] S.3 Nothing escaped and nothing behaved unexpectedly in the artifact. One expectation of mine
+      was wrong and is recorded because it changed the change: I expected `lua-quickcheck` to be
+      installable and the Lua track to end up with a prescribed generator. LuaRocks refused it for
+      the installed Lua and named the supported versions, which is what turned the section from a
+      prescription into a probed declaration — the better outcome, and one I would have guessed
+      wrong.
 
 ## 4. Quality Gates (MANDATORY)
 
-- [ ] Q.1 Frontmatter uniform on every touched SKILL.md: name == directory, folded description,
-      metadata.author solvelab, semver metadata.version, category in the controlled set, license MIT,
-      compatibility present
-- [ ] Q.2 All touched skill content in English (catalog locale)
-- [ ] Q.3 Description triggers testable: phrases a user would actually say route to this skill and
-      do NOT collide with a sibling skill's triggers; "Do NOT use for" boundary present where overlap exists
-- [ ] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
-      its canonical skill (see design.md Canonical Home table)
-- [ ] Q.5 Every code example in a touched skill uses English identifiers, routes, keys and event
-      names; a term kept in another language carries its reason inline (`code-locale`)
+- [x] Q.1 `python3 scripts/validate-skills.py` -> `skills checked: 38   findings: 0`, which owns
+      every field in this box, and `validate-skill-version.py` -> `1 skill(s) changed` with
+      `bug-hunter` 2.5.0 -> 2.6.0
+- [x] Q.2 Both tracks and the version block are English; the commit body is Portuguese, which is
+      the repository's prose language (`code-locale`)
+- [x] Q.3 The `description` frontmatter is untouched, so the routing surface and the existing
+      boundaries against `api-resilience-testing` and `tdd` are unchanged
+- [x] Q.4 No doctrine restated: the criteria and the `lean:` ceilings stay in the stack-agnostic
+      SKILL.md and the tracks point at them; `fivem-lua` and `assettoserver-plugin` keep their rules
+- [x] Q.5 The new blocks are shell commands with English flags and rock names only
 
 ## 5. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `openspec validate <id> --strict` green
-- [ ] V.2 Catalog discovery intact: `npx skills add <repo> --list` finds every skill, expected count,
-      no orphan/renamed leftovers
-- [ ] V.3 README / docs updated where the change alters catalog composition or usage
-- [ ] V.4 `openspec archive <id> --yes` after all groups above are `[x]`
+- [x] V.1 `openspec validate extend-bug-hunter-tracks-to-lua-and-dotnet --strict` ->
+      `Change 'extend-bug-hunter-tracks-to-lua-and-dotnet' is valid`; `bash scripts/validate-rite.sh`
+      -> `rite gate OK`
+- [x] V.2 `npx -y skills add . --list` -> 44 skills, the 38 under `skills/` plus the 6 under
+      `.claude/skills/`; nothing added, removed or renamed
+- [x] V.3 Composition unchanged. `README.md:670` already reads `enumerate / generate / score` for
+      this skill and names the three tracks, which stays accurate now that all three answer both
+      layers
+- [ ] V.4 `openspec archive extend-bug-hunter-tracks-to-lua-and-dotnet --yes` — left for after the
+      merge, as in #224, #208 and #195; the pull request reports the change as active and names this
+      as what closes it
