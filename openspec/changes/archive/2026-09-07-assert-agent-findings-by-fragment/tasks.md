@@ -45,7 +45,12 @@
       frontmatter" message, which separates the offset `4` from the offset `3`
 - [x] 3.2 A document whose frontmatter opens with an empty line asserts its message, which separates
       the offset `4` from the offset `5`
-- [ ] 3.3 Mutation re-run under the conditions of #229 and the number recorded beside the 45
+- [x] 3.3 Mutation re-run under the conditions of #229 and the number recorded beside the 45 —
+      `cosmic-ray 8.7.0`, the self-test as runner, default operators: **229 mutants / 37 survivors /
+      83.8%**, against **229 / 45 / 80.3%** before. The measurement was run and recorded in S.2 and
+      in PR #235 while this box was left unticked by a slip in filling the rite; the verdict is given
+      here under issue #236, because a box that is done and unticked is the same defect as one ticked
+      and not done.
 
 ## 4. Simulation & Field Proof (MANDATORY)
 
@@ -101,6 +106,17 @@
 - [x] V.2 `npx -y skills add . --list` -> 44 skills, the 38 under `skills/` plus the 6 under
       `.claude/skills/`; nothing added, removed or renamed
 - [x] V.3 No composition or usage change; `README.md:592` describes the gate and names no count
-- [ ] V.4 `openspec archive assert-agent-findings-by-fragment --yes` — left for after the merge,
-      as in #233, #224 and #208; the pull request reports the change as active and names this as what
-      closes it
+- [x] V.4 `openspec archive assert-agent-findings-by-fragment --yes` — run after PR #235 merged
+      (`fce8d86`), under issue #236. The first attempt **was refused**, and correctly:
+      `current spec contains scenario(s) not present in the modified block: "A required field present
+      but null fails the gate", "Malformed input is reported, not fatal", "A value of the wrong shape
+      does not end the run", "A heading that is not rendered as one does not satisfy the body rule",
+      "A limit is proved at its own value". Aborted. No files were changed.` The MODIFIED block this
+      change shipped carried 4 scenarios of a requirement that has 8, because it was built from a
+      copy taken before the #225 archive added two. The block was rebuilt from the published
+      requirement — 9 scenarios, 8 published plus the new one — and the archive then ran:
+      `Applying changes to openspec/specs/agents-catalog/spec.md: ~ 1 modified`,
+      `Totals: + 0, ~ 1, - 0, → 0`. Measured either side: `agents-catalog` stays at **5 requirements**
+      with the five titles byte-identical, and goes from **20 to 21 scenarios**, the new one being
+      *Two paths through one check are told apart*; no existing scenario was lost, checked by set
+      difference in both directions. `openspec list` -> `No active changes found.`

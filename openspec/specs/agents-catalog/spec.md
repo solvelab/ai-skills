@@ -125,6 +125,10 @@ each side of the limit and one at the value itself. A suite that proves only tha
 leaves the limit's position unmeasured, so moving the constant breaks nothing and the check is
 covered on paper and untested in fact.
 
+The self-test SHALL be able to assert **which finding** a case produced, not only which check owns
+it, and SHALL do so wherever a check can produce more than one message. A check with several
+messages that is proved only by its id cannot distinguish two paths through it, and a defect that
+moves a case from one message to the other passes unnoticed.
 #### Scenario: An agent without a declared tool set fails the gate
 
 - **WHEN** an agent omits `tools`, or names a write tool while its contract says it returns what to
@@ -173,6 +177,12 @@ covered on paper and untested in fact.
 - **WHEN** the gate enforces a minimum or a maximum
 - **THEN** the self-test carries an accepted case at the limit, a rejected case one past it, and an
   accepted case one inside it, so a changed constant fails a test
+
+#### Scenario: Two paths through one check are told apart
+
+- **WHEN** a check can report more than one message and a case exists for each path
+- **THEN** the self-test asserts the message the case expects, in addition to the check id, so a
+  defect that swaps one path for the other fails a case
 
 ### Requirement: A published agent count names its members
 
