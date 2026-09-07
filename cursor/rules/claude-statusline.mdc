@@ -1,6 +1,6 @@
 ---
 description: >-
-  Configure or customize the Claude Code status line — the shell-script status bar at the bottom of the CLI that shows model, effort tier, context usage, git state, cost (cumulative session + per-turn token cost), rate limits and prompt-cache health. Use when the user wants to set up, change, share, or debug their Claude Code status line / status bar, mentions statusLine in settings.json or a statusline.sh script, wants a context/token/cost/git/effort indicator in the CLI, or shares a status-line gist to install. Ships a ready-made 3-line script (references/statusline.sh) and the full list of available JSON fields (references/fields.md). Do NOT use for shell prompt themes (PS1, starship, powerlevel10k) or non-Claude-Code status bars.
+  Configure or customize the Claude Code status line — the shell-script status bar at the bottom of the CLI that shows model, effort tier, context usage, git state, cost (the session total the host reports, split into input and output shares), rate limits and prompt-cache health. Use when the user wants to set up, change, share, or debug their Claude Code status line / status bar, mentions statusLine in settings.json or a statusline.sh script, wants a context/token/cost/git/effort indicator in the CLI, or shares a status-line gist to install. Ships a ready-made 3-line script (references/statusline.sh) and the full list of available JSON fields (references/fields.md). Do NOT use for shell prompt themes (PS1, starship, powerlevel10k) or non-Claude-Code status bars.
 alwaysApply: false
 ---
 
@@ -9,13 +9,19 @@ Reference files (`references/…` below) live at https://github.com/solvelab/ai-
 
 # Claude Code Status Line
 
-> **Verified against**: `Claude Code 2.1.261` · `jq 1.6` · `bash 5.2.15`. Probed on 2026-09-05:
-> `references/statusline.sh` is byte-identical to the script rendering the status line of the
-> session that wrote this, and fed a synthetic payload of the fields in `references/fields.md` it
-> printed its three lines (`🤖 Fable 5.1 | ⚡ medium | 🧠 thinking enabled | ⏱️ 1m 5s | 💰 $1.23`, the
-> repo/branch/diff line, the three meters). Not probed: each field's presence in the live payload —
-> the script falls back to `-` for a missing field, so a render proves the script runs, not that
-> every documented field still arrives; the per-version notes in `fields.md` stand as written.
+> **Verified against**: `Claude Code 2.1.263` · `jq 1.6` · `mawk 1.3.4` · `bash 5.2.15`. Probed on
+> 2026-09-07 against two real transcripts (14 MB / 6.5 MB). Fed a payload carrying
+> `transcript_path`, the script printed `↑ In 453.8M ~$330.91 · ♻️ 98% · ↓ Out 785k ~$23.99` beside
+> `💰 $354.90` — the two shares sum to the host total exactly, and the counts match the transcript
+> deduplicated by `requestId` (1800 + 4 627 645 + 449 162 172 input, 785 229 output). The cursor
+> path was proved idempotent: a render over an incrementally appended transcript printed the same
+> line as a cold full re-read, and a torn final line left the cursor at 6 583 780 of 6 583 888 bytes
+> rather than skipping the call. Timings: 202 ms cold on 14 MB, 39 ms warm. Four degradations
+> render without the token segment or without the `~$`: no `transcript_path`, unreadable path, a
+> transcript with no `message.usage` yet, an unrecognized model. Not probed: `transcript_path`'s
+> presence in the live payload (the fallback derives the path from `session_id`), and each other
+> field's presence — the script falls back to `-` for a missing field, so a render proves the script
+> runs, not that every documented field still arrives.
 
 The status line is a customizable bar at the bottom of Claude Code. Claude Code runs a
 shell command, pipes JSON session data to it on **stdin**, and renders whatever the
@@ -66,12 +72,18 @@ rate-limit meters hidden on non-subscription accounts, empty lines suppressed):
   distinct effort level — it reports as `xhigh`, so an ultracode turn shows as `🚀 xhigh`.
 - **Line 2 — place + tokens**: clickable GitHub repo link (OSC 8) · branch (short SHA when
   detached) · `●` staged / `✚` modified counts · worktree when in one · lines added/removed ·
-  last-response tokens with **per-turn cost**: `↑ In` (total input · priced $ = fresh input ×
-  rate + cache-write ×1.25 + cache-read ×0.1) · `♻️` **cache health %** [green ≥80, yellow
-  40–79, red <40 = cache invalidated → next turn costs more] · `↓ Out` (output · priced $).
-  Costs use a per-model rate table (Opus $5/$25, Sonnet $3/$15, Haiku $1/$5, Fable $10/$50 per
-  MTok) and are **hidden for unrecognized models**. This is the *last turn's* cost — distinct
-  from the cumulative session 💰 on line 1.
+  **session tokens**: `↑ In` (fresh input + cache write + cache read) · `♻️` **cache health %**
+  [green ≥80, yellow 40–79, red <40 = cache invalidated → next turn costs more] · `↓ Out`.
+  Counts come from the transcript (`transcript_path`), deduplicated by `requestId` — one record
+  per API call, no sampling. The `~$` figures are **derived**: the session total on line 1 is
+  `cost.total_cost_usd` as the host reports it, and the two segments are its input/output shares,
+  so `~In + ~Out ≡ 💰` always. A per-model rate table decides only that proportion (Opus $5/$25,
+  Sonnet 5 $2/$10, Sonnet 4.6 $3/$15, Haiku $1/$5, Fable $10/$50 per MTok; cache writes 1.25× at
+  5-minute TTL and 2× at 1-hour, cache reads 0.1× and 0.025× on Fable 5.1 — these numbers are owned
+  by the claude-api skill bundled with Claude Code, mirrored here only because the split is computed
+  locally). The `~$` is **hidden for unrecognized models**, the counts are not.
+  The counts are what the transcript records, **not** what was billed: measured 2026-09-07 they ran
+  13.5%–93.7% below the host's own ledger on one session, and why was not determined.
 - **Line 3 — meters**: all progress bars together — context-window, then 5h/7d rate limits
   (Pro/Max only). Each bar is colored green <50, yellow 50–79, red ≥80.
 
@@ -93,6 +105,13 @@ Steps:
    animated `💥 max` effort shimmer — it re-runs the whole script every second even while
    idle, so skip it otherwise. In large repos, cache `git status` by `session_id` first (the
    script runs `git status` each tick).
+
+**State it writes.** `~/.claude/statusline-usage/<session_id>`, one small `\x1f`-separated record
+per session: a byte offset into the transcript, the running token sums, the last `requestId` seen
+and the transcript's inode. It is a resumable read cursor over an append-only file — delete it and
+the next render rebuilds it from the transcript. Files older than 30 days are pruned on the first
+write of a new session. Upgrading from a version before 2.0.0 leaves the old records behind; they
+are ignored (the inode check rejects them) and the directory can be emptied.
 
 ---
 

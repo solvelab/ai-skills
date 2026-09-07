@@ -1,0 +1,174 @@
+# Tasks
+
+## 1. Evidence & Sources (MANDATORY)
+
+- [x] E.1 Every local path this change relies on was OPENED and read, not recalled — recorded with
+      the commit or timestamp it was read at
+
+      Lidos em `4d6b84d` (master, base de `backlog/213-statusline-token-accounting`) em 2026-09-07:
+
+      - `skills/claude-statusline/references/statusline.sh` inteiro (275 linhas) — `price_rates()`,
+        o bloco do acumulador (leitura do state, condição de banking, escrita) e a montagem de
+        `seg_in` / `seg_out`.
+      - `skills/claude-statusline/references/fields.md` — linha 21 (`cost.total_cost_usd`), linha 26
+        (a nota que hoje instrui a acumular no script), linha 29 (`context_window.current_usage`),
+        linha 38 (`transcript_path`).
+      - `skills/claude-statusline/SKILL.md` — descrição e bloco `Verified against`.
+      - `~/.claude/statusline.sh` — `diff` contra o arquivo do repo: idênticos.
+      - `~/.claude/settings.json` linhas 191-195 — o `statusLine.command` aponta para esse arquivo.
+      - `openspec/schemas/skills-rite/schema.yaml` e `scripts/validate-rite.sh` — os cinco grupos
+        obrigatórios e suas posições.
+      - `openspec/specs/skills-catalog/spec.md` — *Shipped scripts state what they persist*
+        (linha 173) e *Toda grandeza usada carrega procedência* (linha 1334), para decidir entre
+        MODIFIED e ADDED.
+      - `openspec/changes/archive/2026-08-06-cumulative-statusline-tokens/` — proposal e delta, que
+        é a change que introduziu o acumulador removido aqui.
+      - `generate.sh` linhas 6-12 e 27-30 — quais espelhos são gerados a partir de `skills/`.
+
+- [x] E.2 Every external tool, CLI flag, config key, API name or version this change asserts was
+      probed against the installed version; the command and a fragment of its output are recorded
+
+      **A contabilidade do script contra a do Claude Code**, lida do `modelUsage` do transcript
+      (`jq 'select(.modelUsage)|.modelUsage' <transcript> | tail -1`) e do arquivo de estado
+      (`tr '\037' ' ' < ~/.claude/statusline-usage/<id>`):
+
+      Sessão `0dd79f69` (`claude-opus-5[1m]`, modelo único):
+
+      | grandeza | statusline | `modelUsage` | erro |
+      |---|---:|---:|---:|
+      | custo total | 327.82 | 354.90 | −7.6% |
+      | inputTokens | 2.092 | 28.745 | −92.7% |
+      | cacheCreationInputTokens | 7.501.793 | 6.725.475 | **+11.5%** |
+      | cacheReadInputTokens | 529.286.418 | 518.968.226 | **+2.0%** |
+      | outputTokens | 651.212 | 1.431.553 | −54.5% |
+
+      Sessão `c972f399` (`fable-5-1` + `opus-5[1m]` + `sonnet-5` + `haiku-4-5`): custo
+      `415.61` contra `643.60` (`jq 'select(.totalCostUSD)|.totalCostUSD' | tail -1` ->
+      `643.6030768000011`), **−35.4%**; `cacheReadInputTokens` `306.171.328` contra `461.046.068`,
+      **−33.6%**; `outputTokens` `462.148` contra `4.803.320`, **−90.4%**.
+
+      **`costUSD` bate com `totalCostUSD` em sessão de modelo único**:
+      `modelUsage["claude-opus-5[1m]"].costUSD` -> `354.89593425`;
+      `totalCostUSD` -> `354.89593425`.
+
+      **O split de TTL do cache existe no transcript e não no payload**:
+      `jq '.message.usage.cache_creation' <transcript>` ->
+      `{"ephemeral_1h_input_tokens":25372,"ephemeral_5m_input_tokens":0}`.
+
+      **Preços e multiplicadores** (skill `claude-api`, bundled 2.1.263),
+      `shared/prompt-caching.md:144` -> "Cache reads cost ~0.1× base input price — **0.025× on
+      Claude Fable 5.1** … Cache writes cost **1.25× for 5-minute TTL, 2× for 1-hour TTL**". Tabela
+      de modelos da `SKILL.md`: Opus 5 $5/$25, Fable 5.1 $10/$50, **Sonnet 5 $2/$10**, Sonnet 4.6
+      $3/$15, Haiku 4.5 $1/$5. O `price_rates()` do script cobra `3 15` em `*Sonnet*` e `0.1` de
+      cache read para todo modelo — errado para Sonnet 5 e para Fable 5.1.
+
+      **Custo de leitura da cauda do transcript** (arquivo de 6.461.943 bytes):
+      `time (tail -200 "$f" | jq -c 'select(.modelUsage)|.modelUsage' | tail -1)` -> `0.007 total`;
+      `time (tac "$f" | grep -m1 -o '"modelUsage":…')` -> `0.013 total`.
+
+      **`modelUsage` NÃO existe ao vivo** — medido depois do plano aprovado, antes de editar o
+      script. As linhas que o carregam são `type: "cost-state"`, escritas no fim da sessão:
+      `grep -n '"modelUsage"' <c972f399>` -> linhas `4083` e `4086` de 4086;
+      `grep -c '"modelUsage"' <b7b7e92e vivo>` -> `0` em 368 linhas, e
+      `grep -o '"totalCostUSD"\|"costUSD"\|"modelUsage"' <b7b7e92e vivo>` -> nenhuma ocorrência.
+
+      **O transcript fica abaixo do razão do host, e o buraco não é recuperável dali.** Somando
+      `message.usage` deduplicado por `requestId` na sessão `0dd79f69` (1513 linhas com usage, 901
+      `requestId` distintos) contra o `modelUsage` da mesma sessão: `input` `1.800` contra `28.745`
+      (−93.7%), `cache write` `4.627.645` contra `6.725.475` (−31.2%), `cache read` `449.162.172`
+      contra `518.968.226` (−13.5%), `output` `785.229` contra `1.431.553` (−45.2%).
+      `jq 'select(.message.usage)|"\(.type) sidechain=\(.isSidechain)"' | sort | uniq -c` ->
+      `1513 assistant sidechain=false`, e `.message.model` -> `1512 claude-opus-5` + `1 <synthetic>`
+      contra `claude-opus-5[1m]` no razão. Ou seja: não há linhas escondidas a somar.
+
+      É essa medição que derruba a decisão D1/D4 original e produz o rateio de
+      `cost.total_cost_usd`. Registrada como desvio aprovado no comentário da issue #213.
+
+      **Ferramentas**: `openspec --version` -> `1.6.0`;
+      `openspec new change refactor-statusline-token-accounting --schema skills-rite` ->
+      `Schema: skills-rite`. `gh auth status` -> escopo `project` presente.
+
+- [x] E.3 Anything that could NOT be probed is written down as an open question (design.md, or here
+      when there is no design.md) — never stated as fact, never filled with a plausible substitute
+
+      Três lacunas, todas em `design.md` § *Open Questions*, nenhuma preenchida com substituto:
+
+      1. **`transcript_path` não foi observado num payload ao vivo.** Está documentado em
+         `references/fields.md:38`, mas interceptar o payload exigiria editar o
+         `~/.claude/statusline.sh` em uso — o que esta análise não fez, por ser leitura apenas. O que
+         *foi* verificado é que o caminho derivável de `session_id`
+         (`~/.claude/projects/<slug>/<session_id>.jsonl`) existe e contém as linhas usadas.
+      2. **Por que o transcript fica abaixo do razão do host não foi determinado.** As hipóteses
+         plausíveis — compactação, retries, chamadas de sistema, o modelo registrado como
+         `claude-opus-5` contra `claude-opus-5[1m]` no razão — não foram verificadas. O que está
+         medido é a magnitude do buraco (E.2), não a sua causa. Por isso as contagens são publicadas
+         pelo que cobrem e não são chamadas de total da sessão.
+      3. **Em que versão do Claude Code as linhas `cost-state` passaram a existir não foi
+         determinado.** Irrelevante para a implementação, que não as usa — registrado para que a
+         ausência não seja lida como prova de que nunca existiram.
+
+- [x] E.4 Adjacent improvements were listed as follow-ups rather than performed — the scope check
+
+      Quatro coisas vistas e **não** feitas, deixadas como follow-up:
+
+      1. `human()` arredonda `>= 1000` com `%.0fk`, então `999.999` vira `1000k` em vez de `1.0M`.
+         Cosmético, fora do escopo, sem item aberto.
+      2. O `SKILL.md` recomenda cachear `git status` por `session_id`, mas o script não faz isso — é
+         outro segmento e outro custo de render.
+      3. `effort_render()` deriva o frame do shimmer de `date +%s`, o que faz o status line mudar
+         sozinho entre renders idênticos. Ortogonal a esta mudança.
+      4. `cost.total_duration_ms` é usado como duração de sessão, mas `fields.md` também lista
+         `cost.total_api_duration_ms`; se mostrar os dois vale a pena é decisão de layout, não desta
+         change.
+
+## 2. Implementação
+
+- [ ] 2.1 Resolver o transcript: `transcript_path` do payload quando presente; fallback derivando de
+      `session_id`; nenhum dos dois disponível ⇒ segmento omitido (D3)
+- [ ] 2.2 Ler a cauda do transcript e acumular `message.usage` por `requestId` num cache keyed por
+      `session_id`, guardando fatos por chamada e não uma soma (D2)
+- [ ] 2.3 Somar as contagens por modelo, preservando o significado atual de `↑ In`, `♻️` e `↓ Out`
+- [ ] 2.4 Ratear `cost.total_cost_usd` entre entrada e saída pela proporção que as taxas dão, marcar
+      as duas parcelas como derivadas, e garantir que somem exatamente ao total (D4)
+- [ ] 2.5 Remover o bloco do acumulador e a escrita/poda de `~/.claude/statusline-usage/`
+- [ ] 2.6 Corrigir `price_rates()` para o uso que sobra: Sonnet 5 a $2/$10, cache write 1h a 2×,
+      cache read do Fable 5.1 a 0.025×; modelo desconhecido ⇒ rateio omitido, nunca chutado
+- [ ] 2.7 Tratar os três casos de degradação de D3 sem quebrar o render
+
+## 3. Documentação e espelhos
+
+- [ ] 3.1 `references/fields.md`: reescrever a nota da linha 26 e o que a linha 38 promete, com o
+      motivo medido
+- [ ] 3.2 `SKILL.md`: descrição, bloco `Verified against`, e a nota de que
+      `~/.claude/statusline-usage/` pode ser apagado
+- [ ] 3.3 `./generate.sh` para regenerar `claude/`, `codex/`, `cursor/`, `copilot/`, `plugins/`
+
+## 4. Simulation & Field Proof (MANDATORY)
+
+- [ ] S.1 O artefato foi EXERCITADO pelo caminho do usuário — o script alimentado por stdin com o
+      payload real, e o resultado comparado com `💰` — com o entry point e um fragmento da saída
+      OBSERVADA registrados aqui
+- [ ] S.2 Matriz de casos como contagens, não adjetivos: n/n transcripts dentro de ±1%, n/n casos de
+      degradação que renderizaram, n/n modelos cobertos
+- [ ] S.3 O que escapou à simulação, nomeado — ou a afirmação explícita de que nada escapou
+
+## 5. Quality Gates (MANDATORY)
+
+- [ ] Q.1 Frontmatter da `claude-statusline` intacto: `name` == diretório, description dobrada,
+      `metadata.author: solvelab`, versão semver bumpada, category no conjunto controlado,
+      `license: MIT`, `compatibility`
+- [ ] Q.2 Conteúdo em inglês na skill; nenhum identificador novo em português no script
+- [ ] Q.3 Triggers da description continuam testáveis e sem colisão com outras skills
+- [ ] Q.4 Zero doutrina duplicada: nenhum preço de modelo no script; a skill aponta para
+      `claude-api` conforme a tabela Canonical Home do `design.md`
+- [ ] Q.5 `python3 scripts/validate-skills.py`, `python3 scripts/validate-repo-hygiene.py` e
+      `python3 scripts/validate-skill-version.py` verdes
+
+## 6. Validation & Closure (MANDATORY)
+
+- [ ] V.1 `openspec validate refactor-statusline-token-accounting --strict` verde
+- [ ] V.2 `bash scripts/validate-rite.sh` -> `rite gate OK`
+- [ ] V.3 Descoberta do catálogo intacta: `npx skills add . --list` encontra as skills na contagem
+      esperada
+- [ ] V.4 README/docs atualizados se a composição do catálogo ou o uso mudarem
+- [ ] V.5 `openspec archive refactor-statusline-token-accounting --yes` depois do merge
