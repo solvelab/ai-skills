@@ -1,7 +1,7 @@
 {
   "name": "ai-skills-assettoserver",
   "displayName": "AI Skills — assettoserver",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "AssettoServer dedicated-server operation, C# plugins and CSP Lua online scripts (3 skills: assettoserver-csp-lua, assettoserver-ops, assettoserver-plugin)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
