@@ -76,55 +76,143 @@
 
 ## 2. A skill
 
-- [ ] 2.1 `skills/tdd/SKILL.md` com frontmatter uniforme (name == diretório, `description` folded
+- [x] 2.1 `skills/tdd/SKILL.md` com frontmatter uniforme (name == diretório, `description` folded
       ≤1024 no valor YAML-parseado, `metadata.author: solvelab`, `metadata.version` semver,
       `metadata.category: testing`, `license: MIT`, `compatibility` ≤500)
-- [ ] 2.2 A doutrina não contradiz `research/tdd/arms-block.md`, conferida linha a linha
-- [ ] 2.3 Seção de quando o ciclo **não** se aplica, linkando o piso de `lean-code` sem repeti-lo
-- [ ] 2.4 `Do NOT use for` na description: quebrar código já escrito é `bug-hunter`, suíte de API é
+- [x] 2.2 A doutrina não contradiz `research/tdd/arms-block.md`, conferida linha a linha
+- [x] 2.3 Seção de quando o ciclo **não** se aplica, linkando o piso de `lean-code` sem repeti-lo
+- [x] 2.4 `Do NOT use for` na description: quebrar código já escrito é `bug-hunter`, suíte de API é
       `api-resilience-testing`, o piso de uma checagem é `lean-code`
-- [ ] 2.5 Bloco `Verified against` dizendo o que foi probado, a data, e que **não há ganho medido a
+- [x] 2.5 Bloco `Verified against` dizendo o que foi probado, a data, e que **não há ganho medido a
       citar** — a medição existe e deu NO-CLAIM
-- [ ] 2.6 `skills/tdd/references/track-python-pytest.md` com a mecânica do ciclo em pytest,
+- [x] 2.6 `skills/tdd/references/track-python-pytest.md` com a mecânica do ciclo em pytest,
       linkando o stack de teste de `python-rest-api` em vez de repeti-lo
-- [ ] 2.7 Nenhum número de ganho em `skills/tdd/**`
+- [x] 2.7 Nenhum número de ganho em `skills/tdd/**`
+
+      `grep -rnE "[0-9]+/[0-9]+|[0-9]+ ?%|\$[0-9]" skills/tdd/` -> nenhuma linha.
+      `grep -c "research/tdd" skills/tdd/SKILL.md` -> `5`: a skill aponta o registro cinco vezes e
+      não cita cifra nenhuma. Os três ponteiros no corpo usam a URL do GitHub, porque um wrapper
+      copiado não resolve caminho do clone (C12 de `scripts/validate-skills.py`, que pegou isso).
 
 ## 3. Casa canônica e cross-links
 
-- [ ] 3.1 `openspec/specs/skills-authoring/spec.md` — mapa canônico ganha `test order → tdd` (pelo
+- [x] 3.1 `openspec/specs/skills-authoring/spec.md` — mapa canônico ganha `test order → tdd` (pelo
       delta desta change, no archive)
-- [ ] 3.2 `skills/execute-backlog/SKILL.md` passo 8 — uma linha opt-in; ordem default intacta
-- [ ] 3.3 `skills/bug-hunter/SKILL.md` — cross-link e fronteira temporal na description
-- [ ] 3.4 `skills/lean-code/SKILL.md` — cross-link do piso para `tdd`
-- [ ] 3.5 `skills/python-rest-api/SKILL.md` — cross-link do stack de teste
-- [ ] 3.6 `metadata.version` sobe nas quatro skills editadas
+- [x] 3.2 `skills/execute-backlog/SKILL.md` passo 8 — uma linha opt-in; ordem default intacta
+- [x] 3.3 `skills/bug-hunter/SKILL.md` — cross-link e fronteira temporal na description
+- [x] 3.4 `skills/lean-code/SKILL.md` — cross-link do piso para `tdd`
+- [x] 3.5 `skills/python-rest-api/SKILL.md` — cross-link do stack de teste
+- [x] 3.6 `metadata.version` sobe nas quatro skills editadas
 
 ## 4. Catálogo
 
-- [ ] 4.1 `./generate.sh` rodado e wrappers commitados junto
-- [ ] 4.2 `README.md` — linha na tabela de plugins (`:61`) e na tabela de skills (`:607-617`)
+- [x] 4.1 `./generate.sh` rodado e wrappers commitados junto
+- [x] 4.2 `README.md` — linha na tabela de plugins (`:61`) e na tabela de skills (`:607-617`)
 
 ## 5. Simulation & Field Proof (MANDATORY)
 
-- [ ] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
+- [x] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
       observed output are recorded (or: this change touches no runtime artifact)
-- [ ] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
+
+      O caminho do usuário desta skill é o CLI carregando `skills/tdd` numa sessão. Com a skill no
+      checkout, o harness de `research/tdd` passa a preparar o terceiro arm sozinho:
+
+      `python3 research/tdd/run.py --prepare-arms --arms-root <scratch>/tdd-arms3 --rules-ref 5a65437
+      --claude-block research/tdd/arms-block.md` ->
+      `arm skill  claude-snippet.md = sentinel + always-on block; workspace gets .claude/skills/tdd
+      copied from /home/diegops/ai-skills/skills/tdd` -> `preflight OK`
+
+      `python3 research/tdd/run.py --probe-isolation --arms-root <scratch>/tdd-arms3 --model
+      claude-haiku-4-5-20251001` -> `probe PASSED isolation=settings-sources cost=$0.192`, com
+      `skill  sentinel 3/3  hook-events 0 (maintainer 0)  caveman-marker-untouched 3/3
+      skill-visible 1/1`
+
+      Fonte de verdade lida direto do transcrito, o evento `system/init` que lista o que o CLI de
+      fato carregou: `skill` -> `['tdd', 'deep-research', ...]`, 18 skills, **`tdd` presente**;
+      `baseline` e `block` -> 17 skills, **`tdd` ausente**.
+
+      Esta é a prova de que a skill **carrega e é oferecida ao roteador**. Não é a medição do arm
+      `skill`, que é follow-up declarado em E.3 (b) e E.4 e **não** foi rodada.
+- [x] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
       silent and did, known escapes that stayed silent
-- [ ] S.3 What escaped or behaved differently than expected is named here — or it is stated
+
+      **Tinham de disparar e dispararam**: `tdd` no `system/init` do arm `skill` 1/1; preflight OK
+      3/3 arms; sonda PASS 3/3 arms; sentinela 3/3 em cada arm; `validate-skills.py` reconhecendo
+      37 skills 1/1; `validate-skill-version.py` vendo 5 skills alteradas com 5 bumps.
+
+      **Tinham de ficar em silêncio e ficaram**: `tdd` ausente do `init` em `baseline` e `block`
+      2/2; eventos de hook do mantenedor 0 em 12 chamadas; marcador caveman intacto 3/3;
+      `grep` de número em `skills/tdd/**` -> 0 ocorrências; drift de wrapper depois de
+      `generate.sh` -> 0; findings em `validate-skills.py` -> 0 sobre 37 skills.
+
+      **Escapes conhecidos que ficaram em silêncio**: a matriz paga do arm `skill` não rodou (é
+      follow-up); não há detector automático de colisão de trigger entre `tdd` e `bug-hunter`, e a
+      lacuna (a) de E.3 continua aberta por isso.
+- [x] S.3 What escaped or behaved differently than expected is named here — or it is stated
       explicitly that nothing did
+
+      Duas coisas, ambas registradas:
+
+      1. **O modelo se auto-reportou errado.** Perguntado pela sonda quais skills tinha
+         disponíveis, o arm `skill` respondeu `'SKILLS: none\nDONE'` — enquanto o evento
+         `system/init` da mesma sessão listava `tdd`. O veredito está certo porque o harness
+         prefere o `init` à resposta do modelo, mas a consequência é que **perguntar ao modelo
+         quais skills ele tem não é instrumento confiável**; o evento do carregador é. Vale para
+         qualquer sonda futura deste repositório.
+      2. **`validate-repo-hygiene.py` pegou duas contagens paradas no README** (`:51` e `:95`
+         diziam 36 com 37 skills no tree) que a tabela de skills sozinha não teria mostrado.
+         Corrigidas; H2 voltou a 0 findings.
+
+      Nada mais se comportou diferente do previsto.
 
 ## 6. Quality Gates (MANDATORY)
 
-- [ ] Q.1 Frontmatter uniforme nas cinco `SKILL.md` tocadas, valores conferidos e não só presença
-- [ ] Q.2 Todo conteúdo de skill em inglês, incluindo o track
-- [ ] Q.3 Triggers testáveis e sem colisão com `bug-hunter`; `Do NOT use for` presente dos dois lados
-- [ ] Q.4 Nenhuma doutrina duplicada: o piso é linkado, a metodologia adversarial é linkada, a
+- [x] Q.1 Frontmatter uniforme nas cinco `SKILL.md` tocadas, valores conferidos e não só presença
+
+      `description` de `tdd` medida no valor YAML-parseado -> **1019** caracteres (limite 1024; a
+      primeira redação tinha 1147 e foi cortada). `compatibility` -> 205 (limite 500).
+      `python3 scripts/validate-skills.py` -> `skills checked: 37   findings: 0`.
+- [x] Q.2 Todo conteúdo de skill em inglês, incluindo o track
+
+      `skills/tdd/SKILL.md` e `references/track-python-pytest.md` inteiramente em inglês, como o
+      resto do catálogo; a prosa deste `tasks.md` segue em português como o repositório.
+- [x] Q.3 Triggers testáveis e sem colisão com `bug-hunter`; `Do NOT use for` presente dos dois lados
+
+      A fronteira é temporal e está escrita nas duas descriptions: `tdd` -> *"Do NOT use to break
+      code already written or hunt edge cases after the fact (that is bug-hunter)"*; `bug-hunter`
+      -> *"nor for deciding whether the test is written before the code (that is tdd, which runs
+      before the change while this rite runs after it)"*. Nenhum gatilho de `tdd` repete um de
+      `bug-hunter`: os de lá são "bug hunt", "adversarial test", "break it", "anti-forge"; os daqui
+      são "TDD", "test-driven", "red-green", "write the test first", "teste primeiro".
+      **Limite declarado**: não existe detector de colisão neste repositório — dá para provar a
+      presença da fronteira, não o roteamento em uso (lacuna (a) de E.3).
+- [x] Q.4 Nenhuma doutrina duplicada: o piso é linkado, a metodologia adversarial é linkada, a
       tabela Canonical Home do `design.md` declara cada uma
-- [ ] Q.5 Exemplos de código em inglês (`code-locale`)
+
+      A seção *When the cycle does not apply* linka `lean-code` para o piso e diz explicitamente
+      que decide *quando* a checagem é escrita, não *quanto* teste a mudança deve. O track linka o
+      stack de `python-rest-api` em vez de repeti-lo. `lean-code` ganhou a linha recíproca no
+      mesmo lugar onde já delegava a `bug-hunter`.
+- [x] Q.5 Exemplos de código em inglês (`code-locale`)
+
+      Todo identificador dos exemplos do track é inglês (`parse_duration`, `percent_change`,
+      `test_a_bare_number_is_rejected`); nenhum `# locale-ok` foi necessário.
 
 ## 7. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `openspec validate add-tdd-skill --strict` green
-- [ ] V.2 Catalog discovery intact: 37 skills, `ai-skills-testing` com 3, sem órfão
-- [ ] V.3 README atualizado nas duas tabelas
+- [x] V.1 `openspec validate add-tdd-skill --strict` green
+
+      `openspec validate add-tdd-skill --strict` -> `Change 'add-tdd-skill' is valid`
+      `bash scripts/validate-rite.sh` -> `Totals: 3 passed, 0 failed (3 items)`, `rite gate OK`
+- [x] V.2 Catalog discovery intact: 37 skills, `ai-skills-testing` com 3, sem órfão
+
+      `python3 scripts/validate-repo-hygiene.py` -> `repo hygiene: 0 findings` (H2 e H3 conferem
+      contagem publicada contra o tree). `validate-skill-version.py` -> `5 skill(s) changed, 5 with
+      content changes`, 0 findings. `scan-secrets.py` -> `no credentials found`.
+      `bash generate.sh` + `git status` -> sem drift.
+- [x] V.3 README atualizado nas duas tabelas
+
+      Tabela de plugins (`README.md:61`) -> `ai-skills-testing` passa a listar
+      `api-resilience-testing`, `bug-hunter`, `tdd`. Tabela de skills backend/testing ganha a linha
+      de `tdd`. Duas contagens paradas em `:51` e `:95` corrigidas de 36 para 37, apontadas por H2.
 - [ ] V.4 `openspec archive add-tdd-skill --yes` after all groups above are `[x]`
