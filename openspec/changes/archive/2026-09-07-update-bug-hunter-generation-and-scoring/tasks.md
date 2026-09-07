@@ -108,6 +108,10 @@
 - [x] V.3 Composition unchanged, so no discovery text moves; the two README rows that describe what
       these artifacts return were corrected — the agent row now names the invariants section, and the
       skill row now reads `enumerate / generate / score`
-- [ ] V.4 `openspec archive update-bug-hunter-generation-and-scoring --yes` — deliberately left for
-      after the merge, the way this repository has closed its previous rites (issues #192, #211); the
-      pull request reports the change as active and names this as what closes it
+- [x] V.4 `openspec archive update-bug-hunter-generation-and-scoring --yes` — run after PR #223 merged
+      (`e56579a`), under issue #224. Output: `Applying changes to openspec/specs/agents-catalog/spec.md:
+      + 1 added`, `Applying changes to openspec/specs/skills-catalog/spec.md: + 1 added`,
+      `Totals: + 2, ~ 0, - 0, → 0`, `Change 'update-bug-hunter-generation-and-scoring' archived as
+      '2026-09-07-update-bug-hunter-generation-and-scoring'`. Measured either side of the command:
+      `skills-catalog` 38 -> 39 requirements and 180 -> 183 scenarios, `agents-catalog` 4 -> 5 and
+      14 -> 16; `openspec list` -> `No active changes found.`
