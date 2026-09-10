@@ -200,4 +200,4 @@
       `validate-skills.py` -> `skills checked: 39   findings: 0`; `validate-repo-hygiene.py` ->
       `0 findings` (H3: `plugins/workflow` lista `terse-response`)
 - [x] V.3 README / docs updated where the change alters catalog composition or usage — `README.md:59` (tabela de plugins), linha nova em *Process & git*, contagem 38 -> 39 (`:51`, `:113`)
-- [ ] V.4 `openspec archive <id> --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive <id> --yes` after all groups above are `[x]` — arquivada em 2026-09-10 após o merge do PR #249 (`ac23222`)
