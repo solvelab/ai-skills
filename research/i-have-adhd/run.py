@@ -22,8 +22,9 @@ Subcommands, run in this order (protocol.md, *Sequence*):
                           the export stripper and the conditions preflight. Gate of --matrix.
   --prepare-conditions    one scratch CLAUDE_CONFIG_DIR per (mode, condition) OUTSIDE the
                           repository; the candidate's carries the always-on flag file; every one
-                          carries a mode-600 copy of ~/.claude/.credentials.json when that file
-                          exists (the CLI reads credentials from CLAUDE_CONFIG_DIR).
+                          links ~/.claude/.credentials.json (the CLI reads credentials from
+                          CLAUDE_CONFIG_DIR; a copy goes stale when the token rotates).
+  --refresh-credentials   re-link an existing root's config dirs to the live credentials file.
   --probe                 paid, small: three stream-json calls per condition with
                           --include-hook-events; passes a mode only by the table in protocol.md.
   --matrix                paid: the cells of one mode, resumable by (case_id, trial, condition,
@@ -33,7 +34,7 @@ Subcommands, run in this order (protocol.md, *Sequence*):
   --report [--export]     offline: per-condition means, per-case table, counters, the verdict read
                           by the letter of protocol.md; export stripped of session identifiers,
                           response text and home paths.
-  --teardown              deletes a conditions root (the credential copies with it).
+  --teardown              deletes a conditions root (the credential links with it).
 
 KNOWN LIMITS (also in protocol.md, *What this does not cover*):
   1. Every cell runs `--tools ""`: chat only, nothing agentic is measured.
@@ -87,7 +88,7 @@ PROBE_MODEL = "claude-haiku-4-5-20251001"
 PROBE_BUDGET_USD = 0.05
 PROBE_CALLS = 3
 PROBE_PROMPT = "Reply with the single word DONE."
-CELL_TIMEOUT_S = 300
+CELL_TIMEOUT_S = 900          # raised from 300 on 2026-09-10: a candidate cell on `complex-plan` was killed three times at 300 s (see results.md)
 CELL_ATTEMPTS = 3
 MAX_BUDGET_PER_INVOCATION = 25.0        # the upstream harness's own ceiling, kept
 JUDGE_CALL_BUDGET_USD = 1.0
@@ -298,7 +299,21 @@ def save_conditions(root: Path, conf: dict) -> None:
     conditions_file(root).write_text(json.dumps(conf, indent=2) + "\n", encoding="utf-8")
 
 
-def prepare_conditions(root: Path, credentials: Optional[bytes]) -> dict:
+def link_credentials(config_dir: Path, source: Optional[Path]) -> None:
+    """A symlink to the live credentials file, not a copy. Measured on 2026-09-10: seven copies of
+    ~/.claude/.credentials.json went stale together the moment the maintainer's own session
+    refreshed the OAuth token (the refresh token rotates), and every cell then failed with
+    `OAuth session expired and could not be refreshed`. Through the link every config dir reads
+    and refreshes the one file the CLI would refresh anyway."""
+    if source is None:
+        return
+    target = config_dir / CREDENTIALS_FILE
+    if target.is_symlink() or target.exists():
+        target.unlink()
+    target.symlink_to(source.resolve())
+
+
+def prepare_conditions(root: Path, credentials: Optional[Path]) -> dict:
     """Layout: <root>/<mode>/<condition>/config (CLAUDE_CONFIG_DIR) and <root>/judge/config.
     Refuses a root inside the repository. Returns the conditions record."""
     if not lean().outside_repo(root):
@@ -313,10 +328,7 @@ def prepare_conditions(root: Path, credentials: Optional[bytes]) -> dict:
         for cond in CONDITIONS:
             cfg = root / mode / cond / "config"
             cfg.mkdir(parents=True, exist_ok=True)
-            if credentials is not None:
-                credential_path = cfg / CREDENTIALS_FILE
-                credential_path.write_bytes(credentials)
-                os.chmod(credential_path, 0o600)
+            link_credentials(cfg, credentials)
             plugin_dir = plugin_dir_for(cond) if mode == "plugin" else None
             if mode == "plugin" and cond == "candidate":
                 (cfg / ADHD_FLAG).write_text("", encoding="utf-8")
@@ -329,10 +341,7 @@ def prepare_conditions(root: Path, credentials: Optional[bytes]) -> dict:
             }
     judge_cfg = root / "judge" / "config"
     judge_cfg.mkdir(parents=True, exist_ok=True)
-    if credentials is not None:
-        credential_path = judge_cfg / CREDENTIALS_FILE
-        credential_path.write_bytes(credentials)
-        os.chmod(credential_path, 0o600)
+    link_credentials(judge_cfg, credentials)
     conf = {
         "created": _dt.datetime.now().isoformat(timespec="seconds"),
         "claude_version": lean().claude_version(),
@@ -342,7 +351,7 @@ def prepare_conditions(root: Path, credentials: Optional[bytes]) -> dict:
         "comparator_skill_sha256": sha256_file(COMPARATOR_SKILL),
         "candidate_plugin_dir": str(CANDIDATE_PLUGIN_DIR),
         "comparator_plugin_dir": str(installed),
-        "credentials_copied": credentials is not None,
+        "credentials_linked": str(credentials.resolve()) if credentials is not None else None,
         "judge_config_dir": str(judge_cfg),
         "modes": modes,
         "probe": {},
@@ -351,15 +360,31 @@ def prepare_conditions(root: Path, credentials: Optional[bytes]) -> dict:
     return conf
 
 
-def read_credentials() -> Optional[bytes]:
+def live_credentials() -> Optional[Path]:
     src = Path(os.environ.get("CLAUDE_CONFIG_DIR", str(Path.home() / ".claude"))) / CREDENTIALS_FILE
-    return src.read_bytes() if src.is_file() else None
+    return src if src.is_file() else None
 
 
 def cmd_prepare_conditions(args: argparse.Namespace) -> int:
-    conf = prepare_conditions(args.conditions_root, read_credentials())
+    conf = prepare_conditions(args.conditions_root, live_credentials())
     log(f"conditions at {args.conditions_root}: {len(MODES)} modes x {len(CONDITIONS)} conditions, "
-        f"claude {conf['claude_version']}, credentials_copied={conf['credentials_copied']}")
+        f"claude {conf['claude_version']}, credentials_linked={conf['credentials_linked']}")
+    return 0
+
+
+def cmd_refresh_credentials(args: argparse.Namespace) -> int:
+    """Re-link every config dir of an existing conditions root to the live credentials file,
+    keeping the probe record. For a root prepared with copies (before 2026-09-10)."""
+    conf = load_conditions(args.conditions_root)
+    src = live_credentials()
+    dirs = [Path(e["config_dir"]) for m in conf["modes"].values() for e in m.values()]
+    dirs.append(Path(conf["judge_config_dir"]))
+    for d in dirs:
+        link_credentials(d, src)
+    conf["credentials_linked"] = str(src.resolve()) if src else None
+    conf.pop("credentials_copied", None)
+    save_conditions(args.conditions_root, conf)
+    log(f"re-linked {len(dirs)} config dirs to {src}")
     return 0
 
 
@@ -627,8 +652,11 @@ def cmd_judge(args: argparse.Namespace) -> int:
         os.environ.clear()
         os.environ.update(saved)
     m = re.search(r"Reported judge cost: \$([0-9.]+)", buf.getvalue())
+    if meta.get("judge_model") not in (None, model):
+        sys.exit(f"refusing: {run_dir.name} was judged with {meta['judge_model']}, not {model}")
     meta["judge_model"] = model
-    meta["judge_cost_usd"] = float(m.group(1)) if m else None
+    # accumulated across invocations: the judge is resumable by (case_id, trial) group
+    meta["judge_cost_usd"] = round((meta.get("judge_cost_usd") or 0.0) + (float(m.group(1)) if m else 0.0), 4)
     meta["judge_rc"] = rc
     meta["judged"] = _dt.datetime.now().isoformat(timespec="seconds")
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
@@ -1006,14 +1034,16 @@ def selftest_preflight(st: Selftest) -> None:
             and not (HERE / "scratch-should-refuse").exists())
     with tempfile.TemporaryDirectory(prefix="ihadhd-selftest-") as td:
         root = Path(td) / "conds"
-        conf = prepare_conditions(root, b"{}")
+        fake = Path(td) / "live-credentials.json"
+        fake.write_text("{}", encoding="utf-8")
+        conf = prepare_conditions(root, fake)
         flags = sorted(str(p.relative_to(root)) for p in root.rglob(ADHD_FLAG))
         st.case("preflight", "the always-on flag exists only in plugin/candidate",
                 flags == [f"plugin/candidate/config/{ADHD_FLAG}"], str(flags))
         credential_files = list(root.rglob(CREDENTIALS_FILE))
-        st.case("preflight", "credentials copied to every config dir with mode 600",
+        st.case("preflight", "every config dir links to the one live credentials file",
                 len(credential_files) == len(MODES) * len(CONDITIONS) + 1
-                and all(oct(p.stat().st_mode & 0o777) == "0o600" for p in credential_files))
+                and all(p.is_symlink() and p.resolve() == fake.resolve() for p in credential_files))
         st.case("preflight", "comparator plugin dir is the installed cache, candidate is the vendor",
                 conf["modes"]["plugin"]["comparator"]["plugin_dir"] == str(caveman_installed_dir())
                 and conf["modes"]["plugin"]["candidate"]["plugin_dir"] == str(CANDIDATE_PLUGIN_DIR)
@@ -1031,7 +1061,7 @@ def selftest_preflight(st: Selftest) -> None:
         st.case("preflight", "probe command streams hook events under the same isolation",
                 all(f in probe_command("m", None) for f in ("--include-hook-events", "--setting-sources", "--verbose")))
         with tempfile.TemporaryDirectory() as td2:
-            st.case("preflight", "load_conditions round-trips", load_conditions(root)["credentials_copied"] is True)
+            st.case("preflight", "load_conditions round-trips", load_conditions(root)["credentials_linked"] == str(fake.resolve()))
             refused = False
             try:
                 load_conditions(Path(td2))
@@ -1060,6 +1090,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--selftest", action="store_true")
     p.add_argument("--prepare-conditions", action="store_true")
     p.add_argument("--teardown", action="store_true")
+    p.add_argument("--refresh-credentials", action="store_true")
     p.add_argument("--probe", action="store_true")
     p.add_argument("--probe-model", default=PROBE_MODEL)
     p.add_argument("--probe-out", type=Path, help="stripped copy of probe.json (e.g. results/<stamp>-probe.json)")
@@ -1077,7 +1108,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--conditions-root", type=Path, default=None)
     p.add_argument("--runs-root", type=Path, default=None)
     args = p.parse_args(argv)
-    needs_root = args.prepare_conditions or args.teardown or args.probe or args.matrix or args.judge
+    needs_root = (args.prepare_conditions or args.teardown or args.probe or args.matrix or args.judge
+                  or args.refresh_credentials)
     if needs_root and args.conditions_root is None:
         p.error("--conditions-root is required (outside the repository)")
     if args.matrix and args.runs_root is None:
@@ -1089,6 +1121,8 @@ def main(argv: Optional[list[str]] = None) -> int:
             return rc
     if args.prepare_conditions:
         rc = cmd_prepare_conditions(args) or rc
+    if args.refresh_credentials:
+        rc = cmd_refresh_credentials(args) or rc
     if args.probe:
         rc = cmd_probe(args) or rc
     if args.matrix:
