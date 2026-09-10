@@ -109,8 +109,23 @@
       protocolo dizia que o teto decide. Medido nas cinco primeiras células ($0.129/célula, cache
       recriado por processo) e resolvido pelo mantenedor subindo o teto para $55 (emenda no
       `protocol.md`, seção *Cell*).
-- [ ] E.4 Scope check: this change does only what the proposal asked. Adjacent improvements noticed
+- [x] E.4 Scope check: this change does only what the proposal asked. Adjacent improvements noticed
       along the way are listed here as follow-ups, not performed
+
+      Desvios aprovados pelo mantenedor durante a execução, todos registrados como emendas datadas
+      no `protocol.md` (fatos e orçamento, nenhum limiar): teto $40 → 55 → 70 → 78 e parada em
+      $66.64; timeout de célula 300 → 900 s; cap por chamada $4; credenciais por symlink;
+      `--budget-usd` por invocação. Follow-ups anotados e **não** feitos:
+
+      - Julgar o modo `plugin` (42 grupos, ≈ $8) se o mantenedor quiser o veredito combinado.
+      - Medir com ferramentas ligadas (caso agêntico) — o artefato de tool-call em texto domina
+        os blockers e não é propriedade de nenhuma das skills.
+      - Juiz de outra família como controle.
+      - Gate de CI "plugin carrega de verdade" (fora deste item desde o grooming).
+      - Contabilizar o custo de tentativas mortas por timeout (hoje um piso, não o total).
+
+      Nada em `skills/`, `claude/`, `codex/`, `cursor/`, `copilot/`, `plugins/`, `generate.sh`,
+      `README.md` da raiz ou `.github/workflows/` foi tocado.
 
 ## 2. Vendor e proveniência
 
@@ -175,39 +190,95 @@
       comparador. `results/20260909-222459-probe.json`.
 - [ ] 5.3 Matriz no modelo diário, 14 casos × 3 condições × 3 trials, modos `prompt` e `plugin`,
       dentro do `--budget-usd`
+
+      **Parcial.** `prompt`: 126/126 linhas, $28.62. `plugin`: 101/126 (34/34/33 por condição),
+      $29.36, parada pelo mantenedor quando o gasto passou do que a pergunta valia. Quatro
+      células em loop de tool-call ($3.34 antes do cap por chamada, depois $4.25, $4.34, $4.44 —
+      uma com 64.000 tokens de saída) contadas como falha. Não ticada: o modo `plugin` não fechou.
 - [ ] 5.4 Juiz cego nos dois arquivos de respostas
-- [ ] 5.5 `results.md` com as tabelas, o veredito citado verbatim do protocolo e conferido condição
+
+      **Parcial.** `prompt`: 42/42 grupos, 126 linhas de nota, $8.06. `plugin`: 0 grupos — o
+      mantenedor parou o gasto antes do juiz. Não ticada.
+- [x] 5.5 `results.md` com as tabelas, o veredito citado verbatim do protocolo e conferido condição
       por condição, a seção de gasto e a do que não cobre; `README.md` com a linha de status
+
+      Veredito **NO-CLAIM** pela tabela: `prompt` Δ +0.018 < +0.2 e 4 blockers do candidato fora
+      de `agent-owned-edit`; `plugin` não julgado. `results/fable-01-export.json` sem `session_id`,
+      sem texto de resposta, sem caminho de HOME (checado por grep no export).
 
 ## 6. Simulation & Field Proof (MANDATORY)
 
-- [ ] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
+- [x] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
       observed output are recorded (or: this change touches no runtime artifact)
-- [ ] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
+
+      O artefato executável é `research/i-have-adhd/run.py`; o caminho real é a matriz paga no
+      modelo diário com o plugin carregado por `--plugin-dir`.
+
+      `python3 research/i-have-adhd/run.py --selftest --matrix --mode plugin --model claude-fable-5-1
+      --trials 3 --stamp fable-01 --conditions-root <scratch>/conds --runs-root <scratch>/runs --budget-usd 22`
+      -> `selftest 54/54` -> `matrix fable-01 mode=plugin model=claude-fable-5-1: 14 cases x 3
+      conditions x 3 trials, 0 done, budget $22.00` -> `candidate  trial 1: agent-owned-edit
+      out_tokens=9746 hits=0 $0.6266 attempts=3 killed=2`
+
+      `run.py --judge <scratch>/runs/fable-01-prompt --conditions-root <scratch>/conds` ->
+      `judged direct-answer/trial 1` … `Reported judge cost: $1.4626` -> `judge fable-01-prompt:
+      rc=0 judge_cost=$8.0591`
+
+      `run.py --report <prompt> <plugin> --export research/i-have-adhd/results/fable-01-export.json`
+      -> `## verdict, by the letter of protocol.md: **NO-CLAIM**` -> `wrote research/i-have-adhd/results/fable-01-export.json`
+- [x] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
       silent and did, known escapes that stayed silent
-- [ ] S.3 What escaped or behaved differently than expected is named here — or it is stated
+
+      **Tinham de disparar e dispararam**: selftest 56/56 (7 grupos, defeito injetado por
+      instrumento); sonda `plugin` `SessionStart` 6/6 nas condições tratadas com o texto das regras
+      no `hook_response`, flag `.caveman-active` 1/1 no comparador; juiz 42/42 grupos do `prompt`
+      pareados e cegos; cap por chamada disparou 3/3 nas células em loop depois de existir;
+      resumo por chave retomou 100% das células perdidas por limite de sessão (2 vezes).
+      **Tinham de ficar quietos e ficaram**: hook 0/9 no modo `prompt` e 0/3 no baseline do
+      `plugin`; `.caveman-active` 0/5 fora do comparador; export sem `session_id`/texto/HOME 1/1;
+      `--matrix` sem selftest ou sem sonda recusou 2/2 (probado à mão).
+      **Escapes conhecidos que ficaram quietos**: tentativas mortas por timeout antes do fix não
+      deixaram custo registrado (piso declarado); o cap por chamada não existia na primeira célula
+      em loop ($3.34 contados só depois).
+- [x] S.3 What escaped or behaved differently than expected is named here — or it is stated
       explicitly that nothing did
+
+      Cinco coisas se comportaram diferente do esperado, todas registradas em `results.md` e nas
+      emendas do `protocol.md`: (1) o custo por célula no Fable ($0.13–0.17, cache recriado por
+      processo) e o do juiz ($0.19/grupo) — a projeção subiu de $40 para $78 e o mantenedor parou
+      em $66.64; (2) células em loop de tool-call escrito como texto, até 64.000 tokens de saída,
+      quatro vezes; (3) o `UserPromptSubmit` do caveman dispara em `--print`; (4) cópias de
+      credenciais ficam inválidas quando o token rotaciona; (5) o limite de sessão da assinatura
+      parou as matrizes duas vezes. O modo `plugin` ficou sem juiz por decisão do mantenedor.
 
 ## 7. Quality Gates (MANDATORY)
 
-- [ ] Q.1 Frontmatter uniform on every touched SKILL.md: name == directory, folded description,
+- [x] Q.1 Frontmatter uniform on every touched SKILL.md: name == directory, folded description,
       metadata.author solvelab, semver metadata.version, category in the controlled set, license MIT,
       compatibility present
-- [ ] Q.2 All touched skill content in English (catalog locale)
-- [ ] Q.3 Description triggers testable: phrases a user would actually say route to this skill and
+- [x] Q.2 All touched skill content in English (catalog locale)
+- [x] Q.3 Description triggers testable: phrases a user would actually say route to this skill and
       do NOT collide with a sibling skill's triggers; "Do NOT use for" boundary present where overlap exists
-- [ ] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
+- [x] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
       its canonical skill (see design.md Canonical Home table)
-- [ ] Q.5 Every code example in a touched skill uses English identifiers, routes, keys and event
+- [x] Q.5 Every code example in a touched skill uses English identifiers, routes, keys and event
       names; a term kept in another language carries its reason inline (`code-locale`).
       Provenance: maintainer field report 2026-08-14 (issue #76) — Portuguese identifiers and route
       paths shipped in target repos through this rite. Regression gate on the exemplar: the model
       imitates the code it is shown
 
+      Q.1–Q.5: nenhum `SKILL.md` do catálogo foi tocado (`git diff --stat master -- skills/` vazio);
+      os `SKILL.md` sob `vendor/` são cópias byte a byte de terceiros, com PIN, fora do que
+      `generate.sh` publica, e não seguem o frontmatter do catálogo por definição. Q.4: a tabela
+      Canonical Home do `design.md` liga cada regra à sua casa e este diretório não restata
+      nenhuma. Q.5: identificadores do `run.py` em inglês (`check-identifier-locale.py` ->
+      `findings: 0`).
+
 ## 8. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `openspec validate <id> --strict` green
-- [ ] V.2 Catalog discovery intact: `npx skills add <repo> --list` finds every skill, expected count,
-      no orphan/renamed leftovers
-- [ ] V.3 README / docs updated where the change alters catalog composition or usage
+- [x] V.1 `openspec validate <id> --strict` green — `Change 'add-i-have-adhd-research' is valid`
+- [x] V.2 Catalog discovery intact: `npx skills add <repo> --list` finds every skill, expected count,
+      no orphan/renamed leftovers — nada em `skills/`; `scripts/validate-skills.py` e
+      `validate-repo-hygiene.py` verdes na branch
+- [x] V.3 README / docs updated where the change alters catalog composition or usage — a composição do catálogo não muda; `research/i-have-adhd/README.md` carrega a linha de status
 - [ ] V.4 `openspec archive <id> --yes` after all groups above are `[x]`

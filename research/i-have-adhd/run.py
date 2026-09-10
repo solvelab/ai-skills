@@ -852,15 +852,19 @@ def cmd_report(args: argparse.Namespace) -> int:
         mode = meta["mode"]
         rows = run_evals.read_jsonl(r / "responses.jsonl")
         scores_path = r / "scores.jsonl"
-        if not scores_path.is_file():
-            sys.exit(f"{r}: no scores.jsonl (run --judge first)")
-        scores = run_evals.read_jsonl(scores_path)
+        # a run that was never judged (the maintainer stopped the spend) still has its counters;
+        # its verdict is NO-CLAIM by the letter, and the report says why
+        scores = run_evals.read_jsonl(scores_path) if scores_path.is_file() else []
         summary = mode_summary(rows, scores, weights)
         try:
-            upstream_gate = run_evals.summarize_scores(scores)["release_gate"]
+            upstream_gate = run_evals.summarize_scores(scores)["release_gate"] if scores else \
+                {"passed": None, "reasons": ["not judged"]}
         except ValueError as exc:
             upstream_gate = {"passed": None, "reasons": [str(exc)]}
         verdict = verdict_for_mode(summary)
+        if not scores:
+            verdict = {"verdict": "NO-CLAIM", "delta": None,
+                       "reasons": [f"{len(rows)} responses, none judged (spend stopped by the maintainer)"]}
         per_mode_verdict[mode] = verdict
         payload["modes"][mode] = {"stamp": meta["stamp"], "summary": summary, "verdict": verdict,
                                   "upstream_release_gate": upstream_gate,
@@ -890,7 +894,7 @@ def cmd_report(args: argparse.Namespace) -> int:
         lines.append(f"verdict for this mode: **{verdict['verdict']}**"
                      + (" — " + "; ".join(verdict["reasons"]) if verdict["reasons"] else ""))
         lines.append(f"upstream release gate (candidate vs baseline, for comparability): "
-                     f"{'passed' if upstream_gate['passed'] else 'failed'}"
+                     f"{'passed' if upstream_gate['passed'] else ('failed' if upstream_gate['passed'] is False else 'n/a')}"
                      + (" — " + "; ".join(upstream_gate["reasons"]) if upstream_gate["reasons"] else ""))
         lines.append("\n| case | baseline | comparator | candidate | cand − comp |")
         lines.append("|---|---:|---:|---:|---:|")

@@ -84,7 +84,11 @@ spent: a comparator cell on `complex-plan` ended `budget_exhausted` at $3.34 (a 
 still spent; counted from then on, and a failed `budget_exhausted` call is not retried), the
 judge measured $0.19 per group, and the projection reached $67; the maintainer raised the
 ceiling to **$70**. From the resume passes on a single call is capped at $4 and `--budget-usd`
-caps the invocation, with the run's total kept in its `meta.json`.
+caps the invocation, with the run's total kept in its `meta.json`. Fourth budget amendment of
+2026-09-10, at $61.68 spent: two `baseline` cells of the `plugin` mode ran into the same loop —
+tool-call markup written as text, hundreds of times — and each hit the $4 per-call cap (counted,
+not retried, their `(case, trial)` groups unjudgeable); the projection reached $75 and the
+maintainer raised the ceiling to **$78** to finish both matrices and the plugin judge.
 
 ## Isolation probe (paid, small, before any matrix cell)
 

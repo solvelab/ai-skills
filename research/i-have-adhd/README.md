@@ -55,4 +55,8 @@ python3 research/i-have-adhd/run.py --teardown --conditions-root /tmp/ihadhd/con
 
 ## Status
 
-<!-- status line written by results.md once the matrices and the judge have run -->
+**Measured on 2026-09-10. Verdict: NO-CLAIM.** Probe PASS in both injection modes (the plugin's
+`SessionStart` hook fires under `--print` via `--plugin-dir`); `prompt` mode complete and judged
+on `claude-fable-5-1` / Claude Code `2.1.267` (126 responses, 42 groups): candidate 3.860 vs
+comparator 3.842 vs baseline 3.626 weighted, Δ +0.018; `plugin` mode stopped by the maintainer at
+101 responses, unjudged; $66.64 estimated. No number from here enters any README or SKILL.md.
