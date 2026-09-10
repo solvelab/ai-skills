@@ -2,12 +2,98 @@
 
 ## 1. Evidence & Sources (MANDATORY)
 
-- [ ] E.1 Every local path this change relies on was OPENED and read, not recalled — recorded with
+- [x] E.1 Every local path this change relies on was OPENED and read, not recalled — recorded with
       the commit or timestamp it was read at
-- [ ] E.2 Every external tool, CLI flag, config key, API name or version this change asserts was
+
+      Lidos em `fef050d` (master, base de `backlog/246-i-have-adhd-research`) em 2026-09-10:
+
+      - Clone de `ayghri/i-have-adhd` em `ff690b6` (scratchpad): `skills/i-have-adhd/SKILL.md`
+        inteiro; `scripts/run_evals.py` (`_neutral_cwd` :31, `_condition_prompt` :205-216,
+        `_parse_response` :219-243, `run_evaluations` :245-340, `_build_parser` :343-371,
+        `main` :374-405, guard :407); `scripts/judge.py` (`invoke_judge` :171-201,
+        `_judge_group` :204-228, `_build_parser` :231-252, `main` :255-330, guard :333);
+        `evals/{README,RESULTS,rubric}.md`, `evals/cases.jsonl` (14 casos),
+        `evals/runners.example.json`; `hooks/hooks.json`, `hooks/always-on.sh`; `AGENTS.md`;
+        `.claude-plugin/{plugin,marketplace}.json`; `.github/workflows/plugin-load-check.yml`
+        e `cursor-skill-sync.yml`; issue #61 do upstream (via `gh issue view`).
+      - Plugin caveman instalado (`~/.claude/plugins/cache/caveman/caveman/81536f57b330`):
+        `.claude-plugin/plugin.json` (hooks `SessionStart` e `UserPromptSubmit`),
+        `src/hooks/caveman-activate.js` (:1-80, :257-345 — injeta o SKILL.md filtrado pelo nível),
+        `skills/caveman/SKILL.md`, `LICENSE` (nota de escopo), `package.json` (2.3.1);
+        `~/.claude/plugins/installed_plugins.json` (gitCommitSha); `~/.claude/.caveman-active`
+        (`full`); `~/.claude/settings.json:85` (`model`), `:224` (`effortLevel`).
+      - `research/lean-code/run.py`: `outside_repo` (:292), `claude_version` (:305),
+        `now_stamp` (:315), `run_process` (:1143-1160), `probe_command` (:1683-1694),
+        `parse_stream` (:1697-1740), `strip_export` (:1391-1409); `research/lean-code/protocol.md`
+        (cabeçalho :1-30, `## Arms`); `research/lean-code/README.md`; `research/lean-code/vendor/ponytail/PIN`.
+      - `research/tdd/run.py` (`lean()` :100-121, `selftest_contract` :687-716, `main` :915-961),
+        `research/tdd/PIN`, `research/tdd/README.md` (linha de status :84-93).
+      - `openspec/specs/skills-catalog/spec.md:1208-1310` — o requisito *A published cost claim
+        carries re-runnable backing* inteiro, copiado por completo no delta antes da extensão;
+        `openspec/specs/skills-authoring/spec.md` (:157-183, :212-241, :816-840, :671, :722).
+      - `openspec/changes/archive/2026-09-06-add-tdd-research/{proposal,design,tasks}.md` e
+        `specs/skills-catalog/spec.md`; `openspec/schemas/skills-rite/templates/*.md`;
+        `openspec/config.yaml`; `scripts/validate-rite.sh` (:1-40).
+      - `.github/workflows/ci.yml:225-247`; `.github/backlog.yml`; `generate.sh` (via Explore);
+        `skills/code-locale/references/check-identifier-locale.py` (:105, :117, :456-464).
+- [x] E.2 Every external tool, CLI flag, config key, API name or version this change asserts was
       probed against the installed version; the command and a fragment of its output are recorded
-- [ ] E.3 Anything that could NOT be probed is written down as an open question (design.md, or here
+
+      `claude --version` -> `2.1.267 (Claude Code)`
+
+      `claude --help | grep -E -o -- '--(setting-sources|tools|max-budget-usd|disable-slash-commands|no-session-persistence|output-format|model|append-system-prompt|print)\b' | sort -u`
+      -> as nove flags do runner do upstream, uma por linha
+
+      `claude --help | grep -A3 -- '--plugin-dir '` -> `Load a plugin from a directory or .zip
+      for this session only; a folder of plugins loads each child (repeatable: ...)`
+
+      `claude --help | grep -A2 -- '--include-hook-events'` -> `Include all hook lifecycle events
+      in the output stream (only works with --output-format=stream-json)`
+
+      `python3 --version` -> `Python 3.14.5`; `node --version` -> `v26.0.0`
+
+      No clone do upstream: `python3 scripts/run_evals.py validate` -> `Evaluation cases are
+      valid.`; `python3 scripts/run_evals.py plan --trials 3 --include-comparator | wc -l` -> 126;
+      `python3 -m unittest discover -s tests` -> `OK`
+
+      `openspec new change add-i-have-adhd-research --schema skills-rite` -> `Created change
+      'add-i-have-adhd-research' at openspec/changes/add-i-have-adhd-research/` / `Schema: skills-rite`
+
+      `openspec validate add-i-have-adhd-research --strict` -> `Change 'add-i-have-adhd-research' is valid`
+
+      `gh repo view ayghri/i-have-adhd --json stargazerCount,licenseInfo,pushedAt` ->
+      `34612`, `MIT License`, `2026-09-10T00:47:20Z`
+
+      `python3 research/i-have-adhd/run.py --selftest` -> `vendor 2/2  upstream 2/2  contract 14/14
+      counters 5/5  verdict 18/18  stripper 3/3  preflight 10/10  selftest 54/54`
+
+      `run.py --probe` (Haiku) -> `probe prompt: PASSED  $0.1278` / `probe plugin: PASSED
+      $0.1429`; no stream do `plugin/candidate`: `system hook_response SessionStart:startup ...
+      out: ADHD MODE ACTIVE (always-on). The ruleset below applies to every response.`; no do
+      `plugin/comparator`: `CAVEMAN MODE ACTIVE — level: full` e `UserPromptSubmit ...
+      additionalContext: CAVEMAN MODE ACTIVE (full) — session ruleset applies.`; `system/init`
+      `plugins: [{'name': 'i-have-adhd', ... 'version': '0.3.0'}]` e `[{'name': 'caveman', ...}]`;
+      no baseline `plugins: []`.
+
+      Cinco primeiras células no modelo diário (`fable-01-prompt`): `cost_usd` 0.0895–0.1479,
+      `cache_read_input_tokens` 0, `cache_creation_input_tokens` 4417–6834 (a base da emenda de
+      orçamento do `protocol.md`).
+- [x] E.3 Anything that could NOT be probed is written down as an open question (design.md, or here
       when there is no design.md) — never stated as fact, never filled with a plausible substitute
+
+      (a) ~~**Se `--plugin-dir` dispara `SessionStart` numa sessão `--print` com
+      `--setting-sources ""` e `CLAUDE_CONFIG_DIR` de rascunho.**~~ **FECHADA em 2026-09-10 pela
+      sonda**: dispara, 3/3 nas duas condições tratadas, e o `hook_response` carrega o texto
+      injetado (E.2). O `UserPromptSubmit` do caveman também dispara — fato que o protocolo e o
+      docstring do `run.py` diziam ao contrário; corrigido por emenda datada, sem tocar limiar.
+
+      (b) ~~**Se a cópia de `.credentials.json` no `CLAUDE_CONFIG_DIR` de rascunho autentica.**~~
+      **FECHADA pela sonda e pelo piloto**: 18 + 12 chamadas autenticadas, `total_cost_usd` presente.
+
+      (c) **O preço do modelo diário não era conhecido.** Não foi substituído por estimativa: o
+      protocolo dizia que o teto decide. Medido nas cinco primeiras células ($0.129/célula, cache
+      recriado por processo) e resolvido pelo mantenedor subindo o teto para $55 (emenda no
+      `protocol.md`, seção *Cell*).
 - [ ] E.4 Scope check: this change does only what the proposal asked. Adjacent improvements noticed
       along the way are listed here as follow-ups, not performed
 

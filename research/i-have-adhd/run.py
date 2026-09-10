@@ -536,11 +536,19 @@ def cmd_matrix(args: argparse.Namespace) -> int:
                     cell.mkdir(parents=True, exist_ok=True)
                     (cell / "command.txt").write_text(json.dumps(cmd) + "\n", encoding="utf-8")
                     proc = None
+                    attempts = 0
+                    killed_attempts = 0
                     for attempt in range(CELL_ATTEMPTS):
+                        attempts += 1
+                        # one stderr per attempt: a killed attempt's "[KILLED after Ns timeout]"
+                        # line must survive the retry, or the hang leaves no trace
                         with run_evals._neutral_cwd() as cwd:
                             proc = lean().run_process(cmd, Path(cwd), cell_env(cfg, mode, cond),
-                                                      cell / "stdout.json", cell / "stderr.txt",
+                                                      cell / "stdout.json",
+                                                      cell / f"stderr-{attempt}.txt",
                                                       CELL_TIMEOUT_S)
+                        if proc["killed"]:
+                            killed_attempts += 1
                         if proc["returncode"] == 0:
                             break
                         time.sleep(min(2 ** attempt, 5))
@@ -567,12 +575,14 @@ def cmd_matrix(args: argparse.Namespace) -> int:
                            "cost_usd": cost, "injection_mode": mode, "model": args.model,
                            "output_tokens": (usage or {}).get("output_tokens"),
                            "forbidden_phrase_hits": forbidden_phrase_hits(text),
-                           "wall_s": proc["wall_s"]}
+                           "wall_s": proc["wall_s"], "attempts": attempts,
+                           "killed_attempts": killed_attempts}
                     destination.write(json.dumps(row, ensure_ascii=False) + "\n")
                     destination.flush()
                     done.add(key)
                     log(f"{cond:10s} trial {trial}: {case['id']:20s} out_tokens="
-                        f"{row['output_tokens']} hits={row['forbidden_phrase_hits']} ${float(cost):.4f}")
+                        f"{row['output_tokens']} hits={row['forbidden_phrase_hits']} ${float(cost):.4f}"
+                        + (f" attempts={attempts} killed={killed_attempts}" if attempts > 1 else ""))
                 if stopped:
                     break
             if stopped:
