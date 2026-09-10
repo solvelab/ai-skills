@@ -22,7 +22,8 @@ with its ledger, and the over-engineering review lens → `lean-code`; test orde
 test before the code it covers, what makes such a test legitimate, and when the cycle does not apply
 → `tdd`; which artifact a cross-cutting rule becomes — skill, hook, CI script or agent — and when
 dispatching a subagent pays for itself, including model/effort tiering, least-privilege `tools` and
-the output contract → `agent-delegation`.
+the output contract → `agent-delegation`; the terse shape of a chat response — what is dropped,
+what never is, when the register yields and where it does not apply — → `terse-response`.
 
 #### Scenario: Orchestrator skill references instead of restating
 
@@ -73,6 +74,12 @@ the output contract → `agent-delegation`.
   location is reduced to a link with at most a one-line summary
 - **AND** a location that is published as an example rather than as a contract is reduced the same
   way, because two published statements of one rule are two sources that can diverge
+
+#### Scenario: A response-shape rule lives in its skill, not in a plugin hook
+
+- **WHEN** the maintainer's rules file carries an always-on terse block
+- **THEN** the block is a few lines that link to `terse-response`, and the doctrine — what is
+  dropped, what never is, when the register yields — is stated only in that skill
 
 ### Requirement: Uniform frontmatter metadata
 
