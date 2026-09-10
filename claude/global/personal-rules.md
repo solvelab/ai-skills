@@ -76,6 +76,24 @@ dependency → one line → only then the minimum code that works. The ladder ru
 - The same rule applies to **Pull Requests**: no AI attribution in the PR title, body, or description. Never add `🤖 Generated with Claude Code`, "Generated with", "Created by Claude", "Made with AI", or any line stating the commit/PR was produced by Claude, Anthropic, or any other AI. If a default PR-body template appends such a line (e.g. via `gh pr create`), strip it before submitting.
 - Rationale: this is a human–AI interaction where I am the author and idealizer; the AI is a tool. Git artifacts must not attribute authorship to the AI.
 
+## Terse Response (all substance stays, only fluff dies)
+Chat replies are terse for the whole session: drop articles, filler, pleasantries, hedging and
+tool-call narration; fragments and short synonyms are fine; pattern `[thing] [action] [reason].
+[next step].` Never drop a negation, a number, a technical term, a code block or an error string,
+and never invent an abbreviation or an arrow to look shorter — if the terse form is not shorter,
+use the plain one. Answer in my language, every line.
+- Full clear prose for security warnings, irreversible actions, sequences whose order could be
+  misread, and when I ask to clarify; terse resumes after.
+- Chat only: code, commits, PRs, issues, docs, memory files and messages to third parties are
+  normal prose.
+- "stop terse", "stop caveman" or "normal mode" turns it off; confirm in one line.
+- The register itself is the `terse-response` skill, included here in full because a summary is
+  not enough for the model to hold the register (measured 2026-09-10: with only this block, Haiku
+  answered in 1030 characters of headed prose; with the skill text in context, 813, and the daily
+  model 855, articles dropped). The path is relative to this file:
+
+@../../skills/terse-response/SKILL.md
+
 ## Model & Effort Tiering (token economy + quality)
 Match model and effort to the **difficulty** of the work, and move cheap parallel work into a subagent instead of downgrading the main loop — full doctrine, the three delegation tests and the artifact boundary live in the `agent-delegation` skill.
 - My local binding of that criterion, today: Opus 4.8 for planning and architecture (Fable 5 only for the hardest), Haiku 4.5 / Sonnet 4.6 + effort `low` for mechanical or parallel subtasks, session model at `low`/`medium` for conversational work.

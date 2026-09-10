@@ -45,6 +45,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `react-api-client` | `codex/skills/react-api-client/AGENTS.md` |
 | `svg-animation` | `codex/skills/svg-animation/AGENTS.md` |
 | `tdd` | `codex/skills/tdd/AGENTS.md` |
+| `terse-response` | `codex/skills/terse-response/AGENTS.md` |
 | `verify-before-claiming` | `codex/skills/verify-before-claiming/AGENTS.md` |
 
 ## Setup
