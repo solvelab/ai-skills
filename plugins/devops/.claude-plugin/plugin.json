@@ -1,7 +1,7 @@
 {
   "name": "ai-skills-devops",
   "displayName": "AI Skills — devops",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "description": "Kubernetes/Helm migration and cluster resource tuning (2 skills: helm-migration, k8s-tune-resources)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
