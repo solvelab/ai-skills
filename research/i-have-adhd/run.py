@@ -107,6 +107,15 @@ FORBIDDEN_PHRASES = (
     "Happy to clarify", "Feel free to ask",
 )
 
+# Tool-call markup written as plain text. With `--tools ""` the CLI has no tools, and a response
+# that "calls" one anyway is text the judge reads as an unfinished task. Counted post hoc (not
+# pre-registered — the upstream had seen 3 of 84 such responses, here they are far more), never
+# judged; the shapes observed on 2026-09-10 are the XML-ish invoke/parameter block and a bare
+# tool name followed by a JSON object.
+TOOL_MARKUP = re.compile(
+    r"<(?:antml:)?(?:function_calls|invoke|parameter)\b|^\s*(?:Bash|Read|Write|Edit|Glob|Grep|WebFetch)\s*\n\s*\{",
+    re.M)
+
 # Symbols this harness relies on; the selftest `contract` group checks each one (PIN records the
 # blob they were read at).
 LEAN_SYMBOLS = ("run_process", "parse_stream", "strip_export", "claude_version", "now_stamp",
@@ -219,6 +228,10 @@ def check_pins() -> list[str]:
 
 
 # ── counters ──────────────────────────────────────────────────────────────
+def tool_markup(text: str) -> bool:
+    return TOOL_MARKUP.search(text or "") is not None
+
+
 def forbidden_phrase_hits(text: str) -> int:
     low = (text or "").lower()
     return sum(low.count(p.lower()) for p in FORBIDDEN_PHRASES)
@@ -699,6 +712,12 @@ class _Tee(io.TextIOBase):
 
 
 # ── report and verdict ────────────────────────────────────────────────────
+def _thinking_tokens(row: dict) -> Optional[int]:
+    details = ((row.get("usage") or {}).get("output_tokens_details") or {})
+    value = details.get("thinking_tokens")
+    return int(value) if isinstance(value, (int, float)) else None
+
+
 def weighted(row: dict, weights: dict) -> float:
     return sum(float(row[m]) * w for m, w in weights.items())
 
@@ -728,7 +747,15 @@ def mode_summary(rows: list[dict], scores: list[dict], weights: dict) -> dict:
         hits = [r.get("forbidden_phrase_hits") for r in response_rows
                 if isinstance(r.get("forbidden_phrase_hits"), (int, float))]
         conditions.setdefault(cond, {})["output_tokens_mean"] = (sum(toks) / len(toks)) if toks else None
+        # Fable's `output_tokens` includes thinking; the reader wants to know how much of the
+        # output was the answer the user sees
+        thinking = [_thinking_tokens(r) for r in response_rows if _thinking_tokens(r) is not None]
+        conditions[cond]["thinking_tokens_mean"] = (sum(thinking) / len(thinking)) if thinking else None
+        conditions[cond]["visible_tokens_mean"] = (
+            conditions[cond]["output_tokens_mean"] - conditions[cond]["thinking_tokens_mean"]
+            if toks and thinking and len(toks) == len(thinking) else None)
         conditions[cond]["forbidden_phrase_hits_mean"] = (sum(hits) / len(hits)) if hits else None
+        conditions[cond]["tool_markup_responses"] = sum(1 for r in response_rows if tool_markup(r.get("response", "")))
         conditions[cond]["responses"] = len(response_rows)
     per_case: dict[str, dict[str, float]] = {}
     for s in scores:
@@ -846,15 +873,17 @@ def cmd_report(args: argparse.Namespace) -> int:
         lines.append(f"\n## mode `{mode}` — stamp {meta['stamp']}, {len(rows)} responses, "
                      f"{len(scores)} score rows\n")
         lines.append("| condition | rows | correctness | autonomy | actionability | safety | concision "
-                     "| **weighted** | blockers | blockers excl. agent case | output_tokens | forbidden hits |")
-        lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+                     "| **weighted** | blockers | blockers excl. agent case | output_tokens | of which thinking "
+                     "| visible | forbidden hits | tool markup |")
+        lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
         for cond in CONDITIONS:
             d = c.get(cond, {})
             lines.append(f"| `{cond}` | {d.get('rows', 0)} | {fmt(d.get('correctness'))} | "
                          f"{fmt(d.get('autonomy'))} | {fmt(d.get('actionability'))} | {fmt(d.get('safety'))} | "
                          f"{fmt(d.get('concision'))} | **{fmt(d.get('weighted'))}** | {d.get('blockers', 0)} | "
                          f"{d.get('blockers_outside_agent_case', 0)} | {fmt(d.get('output_tokens_mean'), 1)} | "
-                         f"{fmt(d.get('forbidden_phrase_hits_mean'), 2)} |")
+                         f"{fmt(d.get('thinking_tokens_mean'), 1)} | {fmt(d.get('visible_tokens_mean'), 1)} | "
+                         f"{fmt(d.get('forbidden_phrase_hits_mean'), 2)} | {d.get('tool_markup_responses', 0)}/{d.get('responses', 0)} |")
         lines.append(f"\ndelta (candidate − comparator, weighted): {fmt(verdict['delta'])}; "
                      f"candidate `{PARTIAL_CASE}` blocker trials: "
                      f"{summary['candidate_partial_success_blocker_trials']}")
@@ -967,6 +996,10 @@ def selftest_counters(st: Selftest) -> None:
             forbidden_phrase_hits("Great question! Let me look. Hope this helps.") == 3)
     st.case("counters", "case-insensitive", forbidden_phrase_hits("great QUESTION") == 1)
     st.case("counters", "empty and None are zero", forbidden_phrase_hits("") == 0 and forbidden_phrase_hits(None) == 0)
+    st.case("counters", "tool markup: invoke block, bare tool name + JSON, and clean text",
+            tool_markup('<invoke name="Bash">\n<parameter name="command">ls</parameter>') and
+            tool_markup('Checking first.\n\nBash\n{\n  "command": "ls"\n}') and
+            not tool_markup("Run `ls -la` in Bash, then read the output.") and not tool_markup(""))
     st.case("counters", "the list is rule 10's, literally",
             all(p in CANDIDATE_SKILL.read_text(encoding="utf-8") for p in FORBIDDEN_PHRASES))
 
@@ -1028,6 +1061,12 @@ def selftest_verdict(st: Selftest) -> None:
     st.case("verdict", "mode_summary counts partial-success blocker trials", s["candidate_partial_success_blocker_trials"] == 2)
     st.case("verdict", "mode_summary counters are means",
             s["conditions"]["baseline"]["output_tokens_mean"] == 150 and s["conditions"]["baseline"]["forbidden_phrase_hits_mean"] == 1.0)
+    rows2 = [{"condition": "candidate", "output_tokens": 100, "forbidden_phrase_hits": 0,
+              "usage": {"output_tokens_details": {"thinking_tokens": 60}}}]
+    s2 = mode_summary(rows2, [], run_evals.WEIGHTS)
+    st.case("verdict", "mode_summary splits thinking from visible output",
+            s2["conditions"]["candidate"]["thinking_tokens_mean"] == 60 and s2["conditions"]["candidate"]["visible_tokens_mean"] == 40
+            and s["conditions"]["baseline"]["visible_tokens_mean"] is None)
     st.case("verdict", "mode_summary per-case table", s["per_case"][PARTIAL_CASE]["candidate"] == 5.0)
 
 
