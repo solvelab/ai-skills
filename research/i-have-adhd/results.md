@@ -143,6 +143,38 @@ the candidate is worse; nothing here says it adds anything the incumbent does no
 - **`forbidden_phrase_hits` went to zero under both treatments** (0.48 baseline → 0.00), so the
   shape both rules ask for is produced; the judged score says the shape is not what separates them.
 
+## Verbosity — the question the maintainer actually asked (post hoc, no new spend)
+
+The item's judged score answers "is it better"; the maintainer's question was "does it make the
+model less verbose than what I already run". Length, counted on the same responses, responses
+that carry tool-call markup excluded (they are loops, not answers):
+
+| mode | condition | clean responses | median chars | median words | median visible tokens |
+|---|---|---:|---:|---:|---:|
+| `prompt` | baseline | 31 | 226 | 31 | 112 |
+| `prompt` | comparator (caveman) | 28 | 402 | 59 | 213 |
+| `prompt` | candidate (i-have-adhd) | 27 | 597 | 97 | 214 |
+| `plugin` | baseline | 23 | 210 | 29 | 146 |
+| `plugin` | comparator (caveman) | 22 | 453 | 69 | 243 |
+| `plugin` | candidate (i-have-adhd) | 28 | 479 | 83 | 194 |
+
+Paired, same `(case, trial)`, both responses clean:
+
+| mode | pairs | candidate shorter than caveman | median chars ratio cand/caveman | pairs | candidate shorter than baseline | median ratio cand/baseline |
+|---|---:|---:|---:|---:|---:|---:|
+| `prompt` | 25 | 7 | 1.11 | 24 | 12 | 0.98 |
+| `plugin` | 20 | 9 | 1.00 | 21 | 14 | 0.89 |
+
+Read plainly: on `claude-fable-5-1`, `i-have-adhd` is **not less verbose than `caveman`** — equal by
+hook, 11 % longer by prompt, shorter in fewer than half the pairs — and against no skill at all
+it is a coin flip (shorter in 12 of 24 and 14 of 21 pairs, −2 % and −11 % at the median). Both
+skills make the bare model write *more* characters on these fourteen prompts, not fewer: numbered
+steps, restated state and a closing "Next:" line cost characters, and the bare model's answers to
+the short cases were already terse. The candidate's own README says as much — *"Output is not
+just brief. It is shaped"* — it is a shape rule, not a brevity rule; the brevity rule is the one
+already installed. The judged `concision` dimension (candidate 3.93 > caveman 3.67 > baseline
+3.38, prompt mode) measures filler and tangents, not length, and moved the other way.
+
 ## Spend
 
 | item | estimated cost (CLI `total_cost_usd`) |
