@@ -281,4 +281,6 @@
       no orphan/renamed leftovers — nada em `skills/`; `scripts/validate-skills.py` e
       `validate-repo-hygiene.py` verdes na branch
 - [x] V.3 README / docs updated where the change alters catalog composition or usage — a composição do catálogo não muda; `research/i-have-adhd/README.md` carrega a linha de status
-- [ ] V.4 `openspec archive <id> --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive <id> --yes` after all groups above are `[x]` — arquivada por ordem do
+      mantenedor em 2026-09-10 com 5.3 e 5.4 parciais (gasto parado em $66.64; lacunas escritas
+      nelas e no PR #247), antes do merge do PR, por decisão dele

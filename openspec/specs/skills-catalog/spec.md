@@ -1308,6 +1308,51 @@ about the feedback loop — and the record SHALL say so in the words of what it 
 - **AND** where they could not, the record presents the result as order of production and quality
   of the artifact that remained, never as a measurement of the feedback loop
 
+Where the behaviour gain claimed is a **quality of the response text** — that with the rule the
+model answers in a shape a reader acts on faster, without losing correctness — the quantity does
+not survive in any diff and no counter measures it, so the record MAY use a blind LLM judge, and
+where it does the record SHALL name the judge model id beside the generator's, state that the
+judge and the generator are the same family when they are, record the blinding mechanism (labels
+permuted per group, the condition names kept out of the rubric the judge reads), pin the rubric
+by content hash, and score every condition of a `(case, trial)` group in one call so the
+conditions are compared against each other rather than in isolation. A judged score SHALL be
+accompanied by at least one counted quantity taken from the same responses, so that a reader can
+see the shape the judge rewarded. A comparison SHALL include, as its own condition, the mechanism
+the maintainer already runs for the same purpose when one exists, because a candidate that beats a
+bare baseline and loses to the incumbent is not a gain. A skill whose real path is a plugin hook
+SHALL be measured through that path in at least one condition set, and the record SHALL say which
+injection path each number came from, because a rule injected into the prompt and the same rule
+injected by a hook are two treatments. Such a record SHALL state that the cases were answered
+without tools where they were, and SHALL NOT present a judged chat score as a measurement of
+agentic behaviour.
+
+#### Scenario: A judged-quality claim names the judge and the blinding
+
+- **WHEN** a record scores response quality with an LLM judge
+- **THEN** it names the judge model id and the generator model id, says whether they are the same
+  family, records how labels were blinded and that the rubric the judge read carried no condition
+  names, and pins the rubric by hash
+- **AND** a judged score with no counted quantity beside it is not published as a measurement
+
+#### Scenario: The incumbent is a condition, not a footnote
+
+- **WHEN** the maintainer already runs a mechanism for the purpose the candidate serves
+- **THEN** that mechanism is one of the compared conditions, and the verdict is read against it,
+  not only against the bare baseline
+
+#### Scenario: A hook-injected rule is measured through the hook
+
+- **WHEN** the candidate's real path is a plugin hook
+- **THEN** at least one condition set injects it through that hook, a probe records that the hook
+  fired in the treated conditions and not in the baseline, and every published number says which
+  injection path produced it
+
+#### Scenario: A chat-only score is not sold as agentic
+
+- **WHEN** the cases were answered with tools disabled
+- **THEN** the record says so beside the number and does not present the score as a measurement
+  of agentic behaviour
+
 ### Requirement: A skill que representa objetos declara o regime antes de desenhar
 
 Uma skill do catálogo que produza representação visual de um objeto SHALL classificar o pedido em
