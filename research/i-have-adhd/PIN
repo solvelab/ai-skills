@@ -1,0 +1,34 @@
+# What research/i-have-adhd imports, and the exact state each dependency was read at.
+#
+# run.py loads two harnesses as modules (never copied): the upstream's own evaluation harness,
+# vendored under vendor/i-have-adhd/ (its PIN there carries commit and sha256 per file), and the
+# catalog's process layer research/lean-code/run.py. The contract is not enforced by this file — it
+# is enforced by `run.py --selftest`, group `contract`, which gates `--matrix`: no paid cell runs
+# while an imported symbol is missing or has changed the behaviour the group checks.
+#
+# KNOWN LIMIT: the contract test checks the symbols this harness relies on and the behaviours
+# it exercises. An edit that keeps every signature and every checked behaviour but changes
+# something else would not be caught.
+
+source        research/lean-code/run.py
+blob          1865f3e04bad9834e6d99421aae2e3cd8887800c
+last_commit   4d8c3548d2e69e66bb9dcaa277d0db30a9d3ff5e (2026-09-06)
+read_at       fef050dce01016424e12c1456332d0353bc1a2c4 (master, 2026-09-10)
+python        3.14.5
+symbols       run_process, parse_stream, strip_export, claude_version, now_stamp, outside_repo
+not_imported  probe_gate, cmd_probe, MAINTAINER_HOOK_NAMES (they count `caveman` as a maintainer
+              hook; here caveman is a treatment — the probe rule is local, see protocol.md),
+              cell_env, prepare_arm* (CLAUDE.md-based arms; here the treatment enters by hook),
+              Task, load_tasks, cmd_matrix (fixed to the lean-code experiment)
+
+source        vendor/i-have-adhd/scripts/run_evals.py, vendor/i-have-adhd/scripts/judge.py
+pin           vendor/i-have-adhd/PIN (commit ff690b6fbd3383e4fce6a7e50c7b409ca9a6a804)
+symbols       load_cases, validate_cases, read_jsonl, completed_keys, _condition_prompt,
+              _parse_response, _neutral_cwd, _strip_frontmatter, summarize_scores, WEIGHTS,
+              CONDITIONS (run_evals); main (judge)
+not_imported  run_evaluations — the upstream's cell loop derives the prompt from the condition
+              label, which cannot express the `plugin` injection mode (design.md D2); the local
+              loop in run.py writes rows with the same schema so judge.py reads them unchanged.
+note          judge.py does `sys.path.insert(0, <its dir>)` then `import run_evals`; run.py
+              registers the vendored run_evals in sys.modules under that exact name first, so the
+              judge binds to the pinned module and not to a stray one on sys.path.

@@ -1,0 +1,277 @@
+{
+  "stamp": "20260909-222459",
+  "model": "claude-haiku-4-5-20251001",
+  "claude_version": "2.1.267 (Claude Code)",
+  "modes": {
+    "prompt": {
+      "passed": true,
+      "conditions": [
+        {
+          "condition": "baseline",
+          "mode": "prompt",
+          "passed": true,
+          "calls": [
+            {
+              "returncode": 0,
+              "wall_s": 2.7,
+              "hook_event_names": [],
+              "session_start_hook": false,
+              "hook_events": 0,
+              "result_present": true,
+              "done": true,
+              "cost": 0.014278
+            },
+            {
+              "returncode": 0,
+              "wall_s": 2.4,
+              "hook_event_names": [],
+              "session_start_hook": false,
+              "hook_events": 0,
+              "result_present": true,
+              "done": true,
+              "cost": 0.014258
+            },
+            {
+              "returncode": 0,
+              "wall_s": 2.7,
+              "hook_event_names": [],
+              "session_start_hook": false,
+              "hook_events": 0,
+              "result_present": true,
+              "done": true,
+              "cost": 0.014249999999999999
+            }
+          ],
+          "caveman_flag_after": false,
+          "cost": 0.0428
+        },
+        {
+          "condition": "comparator",
+          "mode": "prompt",
+          "passed": true,
+          "calls": [
+            {
+              "returncode": 0,
+              "wall_s": 2.4,
+              "hook_event_names": [],
+              "session_start_hook": false,
+              "hook_events": 0,
+              "result_present": true,
+              "done": true,
+              "cost": 0.013878999999999999
+            },
+            {
+              "returncode": 0,
+              "wall_s": 2.3,
+              "hook_event_names": [],
+              "session_start_hook": false,
+              "hook_events": 0,
+              "result_present": true,
+              "done": true,
+              "cost": 0.014131999999999999
+            },
+            {
+              "returncode": 0,
+              "wall_s": 2.6,
+              "hook_event_names": [],
+              "session_start_hook": false,
+              "hook_events": 0,
+              "result_present": true,
+              "done": true,
+              "cost": 0.014271
+            }
+          ],
+          "caveman_flag_after": false,
+          "cost": 0.0423
+        },
+        {
+          "condition": "candidate",
+          "mode": "prompt",
+          "passed": true,
+          "calls": [
+            {
+              "returncode": 0,
+              "wall_s": 3.2,
+              "hook_event_names": [],
+              "session_start_hook": false,
+              "hook_events": 0,
+              "result_present": true,
+              "done": true,
+              "cost": 0.014138
+            },
+            {
+              "returncode": 0,
+              "wall_s": 2.4,
+              "hook_event_names": [],
+              "session_start_hook": false,
+              "hook_events": 0,
+              "result_present": true,
+              "done": true,
+              "cost": 0.014268
+            },
+            {
+              "returncode": 0,
+              "wall_s": 2.9,
+              "hook_event_names": [],
+              "session_start_hook": false,
+              "hook_events": 0,
+              "result_present": true,
+              "done": true,
+              "cost": 0.014258
+            }
+          ],
+          "caveman_flag_after": false,
+          "cost": 0.0427
+        }
+      ],
+      "cost": 0.1278
+    },
+    "plugin": {
+      "passed": true,
+      "conditions": [
+        {
+          "condition": "baseline",
+          "mode": "plugin",
+          "passed": true,
+          "calls": [
+            {
+              "returncode": 0,
+              "wall_s": 2.4,
+              "hook_event_names": [],
+              "session_start_hook": false,
+              "hook_events": 0,
+              "result_present": true,
+              "done": true,
+              "cost": 0.013881
+            },
+            {
+              "returncode": 0,
+              "wall_s": 2.1,
+              "hook_event_names": [],
+              "session_start_hook": false,
+              "hook_events": 0,
+              "result_present": true,
+              "done": true,
+              "cost": 0.014133999999999999
+            },
+            {
+              "returncode": 0,
+              "wall_s": 2.5,
+              "hook_event_names": [],
+              "session_start_hook": false,
+              "hook_events": 0,
+              "result_present": true,
+              "done": true,
+              "cost": 0.014254
+            }
+          ],
+          "caveman_flag_after": false,
+          "cost": 0.0423
+        },
+        {
+          "condition": "comparator",
+          "mode": "plugin",
+          "passed": true,
+          "calls": [
+            {
+              "returncode": 0,
+              "wall_s": 3.2,
+              "hook_event_names": [
+                "SessionStart:startup",
+                "SessionStart:startup",
+                "UserPromptSubmit",
+                "UserPromptSubmit"
+              ],
+              "session_start_hook": true,
+              "hook_events": 4,
+              "result_present": true,
+              "done": true,
+              "cost": 0.016181
+            },
+            {
+              "returncode": 0,
+              "wall_s": 3.1,
+              "hook_event_names": [
+                "SessionStart:startup",
+                "SessionStart:startup",
+                "UserPromptSubmit",
+                "UserPromptSubmit"
+              ],
+              "session_start_hook": true,
+              "hook_events": 4,
+              "result_present": true,
+              "done": true,
+              "cost": 0.016005000000000002
+            },
+            {
+              "returncode": 0,
+              "wall_s": 3.8,
+              "hook_event_names": [
+                "SessionStart:startup",
+                "SessionStart:startup",
+                "UserPromptSubmit",
+                "UserPromptSubmit"
+              ],
+              "session_start_hook": true,
+              "hook_events": 4,
+              "result_present": true,
+              "done": true,
+              "cost": 0.016249
+            }
+          ],
+          "caveman_flag_after": true,
+          "cost": 0.0484
+        },
+        {
+          "condition": "candidate",
+          "mode": "plugin",
+          "passed": true,
+          "calls": [
+            {
+              "returncode": 0,
+              "wall_s": 3.1,
+              "hook_event_names": [
+                "SessionStart:startup",
+                "SessionStart:startup"
+              ],
+              "session_start_hook": true,
+              "hook_events": 2,
+              "result_present": true,
+              "done": true,
+              "cost": 0.01693
+            },
+            {
+              "returncode": 0,
+              "wall_s": 4.2,
+              "hook_event_names": [
+                "SessionStart:startup",
+                "SessionStart:startup"
+              ],
+              "session_start_hook": true,
+              "hook_events": 2,
+              "result_present": true,
+              "done": true,
+              "cost": 0.017710999999999998
+            },
+            {
+              "returncode": 0,
+              "wall_s": 3.7,
+              "hook_event_names": [
+                "SessionStart:startup",
+                "SessionStart:startup"
+              ],
+              "session_start_hook": true,
+              "hook_events": 2,
+              "result_present": true,
+              "done": true,
+              "cost": 0.017576
+            }
+          ],
+          "caveman_flag_after": false,
+          "cost": 0.0522
+        }
+      ],
+      "cost": 0.1429
+    }
+  }
+}

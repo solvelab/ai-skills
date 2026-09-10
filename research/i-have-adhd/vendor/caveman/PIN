@@ -1,0 +1,29 @@
+upstream: https://github.com/JuliusBrussee/caveman
+license: MIT for the parts used here (LICENSE in this directory, copied verbatim; its scope note
+  lists the Engine-linked directories under LICENSE.BSL — none of them is loaded by the hook)
+version: 2.3.1 (package.json "version" in the installed cache)
+commit: 81536f57b3303b7de7f5bc5b564cc344f9112d68 (installed_plugins.json gitCommitSha)
+installed_path: ~/.claude/plugins/cache/caveman/caveman/81536f57b330
+installed_on: 2026-08-26 (installed_plugins.json installedAt)
+vendored_on: 2026-09-10
+vendored_by: research/i-have-adhd (issue #246)
+
+files vendored here (sha256):
+3edd677596cbf12f010f25f05dfb1e8a6c9c178d92499c86e5b5afa44c86c16c  skills/caveman/SKILL.md
+f0abc56b6f49ab2e285bb6e6723f028abb7ebd4fe0e242bbdc2b4dded0ace8b9  LICENSE
+
+files the hook loads from the installed cache, NOT vendored, hashed for provenance (sha256):
+c1a41711dfc028219a8ce6138c0fd38836146d733f75ea7eea70d0d31cdfc425  .claude-plugin/plugin.json
+1883c87b9f5f2503117fca74486f0f6977695a2d1201fd54eeeb3b9339906bf4  src/hooks/caveman-activate.js
+652b3a7fb666096d173da12e0846264180aaaa7b5bb8002bc6752e1e6122e333  src/hooks/caveman-mode-tracker.js
+fbf15b16dc091900a5f20b6df968806ca0d2544d8161da2bb7adfa8e99cc7a5d  src/hooks/caveman-config.js
+
+what is used:
+- The `comparator` condition in the `plugin` injection mode loads the INSTALLED cache directory
+  with `--plugin-dir` — the plugin as the maintainer runs it, not this copy. Its SessionStart
+  hook (src/hooks/caveman-activate.js) writes $CLAUDE_CONFIG_DIR/.caveman-active and injects
+  skills/caveman/SKILL.md filtered to the active level (default `full`).
+- The `comparator` condition in the `prompt` injection mode injects skills/caveman/SKILL.md
+  (this copy) through the upstream's `<response_style>` wrapper, exactly as the candidate is.
+- ../../run.py --selftest re-hashes the installed files against this PIN and refuses the
+  comparator when they drift.

@@ -1,0 +1,40 @@
+upstream: https://github.com/ayghri/i-have-adhd
+license: MIT (LICENSE in this directory, copied verbatim)
+version: 0.3.0 (.claude-plugin/plugin.json "version" at the pinned commit)
+commit: ff690b6fbd3383e4fce6a7e50c7b409ca9a6a804
+commit_date: 2026-09-09 18:47:19 -0600
+vendored_on: 2026-09-10
+vendored_by: research/i-have-adhd (issue #246)
+
+files (sha256, same path upstream and here; none modified):
+799d40a59c9b9697b15db060015006843be437882f685889b0e23752a091d66c  scripts/run_evals.py
+6b24530f7be89f7730e621063c945ec9465a33d42014c15dc7d172b0a30784a6  scripts/judge.py
+05ba81a77bca9165c4a364f7ddb03ddc74dcf76428de3fc87a6e2d649c7d850d  evals/cases.jsonl
+ba3887f8dbb0492cabac58ef07b9be57df71085a2324a97768103efe2676241a  evals/rubric.md
+c10dc7f1b58a97eb330a51fa0afd4a61cc5013203ced33da228fbcdcf7e8ced8  tests/test_run_evals.py
+afde4df16899d4c2396b9eab0d813d0d88c000be6374e51713d214bae43f42fc  tests/test_judge.py
+b8c46ca91bd408426c145f75af6de6674228217d351477a17213dbeee6170d93  tests/test_always_on_hooks.py
+1f8eb734eaa465ce1e19e1a52e9c804ef835dc94263fa04b7e56d0659f5f43f3  .claude-plugin/plugin.json
+56a32bd5074889df04d2d2ad28ad3c15167240fa4ec777ebb55841093e4b9717  hooks/hooks.json
+2c7c04a2e6f877ccec3bba5cca8ecadc235f051029233c30980aba60f43efb45  hooks/always-on.mjs
+2cb2c461968fe5d59b474ee7419fbce057935fe06b6dd594bccafda531c38c87  hooks/always-on.sh
+657563ab147358487b1a71aeacd9a548a1032425a32e2a1de34211f6fc67a52c  hooks/always-on.ps1
+03ef9a4718a6066d821f55961a265fe79fde6edb5556580f1af3d8cf9cfa5e50  skills/i-have-adhd/SKILL.md
+8acbb618089b738404f76ac60fca1aaa995d9a87995eddf95f0b777acd7f7d2c  LICENSE
+
+what is used:
+- scripts/run_evals.py: loaded by ../../run.py through importlib (registered in sys.modules as
+  `run_evals` so scripts/judge.py's `import run_evals` resolves to the same module). Used:
+  load_cases, validate_cases, read_jsonl, completed_keys, _condition_prompt, _parse_response,
+  _neutral_cwd, _strip_frontmatter, summarize_scores, WEIGHTS, CONDITIONS. The `run` subcommand's
+  loop is NOT used (it derives the prompt from the condition label; see design.md D2).
+- scripts/judge.py: invoked as a module (`main([...])`) by `--judge`.
+- evals/cases.jsonl, evals/rubric.md: the 14 cases and the rubric, unchanged; the rubric's
+  sha256 is recorded with every stamp.
+- tests/*.py: run by `--selftest` group `upstream` (unittest, offline).
+- .claude-plugin/plugin.json, hooks/, skills/: the plugin `--plugin-dir` loads in the `plugin`
+  injection mode; hooks/always-on.mjs reads $CLAUDE_CONFIG_DIR/.i-have-adhd-always.
+
+reproduce the vendoring:
+  git clone https://github.com/ayghri/i-have-adhd && git -C i-have-adhd checkout <commit above>
+  (cd i-have-adhd && sha256sum <the files above>)
