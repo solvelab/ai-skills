@@ -175,6 +175,27 @@ just brief. It is shaped"* — it is a shape rule, not a brevity rule; the brevi
 already installed. The judged `concision` dimension (candidate 3.93 > caveman 3.67 > baseline
 3.38, prompt mode) measures filler and tangents, not length, and moved the other way.
 
+## Non-regression gate for `terse-response` (issue #248, 2026-09-10)
+
+The catalog skill that replaces the caveman plugin was measured here, not judged: same harness,
+`prompt` mode, `--candidate-skill skills/terse-response/SKILL.md`, comparator = the vendored
+caveman skill text, baseline = no skill, 14 cases × 3 conditions × 1 trial on
+`claude-haiku-4-5-20251001` (Claude Code `2.1.268`), clean responses only (tool-call markup
+excluded). Rule written before the first cell: median paired chars ratio candidate/comparator
+≤ 1.05, else REWRITE. Exports: `results/terse-01-export.json`, `results/terse-02-export.json`.
+
+| pass | candidate text | median chars base / caveman / candidate | clean pairs | candidate shorter | median ratio cand/caveman | verdict |
+|---|---|---:|---:|---:|---:|---|
+| `terse-01` ($0.85) | first draft, rules stated in full prose | 532 / 306 / 288 | 12 | 2 | **1.22** | REWRITE |
+| `terse-02` ($0.84) | rules rewritten in the register itself (sha256 `eb75f7b6…`) | 472 / 292 / 213 | 12 | 7 | **0.92** | **PASS** |
+
+What the rewrite changed: nothing in the rules, only their form. The first draft said "articles
+are dropped" in full sentences and the model kept writing full sentences; the second says "Drop:
+articles, filler, pleasantries, hedging" the way the upstream does, and the model imitates the
+form it reads. One trial per case: the per-condition medians are stable across the two passes
+(caveman 306 → 292, baseline 532 → 472), the candidate's are the treatment. No number from this
+gate enters the skill; it says only that the skill is not longer than what it replaces, on Haiku.
+
 ## Spend
 
 | item | estimated cost (CLI `total_cost_usd`) |

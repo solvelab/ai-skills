@@ -1,0 +1,110 @@
+{
+  "stamp": "terse-01",
+  "mode": "prompt",
+  "model": "claude-haiku-4-5-20251001",
+  "claude_version": "2.1.268 (Claude Code)",
+  "candidate_skill_path": "~/ai-skills/skills/terse-response/SKILL.md",
+  "candidate_skill_sha256": "d5f12cebd07056821b575c84dd698223c0baaa6c085138764f285d01ad6f8599",
+  "comparator_skill_sha256": "3edd677596cbf12f010f25f05dfb1e8a6c9c178d92499c86e5b5afa44c86c16c",
+  "trials": 1,
+  "rows": 42,
+  "spent_usd": 0.8534,
+  "conditions": {
+    "baseline": {
+      "rows": 14,
+      "clean": 13,
+      "median_chars": 532,
+      "median_words": 89,
+      "median_output_tokens": 404,
+      "forbidden_phrase_hits_mean": 0.64,
+      "tool_markup_responses": 1,
+      "per_case_chars": {
+        "direct-answer": 30,
+        "agent-owned-edit": 237,
+        "debugging-cause": 532,
+        "concept-explanation": 2640,
+        "destructive-action": 545,
+        "real-ambiguity": 620,
+        "multi-step-progress": 506,
+        "long-form-request": 6357,
+        "error-report": 2352,
+        "casual-message": 64,
+        "code-answer": 79,
+        "complex-plan": 4818,
+        "partial-success": 367,
+        "medical-boundary": 753
+      }
+    },
+    "comparator": {
+      "rows": 14,
+      "clean": 13,
+      "median_chars": 306,
+      "median_words": 52,
+      "median_output_tokens": 420,
+      "forbidden_phrase_hits_mean": 0.14,
+      "tool_markup_responses": 1,
+      "per_case_chars": {
+        "direct-answer": 3,
+        "agent-owned-edit": 94,
+        "debugging-cause": 364,
+        "concept-explanation": 1445,
+        "destructive-action": 306,
+        "real-ambiguity": 465,
+        "multi-step-progress": 221,
+        "long-form-request": 4518,
+        "error-report": 1165,
+        "casual-message": 53,
+        "code-answer": 79,
+        "complex-plan": 4495,
+        "partial-success": 189,
+        "medical-boundary": 413
+      }
+    },
+    "candidate": {
+      "rows": 14,
+      "clean": 12,
+      "median_chars": 288.0,
+      "median_words": 48.0,
+      "median_output_tokens": 385.0,
+      "forbidden_phrase_hits_mean": 0.43,
+      "tool_markup_responses": 2,
+      "per_case_chars": {
+        "direct-answer": 3,
+        "agent-owned-edit": 172,
+        "debugging-cause": 2032,
+        "concept-explanation": 2042,
+        "destructive-action": 469,
+        "real-ambiguity": 268,
+        "multi-step-progress": 308,
+        "long-form-request": 5569,
+        "error-report": 2763,
+        "casual-message": 45,
+        "code-answer": 79,
+        "complex-plan": 5054,
+        "partial-success": 260,
+        "medical-boundary": 500
+      }
+    }
+  },
+  "paired": {
+    "candidate_vs_comparator": {
+      "pairs": 12,
+      "first_shorter": 2,
+      "median_chars_ratio": 1.222
+    },
+    "candidate_vs_baseline": {
+      "pairs": 12,
+      "first_shorter": 10,
+      "median_chars_ratio": 0.717
+    },
+    "comparator_vs_baseline": {
+      "pairs": 13,
+      "first_shorter": 12,
+      "median_chars_ratio": 0.561
+    }
+  },
+  "gate": {
+    "rule": "median chars ratio candidate/comparator <= 1.05 on clean pairs",
+    "verdict": "REWRITE"
+  }
+}

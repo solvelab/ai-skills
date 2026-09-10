@@ -266,8 +266,13 @@ def probe_command(model: str, plugin_dir: Optional[Path]) -> list[str]:
     return cmd
 
 
+CANDIDATE_SKILL_OVERRIDE: Optional[Path] = None   # --candidate-skill: measure another skill text
+
+
 def skill_for(condition: str) -> Optional[Path]:
-    return {"candidate": CANDIDATE_SKILL, "comparator": COMPARATOR_SKILL}.get(condition)
+    if condition == "candidate":
+        return CANDIDATE_SKILL_OVERRIDE or CANDIDATE_SKILL
+    return {"comparator": COMPARATOR_SKILL}.get(condition)
 
 
 def plugin_dir_for(condition: str) -> Optional[Path]:
@@ -554,7 +559,8 @@ def cmd_matrix(args: argparse.Namespace) -> int:
         meta = {"stamp": stamp, "mode": mode, "model": args.model, "trials": args.trials,
                 "claude_version": lean().claude_version(),
                 "rubric_sha256": conf["rubric_sha256"], "cases_sha256": conf["cases_sha256"],
-                "candidate_skill_sha256": conf["candidate_skill_sha256"],
+                "candidate_skill_sha256": sha256_file(skill_for("candidate")) if mode == "prompt" else conf["candidate_skill_sha256"],
+                "candidate_skill_path": str(skill_for("candidate")) if mode == "prompt" else conf["candidate_plugin_dir"],
                 "comparator_skill_sha256": conf["comparator_skill_sha256"],
                 "probe": probe, "started": _dt.datetime.now().isoformat(timespec="seconds"),
                 "case_filter": args.case or None, "spent_usd": 0.0, "failed_cells": 0}
@@ -976,6 +982,26 @@ def selftest_contract(st: Selftest) -> None:
             and "Lead with the next action" in wrapped and "<task>\nT\n</task>" in wrapped)
     st.case("contract", "plugin mode prompt is bare for every condition",
             all(condition_prompt("plugin", c, "T") == "T" for c in CONDITIONS))
+    global CANDIDATE_SKILL_OVERRIDE
+    with tempfile.TemporaryDirectory() as td:
+        alt = Path(td) / "SKILL.md"
+        alt.write_text("---\nname: alt\n---\nALT-RULE-BODY\n", encoding="utf-8")
+        saved = CANDIDATE_SKILL_OVERRIDE
+        CANDIDATE_SKILL_OVERRIDE = alt
+        try:
+            wrapped_alt = condition_prompt("prompt", "candidate", "T")
+            st.case("contract", "--candidate-skill replaces the candidate text, comparator untouched",
+                    "ALT-RULE-BODY" in wrapped_alt and "Lead with the next action" not in wrapped_alt
+                    and skill_for("comparator") == COMPARATOR_SKILL)
+        finally:
+            CANDIDATE_SKILL_OVERRIDE = saved
+    saved = CANDIDATE_SKILL_OVERRIDE
+    CANDIDATE_SKILL_OVERRIDE = None
+    try:
+        st.case("contract", "without the override the candidate is the vendored skill",
+                skill_for("candidate") == CANDIDATE_SKILL)
+    finally:
+        CANDIDATE_SKILL_OVERRIDE = saved
     text, usage, cost = run_evals._parse_response(
         json.dumps({"result": "ok", "usage": {"output_tokens": 7}, "total_cost_usd": 0.01}), "claude-json")
     st.case("contract", "_parse_response reads result, usage and cost",
@@ -1166,6 +1192,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--report", nargs="+", metavar="RUN_DIR")
     p.add_argument("--export", type=Path)
     p.add_argument("--mode", choices=list(MODES))
+    p.add_argument("--candidate-skill", type=Path, default=None,
+                   help="prompt mode only: SKILL.md to inject as the candidate instead of the vendored one "
+                        "(issue #248 measures the catalog's terse-response against caveman this way)")
     p.add_argument("--model", default=DEFAULT_MODEL)
     p.add_argument("--trials", type=int, default=3)
     p.add_argument("--case", action="append")
@@ -1180,6 +1209,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         p.error("--conditions-root is required (outside the repository)")
     if args.matrix and args.runs_root is None:
         p.error("--runs-root is required for --matrix (outside the repository)")
+    global CANDIDATE_SKILL_OVERRIDE
+    if args.candidate_skill is not None:
+        if args.mode == "plugin":
+            p.error("--candidate-skill applies to prompt mode only (plugin mode loads the vendored plugin)")
+        if not args.candidate_skill.is_file():
+            p.error(f"--candidate-skill {args.candidate_skill} not found")
+        CANDIDATE_SKILL_OVERRIDE = args.candidate_skill.resolve()
     rc = 0
     if args.selftest:
         rc = cmd_selftest(args)
