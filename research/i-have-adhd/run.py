@@ -92,6 +92,7 @@ CELL_TIMEOUT_S = 900          # raised from 300 on 2026-09-10: a candidate cell 
 CELL_ATTEMPTS = 3
 MAX_BUDGET_PER_INVOCATION = 25.0        # the upstream harness's own ceiling, kept
 JUDGE_CALL_BUDGET_USD = 1.0
+CELL_BUDGET_USD = 4.0                   # per-call cap: one runaway cell must not eat the invocation
 ADHD_FLAG = ".i-have-adhd-always"       # read by vendor/i-have-adhd/hooks/always-on.mjs
 CAVEMAN_FLAG = ".caveman-active"        # written by the caveman SessionStart hook
 CAVEMAN_LEVEL = "full"                  # the level the maintainer runs (~/.claude/.caveman-active)
@@ -480,6 +481,19 @@ def cmd_probe(args: argparse.Namespace) -> int:
 
 
 # ── matrix ────────────────────────────────────────────────────────────────
+def _failed_cost(stdout: str) -> float:
+    try:
+        return float(json.loads(stdout).get("total_cost_usd") or 0.0)
+    except (ValueError, AttributeError):
+        return 0.0
+
+
+def _terminal_reason(stdout_path: Path) -> str:
+    try:
+        return str(json.loads(stdout_path.read_text(encoding="utf-8", errors="ignore")).get("terminal_reason") or "")
+    except (ValueError, OSError, AttributeError):
+        return ""
+
 def run_meta_path(run_dir: Path) -> Path:
     return run_dir / "meta.json"
 
@@ -535,9 +549,11 @@ def cmd_matrix(args: argparse.Namespace) -> int:
     runner_name = f"claude-{mode}"
     prior = run_evals.read_jsonl(responses) if responses.exists() else []
     done = run_evals.completed_keys(prior)
-    spent = sum(float(r.get("cost_usd") or 0) for r in prior)
+    spent_before = float(meta.get("spent_usd") or 0.0)
+    spent = 0.0            # this invocation; --budget-usd caps the invocation, meta keeps the run total
     log(f"matrix {stamp} mode={mode} model={args.model}: {len(cases)} cases x {len(CONDITIONS)} "
-        f"conditions x {args.trials} trials, {len(done)} done, budget ${args.budget_usd:.2f}")
+        f"conditions x {args.trials} trials, {len(done)} done, run spent ${spent_before:.2f}, "
+        f"invocation budget ${args.budget_usd:.2f}")
     stopped = None
     failed = meta.get("failed_cells", 0)
     with responses.open("a", encoding="utf-8") as destination:
@@ -547,7 +563,7 @@ def cmd_matrix(args: argparse.Namespace) -> int:
                     key = (case["id"], trial, cond, runner_name)
                     if key in done:
                         continue
-                    remaining = args.budget_usd - spent
+                    remaining = min(args.budget_usd - spent, CELL_BUDGET_USD)
                     if remaining <= 0:
                         stopped = f"budget ${args.budget_usd:.2f} reached at ${spent:.4f}"
                         break
@@ -564,6 +580,8 @@ def cmd_matrix(args: argparse.Namespace) -> int:
                     attempts = 0
                     killed_attempts = 0
                     for attempt in range(CELL_ATTEMPTS):
+                        if attempt and _terminal_reason(cell / "stdout.json") == "budget_exhausted":
+                            break
                         attempts += 1
                         # one stderr per attempt: a killed attempt's "[KILLED after Ns timeout]"
                         # line must survive the retry, or the hang leaves no trace
@@ -578,12 +596,17 @@ def cmd_matrix(args: argparse.Namespace) -> int:
                             break
                         time.sleep(min(2 ** attempt, 5))
                     assert proc is not None
-                    if proc["returncode"] != 0:
-                        failed += 1
-                        log(f"FAIL {cond:10s} trial {trial}: {case['id']} rc={proc['returncode']} "
-                            f"killed={proc['killed']} (see {cell})")
-                        continue
                     stdout = (cell / "stdout.json").read_text(encoding="utf-8", errors="ignore")
+                    if proc["returncode"] != 0:
+                        # a failed call can still have spent (measured 2026-10: a comparator cell
+                        # on complex-plan ended `budget_exhausted` at $3.34); count it, and stop
+                        # retrying a cell the per-call budget cut off — it would burn the same again
+                        failed += 1
+                        failed_cost = _failed_cost(stdout)
+                        spent += failed_cost
+                        log(f"FAIL {cond:10s} trial {trial}: {case['id']} rc={proc['returncode']} "
+                            f"killed={proc['killed']} attempts={attempts} cost=${failed_cost:.4f} (see {cell})")
+                        continue
                     try:
                         text, usage, cost = run_evals._parse_response(stdout, "claude-json")
                     except (ValueError, json.JSONDecodeError) as exc:
@@ -612,13 +635,13 @@ def cmd_matrix(args: argparse.Namespace) -> int:
                     break
             if stopped:
                 break
-    meta["spent_usd"] = round(spent, 4)
+    meta["spent_usd"] = round(spent_before + spent, 4)
     meta["failed_cells"] = failed
     meta["rows"] = len(done)
     meta["stopped"] = stopped
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
-    log(f"matrix {stamp}-{mode}: rows {len(done)}, failed {failed}, spent ${spent:.4f}"
-        + (f", STOP {stopped}" if stopped else ""))
+    log(f"matrix {stamp}-{mode}: rows {len(done)}, failed {failed}, spent ${spent:.4f} this invocation, "
+        f"${spent_before + spent:.4f} in the run" + (f", STOP {stopped}" if stopped else ""))
     return 2 if stopped else (1 if failed else 0)
 
 

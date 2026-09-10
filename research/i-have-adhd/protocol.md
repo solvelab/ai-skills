@@ -73,7 +73,18 @@ budget and not a threshold: the first five cells measured a mean of $0.129 per c
 re-creates the system-prompt cache in every `--print` process: `cache_read_input_tokens` 0,
 `cache_creation_input_tokens` 4.4–6.8k), which projects the protocol as written at $47–50, and
 the maintainer raised the ceiling to **$55** rather than cut `n` or change the judge. The results
-file records what was spent.
+file records what was spent. Two more facts of 2026-09-10, recorded and not assumed: the account
+is a subscription (`subscriptionType: max`), so `total_cost_usd` is the CLI's estimated cost and
+the ceiling is read over that estimate; and the subscription's session limit stopped both
+matrices at 01:01 (`You've hit your session limit`), which the resumable key absorbed the next
+morning. A cell's timeout was 300 s until a candidate cell on `complex-plan` was killed three
+times at 300 s while producing a legitimately long answer; it is 900 s from the resume passes on.
+Third budget amendment of 2026-09-10, after 118 + 87 cells and 35 judged groups, at $48.68
+spent: a comparator cell on `complex-plan` ended `budget_exhausted` at $3.34 (a failed call that
+still spent; counted from then on, and a failed `budget_exhausted` call is not retried), the
+judge measured $0.19 per group, and the projection reached $67; the maintainer raised the
+ceiling to **$70**. From the resume passes on a single call is capped at $4 and `--budget-usd`
+caps the invocation, with the run's total kept in its `meta.json`.
 
 ## Isolation probe (paid, small, before any matrix cell)
 

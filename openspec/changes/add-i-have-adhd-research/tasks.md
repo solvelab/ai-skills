@@ -90,6 +90,21 @@
       (b) ~~**Se a cópia de `.credentials.json` no `CLAUDE_CONFIG_DIR` de rascunho autentica.**~~
       **FECHADA pela sonda e pelo piloto**: 18 + 12 chamadas autenticadas, `total_cost_usd` presente.
 
+      (d) ~~**Se sete cópias de `.credentials.json` sobrevivem a uma sessão longa.**~~ **FECHADA
+      em 2026-09-10, com correção.** Não sobrevivem: às 02:28 a sessão interativa do mantenedor
+      renovou o token OAuth (o refresh token rotaciona) e às 09:23 toda célula nos diretórios
+      de rascunho falhou com `Failed to authenticate: OAuth session expired and could not be
+      refreshed`, enquanto o mesmo comando no `~/.claude` real respondia `DONE`. Correção:
+      `link_credentials` (symlink para o arquivo vivo) e `--refresh-credentials`; preflight do
+      selftest ajustado.
+
+      (e) ~~**Se a conta suporta 252 células + 84 juízes numa janela.**~~ **FECHADA pela
+      matriz.** Não suporta: às 01:01 as duas matrizes passaram a receber `You've hit your
+      session limit · resets 4:20am (America/Sao_Paulo)` (`terminal_reason: api_error`,
+      `total_cost_usd: 0`) — 19 células do `prompt` e 60 do `plugin` marcadas FAIL e retomadas
+      às 09:30 pela chave de resumo. A conta é assinatura (`subscriptionType: max`); o
+      `total_cost_usd` que o CLI reporta é custo estimado, e o teto do item é lido sobre ele.
+
       (c) **O preço do modelo diário não era conhecido.** Não foi substituído por estimativa: o
       protocolo dizia que o teto decide. Medido nas cinco primeiras células ($0.129/célula, cache
       recriado por processo) e resolvido pelo mantenedor subindo o teto para $55 (emenda no
