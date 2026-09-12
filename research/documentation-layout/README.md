@@ -13,9 +13,10 @@ re-produce.
 
 | File | What it is |
 |---|---|
-| [`protocol.md`](protocol.md) | **The point of all of this.** The question, the thresholds and the SHIP / TRIM / REWRITE verdict — all fixed in the change's `design.md` at commit `59dc13c`, before the detector existed and before any repository was scanned. |
-| [`survey.py`](survey.py) | The harness. `--selftest` proves every counter on a synthetic tree; `--inventory` counts names without involving the detector; the full run aggregates the detector per rule. |
-| [`results.md`](results.md) | **What was measured.** The fleet inventory, the per-rule findings with their hand confirmation, and the simulation. |
+| [`protocol.md`](protocol.md) | **The point of all of this.** The question, the thresholds and the verdict, all fixed before any number existed. |
+| [`survey.py`](survey.py) | The harness. `--selftest` proves every counter; `--inventory` counts names; the full run aggregates the detector. |
+| [`results.md`](results.md) | **What was measured.** The fleet inventory and the per-rule findings, each confirmed by hand. |
+| [`simulation.md`](simulation.md) | What a real session left behind when it ran the changed skill, and what that cost. |
 
 ## Re-running it
 

@@ -6,6 +6,13 @@ thresholds and the verdict these numbers are read against were fixed first, in
 [`protocol.md`](protocol.md), which restates what the change's `design.md` carried at commit
 `59dc13c` — before the detector existed and before any repository was scanned.
 
+## Contents
+
+- [Pass 1 — inventory](#pass-1--inventory)
+- [Pass 2 — detector, findings per rule](#pass-2--detector-findings-per-rule)
+- [Pass 3 — simulation](#pass-3--simulation)
+- [Verdict](#verdict)
+
 ## Pass 1 — inventory
 
 ```bash
@@ -57,12 +64,12 @@ done
 
 | Sections `##` | Repository |
 |---|---|
-| 7 | `tools/ai-commit-messages` |
-| 9 | `fabcost3d/fabcost3d-mqtt-agent` |
-| 11 | `observability/feldt`, `editaudiotomovie/whisper`, `fabcost3d/fabcost3d-notification-hub`, `fabcost3d/fabcost3d-web-manager` |
+| 7 | `ai-commit-messages` |
+| 9 | `fabcost3d-mqtt-agent` |
+| 11 | `feldt`, `whisper`, `fabcost3d-notification-hub`, `fabcost3d-web-manager` |
 | 12-15 | nine repositories |
-| 22 | `observability/k8s-troubleshoot-bot` |
-| 25 | `filial/filial-backend-rest-api` |
+| 22 | `k8s-troubleshoot-bot` |
+| 25 | `filial-backend-rest-api` |
 
 The skeleton that produced them prescribed ten sections, and the worked example beside it
 demonstrated six. One name, nineteen shapes.
@@ -73,7 +80,7 @@ The survey counts what is inside a repository; a second count was needed for wha
 | Where | Count | Command |
 |---|---|---|
 | inside a repository | 7 | `survey.py --root <workspace> --inventory` |
-| loose in a workspace directory, outside every git repository | 17 | `find . -maxdepth 2 -iname '*.md' \| grep -icE 'HOMOLOG\|DIAGNOSE\|CORRECAO\|TESTE_AGORA\|ROTEIRO\|CONTINUAR'` |
+| loose in a workspace directory, outside every git repository | 17 | `find . -maxdepth 2 -iname '*.md' \| grep -icE '<markers>'` |
 
 The seven inside repositories are two validation reports at a root, two re-validation notes inside
 `docs/`, a `PROGRESS.md`, a `TODO.md` and one evidence note. The seventeen outside are homologation
@@ -177,11 +184,20 @@ claude -p "Documente este repositório. Siga a skill documentation." \
 | | `repo-plain` (no spec workflow) | `repo-openspec` (3 capabilities) |
 |---|---|---|
 | Source | `editaudiotomovie/combine-audio` | `tools/talk-to-me` |
-| Documents before | `README.md`, `CHANGELOG.md` | `README.md`, `docs/SETUP.md`, `docs/TECHNICAL.md`, `docs/INTEGRATION.md` |
+| Documents before | `README.md`, `CHANGELOG.md` | `README.md` plus three under `docs/` |
+| Documents after | 13, in two language trees | none — the run was blocked before it wrote |
+| Layout audit of the result | `findings: 0` | not applicable |
+| Cost | US$ 4.83 | US$ 2.19 |
 
-The observed outcome of each run, the files that appeared, and the detector's verdict on the result
-are recorded in [`simulation.md`](simulation.md), together with the cost against the US$ 5 ceiling
-the protocol fixed in advance.
+Cell 1 produced a layout entirely inside the map and audits clean. Cell 2 wrote nothing: the
+maintainer's own global rite stopped the session before it edited anything, so the two properties
+that cell existed to test — requirements indexing the specifications, and a legacy layout being
+migrated rather than duplicated — remain unmeasured in a live session.
+
+Cell 1 also found a false positive in L7 that neither the self-test nor the fleet run could produce:
+a root `README.pt-BR.md` legitimately carrying the README's own command table. The full record, the
+case matrix as counts, and the spend against the US$ 5 ceiling the protocol fixed in advance are in
+[`simulation.md`](simulation.md).
 
 ## Verdict
 
@@ -195,4 +211,6 @@ Read by the letter of [`protocol.md`](protocol.md):
   estimated: the item said "~25 repositories", the fleet has 39, and the transient records it put
   at "≥ 9" are 24 across the two locations counted above.
 
-The simulation arm decides the rest, and its verdict is written in [`simulation.md`](simulation.md).
+- **The simulation arm reads SHIP for the cell that ran, with one arm unmeasured**, and it cost more
+  than the protocol's ceiling allowed: US$ 7.02 against US$ 5. The ceiling was not raised; the
+  blocked cell was not retried. [`simulation.md`](simulation.md) carries both facts.

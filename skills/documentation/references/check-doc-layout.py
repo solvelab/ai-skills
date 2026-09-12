@@ -501,6 +501,20 @@ def check_parity(root: Path, files: list[Path]) -> list[Finding]:
     return out
 
 
+def owning_name(name: str) -> str:
+    """`README.pt-BR.md` -> `README.md`. A mirror is the same document in another language.
+
+    Measured 2026-09-12: without this, the very first end-to-end run of the skill produced a correct
+    `README.pt-BR.md` carrying the README's own command table, and L7 reported it as a table living
+    outside its owner. The self-test could not have caught it — its mirrors live in trees, where the
+    file name is already identical, and only the two root documents carry a language suffix.
+    """
+    parts = name.split(".")
+    if len(parts) > 2:
+        return "%s.%s" % (parts[0], parts[-1])
+    return name
+
+
 def check_ownership(root: Path, files: list[Path]) -> list[Finding]:
     """L7 — the canonical header row of an owned fact, outside the document that owns it."""
     out = []
@@ -511,7 +525,7 @@ def check_ownership(root: Path, files: list[Path]) -> list[Finding]:
         lines = read(p)
         for line_no, cells in header_rows(lines):
             owner = OWNERSHIP.get(cells)
-            if owner and p.name != owner:
+            if owner and owning_name(p.name) != owner:
                 out.append(Finding("%s:%d" % (rel, line_no), "L7",
                                    "this table is owned by %s; everywhere else links to it"
                                    % owner))
@@ -547,11 +561,14 @@ CLEAN = {
                  "- Operation — not applicable: one environment, started by one command\n"
                  "- Architecture — not applicable: three modules, the tree says it\n\n"
                  "## Development\n\n| Command | What it does |\n|---|---|\n| `make test` | runs tests |\n",
+    # The root mirror carries its owner's table: it IS the README, in another language.
     "README.pt-BR.md": "# T\n\nFaz uma coisa.\n\n## Documentation\n\n"
                        "- [Requisitos](docs/pt-BR/REQUIREMENTS.md)\n"
                        "- [Setup](docs/pt-BR/SETUP.md)\n"
                        "- Operation — not applicable: um ambiente\n"
-                       "- Architecture — not applicable: tres modulos\n",
+                       "- Architecture — not applicable: tres modulos\n\n"
+                       "## Desenvolvimento\n\n| Comando | O que faz |\n|---|---|\n"
+                       "| `make test` | roda os testes |\n",
     "docs/en/REQUIREMENTS.md": "# Requirements\n\n## 1. Purpose\n\nOne thing.\n\n## 2. Glossary\n\nNone.\n",
     "docs/pt-BR/REQUIREMENTS.md": "# Requisitos\n\n## 1. Proposito\n\nUma coisa.\n\n## 2. Glossario\n\nNenhum.\n",
     "docs/en/SETUP.md": "# Setup\n\n## 1. Environment\n\n"

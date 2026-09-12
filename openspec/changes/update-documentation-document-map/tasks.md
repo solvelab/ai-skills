@@ -30,73 +30,85 @@
 
 ## 2. Mapa, posse e idioma no SKILL.md
 
-- [ ] 2.1 Substituir a tabela *earned* e o slot aberto `docs/<topic>.md` pelo mapa de documentos
+- [x] 2.1 Substituir a tabela *earned* e o slot aberto `docs/<topic>.md` pelo mapa de documentos
       (slot → canônico → condição → legados absorvidos)
-- [ ] 2.2 Escrever a matriz de posse (fato → dono → forma fixa → o que vai nos outros documentos),
+- [x] 2.2 Escrever a matriz de posse (fato → dono → forma fixa → o que vai nos outros documentos),
       com a exceção única do quick start
-- [ ] 2.3 Escrever a regra do par de idiomas: fonte em inglês, espelho pt-BR no mesmo commit,
+- [x] 2.3 Escrever a regra do par de idiomas: fonte em inglês, espelho pt-BR no mesmo commit,
       blocos de código idênticos; reescrever o estilo 7 nesses termos
-- [ ] 2.4 Escrever a regra de migração: legado é movido, nunca duplicado; "keep the existing
+- [x] 2.4 Escrever a regra de migração: legado é movido, nunca duplicado; "keep the existing
       structure" passa a valer só para o que já é canônico
-- [ ] 2.5 Atualizar descrição do frontmatter, `## Contents`, `## See also` e
+- [x] 2.5 Atualizar descrição do frontmatter, `## Contents`, `## See also` e
       `metadata.version` → 4.0.0
 
 ## 3. Templates e exemplos
 
-- [ ] 3.1 `templates.md`: esqueletos de `REQUIREMENTS.md`, `ARCHITECTURE.md`, `OPERATIONS.md`,
+- [x] 3.1 `templates.md`: esqueletos de `REQUIREMENTS.md`, `ARCHITECTURE.md`, `OPERATIONS.md`,
       ADR (MADR) e relatório datado, com a forma fixa de cada fato da matriz
-- [ ] 3.2 `templates.md`: remover a seção `## Folder Structure` do esqueleto de README, que
+- [x] 3.2 `templates.md`: remover a seção `## Folder Structure` do esqueleto de README, que
       contradiz a regra anti-árvore do próprio SKILL.md
-- [ ] 3.3 `examples.md`: exemplo por documento canônico, espelhando o template seção por seção, com
+- [x] 3.3 `examples.md`: exemplo por documento canônico, espelhando o template seção por seção, com
       um par en/pt-BR demonstrado
 
 ## 4. O detector de layout
 
-- [ ] 4.1 `references/check-doc-layout.py` com L1-L7, no padrão do irmão (stdlib, `Finding`,
+- [x] 4.1 `references/check-doc-layout.py` com L1-L7, no padrão do irmão (stdlib, `Finding`,
       `--list/--rules/--exclude/--selftest`, saída 1/0/2, `KNOWN LIMIT` na docstring)
-- [ ] 4.2 `--selftest` com um defeito injetado por regra e um layout limpo bilíngue que não pode
+- [x] 4.2 `--selftest` com um defeito injetado por regra e um layout limpo bilíngue que não pode
       disparar nada
-- [ ] 4.3 `information-architecture.md`: as sete regras de layout com fonte publicada, medição e
+- [x] 4.3 `information-architecture.md`: as sete regras de layout com fonte publicada, medição e
       veredito, no formato das sete de página
 
 ## 5. Pesquisa e fronteiras
 
-- [ ] 5.1 `research/documentation-layout/`: protocolo com o veredito escrito antes, levantamento de
+- [x] 5.1 `research/documentation-layout/`: protocolo com o veredito escrito antes, levantamento de
       frota re-executável e a tabela medida por regra
-- [ ] 5.2 Medir falso positivo de L1-L7 na frota real e registrar por regra; regra acima do
+- [x] 5.2 Medir falso positivo de L1-L7 na frota real e registrar por regra; regra acima do
       limiar de R6 (7 em 10) não publica com gate
-- [ ] 5.3 `skills/code-locale/SKILL.md`: uma linha declarando a árvore espelho como exceção e
+- [x] 5.3 `skills/code-locale/SKILL.md`: uma linha declarando a árvore espelho como exceção e
       nomeando o item que resolve o escopo por caminho
-- [ ] 5.4 Regenerar mirrors (`plugins/docs/`, `claude/skills/`, `cursor/rules/`, `copilot/`) pelo
+- [x] 5.4 Regenerar mirrors (`plugins/docs/`, `claude/skills/`, `cursor/rules/`, `copilot/`) pelo
       fluxo existente, nunca à mão
 
 ## 6. Simulation & Field Proof (MANDATORY)
 
-- [ ] S.1 A skill 4.0.0 foi exercitada pelo caminho real (plugin instalado, sessão headless) em dois
-      repositórios: um com `openspec/` e um sem; comando e fragmento da saída observada registrados
-- [ ] S.2 Matriz de casos medida, em contagens: slots produzidos sobre slots do mapa, paridade
-      en/pt-BR limpa, `.md` soltos na raiz, achados L1-L7 por regra no repositório gerado
-- [ ] S.3 O que escapou ou se comportou diferente do esperado está nomeado aqui — ou está dito
-      explicitamente que nada escapou
+- [x] S.1 Exercitada pelo caminho real, skill instalada em `.claude/skills/documentation/` de uma
+      cópia descartável de um repositório real:
+      `claude -p "Documente este repositório. Siga a skill documentation." --permission-mode acceptEdits`
+      -> `Documentado. 13 arquivos, duas árvores.` (49 turnos, 819 s, US$ 4,83). Auditoria do
+      resultado: `python3 references/check-doc-layout.py <repo>` -> `findings: 0`. Segunda célula
+      (repo com `openspec/`) foi bloqueada pelo rito global do próprio mantenedor e não escreveu
+      nada: registrada como bloqueada, não como resultado, em `research/documentation-layout/simulation.md`
+- [x] S.2 Matriz medida, em contagens: documentos produzidos dentro do mapa 13/13; fora do mapa 0/13;
+      slots não ganhos declarados com motivo 4/4; espelho presente 6/6; contagem de `##` igual entre
+      fonte e espelho 6/6; `.md` soltos na raiz 0; cabeçalho de env vars em 2 arquivos (os dois
+      SETUP.md) e de endpoints em 2 (os dois API.md); achados L1-L7 no resultado 0; selftests
+      `check-doc-layout.py --selftest` 9/9 e `survey.py --selftest` 0 falhas
+- [x] S.3 Escapou um falso positivo de L7 que nem o selftest nem a frota produziriam: o espelho de
+      raiz `README.pt-BR.md` carrega legitimamente a tabela do README, e a comparação era por nome de
+      arquivo. Corrigido dobrando a etiqueta de idioma antes de comparar o dono, com caso novo no
+      layout limpo do selftest. Também ficou de fora, e está dito: a célula com `openspec/` não rodou,
+      então "REQUIREMENTS.md indexa em vez de copiar" e "legado migra em vez de duplicar" seguem sem
+      medição end-to-end. E o teto de gasto declarado (US$ 5) foi estourado: US$ 7,02 no total
 
 ## 7. Quality Gates (MANDATORY)
 
-- [ ] Q.1 Frontmatter uniforme nas skills tocadas: name == diretório, description folded,
+- [x] Q.1 Frontmatter uniforme nas skills tocadas: name == diretório, description folded,
       `metadata.author` solvelab, semver, category do conjunto controlado, license MIT, compatibility
-- [ ] Q.2 Todo o conteúdo tocado das skills em inglês (locale do catálogo)
-- [ ] Q.3 Gatilhos da description testáveis: as frases que um usuário diria roteiam para esta skill
+- [x] Q.2 Todo o conteúdo tocado das skills em inglês (locale do catálogo)
+- [x] Q.3 Gatilhos da description testáveis: as frases que um usuário diria roteiam para esta skill
       e não colidem com irmãs; fronteira "Do NOT use for" presente
-- [ ] Q.4 Sem doutrina duplicada: cada regra transversal tocada linka a skill canônica da tabela do
+- [x] Q.4 Sem doutrina duplicada: cada regra transversal tocada linka a skill canônica da tabela do
       `design.md` em vez de restatement
-- [ ] Q.5 Todo exemplo de código nas skills tocadas usa identificadores, rotas, chaves e nomes de
+- [x] Q.5 Todo exemplo de código nas skills tocadas usa identificadores, rotas, chaves e nomes de
       evento em inglês; termo mantido em outro idioma carrega a razão inline (`code-locale`)
 
 ## 8. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `openspec validate update-documentation-document-map --strict` verde
-- [ ] V.2 Descoberta do catálogo intacta: `python3 scripts/validate-skills.py`,
+- [x] V.1 `openspec validate update-documentation-document-map --strict` verde
+- [x] V.2 Descoberta do catálogo intacta: `python3 scripts/validate-skills.py`,
       `scripts/validate-agents.py`, `scripts/validate-repo-hygiene.py` e
       `scripts/validate-skill-version.py` verdes; contagem de skills publicada bate
-- [ ] V.3 README do catálogo atualizado onde a composição ou o uso mudam
+- [x] V.3 README do catálogo atualizado onde a composição ou o uso mudam
 - [ ] V.4 `openspec archive update-documentation-document-map --yes` **depois** do merge — a change
       fica ativa neste PR, por rito

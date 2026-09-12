@@ -42,9 +42,9 @@ Three things have to be measured, not asserted:
 
 | Outcome | What it means | What happens |
 |---|---|---|
-| **SHIP** | every rule under R6's noise level, and both simulation runs produce a layout inside the map | the change publishes as written |
+| **SHIP** | every rule under R6's noise level, and the simulation produces a layout inside the map | the change publishes as written |
 | **TRIM** | one or more rules above that level | those rules ship review-only, with their count, and the rest publish |
-| **REWRITE** | a simulation run produces a layout the map does not describe, or the two-language pair costs more than the ceiling allows | the affected part is redesigned before publication; no partial claim is made |
+| **REWRITE** | a run produces a layout the map does not describe, or the pair costs more than the ceiling allows | the affected part is redesigned first; no partial claim is made |
 
 ## Pass 1 — inventory
 

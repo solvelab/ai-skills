@@ -123,6 +123,11 @@ INDEX_HEADINGS = ("documentation", "documentacao")
 #: How a slot the project does not earn is declared in that section.
 NOT_APPLICABLE = re.compile(r"not applicable|nao se aplica", re.I)
 
+#: How a project declares it documents in one language on purpose. Without it, a lone source tree
+#: is indistinguishable from a pair somebody stopped building.
+SINGLE_LANGUAGE = re.compile(r"english only|one language|single language|idioma unico|"
+                             r"somente em ingles|apenas em ingles", re.I)
+
 #: A fact's canonical header row -> the document that owns it. Folded cells, in order.
 OWNERSHIP = {
     ("variable", "type", "default", "required", "description"): "SETUP.md",
@@ -437,7 +442,17 @@ def check_parity(root: Path, files: list[Path]) -> list[Finding]:
     """L6 — the mirror is the same document in another language, not another document."""
     out = []
     trees = language_trees(root)
-    if len(trees) < 2:
+    if not trees:
+        return []
+    if len(trees) == 1 and trees[0] == SOURCE_TREE:
+        # The pair is the default. One tree is legitimate, and it is a DECLARED decision: without
+        # the declaration a reader cannot tell "one language is enough here" from "somebody stopped
+        # halfway", which is the same question the map answers for a slot nobody earned.
+        index, _ = readme_index(root)
+        if not any(SINGLE_LANGUAGE.search(line) for line in index):
+            return [Finding("docs/%s" % SOURCE_TREE, "L6",
+                            "source tree with no mirror and no declaration; write the mirror, or "
+                            "say 'documented in English only' in the README index")]
         return []
     if SOURCE_TREE not in trees:
         return [Finding("docs/%s" % SOURCE_TREE, "L6",
@@ -486,6 +501,20 @@ def check_parity(root: Path, files: list[Path]) -> list[Finding]:
     return out
 
 
+def owning_name(name: str) -> str:
+    """`README.pt-BR.md` -> `README.md`. A mirror is the same document in another language.
+
+    Measured 2026-09-12: without this, the very first end-to-end run of the skill produced a correct
+    `README.pt-BR.md` carrying the README's own command table, and L7 reported it as a table living
+    outside its owner. The self-test could not have caught it — its mirrors live in trees, where the
+    file name is already identical, and only the two root documents carry a language suffix.
+    """
+    parts = name.split(".")
+    if len(parts) > 2:
+        return "%s.%s" % (parts[0], parts[-1])
+    return name
+
+
 def check_ownership(root: Path, files: list[Path]) -> list[Finding]:
     """L7 — the canonical header row of an owned fact, outside the document that owns it."""
     out = []
@@ -496,7 +525,7 @@ def check_ownership(root: Path, files: list[Path]) -> list[Finding]:
         lines = read(p)
         for line_no, cells in header_rows(lines):
             owner = OWNERSHIP.get(cells)
-            if owner and p.name != owner:
+            if owner and owning_name(p.name) != owner:
                 out.append(Finding("%s:%d" % (rel, line_no), "L7",
                                    "this table is owned by %s; everywhere else links to it"
                                    % owner))
@@ -532,11 +561,14 @@ CLEAN = {
                  "- Operation — not applicable: one environment, started by one command\n"
                  "- Architecture — not applicable: three modules, the tree says it\n\n"
                  "## Development\n\n| Command | What it does |\n|---|---|\n| `make test` | runs tests |\n",
+    # The root mirror carries its owner's table: it IS the README, in another language.
     "README.pt-BR.md": "# T\n\nFaz uma coisa.\n\n## Documentation\n\n"
                        "- [Requisitos](docs/pt-BR/REQUIREMENTS.md)\n"
                        "- [Setup](docs/pt-BR/SETUP.md)\n"
                        "- Operation — not applicable: um ambiente\n"
-                       "- Architecture — not applicable: tres modulos\n",
+                       "- Architecture — not applicable: tres modulos\n\n"
+                       "## Desenvolvimento\n\n| Comando | O que faz |\n|---|---|\n"
+                       "| `make test` | roda os testes |\n",
     "docs/en/REQUIREMENTS.md": "# Requirements\n\n## 1. Purpose\n\nOne thing.\n\n## 2. Glossary\n\nNone.\n",
     "docs/pt-BR/REQUIREMENTS.md": "# Requisitos\n\n## 1. Proposito\n\nUma coisa.\n\n## 2. Glossario\n\nNenhum.\n",
     "docs/en/SETUP.md": "# Setup\n\n## 1. Environment\n\n"
@@ -556,6 +588,9 @@ SELFTEST_CASES = {
     "L4": {"docs/en/DIAGNOSE-2026-04-17.md": "# D\n", "docs/pt-BR/DIAGNOSE-2026-04-17.md": "# D\n"},
     "L5": {"docs/en/revalidacao-hermes.md": "# R\n"},
     "L6": {"docs/pt-BR/SETUP.md": None},
+    # the pair is the default: a lone source tree with no declaration is a finding
+    "L6-lone": {"docs/pt-BR/SETUP.md": None, "docs/pt-BR/REQUIREMENTS.md": None,
+                "README.pt-BR.md": None},
     "L6-blocks": {"docs/pt-BR/SETUP.md": "# Setup\n\n## 1. Ambiente\n\n"
                                          "| Variavel | Tipo | Padrao | Obrigatoria | Descricao |\n"
                                          "|---|---|---|---|---|\n| `PORT` | porta | `8080` | nao | porta |\n\n"
