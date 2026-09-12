@@ -83,6 +83,15 @@ language is. That rule is [Two languages, one source](#two-languages-one-source)
 `AGENTS.md` and `CHANGELOG.md` stay single: a transient record has one known reader, the agent file
 is read by tooling, and the changelog is generated.
 
+**A page the map has no slot for is declared, not smuggled.** The map is closed for the concepts it
+names, and a project may still owe a page none of them covers — an integration guide written for the
+people who call this service is a different reader from the API reference. Such a page lives in the
+language trees like any other, carries no fact another slot owns, and appears in the README index by
+name. What it may not be is unlisted: that is how the open `docs/<topic>.md` slot produced a
+different set of documents in every repository. Measured 2026-09-12: documenting a real service end
+to end produced exactly one page outside the map, and the session declared it in the index and said
+why.
+
 **A slot the project does not earn is declared, not created.** It appears in the README index as
 `not applicable: <reason>` and produces no file. This is the one rule that keeps a fixed map from
 regrowing the decorative documents an earlier version of this skill was rebuilt to remove — the
@@ -90,10 +99,10 @@ absence is visible and dated, so a reader can tell a decision from an omission, 
 
 **Why a map instead of conditions.** Measured on 2026-09-12 across the 39 git repositories of one
 maintainer's fleet, documented under the previous version of this skill: 19 `docs/TECHNICAL.md`
-against 12 `ARCHITECTURE.md`, with 11 repositories carrying both at once; six different names for the
-operation slot; 7 to 25 `##` sections under the same file name; zero requirements documents; zero ADR
-directories; 24 transient reports loose beside permanent documentation, 7 of them inside a
-repository and 17 in the workspace directories above them. Conditions decide whether a
+against 12 `ARCHITECTURE.md`, with 11 repositories carrying both at once; four different names for
+the operation slot across 13 documents; 7 to 25 `##` sections under the same file name; zero
+requirements documents; zero ADR directories; 24 transient reports loose beside permanent
+documentation, 7 of them inside a repository and 17 in the workspace directories above them. Conditions decide whether a
 document is earned and say nothing about what it is called, so two projects earning the same right
 spell it differently — and eleven of them spelled it both ways.
 
@@ -101,7 +110,7 @@ spell it differently — and eleven of them spelled it both ways.
 slot: how it goes out. The other half — what it needs to run, which ports, which outbound
 destinations, what to do when it breaks — went to `INFRASTRUCTURE.md` (4) and `RUNBOOK.md` (2)
 precisely because it did not fit under a name about deploying. A name that covers half the content is
-how the other half grows a second file.
+how the other half grows a second file. Renaming six documents buys a name that stops the split.
 
 ## One fact, one document
 

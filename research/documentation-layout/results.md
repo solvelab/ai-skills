@@ -16,36 +16,42 @@ thresholds and the verdict these numbers are read against were fixed first, in
 ## Pass 1 — inventory
 
 ```bash
-find . -maxdepth 3 -type d -name .git | xargs -n1 dirname | sort | while read -r r; do
-  find "$r" -maxdepth 2 -iname '*.md' \
-    -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.venv/*' \
-    -not -path '*/.pytest_cache/*' -not -path '*/openspec/*' -not -path '*/.claude/*' \
-    -not -path '*/.cursor/*'
-done | awk -F/ '{print $NF}' | sort | uniq -c | sort -rn
+python3 research/documentation-layout/survey.py --root <workspace> --inventory --markdown
 ```
 
-39 repositories, 18 of them running a spec-driven workflow.
+39 repositories, 18 of them running a spec-driven workflow. The survey counts the **tier positions**
+only — the repository root, `docs/`, and `docs/<language>/` — which is where the map puts a tier
+document under both the old layout and the new one.
 
 | Concept | Spellings found, with counts |
 |---|---|
-| entry | `README.md` 55 |
-| history | `CHANGELOG.md` 33 |
+| entry | `README.md` 39 |
+| history | `CHANGELOG.md` 33 · `changelog.md` 1 |
 | tutorial | `SETUP.md` 21 · `COMO-SUBIR.md` 1 |
 | explanation | `TECHNICAL.md` 19 · `ARCHITECTURE.md` 12 · `DESIGN.md` 1 |
-| agents | `CLAUDE.md` 18 · `AGENTS.md` 13 |
+| agents | `CLAUDE.md` 16 · `AGENTS.md` 13 |
 | api | `API.md` 9 · `api-contract.md` 1 · `endpoints.md` 1 |
-| operation | `DEPLOYMENT.md` 6 · `INFRASTRUCTURE.md` 4 · `RUNBOOK.md` 2 · `DEPLOYMENT_GUIDE.md` 2 · `DEPLOY.md` 1 |
+| operation | `DEPLOYMENT.md` 6 · `INFRASTRUCTURE.md` 4 · `RUNBOOK.md` 2 · `DEPLOYMENT_GUIDE.md` 1 |
 | security | `SECURITY.md` 3 |
 | **requirements** | **0** |
+
+Three of these counts moved after the scope was corrected, and the correction is the honest part.
+An earlier run counted every `.md` two levels deep, which is blind to `docs/en/X.md` — so a survey
+re-run after a migration would have reported zero canonical documents. Fixing that by walking one
+level deeper started counting `k8s/README.md` as an entry document and put the README count at 79.
+Counting positions instead of depth gives 39 READMEs for 39 repositories, which is the number a
+reader can check by hand. `CLAUDE.md` went from 18 to 16 and `DEPLOYMENT_GUIDE.md` from 2 to 1 for
+the same reason. Nothing load-bearing moved: the 19-against-12 split, the 11 repositories carrying
+both, and the zero requirements are what they were.
 
 Three counts carry the argument for the map:
 
 - **11 of 39 repositories carry two names for the explanation slot at once** — a root
   `ARCHITECTURE.md` beside a `docs/TECHNICAL.md`, in `fabcost3d-mqtt-agent`, `fabcost3d-shopee`,
   the six `filial-*` services, `filial-ml`, and both `speak-memo-*` repositories.
-- **Six spellings for the operation slot**, none of which covers the whole slot. `DEPLOYMENT.md`,
-  the most common, names only how the software goes out; what it needs to run and what to do when
-  it breaks went to `INFRASTRUCTURE.md` and `RUNBOOK.md`.
+- **Four spellings for the operation slot across 13 documents**, none of which covers the whole
+  slot. `DEPLOYMENT.md`, the most common, names only how the software goes out; what it needs to run
+  and what to do when it breaks went to `INFRASTRUCTURE.md` and `RUNBOOK.md`.
 - **Zero requirements documents and zero ADR directories**, in 39 repositories:
 
   ```bash
@@ -110,13 +116,17 @@ Ten repositories, chosen to cover both workflows and four different workspaces: 
 | Rule | Findings | Confirmed by hand | False positives | Verdict |
 |---|---|---|---|---|
 | L1 | 13 | 13 | 0 | with validator |
-| L2 | 38 | 38 | 0 | with validator |
+| L2 | 39 | 39 | 0 | with validator |
 | L3 | 3 | 2 | 1 | with validator |
 | L4 | 4 | 4 | 0 | with validator |
 | L5 | 5 | 5 | 0 | with validator, delegated |
 | L6 | 0 | — | — | with validator, proved by self-test only |
 | L7 | 1 | 1 | 0 | with validator |
-| **Total** | **64** | **63** | **1** | — |
+| **Total** | **65** | **64** | **1** | — |
+
+This is the run **after** the adversarial pass over the detector described below. The run before it
+reported 64 findings and missed a misplaced `docs/README.md`; an intermediate version reported 86,
+of which 21 were wrong.
 
 Every finding was opened and read against its repository, one at a time, on 2026-09-12. What each
 rule found:
@@ -125,8 +135,9 @@ rule found:
   index in the README. Confirmed against the file system and, for the index, against the README's
   own heading list — `feldt` and `filial-backend-rest-api` do carry `## Documentação`, and the rule
   correctly stayed silent on both, which is the accent-folding path working.
-- **L2 (38).** Legacy names and canonical names outside their tree. This is the highest-volume rule
-  and it is measuring a migration, not a defect rate: it goes quiet once the fleet moves.
+- **L2 (39).** Legacy names and canonical names outside their place. This is the highest-volume rule
+  and it is measuring a migration, not a defect rate: it goes quiet once the fleet moves. The
+  thirty-ninth is a `docs/README.md`, which the first version of the rule could not see.
 - **L3 (3), one false positive.** Two confirmed: `README-fork.md`, a second entry document, and
   `CICD_SETUP.md`, a tier document left at the root. The false positive is `NOTICE-fork.md`, a
   provenance notice in a repository that forks an upstream project — a variant of `NOTICE.md`, which
@@ -152,6 +163,32 @@ table above is the one taken after that fix.
 
 It is recorded here rather than dropped because a measurement that reports only the findings the
 tool survived measures the tool's confidence, not its accuracy.
+
+### What an adversarial pass over the detector found
+
+Before the pull request, the detector was handed to an adversarial reviewer with one instruction:
+attack it, do not review its style. It returned **21 confirmed defects**, and the count above is
+from the detector after them. The ones that changed a verdict:
+
+| Defect | What it did | Fixed by |
+|---|---|---|
+| the two skills ship in different plugins | L5's engine was never found, and NOT RUN counted as a finding: a **red gate on a perfect repository** | NOT RUN is a diagnostic on stderr, plus `--locale-checker` |
+| the engine's exit code was ignored | a broken engine answered "clean", which is the exact promise the docstring makes | the return code and stderr are inspected |
+| any `a.b.c.md` folded to `a.c` | `SETUP.draft.md` and `API.v2.md` read as the owner itself, so a stale copy of an owned table escaped every rule | only a known language tag folds |
+| a waiver was matched anywhere in the index | "not applicable: no infrastructure requirements" silently waived the requirements slot | the subject is read from the start of the index entry |
+| any two-letter directory was a language | `docs/db/` and `docs/ui/` produced six findings against a correct repository | a closed list of language tags |
+| markers matched as substrings | `DIAGNOSTICS.md` and `progress-bar.md` were reported as transient records | two tiers: specific words anywhere, common words only as the whole name |
+| `--rules L3` hid what other rules would have claimed | a subset reported **less** than the union of its parts | the claimed set is computed unconditionally |
+| a root slot was reported anywhere | every nested `README.md` became a finding, 20 of them wrong | a root slot is misplaced only inside `docs/` |
+| a suffix matched at any position | the repository's own `README.md` was reported for every nested one | the longest matching suffix wins |
+| an unreadable file read as empty | a latin-1 README lost its index and L1 blamed the content, three findings, all wrong | the encoding is the finding |
+| the mirror README was never checked | half of the pair the map mandates was unenforced | L1 checks the root mirror and its index |
+| one argv for every file | a large documentation site crashed the audit with `Argument list too long` | the delegated call is chunked |
+
+Two of them — the plugin layout and the ignored exit code — would have shipped a gate that is red
+on a correct repository and green on a broken one, which is the pair of failures a gate exists to
+avoid. Neither was reachable from the self-test as it stood, which is why the self-test gained a
+vocabulary for "this must stay silent" and now carries 23 firing cases and 5 silent ones.
 
 ### Four defects the detector's own self-test caught before any repository saw it
 

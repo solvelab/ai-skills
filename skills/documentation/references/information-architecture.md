@@ -15,8 +15,16 @@ verdict is never a bare label: it carries the measurement that produced it.
 
 The page rules were measured on `solvelab/ferdinand@66346d4`, one repository with one writing
 style, with `references/check-doc-structure.py`. The layout rules were measured on 2026-09-12 across
-**10 repositories** of a maintainer's fleet, with `references/check-doc-layout.py`: 64 findings, 63
+**10 repositories** of a maintainer's fleet, with `references/check-doc-layout.py`: 65 findings, 64
 confirmed by hand, 1 false positive. Findings were confirmed one at a time, in both families.
+
+The layout number is the one taken **after** an adversarial pass over the detector itself. That pass
+found 21 defects, and the ones that changed a verdict are recorded under each rule below: a
+two-letter directory read as a language, a substring match that swallowed a legitimate name, a
+nested `README.md` reported as misplaced, and a suffix match that invented a finding against a
+repository's own entry document. A rule's measurement is only worth what the rule was at the time,
+so the counts here are from the corrected detector, not from the one that was easier to be proud
+of.
 
 ## Index
 
@@ -303,13 +311,13 @@ The measurement behind every verdict below was taken on 2026-09-12 with
 | Rule | Findings | Confirmed | False positives |
 |---|---|---|---|
 | L1 | 13 | 13 | 0 |
-| L2 | 38 | 38 | 0 |
+| L2 | 39 | 39 | 0 |
 | L3 | 3 | 2 | 1 |
 | L4 | 4 | 4 | 0 |
 | L5 | 5 | 5 | 0 |
 | L6 | 0 | — | — |
 | L7 | 1 | 1 | 0 |
-| **Total** | **64** | **63** | **1** |
+| **Total** | **65** | **64** | **1** |
 
 One more false positive existed and was fixed before this run rather than counted in it: a root
 `CLAUDE.md` was reported as a loose document, which is wrong — it is an agent-instruction file, a
@@ -368,9 +376,18 @@ docs/TECHNICAL.md: [L2] legacy name for the explanation slot -> docs/en/ARCHITEC
 docs/RUNBOOK.md:   [L2] legacy name for the operation slot   -> docs/en/OPERATIONS.md
 ```
 
-**Verdict: with validator.** Measured 38 findings, 38 confirmed, across all 10 repositories. This is
+**Verdict: with validator.** Measured 39 findings, 39 confirmed, across all 10 repositories. This is
 the highest-volume rule by a wide margin, and that is the point: it is measuring a migration, not a
 defect rate, and it goes quiet once the migration is done.
+
+The rule reports a **root** slot only inside `docs/`. An intermediate version reported every nested
+`README.md` — `k8s/README.md`, `.github/workflows/README.md` — and the count went from 39 to 59 with
+all 20 extra findings wrong: a README in a subdirectory is that directory's own entry document, and
+GitHub renders it as one. A misplaced `docs/README.md` still fires, and one was found.
+
+A finding in a mirror tree names the destination **in that tree**: `docs/pt-BR/DESIGN.md` migrates to
+`docs/pt-BR/ARCHITECTURE.md`, never to the English tree. Acting on the other message would have
+destroyed the mirror the map exists to keep.
 
 ## L3 — the root carries the entry documents and nothing else
 
@@ -398,6 +415,12 @@ of one moment serves none of the four: nobody learns, does, looks up or understa
 evidence, kept for provenance. Mixing it into the documentation directory is what teaches a reader
 that the directory cannot be trusted to be current.
 
+The markers are matched in two tiers, because one tier produced false positives in both directions.
+A specific word — `homologation`, `diagnosis`, `validation`, `postmortem` — marks a record wherever
+it appears in the name. A word common enough to name a feature — `progress`, `todo`, `teste` — marks
+one only when it is the **whole** name: `PROGRESS.md` is a status note and `progress-bar.md` is a
+component, and matching them the same way is the kind of noise that gets a gate switched off.
+
 **Verdict: with validator.** Measured 4 findings, 4 confirmed: two validation reports at a
 repository root and two re-validation write-ups inside `docs/`. In the wider survey of 39
 repositories the same pattern appears 21 times, including 12 homologation records in one workspace.
@@ -422,6 +445,11 @@ names from being reproved. Known names of that second kind — `COMO-SUBIR.md` i
 carries — are caught by L2 through the map's legacy list, which also says where they go.
 
 **Verdict: with validator, delegated.** Measured 5 findings, 5 confirmed, 0 false positives.
+
+Two resolution defects were found and fixed before that count: the sibling names a file the way it
+was handed it, so matching on the basename alone printed a path with the repository prefix twice,
+and matching on any suffix reported the repository's own `README.md` for every nested one. One
+reported path is one file, so the resolution now takes the longest suffix that matches.
 
 ## L6 — the mirror matches the source in structure
 

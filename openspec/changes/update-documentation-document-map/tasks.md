@@ -72,24 +72,29 @@
 
 ## 6. Simulation & Field Proof (MANDATORY)
 
-- [x] S.1 Exercitada pelo caminho real, skill instalada em `.claude/skills/documentation/` de uma
-      cópia descartável de um repositório real:
+- [x] S.1 Exercitada pelo caminho real, skill instalada em `.claude/skills/documentation/` de cópias
+      descartáveis de dois repositórios reais:
       `claude -p "Documente este repositório. Siga a skill documentation." --permission-mode acceptEdits`
-      -> `Documentado. 13 arquivos, duas árvores.` (49 turnos, 819 s, US$ 4,83). Auditoria do
-      resultado: `python3 references/check-doc-layout.py <repo>` -> `findings: 0`. Segunda célula
-      (repo com `openspec/`) foi bloqueada pelo rito global do próprio mantenedor e não escreveu
-      nada: registrada como bloqueada, não como resultado, em `research/documentation-layout/simulation.md`
-- [x] S.2 Matriz medida, em contagens: documentos produzidos dentro do mapa 13/13; fora do mapa 0/13;
-      slots não ganhos declarados com motivo 4/4; espelho presente 6/6; contagem de `##` igual entre
-      fonte e espelho 6/6; `.md` soltos na raiz 0; cabeçalho de env vars em 2 arquivos (os dois
-      SETUP.md) e de endpoints em 2 (os dois API.md); achados L1-L7 no resultado 0; selftests
-      `check-doc-layout.py --selftest` 9/9 e `survey.py --selftest` 0 falhas
-- [x] S.3 Escapou um falso positivo de L7 que nem o selftest nem a frota produziriam: o espelho de
-      raiz `README.pt-BR.md` carrega legitimamente a tabela do README, e a comparação era por nome de
-      arquivo. Corrigido dobrando a etiqueta de idioma antes de comparar o dono, com caso novo no
-      layout limpo do selftest. Também ficou de fora, e está dito: a célula com `openspec/` não rodou,
-      então "REQUIREMENTS.md indexa em vez de copiar" e "legado migra em vez de duplicar" seguem sem
-      medição end-to-end. E o teto de gasto declarado (US$ 5) foi estourado: US$ 7,02 no total
+      -> `Documentado. 13 arquivos, duas árvores.` no repo sem fluxo spec-driven (49 turnos, 819 s,
+      US$ 4,83) e -> `Documentação pronta.` com tabela de migração `old → new` no repo com
+      `openspec/` (89 turnos, 1029 s, US$ 7,47). Auditoria dos dois resultados:
+      `python3 references/check-doc-layout.py <repo>` -> `findings: 0` em ambos
+- [x] S.2 Matriz medida, em contagens. Repo sem workflow: documentos dentro do mapa 13/13, fora 0;
+      slots não ganhos declarados 4/4; espelho presente 6/6; `##` iguais entre fonte e espelho 6/6;
+      `.md` soltos na raiz 0. Repo com `openspec/`: 24 arquivos; legados migrados e não duplicados
+      4/4; requisitos indexando 3 capabilities com 3 links e 0 requisitos copiados; 4 ADRs
+      espelhados 4/4; 1 página fora do mapa, declarada no índice; achados L1-L7 no resultado 0.
+      Selftests: `check-doc-layout.py --selftest` 23/23 casos que disparam e 5/5 que ficam calados;
+      `survey.py --selftest` 0 falhas
+- [x] S.3 Escaparam três coisas, todas nomeadas. (a) Um falso positivo de L7 que nem o selftest nem a
+      frota produziriam: o espelho de raiz `README.pt-BR.md` carrega legitimamente a tabela do
+      README; corrigido dobrando a etiqueta de idioma. (b) O mapa não tinha regra para página que ele
+      não nomeia: a sessão manteve `INTEGRATION.md`, declarou no índice com o motivo, e a skill passou
+      a dizer isso. (c) A migração usou `mv` e não `git mv`, porque `git mv` pediu aprovação que a
+      sessão headless não tinha. Além disso, um ataque adversarial ao detector achou 21 defeitos
+      confirmados, dois deles capazes de reprovar repositório correto e aprovar repositório quebrado;
+      todos corrigidos e os que mudaram veredito estão em `research/documentation-layout/results.md`.
+      E o teto de gasto declarado (US$ 5) foi estourado duas vezes: US$ 14,49 no total
 
 ## 7. Quality Gates (MANDATORY)
 

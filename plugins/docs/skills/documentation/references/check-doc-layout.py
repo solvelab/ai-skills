@@ -3,14 +3,15 @@
 
 The sibling script `check-doc-structure.py` asks whether one page is navigable (rules R1-R7). This
 one asks whether the repository puts its documents where the map says, calls them what the map says,
-keeps each fact in the document that owns it, and keeps the two language trees in step (L1-L7).
+keeps each fact in the document that owns it, and keeps the language trees in step (L1-L7).
 
     check-doc-layout.py REPO                     audit the repository rooted at REPO
     check-doc-layout.py --rules L2,L4 REPO       run only these rules
-    check-doc-layout.py --exclude 'vendor/*' REPO   skip paths nobody in this repo owns
+    check-doc-layout.py --exclude 'content/*' REPO   skip paths nobody in this repo owns
+    check-doc-layout.py --locale-checker PATH    where code-locale's checker lives, for L5
     check-doc-layout.py --list                   print the rule table and exit
     check-doc-layout.py --map                    print the document map and exit
-    check-doc-layout.py --selftest               prove every rule still fires
+    check-doc-layout.py --selftest               prove every rule fires, and stays silent
 
 Exit codes: 1 when any finding is reported, 0 when none, 2 on a usage error.
 
@@ -22,23 +23,31 @@ KNOWN LIMIT — what this script does NOT judge, and why:
      and everything else is judged when it EXISTS: wrong name, wrong place, or absent from the index.
   L5 does not carry a word list. It delegates to `check-identifier-locale.py` of the `code-locale`
      skill, which already decides whether a name is English and already carries the waiver protocol.
-     When that script cannot be found, L5 reports itself as NOT RUN and never passes silently —
-     a rule that answers "clean" because its engine is missing is worse than a rule that is absent.
-     Only that script's VERDICTS are raised here; its advisory tier is not. Probed 2026-09-12: a
-     file name built on a Portuguese verb ending is a `path-pt-morphology` verdict, so L5 reports
-     it, while a name whose first segment is merely absent from the English word list is advisory
-     there — and a rule that failed on every unknown word would reprove product names. Known names
-     of that second kind are caught by the map's legacy list under L2, which also says where each
-     one goes.
+     When that script cannot be found, or fails, L5 says NOT RUN **on stderr** and the verdict is
+     unchanged: a missing engine is a diagnostic about this tool, not a defect in the repository
+     being audited, and failing a clean repository over it is how a gate gets switched off. Point at
+     the checker with `--locale-checker` when the two skills are installed apart, as they are in
+     this catalog's plugin layout, where they ship in different plugins.
+     Only that script's VERDICTS are raised; its advisory tier is not. Probed 2026-09-12: a file
+     name built on a Portuguese verb ending is a `path-pt-morphology` verdict, so L5 reports it,
+     while a name whose first segment is merely absent from the English word list is advisory there
+     — and a rule that failed on every unknown word would reprove product names. Known names of that
+     second kind are caught by the map's legacy list under L2, which also says where each one goes.
   L6 compares STRUCTURE, never meaning: the twin exists, the `##` count and numbering match, the
      fenced blocks match. Whether the translated prose still says what the source says is a
      judgement about meaning across two languages, and this catalog has measured twice what a gate
-     over meaning costs (7 of 10 wrong for heading nesting, 3 of 4 for justification prose).
+     over meaning costs (7 of 10 wrong for heading nesting, 3 of 4 for justification prose). A
+     mirror that changes only a fence's info string (```bash -> ```sh) also escapes: the fence line
+     is dropped before the blocks are compared.
+  L6 knows a language tree by a CLOSED list of tags. An unusual tag is invisible rather than
+     guessed: measured 2026-09-12, an earlier two-letter pattern read `docs/db/` and `docs/ui/` as
+     languages and produced six findings against a correct repository.
   L7 recognizes an owned table only by its CANONICAL header row. A table with improvised columns
      escapes it. That is the deliberate trade: the alternative is guessing what a table is about
      from its content, which is the same class of judgement L6 refuses.
-  A root `SECURITY.md` is accepted where it is: GitHub reads that exact path as the vulnerability
-     policy. The map's security slot is `docs/<tree>/SECURITY.md`, a different document.
+  `docs/reports/` is skipped by L2 and L7. A dated record is a snapshot of one moment, and a
+     snapshot may legitimately quote a table or a name that is no longer current. L4 and L5 still
+     apply to it.
   Nothing here moves, renames or writes a file. Every finding names a destination; performing the
      migration is the caller's job, in one commit with the links it breaks.
 """
@@ -47,6 +56,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import os
 import re
 import subprocess
 import sys
@@ -55,8 +65,14 @@ from pathlib import Path
 
 # ── The map ───────────────────────────────────────────────────────────────────
 
-#: Language-tree directory under `docs/`: `en`, `pt-BR`, `es`. `reports` is not a language.
-TREE_DIR = re.compile(r"^[a-z]{2}(-[A-Za-z]{2,4})?$")
+#: Language tags a `docs/<tag>/` directory may carry. A closed list on purpose: a two-letter pattern
+#: reads `docs/db/`, `docs/ui/` and `docs/qa/` as languages and turns a correct repository into
+#: findings (measured 2026-09-12: six, from two such directories).
+LANGUAGE_TAGS = (
+    "en", "en-US", "en-GB", "pt", "pt-BR", "pt-PT", "es", "es-419", "es-ES", "fr", "fr-CA",
+    "de", "it", "nl", "pl", "tr", "ru", "uk", "ar", "he", "hi", "id", "ja", "ko", "sv", "nb",
+    "da", "fi", "cs", "el", "ro", "hu", "th", "vi", "zh", "zh-CN", "zh-TW",
+)
 
 #: The tree the map names as the source. Everything else under `docs/` mirrors it.
 SOURCE_TREE = "en"
@@ -65,18 +81,20 @@ SOURCE_TREE = "en"
 REPORTS_DIR = "docs/reports"
 DATED_NAME = re.compile(r"\d{4}-\d{2}-\d{2}")
 
-#: Names that say "this is a record of one moment", wherever they are written.
-TRANSIENT_MARKERS = (
-    "homolog", "diagnose", "diagnostic", "validation-report", "progress", "todo",
-    "correcao", "correção", "teste-agora", "teste_agora", "roteiro", "continuar",
-    "revalidacao", "revalidação", "postmortem", "post-mortem",
+#: Words that say "this is a record of one moment", matched as WHOLE words anywhere in the name.
+#: As substrings they overreached: `diagnostic` swallowed `DIAGNOSTICS.md` (measured 2026-09-12).
+WORD_MARKERS = (
+    "homolog", "homologation", "homologacao", "diagnose", "diagnosis", "validation",
+    "correcao", "roteiro", "continuar", "revalidacao", "postmortem", "mortem",
 )
 
-#: `.md` files that belong at the repository root. A language suffix is accepted on the two
-#: documents whose convention is a suffix rather than a tree (GitHub renders both from the root).
-#: `claude` and `gemini` are agent-instruction files, the same class as `agents` — measured
-#: 2026-09-12 on five fleet repositories, where the only false positive L3 produced was a root
-#: `CLAUDE.md` the skill itself names as legitimate. The community-health names are GitHub's,
+#: Words common enough to name a feature, so they mark a record only when they are the WHOLE name.
+#: `PROGRESS.md` is a status note; `progress-bar.md` is a component, and reporting it is the kind of
+#: false positive that gets a gate switched off (measured 2026-09-12).
+STANDALONE_MARKERS = ("progress", "todo", "teste")
+
+#: `.md` files that belong at the repository root, as bare stems. `claude` and `gemini` are
+#: agent-instruction files, the same class as `agents`; the community-health names are GitHub's,
 #: which reads them from the root and nowhere else.
 ROOT_ALLOWED = ("readme", "agents", "claude", "gemini", "changelog", "contributing",
                 "license", "licence", "code_of_conduct", "notice", "security",
@@ -117,14 +135,22 @@ SLOTS = (
     Slot("contribution", "CONTRIBUTING.md", at_root=True, always=False),
 )
 
+#: Paths a slot is allowed to occupy even though the map files it under a tree. GitHub reads
+#: `SECURITY.md` from the repository root and nowhere else, so a root copy is the platform's
+#: document, not a misplaced tier.
+ROOT_EXEMPT = {"SECURITY.md"}
+
 #: The README section that carries the index of every slot.
 INDEX_HEADINGS = ("documentation", "documentacao")
 
-#: How a slot the project does not earn is declared in that section.
+#: How a slot the project does not earn is declared: the slot's own name, then the waiver, on ONE
+#: index entry. The subject is read from the START of the entry so that a reason merely CONTAINING
+#: another slot's word cannot waive it — measured 2026-09-12, "not applicable: no infrastructure
+#: requirements" silently waived the requirements slot.
 NOT_APPLICABLE = re.compile(r"not applicable|nao se aplica", re.I)
+INDEX_ENTRY = re.compile(r"^\s*(?:[-*+]|\|)\s*\[?([^\]|—:]+)")
 
-#: How a project declares it documents in one language on purpose. Without it, a lone source tree
-#: is indistinguishable from a pair somebody stopped building.
+#: How a project declares it documents in one language on purpose.
 SINGLE_LANGUAGE = re.compile(r"english only|one language|single language|idioma unico|"
                              r"somente em ingles|apenas em ingles", re.I)
 
@@ -153,7 +179,7 @@ RULES = {
 }
 
 SKIP_DIRECTORIES = {".git", "node_modules", ".venv", "venv", "__pycache__", ".pytest_cache",
-             "dist", "build", "vendor", ".tox", ".mypy_cache", "openspec", ".next"}
+                    "dist", "build", "vendor", ".tox", ".mypy_cache", "openspec", ".next"}
 
 FENCE = re.compile(r"^\s*(?:```|~~~)")
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
@@ -161,12 +187,27 @@ TABLE_ROW = re.compile(r"^\s*\|(.+)\|\s*$")
 TABLE_DIVIDER = re.compile(r"^\s*\|[\s:|-]+\|\s*$")
 NUMBER_PREFIX = re.compile(r"^\s*(\d+)[.)]")
 
+#: How many paths go into one delegated call. A documentation site with tens of thousands of pages
+#: overflows `ARG_MAX` otherwise — reproduced at 40k paths against a 2 MB limit.
+ARGV_CHUNK = 400
+
+#: Things the tool needs to say about ITSELF. Never findings: a finding is about the repository.
+_diagnostics: list[str] = []
+
+#: Set from `--locale-checker`, read by L5.
+_locale_checker_path: "str | None" = None
+
+
+def diagnostic(message: str) -> None:
+    if message not in _diagnostics:
+        _diagnostics.append(message)
+
 
 # ── Findings ──────────────────────────────────────────────────────────────────
 
 
 class Finding:
-    """One reported defect. `path` is repo-relative; `destination` names the fix when there is one."""
+    """One reported defect in the audited repository. `path` is repo-relative."""
 
     def __init__(self, path: str, rule: str, message: str) -> None:
         self.path = path
@@ -188,11 +229,67 @@ def fold(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s-]", "", kept)).strip()
 
 
-def read(path: Path) -> list[str]:
+def words(text: str) -> list[str]:
+    """The folded words of a name, split on every separator a file name uses."""
+    return [w for w in re.split(r"[^a-z0-9]+", fold(text)) if w]
+
+
+def normalize_tag(name: str) -> str:
+    """`pt_BR` and `pt-br` are the same tag as `pt-BR`."""
+    tag = name.replace("_", "-")
+    parts = tag.split("-")
+    if len(parts) == 2:
+        return "%s-%s" % (parts[0].lower(), parts[1].upper())
+    return tag.lower()
+
+
+KNOWN_TAGS = {normalize_tag(t) for t in LANGUAGE_TAGS}
+
+
+def is_language_tree(name: str) -> bool:
+    return normalize_tag(name) in KNOWN_TAGS
+
+
+def language_suffix(name: str) -> "str | None":
+    """`README.pt-BR.md` -> `pt-BR`. Only a KNOWN tag counts.
+
+    Folding any middle segment turned `API.v2.md` into `API.md` and `SETUP.draft.md` into
+    `SETUP.md`, so a stale second copy of an owned table read as the owner itself and escaped every
+    rule (measured 2026-09-12).
+    """
+    parts = name.split(".")
+    if len(parts) == 3 and is_language_tree(parts[1]):
+        return normalize_tag(parts[1])
+    return None
+
+
+def owning_name(name: str) -> str:
+    """`README.pt-BR.md` -> `README.md`. A mirror is the same document in another language."""
+    tag = language_suffix(name)
+    if tag is None:
+        return name
+    parts = name.split(".")
+    return "%s.%s" % (parts[0], parts[2])
+
+
+def relative(path: Path, root: Path) -> str:
+    return str(path.relative_to(root)).replace("\\", "/")
+
+
+def read_or_report(path: Path, root: Path, rule: str) -> "tuple[list[str], Finding | None]":
+    """Lines of a document. An unreadable file is a finding of its own, never silent emptiness.
+
+    Measured 2026-09-12: a README saved in latin-1 read as zero lines, so its index vanished and
+    L1 blamed the content — three findings, every one of them wrong, and the real defect unnamed.
+    """
+    rel = relative(path, root)
     try:
-        return path.read_text(encoding="utf-8").splitlines()
-    except (UnicodeDecodeError, OSError):
-        return []
+        return path.read_text(encoding="utf-8").splitlines(), None
+    except UnicodeDecodeError:
+        return [], Finding(rel, rule, "not valid UTF-8, so nothing in it could be read; re-save it "
+                                      "as UTF-8 before trusting any other finding about it")
+    except OSError as exc:
+        return [], Finding(rel, rule, "could not be read (%s)" % exc.__class__.__name__)
 
 
 def strip_fences(lines: list[str]) -> list[str]:
@@ -252,43 +349,70 @@ def header_rows(lines: list[str]) -> list[tuple[int, tuple[str, ...]]]:
 
 
 def markdown_files(root: Path, excludes: list[str]) -> list[Path]:
+    """Every markdown document under the repository, pruning skipped directories as it walks.
+
+    The extension match is case-insensitive: `NOTES.MD` is invisible to a case-sensitive glob on
+    Linux and audited on macOS, and a gate that disagrees with itself across machines is a gate
+    nobody can reproduce locally. Exclusion globs are matched against the `/`-separated path, which
+    is what the caller types, on every platform.
+    """
     out = []
-    for p in sorted(root.rglob("*.md")):
-        rel = p.relative_to(root)
-        if any(part in SKIP_DIRECTORIES for part in rel.parts):
-            continue
-        s = str(rel)
-        if any(fnmatch.fnmatch(s, g) or fnmatch.fnmatch(s, "*/" + g) for g in excludes):
-            continue
-        out.append(p)
-    return out
+    for current, directories, files in os.walk(root):
+        directories[:] = [d for d in directories if d not in SKIP_DIRECTORIES]
+        here = Path(current)
+        for name in files:
+            if not name.lower().endswith(".md"):
+                continue
+            path = here / name
+            rel = relative(path, root)
+            if any(fnmatch.fnmatch(rel, g) or fnmatch.fnmatch(rel, "*/" + g) for g in excludes):
+                continue
+            out.append(path)
+    return sorted(out)
 
 
 def language_trees(root: Path) -> list[str]:
     docs = root / "docs"
     if not docs.is_dir():
         return []
-    return sorted(d.name for d in docs.iterdir() if d.is_dir() and TREE_DIR.match(d.name))
+    return sorted(d.name for d in docs.iterdir() if d.is_dir() and is_language_tree(d.name))
 
 
-def readme_index(root: Path) -> tuple[list[str], bool]:
-    """(lines of the README's documentation index, index section found)."""
-    readme = root / "README.md"
+def readme_index(root: Path, name: str = "README.md") -> "tuple[list[str], bool, Finding | None]":
+    """(lines of that README's documentation index, index section found, unreadable finding)."""
+    readme = root / name
     if not readme.is_file():
-        return [], False
-    lines = strip_fences(read(readme))
+        return [], False, None
+    lines, problem = read_or_report(readme, root, "L1")
+    if problem is not None:
+        return [], False, problem
+    lines = strip_fences(lines)
     start = None
     for i, line in enumerate(lines):
         m = HEADING.match(line)
         if not m:
             continue
         if start is not None and len(m.group(1)) <= 2:
-            return lines[start:i], True
+            return lines[start:i], True, None
         if len(m.group(1)) == 2 and fold(m.group(2)) in INDEX_HEADINGS:
             start = i
     if start is not None:
-        return lines[start:], True
-    return [], False
+        return lines[start:], True, None
+    return [], False, None
+
+
+def declares_absent(index: list[str], slot: Slot) -> bool:
+    """A waiver is one index ENTRY naming this slot, not any line mentioning its word."""
+    wanted = fold(slot.name.replace(".md", ""))
+    key = fold(slot.key)
+    for line in index:
+        if not NOT_APPLICABLE.search(line):
+            continue
+        entry = INDEX_ENTRY.match(line)
+        subject = fold(entry.group(1)) if entry else fold(line)
+        if wanted in subject or key in subject:
+            return True
+    return False
 
 
 # ── The rules ─────────────────────────────────────────────────────────────────
@@ -297,32 +421,31 @@ def readme_index(root: Path) -> tuple[list[str], bool]:
 def check_slots(root: Path, files: list[Path]) -> list[Finding]:
     """L1 — an always-slot is present, or its absence is declared. An earned slot is in the index."""
     out: list[Finding] = []
-    rel = {str(p.relative_to(root)).replace("\\", "/") for p in files}
+    rel = {relative(p, root) for p in files}
     trees = language_trees(root) or [SOURCE_TREE]
-    index, has_index = readme_index(root)
-    index_text = "\n".join(index)
 
-    if not (root / "README.md").is_file():
+    if "README.md" not in rel:
         return [Finding("README.md", "L1", "no README.md; every project owes the entry document")]
+
+    index, has_index, problem = readme_index(root)
+    if problem is not None:
+        return [problem]
     if not has_index:
         out.append(Finding("README.md", "L1",
                            "no '## Documentation' section; the index is where a reader learns which "
                            "slots this project earned and which it declined"))
 
+    index_text = "\n".join(index)
+
     for slot in SLOTS:
         if not slot.always or slot.key == "entry":
             continue
         present = any(slot.canonical(t) in rel for t in trees) or slot.name in rel
-        if present:
+        if present or declares_absent(index, slot):
             continue
-        # The declaration is a LINE, not a document. Searching the whole section accepted an index
-        # that declares one slot absent and links another as proof for both.
-        wanted = fold(slot.name.replace(".md", ""))
-        declared = any(NOT_APPLICABLE.search(line) and wanted in fold(line) for line in index)
-        if not declared:
-            out.append(Finding(slot.canonical(), "L1",
-                               "always-slot missing and not declared; write it, or put "
-                               "'not applicable: <reason>' for it in the README index"))
+        out.append(Finding(slot.canonical(), "L1",
+                           "always-slot missing and not declared; write it, or put "
+                           "'not applicable: <reason>' for it in the README index"))
 
     for slot in SLOTS:
         if slot.at_root:
@@ -334,6 +457,23 @@ def check_slots(root: Path, files: list[Path]) -> list[Finding]:
                                    "exists but the README index does not list it; an unlisted "
                                    "document is one a reader has no way to discover"))
                 break
+
+    # The root half of the pair. L6 only walks `docs/<tree>/`, so without this the mirrored README
+    # the map mandates could be missing entirely and nothing would say so.
+    for tree in trees:
+        if tree == SOURCE_TREE:
+            continue
+        mirror = "README.%s.md" % tree
+        if mirror not in rel:
+            out.append(Finding(mirror, "L1",
+                               "the %s tree exists with no %s; both READMEs carry the index, each "
+                               "linking its own tree" % (tree, mirror)))
+            continue
+        _, mirror_has_index, mirror_problem = readme_index(root, mirror)
+        if mirror_problem is not None:
+            out.append(mirror_problem)
+        elif not mirror_has_index:
+            out.append(Finding(mirror, "L1", "no '## Documentation' section in the mirror README"))
     return out
 
 
@@ -343,19 +483,33 @@ def check_legacy(root: Path, files: list[Path]) -> list[Finding]:
     trees = language_trees(root) or [SOURCE_TREE]
     canonical_paths = {slot.canonical(t) for slot in SLOTS for t in trees}
     canonical_paths |= {slot.name for slot in SLOTS if slot.at_root}
+    canonical_paths |= {"README.%s.md" % t for t in trees if t != SOURCE_TREE}
+    canonical_paths |= {"CONTRIBUTING.%s.md" % t for t in trees if t != SOURCE_TREE}
+    canonical_paths |= ROOT_EXEMPT
+
     for p in files:
-        rel = str(p.relative_to(root)).replace("\\", "/")
+        rel = relative(p, root)
         if rel in canonical_paths or rel.startswith(REPORTS_DIR + "/"):
             continue
-        base = p.name.lower()
+        # The destination follows the tree the document is already in: telling the author of
+        # `docs/pt-BR/DESIGN.md` to move it to `docs/en/` destroys the mirror.
+        parts = rel.split("/")
+        tree = parts[1] if len(parts) > 2 and parts[0] == "docs" and is_language_tree(parts[1]) \
+            else SOURCE_TREE
+        base = owning_name(p.name).lower()
+        # A root slot is only MISPLACED when it sits in the documentation tree. `k8s/README.md` and
+        # `.github/workflows/README.md` are that directory's own entry document, which GitHub renders
+        # as such — reporting them moved L2 from 38 findings to 59, every one of the 21 wrong
+        # (measured 2026-09-12).
+        in_docs = parts[0] == "docs"
         for slot in SLOTS:
+            target = slot.name if slot.at_root else slot.canonical(tree)
             if base in slot.legacy:
                 out.append(Finding(rel, "L2", "legacy name for the %s slot -> %s"
-                                   % (slot.key, slot.canonical())))
+                                   % (slot.key, target)))
                 break
-            if base == slot.name.lower() and not slot.at_root:
-                out.append(Finding(rel, "L2", "canonical name outside its tree -> %s"
-                                   % slot.canonical()))
+            if base == slot.name.lower() and (in_docs or not slot.at_root):
+                out.append(Finding(rel, "L2", "canonical name outside its place -> %s" % target))
                 break
     return out
 
@@ -363,15 +517,15 @@ def check_legacy(root: Path, files: list[Path]) -> list[Finding]:
 def check_root(root: Path, files: list[Path]) -> list[Finding]:
     """L3 — the root carries the entry documents and nothing else."""
     out = []
-    claimed = {f.path for f in check_legacy(root, files)} | {f.path for f in check_reports(root, files)}
+    # Computed unconditionally, never from the selected rule set: with `--rules L3` alone, a file
+    # another rule would have claimed used to vanish from the report entirely.
+    claimed = {f.path for f in check_legacy(root, files)}
+    claimed |= {f.path for f in check_reports(root, files)}
     for p in files:
-        rel = str(p.relative_to(root)).replace("\\", "/")
+        rel = relative(p, root)
         if "/" in rel or rel in claimed:
             continue
-        # `README.pt-BR.md` -> stem `README.pt-BR` -> the document is `README`. Split before
-        # folding: folding strips the dot that separates the name from its language tag, which
-        # turned `README.pt-BR` into one unrecognizable word and reproved a correct root file.
-        stem = fold(p.stem.split(".")[0]).replace("-", "_")
+        stem = fold(owning_name(p.name)[: -len(".md")]).replace("-", "_")
         if stem in ROOT_ALLOWED:
             continue
         out.append(Finding(rel, "L3",
@@ -383,13 +537,16 @@ def check_root(root: Path, files: list[Path]) -> list[Finding]:
 def check_reports(root: Path, files: list[Path]) -> list[Finding]:
     """L4 — a record of one moment lives with the other records of one moment."""
     out = []
+    anywhere = {fold(m) for m in WORD_MARKERS}
+    alone = {fold(m) for m in STANDALONE_MARKERS}
     for p in files:
-        rel = str(p.relative_to(root)).replace("\\", "/")
+        rel = relative(p, root)
         if rel.startswith(REPORTS_DIR + "/"):
             continue
-        name = fold(p.stem)
+        stem_words = words(p.stem)
         dated = bool(DATED_NAME.search(p.stem))
-        marked = any(m in name for m in (fold(x) for x in TRANSIENT_MARKERS))
+        marked = any(w in anywhere for w in stem_words) or \
+            (len(stem_words) == 1 and stem_words[0] in alone)
         if dated or marked:
             out.append(Finding(rel, "L4",
                                "transient record outside %s/ -> %s/YYYY-MM-DD-<slug>.md"
@@ -397,13 +554,25 @@ def check_reports(root: Path, files: list[Path]) -> list[Finding]:
     return out
 
 
-def locale_checker() -> Path | None:
-    """The `code-locale` checker, in the layouts this catalog installs. None when absent."""
+def locale_checker(explicit: "str | None" = None) -> "Path | None":
+    """The `code-locale` checker, in the layouts this catalog installs.
+
+    The plugin layout ships the two skills in different plugins, so a sibling search finds nothing
+    there — which is why a missing engine must never fail the audit, and why `--locale-checker`
+    exists.
+    """
+    if explicit:
+        candidate = Path(explicit)
+        return candidate if candidate.is_file() else None
     here = Path(__file__).resolve().parent
-    for candidate in (
-        here.parent.parent / "code-locale" / "references" / "check-identifier-locale.py",
-        here.parent.parent.parent / "skills" / "code-locale" / "references" / "check-identifier-locale.py",
-    ):
+    name = "check-identifier-locale.py"
+    candidates = [
+        here.parent.parent / "code-locale" / "references" / name,
+        here.parent.parent.parent / "skills" / "code-locale" / "references" / name,
+        here.parent.parent.parent.parent / "workflow" / "skills" / "code-locale" / "references" / name,
+        Path.home() / "ai-skills" / "skills" / "code-locale" / "references" / name,
+    ]
+    for candidate in candidates:
         if candidate.is_file():
             return candidate
     return None
@@ -411,30 +580,57 @@ def locale_checker() -> Path | None:
 
 def check_names(root: Path, files: list[Path]) -> list[Finding]:
     """L5 — delegated. This rule owns no word list; `code-locale` owns that question."""
-    checker = locale_checker()
+    checker = locale_checker(_locale_checker_path)
     if checker is None:
-        return [Finding("", "L5", "NOT RUN: check-identifier-locale.py of the code-locale skill was "
-                                  "not found beside this one; L5 never answers 'clean' without it")]
+        diagnostic("L5 NOT RUN: code-locale's check-identifier-locale.py was not found; "
+                   "pass --locale-checker PATH to enable the rule")
+        return []
     if not files:
         return []
-    proc = subprocess.run(
-        [sys.executable, str(checker), *[str(p) for p in files]],
-        capture_output=True, text=True,
-    )
-    out = []
-    # The sibling names the file the way it was given it: a path when the file sits under the
-    # caller's directory, a bare name when it does not. Measured 2026-09-12 on the fleet, where
-    # matching on the basename alone printed a path with the repository prefix twice. Match on
-    # either form, and keep the reported name only when neither resolves.
-    relative = {str(p.relative_to(root)).replace("\\", "/"): p for p in files}
-    for line in proc.stdout.splitlines():
-        m = re.match(r"^(\S+\.md):\s+\S+\s+\[path-(\S+?):", line)
-        if m and not m.group(2).startswith("en-unknown"):
-            name = m.group(1)
-            hit = next((rel for rel, p in relative.items()
-                        if rel == name or name.endswith(rel) or p.name == name), name)
-            out.append(Finding(hit, "L5", "file name is not English (%s); rename it, or waive it "
-                                          "the way code-locale waives a path" % m.group(2)))
+
+    by_relative = {relative(p, root): p for p in files}
+    ordered = sorted(by_relative)
+    out: list[Finding] = []
+    seen: set = set()
+
+    for start in range(0, len(ordered), ARGV_CHUNK):
+        chunk = ordered[start:start + ARGV_CHUNK]
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(checker), *[str(by_relative[r]) for r in chunk]],
+                capture_output=True, text=True,
+            )
+        except OSError as exc:
+            diagnostic("L5 NOT RUN: could not run %s (%s)" % (checker.name, exc.__class__.__name__))
+            return []
+        if proc.returncode not in (0, 1) and not proc.stdout.strip():
+            last = ((proc.stderr or "").strip().splitlines() or ["no stderr"])[-1]
+            diagnostic("L5 NOT RUN: %s exited %d without output (%s)"
+                       % (checker.name, proc.returncode, last))
+            return []
+        for line in proc.stdout.splitlines():
+            m = re.match(r"^(\S+\.md):\s+\S+\s+\[path-(\S+?):", line)
+            if not m or m.group(2).startswith("en-unknown"):
+                continue
+            name, tier = m.group(1), m.group(2)
+            # The sibling names the file the way it was given it: a path when the file is under the
+            # caller's directory, a bare name when it is not. Resolve EVERY match, not the first:
+            # the same basename exists in both trees, and one of them was being dropped.
+            # One reported path is one file, so take the LONGEST suffix that matches, not every
+            # one: `scripts/simulacao/README.md` also ends with `/README.md`, and matching both
+            # invented a finding against the repository's own README (measured 2026-09-12 on
+            # `ferdinand`). Taking only the first match had the opposite failure — the second of
+            # two twins was dropped — so the resolution is by specificity, not by order.
+            candidates = [r for r in chunk if r == name or name.endswith("/" + r)]
+            if not candidates:
+                candidates = [r for r in chunk if Path(r).name == name]
+            hits = [max(candidates, key=len)] if candidates else [name]
+            for hit in hits or [name]:
+                if (hit, tier) in seen:
+                    continue
+                seen.add((hit, tier))
+                out.append(Finding(hit, "L5", "file name is not English (%s); rename it, or waive "
+                                              "it the way code-locale waives a path" % tier))
     return out
 
 
@@ -448,7 +644,7 @@ def check_parity(root: Path, files: list[Path]) -> list[Finding]:
         # The pair is the default. One tree is legitimate, and it is a DECLARED decision: without
         # the declaration a reader cannot tell "one language is enough here" from "somebody stopped
         # halfway", which is the same question the map answers for a slot nobody earned.
-        index, _ = readme_index(root)
+        index, _, _ = readme_index(root)
         if not any(SINGLE_LANGUAGE.search(line) for line in index):
             return [Finding("docs/%s" % SOURCE_TREE, "L6",
                             "source tree with no mirror and no declaration; write the mirror, or "
@@ -459,10 +655,17 @@ def check_parity(root: Path, files: list[Path]) -> list[Finding]:
                         "mirror trees exist (%s) with no source tree; the map names docs/%s the "
                         "source and every other tree its mirror" % (", ".join(trees), SOURCE_TREE))]
 
-    def in_tree(tree: str) -> dict[str, Path]:
-        base = root / "docs" / tree
-        return {str(p.relative_to(base)).replace("\\", "/"): p
-                for p in files if base in p.parents}
+    def in_tree(tree: str) -> dict:
+        # Resolved on both sides so that a tree hosted through a symlink — a normal way to keep a
+        # translation beside its source — is read as the tree it points at instead of as empty.
+        base = (root / "docs" / tree).resolve()
+        found = {}
+        for p in files:
+            try:
+                found[str(p.resolve().relative_to(base)).replace("\\", "/")] = p
+            except ValueError:
+                continue
+        return found
 
     source = in_tree(SOURCE_TREE)
     for tree in trees:
@@ -471,28 +674,33 @@ def check_parity(root: Path, files: list[Path]) -> list[Finding]:
         mirror = in_tree(tree)
         for name, src in sorted(source.items()):
             twin = mirror.get(name)
+            where = "docs/%s/%s" % (tree, name)
             if twin is None:
-                out.append(Finding("docs/%s/%s" % (tree, name), "L6",
+                out.append(Finding(where, "L6",
                                    "no mirror for docs/%s/%s; the pair is written in one commit"
                                    % (SOURCE_TREE, name)))
                 continue
-            a, b = read(src), read(twin)
+            a, problem_a = read_or_report(src, root, "L6")
+            b, problem_b = read_or_report(twin, root, "L6")
+            if problem_a or problem_b:
+                out.append(problem_a or problem_b)
+                continue
             sa, sb = sections(a), sections(b)
             if len(sa) != len(sb):
-                out.append(Finding("docs/%s/%s" % (tree, name), "L6",
+                out.append(Finding(where, "L6",
                                    "%d '##' sections against %d in the source" % (len(sb), len(sa))))
                 continue
             na = [m.group(1) for s in sa for m in [NUMBER_PREFIX.match(s)] if m]
             nb = [m.group(1) for s in sb for m in [NUMBER_PREFIX.match(s)] if m]
             if na != nb:
-                out.append(Finding("docs/%s/%s" % (tree, name), "L6",
+                out.append(Finding(where, "L6",
                                    "section numbering %s against %s in the source"
                                    % (",".join(nb) or "none", ",".join(na) or "none")))
                 continue
             ca, cb = code_blocks(a), code_blocks(b)
             if ca != cb:
                 differing = sum(1 for x, y in zip(ca, cb) if x != y) + abs(len(ca) - len(cb))
-                out.append(Finding("docs/%s/%s" % (tree, name), "L6",
+                out.append(Finding(where, "L6",
                                    "%d code block(s) differ from the source; the reader pastes "
                                    "them, so they are copied, never translated" % differing))
         for name in sorted(set(mirror) - set(source)):
@@ -501,28 +709,16 @@ def check_parity(root: Path, files: list[Path]) -> list[Finding]:
     return out
 
 
-def owning_name(name: str) -> str:
-    """`README.pt-BR.md` -> `README.md`. A mirror is the same document in another language.
-
-    Measured 2026-09-12: without this, the very first end-to-end run of the skill produced a correct
-    `README.pt-BR.md` carrying the README's own command table, and L7 reported it as a table living
-    outside its owner. The self-test could not have caught it — its mirrors live in trees, where the
-    file name is already identical, and only the two root documents carry a language suffix.
-    """
-    parts = name.split(".")
-    if len(parts) > 2:
-        return "%s.%s" % (parts[0], parts[-1])
-    return name
-
-
 def check_ownership(root: Path, files: list[Path]) -> list[Finding]:
     """L7 — the canonical header row of an owned fact, outside the document that owns it."""
     out = []
     for p in files:
-        rel = str(p.relative_to(root)).replace("\\", "/")
+        rel = relative(p, root)
         if rel.startswith(REPORTS_DIR + "/"):
             continue
-        lines = read(p)
+        lines, problem = read_or_report(p, root, "L7")
+        if problem is not None:
+            continue
         for line_no, cells in header_rows(lines):
             owner = OWNERSHIP.get(cells)
             if owner and owning_name(p.name) != owner:
@@ -580,25 +776,76 @@ CLEAN = {
     "docs/reports/2026-01-09-homologation.md": "# Report\n\nRan it.\n",
 }
 
-#: One injected defect per rule, as a patch over CLEAN.
+#: One injected defect per case, as a patch over CLEAN. `None` deletes the file; `bytes` writes raw.
 SELFTEST_CASES = {
     "L1": {"docs/en/REQUIREMENTS.md": None, "docs/pt-BR/REQUIREMENTS.md": None},
+    # a waiver naming another slot must not silence this one
+    "L1-wrong-slot": {"docs/en/REQUIREMENTS.md": None, "docs/pt-BR/REQUIREMENTS.md": None,
+                      "README.md": CLEAN["README.md"].replace(
+                          "- Operation — not applicable: one environment, started by one command",
+                          "- Operation — not applicable: no infrastructure requirements")},
+    "L1-no-index": {"README.md": "# T\n\nDoes one thing.\n"},
+    "L1-unlisted": {"docs/en/API.md": "# API\n", "docs/pt-BR/API.md": "# API\n"},
+    "L1-root-mirror": {"README.pt-BR.md": None},
+    "L1-unreadable": {"README.md": b"# T\n\n## Documentation\n\n- caf\xe9 n\xe3o\n"},
     "L2": {"docs/en/TECHNICAL.md": "# Technical\n", "docs/pt-BR/TECHNICAL.md": "# Technical\n"},
+    "L2-outside": {"docs/API.md": "# API\n"},
+    "L2-rootslot-in-docs": {"docs/CHANGELOG.md": "# Changelog\n"},
     "L3": {"NOTES.md": "# Notes\n"},
-    "L4": {"docs/en/DIAGNOSE-2026-04-17.md": "# D\n", "docs/pt-BR/DIAGNOSE-2026-04-17.md": "# D\n"},
-    "L5": {"docs/en/revalidacao-hermes.md": "# R\n"},
+    "L3-suffixed": {"README.backup.md": "# Backup\n"},
+    "L4-dated": {"docs/en/2026-04-17-run.md": "# D\n", "docs/pt-BR/2026-04-17-run.md": "# D\n"},
+    "L4-marked": {"docs/en/homologation-notes.md": "# H\n",
+                  "docs/pt-BR/homologation-notes.md": "# H\n"},
+    "L4-standalone": {"docs/en/PROGRESS.md": "# P\n", "docs/pt-BR/PROGRESS.md": "# P\n"},
+    "L5": {"docs/en/revalidacao-hermes.md": "# R\n", "docs/pt-BR/revalidacao-hermes.md": "# R\n"},
     "L6": {"docs/pt-BR/SETUP.md": None},
-    # the pair is the default: a lone source tree with no declaration is a finding
     "L6-lone": {"docs/pt-BR/SETUP.md": None, "docs/pt-BR/REQUIREMENTS.md": None,
                 "README.pt-BR.md": None},
+    "L6-count": {"docs/pt-BR/SETUP.md": "# Setup\n\n## 1. Ambiente\n\n## 2. Extra\n\n"
+                                        "```bash\nmake run\n```\n"},
+    "L6-numbering": {"docs/pt-BR/SETUP.md": "# Setup\n\n## 2. Ambiente\n\n```bash\nmake run\n```\n"},
     "L6-blocks": {"docs/pt-BR/SETUP.md": "# Setup\n\n## 1. Ambiente\n\n"
-                                         "| Variavel | Tipo | Padrao | Obrigatoria | Descricao |\n"
-                                         "|---|---|---|---|---|\n| `PORT` | porta | `8080` | nao | porta |\n\n"
                                          "```bash\nmake rodar\n```\n"},
+    "L6-orphan": {"docs/pt-BR/EXTRA.md": "# Extra\n"},
     "L7": {"docs/en/ARCHITECTURE.md": "# A\n\n| Variable | Type | Default | Required | Description |\n"
                                       "|---|---|---|---|---|\n| `PORT` | port | `8080` | no | http |\n",
            "docs/pt-BR/ARCHITECTURE.md": "# A\n\n| Variavel | Tipo | Padrao | Obrigatoria | Descricao |\n"
                                          "|---|---|---|---|---|\n| `PORT` | porta | `8080` | nao | http |\n"},
+    "L7-suffixed": {"docs/en/SETUP.draft.md":
+                    "# S\n\n| Variable | Type | Default | Required | Description |\n"
+                    "|---|---|---|---|---|\n| `PORT` | port | `8080` | no | http |\n",
+                    "docs/pt-BR/SETUP.draft.md":
+                    "# S\n\n| Variable | Type | Default | Required | Description |\n"
+                    "|---|---|---|---|---|\n| `PORT` | port | `8080` | no | http |\n"},
+}
+
+#: Overlays that must produce NO finding for the named rule. A detector with no vocabulary for
+#: "stay silent here" only ever grows: every false positive measured on a real repository became a
+#: case in this dict.
+SELFTEST_SILENT = {
+    "L6": [
+        # two-letter directories that are not languages
+        {"docs/db/schema.md": "# S\n", "docs/ui/components.md": "# C\n"},
+    ],
+    "L4": [
+        # `diagnostic` is not a word in `DIAGNOSTICS`, nor `progress` one in `progress-bar`
+        {"docs/en/DIAGNOSTICS.md": "# D\n", "docs/pt-BR/DIAGNOSTICS.md": "# D\n",
+         "docs/en/progress-bar.md": "# P\n", "docs/pt-BR/progress-bar.md": "# P\n"},
+    ],
+    "L2": [
+        # GitHub reads a root SECURITY.md, and only from the root
+        {"SECURITY.md": "# Security policy\n"},
+        # a nested README is that directory's own entry document, not a misplaced root one
+        {"k8s/README.md": "# Manifests\n", ".github/workflows/README.md": "# CI\n"},
+    ],
+    "L1": [
+        # a project may document in one language, when it says so
+        {"docs/pt-BR/SETUP.md": None, "docs/pt-BR/REQUIREMENTS.md": None,
+         "README.pt-BR.md": None,
+         "README.md": CLEAN["README.md"].replace(
+             "## Development",
+             "- Mirror — documented in English only\n\n## Development")},
+    ],
 }
 
 
@@ -610,18 +857,21 @@ def _materialize(base: Path, overlay: dict) -> None:
             continue
         p = base / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(body, encoding="utf-8")
+        if isinstance(body, bytes):
+            p.write_bytes(body)
+        else:
+            p.write_text(body, encoding="utf-8")
 
 
 def selftest() -> int:
     import tempfile
 
+    global _locale_checker_path
     failures = []
     with tempfile.TemporaryDirectory() as tmp:
         clean = Path(tmp) / "clean"
         _materialize(clean, {})
-        noise = [f.render() for f in audit(clean, sorted(CHECKS), [])
-                 if "NOT RUN" not in f.message]
+        noise = [f.render() for f in audit(clean, sorted(CHECKS), [])]
         if noise:
             failures.append("clean layout reproved: %s" % "; ".join(noise))
 
@@ -629,15 +879,49 @@ def selftest() -> int:
             rule = case.split("-")[0]
             base = Path(tmp) / ("case-" + case)
             _materialize(base, overlay)
-            fired = [f.rule for f in audit(base, [rule], []) if "NOT RUN" not in f.message]
+            fired = [f.rule for f in audit(base, [rule], [])]
             if rule not in fired:
                 failures.append("%s did not fire on its own injected defect" % case)
+
+        for rule, overlays in SELFTEST_SILENT.items():
+            for i, overlay in enumerate(overlays):
+                base = Path(tmp) / ("silent-%s-%d" % (rule, i))
+                _materialize(base, overlay)
+                fired = [f.render() for f in audit(base, [rule], [])]
+                if fired:
+                    failures.append("%s fired on a layout it must accept: %s"
+                                    % (rule, "; ".join(fired)))
+
+        # A subset must never report less than the union of its parts.
+        subset = Path(tmp) / "subset"
+        _materialize(subset, {"DEPLOY.md": "# D\n"})
+        if not audit(subset, ["L3"], []) and not audit(subset, ["L2"], []):
+            failures.append("a root DEPLOY.md was reported by neither L2 nor L3 alone")
+
+        # A missing or broken engine is a diagnostic, never a finding: the plugin layout ships the
+        # two skills apart, and a red gate on a perfect repository is how a gate gets switched off.
+        keep = _locale_checker_path
+        _locale_checker_path = str(Path(tmp) / "does-not-exist.py")
+        _diagnostics.clear()
+        if audit(clean, ["L5"], []):
+            failures.append("L5 produced a finding when its engine was missing")
+        if not _diagnostics:
+            failures.append("L5 said nothing when its engine was missing")
+        broken = Path(tmp) / "broken-checker.py"
+        broken.write_text("import sys\nsys.stderr.write('boom\\n')\nsys.exit(3)\n", encoding="utf-8")
+        _locale_checker_path = str(broken)
+        _diagnostics.clear()
+        if audit(clean, ["L5"], []) or not _diagnostics:
+            failures.append("L5 answered clean while its engine was failing")
+        _locale_checker_path = keep
 
     for line in failures:
         print("selftest: %s" % line, file=sys.stderr)
     detected = len(SELFTEST_CASES) - len([f for f in failures if "did not fire" in f])
-    print("selftest: %d/%d injected defects detected; clean layout %s"
-          % (detected, len(SELFTEST_CASES),
+    silent_total = sum(len(v) for v in SELFTEST_SILENT.values())
+    silent_ok = silent_total - len([f for f in failures if "must accept" in f])
+    print("selftest: %d/%d injected defects detected; %d/%d silent cases silent; clean layout %s"
+          % (detected, len(SELFTEST_CASES), silent_ok, silent_total,
              "silent" if not any("reproved" in f for f in failures) else "REPROVED"))
     return 1 if failures else 0
 
@@ -645,7 +929,9 @@ def selftest() -> int:
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: "list[str] | None" = None) -> int:
+    global _locale_checker_path
+
     ap = argparse.ArgumentParser(
         description=__doc__.splitlines()[0],
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -654,10 +940,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--rules", help="comma-separated subset, e.g. L2,L4 (default: all)")
     ap.add_argument("--exclude", action="append", default=[], metavar="GLOB",
                     help="skip paths matching this glob; repeatable")
+    ap.add_argument("--locale-checker", metavar="PATH",
+                    help="code-locale's check-identifier-locale.py, for L5")
     ap.add_argument("--list", action="store_true", help="print the rules and exit")
     ap.add_argument("--map", action="store_true", help="print the document map and exit")
     ap.add_argument("--selftest", action="store_true", help="prove every rule still fires")
     args = ap.parse_args(argv)
+
+    _locale_checker_path = args.locale_checker
 
     if args.list:
         for rule in sorted(RULES):
@@ -692,6 +982,8 @@ def main(argv: list[str] | None = None) -> int:
     findings = audit(root, rules, args.exclude)
     for finding in findings:
         print(finding.render())
+    for line in _diagnostics:
+        print("check-doc-layout: %s" % line, file=sys.stderr)
     print("findings: %d; rules run: %s" % (len(findings), ",".join(rules)))
     return 1 if findings else 0
 

@@ -24,9 +24,12 @@ KNOWN LIMIT:
   A repository is a directory holding `.git`, found at depth <= 3 under --root. A deeper monorepo
      package is not counted as its own repository, and its documents are attributed to the
      repository above it.
-  Only `.md` at depth <= 2 inside each repository is inventoried: the root and one level under it,
-     which is where every tier document of the map lives. A document buried deeper is invisible to
-     pass 1 and visible to pass 2, which walks the whole tree.
+  Pass 1 inventories only the TIER positions: the repository root, `docs/`, and `docs/<language>/`.
+     A flat depth of 2 was enough for the layout the map REPLACES and blind to the one it prescribes
+     (`docs/en/X.md`), so a survey re-run after a migration reported zero canonical documents; a
+     flat depth of 3 fixed that and started counting every `k8s/README.md` as an entry document,
+     which moved the README count from 55 to 79. Positions, not depth. Anything elsewhere is
+     invisible to pass 1 and visible to pass 2, which walks the whole tree.
   The false-positive column of pass 2 is NOT computed here. Confirming a finding is reading it
      against the repository, one at a time, by hand — `results.md` records who did that and when.
 """
@@ -46,6 +49,9 @@ CHECKER = (Path(__file__).resolve().parents[2]
 
 SKIP = {".git", "node_modules", ".venv", "venv", "__pycache__", ".pytest_cache", "dist", "build",
         "vendor", ".tox", "openspec", ".claude", ".cursor", ".next"}
+
+#: The checker's own NOT-RUN line is a diagnostic, not a finding; it must never be counted as one.
+NOT_A_FINDING = "NOT RUN"
 
 #: The concepts the map names, and every spelling the fleet was found to use for each.
 CONCEPTS = {
@@ -100,8 +106,22 @@ def walk(repo: Path, depth: int) -> list[Path]:
     return out
 
 
-def documents(repo: Path, depth: int = 2) -> list[Path]:
-    return walk(repo, depth)
+#: A language tree under `docs/`, as the map spells it.
+TIER_TREE = re.compile(r"^[a-z]{2}([-_][A-Za-z]{2,4})?$")
+
+
+def documents(repo: Path, depth: int = 3) -> list[Path]:
+    """Only the positions the map puts a tier document in."""
+    out = []
+    for p in walk(repo, depth):
+        parts = p.relative_to(repo).parts
+        if len(parts) == 1:
+            out.append(p)
+        elif len(parts) == 2 and parts[0] == "docs":
+            out.append(p)
+        elif len(parts) == 3 and parts[0] == "docs" and TIER_TREE.match(parts[1]):
+            out.append(p)
+    return out
 
 
 def inventory(targets: list[Path]) -> dict:
@@ -151,6 +171,8 @@ def detector(targets: list[Path]) -> dict:
                               capture_output=True, text=True)
         counts: collections.Counter = collections.Counter()
         for line in proc.stdout.splitlines():
+            if NOT_A_FINDING in line:
+                continue
             m = RULE.search(line)
             if m:
                 counts[m.group(1)] += 1
