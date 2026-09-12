@@ -118,10 +118,16 @@ Sete regras novas, nomeadas L1-L7 para não colidirem com R1-R7:
 | L6 | paridade en/pt-BR | gêmeo ausente, contagem/numeração de `##` diferente, blocos de código diferentes |
 | L7 | posse | linha de cabeçalho canônica de uma tabela possuída fora do documento dono |
 
-L5 reusa a lista de palavras função que `code-locale` já mantém
-(`skills/code-locale/references/check-prose-locale.py`), por importação por caminho quando o arquivo
-está ao lado e por uma lista embutida mínima quando não está — o detector não pode falhar por causa
-de um irmão ausente, e a duplicação mínima é registrada como limite conhecido em vez de escondida.
+L5 **não carrega lista de palavras nenhuma**. Probado em 2026-09-12: o irmão
+`skills/code-locale/references/check-identifier-locale.py` já responde exatamente essa pergunta para
+um caminho — `revalidacao-hermes.md` sai como `path-pt-morphology`, um veredito — e já carrega o
+protocolo de dispensa (`.identifier-locale-allow`). L5 chama esse script e levanta os vereditos dele;
+a camada advisory dele (`path-en-unknown`, que é o que `COMO-SUBIR.md` produz) fica de fora, porque
+reprovar toda palavra desconhecida reprovaria nome de produto — e esse caso específico já é pego por
+L2, que ainda diz para onde o arquivo vai. Quando o irmão não é encontrado, L5 se reporta **NOT RUN**
+em vez de limpo: uma regra que responde "sem achados" porque o motor sumiu é pior que uma regra
+ausente, porque é acreditada. Uma lista embutida de reserva foi descartada por isso mesmo — ela
+responderia "limpo" com metade do vocabulário.
 
 ### D6 — O que cada regra não sabe fazer entra no `KNOWN LIMIT`, não em uma allowlist
 

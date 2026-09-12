@@ -425,9 +425,11 @@ carries — are caught by L2 through the map's legacy list, which also says wher
 
 ## L6 — the mirror matches the source in structure
 
-Where a project documents in two languages, every document under `docs/en/` has a twin under the
-mirror tree with the same file name, the same number of `##` sections, the same section numbering,
-and the same fenced code blocks byte for byte.
+Two languages are the default. Every document under `docs/en/` has a twin under the mirror tree with
+the same file name, the same number of `##` sections, the same section numbering, and the same fenced
+code blocks byte for byte. A project that documents in one language on purpose says so in the README
+index (`documented in English only`); a source tree with no mirror and no such line is reported,
+because a reader cannot otherwise tell a decision from an abandoned migration.
 
 Source: the [W3C's guidance on localized sites](https://www.w3.org/International/questions/qa-mlsite-navigation)
 treats a translated page as the same page in another language, navigable the same way;
@@ -441,9 +443,10 @@ justification prose (R5). Translation freshness is therefore **review-only**, an
 part of it is already covered by the rule that the pair is written in one commit.
 
 **Verdict: with validator, proved only by its self-test.** Zero findings on the fleet, because not
-one of the 10 repositories documents in two trees yet — adopting the pair is the work this rule
-unblocks. Like R4 and R7 before it, the rule is proved by its injected defects (a missing twin, and
-a mirror whose code block was translated) rather than by the sample, and saying so is the difference
+one of the 10 repositories has a `docs/en/` tree at all yet — every one of them is still at the stage
+L2 reports, and adopting the pair is the work this rule unblocks. Like R4 and R7 before it, the rule
+is proved by its injected defects (a missing twin, a mirror whose code block was translated, and a
+lone source tree with no declaration) rather than by the sample, and saying so is the difference
 between a measurement and a claim.
 
 ## L7 — a fact appears in the document that owns it

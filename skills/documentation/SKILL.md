@@ -103,7 +103,8 @@ absence is visible and dated, so a reader can tell a decision from an omission, 
 maintainer's fleet, documented under the previous version of this skill: 19 `docs/TECHNICAL.md`
 against 12 `ARCHITECTURE.md`, with 11 repositories carrying both at once; six different names for the
 operation slot; 7 to 25 `##` sections under the same file name; zero requirements documents; zero ADR
-directories; 21 transient reports loose beside permanent documentation. Conditions decide whether a
+directories; 24 transient reports loose beside permanent documentation, 7 of them inside a
+repository and 17 in the workspace directories above them. Conditions decide whether a
 document is earned and say nothing about what it is called, so two projects earning the same right
 spell it differently — and eleven of them spelled it both ways.
 
@@ -170,7 +171,12 @@ The workflow's own lifecycle is `openspec`.
 
 ## Two languages, one source
 
-Where a project documents in two languages, the pair is a fixed structure, not a habit:
+**Documentation is written in two languages by default**: English, and the language the project's
+people actually speak. A single-language project is the exception, and the exception is declared in
+the README index (`documented in English only`), never decided in silence — the same rule the map
+applies to a slot nobody earned.
+
+The pair is a fixed structure, not a habit:
 
 - **English is the source.** Identifiers, routes, config keys and commands are already English
   (`code-locale`), so the English document is the one where nothing has to be translated back. On
@@ -190,8 +196,9 @@ already covers, and anything beyond it is a judgement about meaning across two l
 catalog has twice measured what a gate over meaning costs: 7 of 10 findings wrong for heading nesting
 and 3 of 4 for justification prose, both of which is why those rules ship review-only.
 
-A project documenting in one language only writes that one tree and says so in the README index.
-The pair is never half-built: one mirror missing is a finding, not a stage.
+The pair is never half-built: one mirror missing is a finding, not a stage. A source tree with no
+mirror and no declaration is the same finding — the reader cannot tell "this project decided one
+language is enough" from "somebody stopped halfway".
 
 ## Organization is checkable too
 
