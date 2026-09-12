@@ -440,10 +440,27 @@ sections, same numbering, and the same fenced blocks byte for byte. Only the pro
 | Variável | Tipo | Padrão | Obrigatória | Descrição |   <!-- docs/pt-BR/SETUP.md -->
 ```
 
-The header row is translated; the variable names, defaults and code blocks under it are not. The
-same holds for `| Method | Path | Auth | Description |`, `| Resource | Value | Source |`,
-`| Command | What it does |` and `| Symptom | Cause | Fix |` — the checker knows both spellings of
-each, and knows which document owns it in either language.
+The header row is translated; the variable names, defaults and code blocks under it are not.
+
+Every owned shape has exactly one translated spelling, and the checker knows both. Use these, not a
+synonym — a header row it does not recognize is a table whose ownership nothing can check:
+
+```markdown
+| Variable | Type | Default | Required | Description |   <!-- SETUP.md -->
+| Variável | Tipo | Padrão | Obrigatória | Descrição |
+
+| Symptom | Cause | Fix |                                <!-- SETUP.md -->
+| Sintoma | Causa | Correção |
+
+| Method | Path | Auth | Description |                    <!-- API.md -->
+| Método | Rota | Auth | Descrição |
+
+| Resource | Value | Source |                             <!-- OPERATIONS.md -->
+| Recurso | Valor | Fonte |
+
+| Command | What it does |                                <!-- README.md -->
+| Comando | O que faz |
+```
 
 `docs/reports/`, `AGENTS.md` and `CHANGELOG.md` have no mirror.
 
