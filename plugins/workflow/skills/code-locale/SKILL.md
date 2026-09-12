@@ -14,7 +14,7 @@ description: >-
   naming (each stack's skill), or for i18n and user-facing translation.
 metadata:
   author: solvelab
-  version: 1.5.1
+  version: 1.6.0
   category: process
 license: MIT
 compatibility: >-
@@ -208,6 +208,14 @@ prose: pt-BR
 error (exit 2) that names the file and the accepted values — a typo must not open or close the gate
 in silence. Without the file the prose direction is **silent everywhere** — detector, session
 hooks, pre-commit hook, CI step — and `--explain` says so:
+
+> [!NOTE]
+> **A documented exception, and a known gap.** A repository that documents in two languages keeps an
+> English source tree and a mirror in its own language (`documentation`). The declaration above is
+> one language for the whole repository and has no per-path scope, so in such a repository the tree
+> in the language it does not declare reads as foreign to the prose detector. Until the declaration
+> learns a path scope, the exit is the detector's own: `--exclude` that tree, or leave the repository
+> undeclared. Never silence the gate for the whole repository to accommodate the mirror.
 
 ```bash
 python3 references/check-prose-locale.py --explain .          # what is declared, or why it is silent
