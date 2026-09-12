@@ -793,16 +793,26 @@ Use any of these phrases to trigger the documentation skill:
 - `Update the README`
 - `Create the project documentation`
 
-**The skill analyzes your project first and decides which documents to create.** It doesn't always create the same files — it creates what your project actually needs.
+**The skill analyzes your project first, then fills a fixed map.** Which slots it fills depends on
+the project; what each slot is called does not, so a reader who learned one repository can navigate
+the next one.
 
-| Project type | Documents typically created |
-|---|---|
-| Simple API | `README.md`, `docs/SETUP.md`, `docs/TECHNICAL.md`, `docs/API.md` |
-| Discord bot | `README.md`, `docs/SETUP.md`, `docs/TECHNICAL.md` |
-| ML pipeline | `README.md`, `docs/SETUP.md`, `docs/PIPELINE.md`, `docs/MODEL.md` |
-| CLI tool | `README.md`, `docs/SETUP.md`, `docs/CLI.md` |
-| Open source library | `README.md`, `docs/SETUP.md`, `docs/SDK.md`, `CONTRIBUTING.md`, `CHANGELOG.md` |
-| Microservices | `README.md`, `docs/SETUP.md`, `docs/TECHNICAL.md`, `docs/DEPLOYMENT.md`, `docs/EVENTS.md` |
+| Slot | Canonical name | Filled when |
+|---|---|---|
+| Entry | `README.md` (+ `README.pt-BR.md`) | always |
+| Requirements | `docs/en/REQUIREMENTS.md` | always |
+| Tutorial | `docs/en/SETUP.md` | setup over ~5 commands, or prerequisites |
+| Explanation | `docs/en/ARCHITECTURE.md` | architecture a reader cannot infer from the tree |
+| Decisions | `docs/en/adr/NNNN-<slug>.md` | from the first non-obvious decision |
+| API reference | `docs/en/API.md` | an API with no published spec |
+| Operation | `docs/en/OPERATIONS.md` | more than one environment, or a service someone operates |
+| Dated reports | `docs/reports/YYYY-MM-DD-<slug>.md` | any transient record |
+
+A slot the project does not earn produces **no file**: it is declared `not applicable: <reason>` in
+the README's documentation index, so the reader can tell a decision from an omission. Each kind of
+fact has one owning document — environment variables in the setup guide, endpoints in the API
+reference, resources in the operations document — and `references/check-doc-layout.py` audits a
+repository against all of it (measured: 64 findings over 10 real repositories, 63 confirmed).
 
 #### Testing the skill
 
