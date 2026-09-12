@@ -2,7 +2,7 @@
   "name": "ai-skills-docs",
   "displayName": "AI Skills — docs",
   "version": "3.4.0",
-  "description": "Three-tier project documentation generation (1 skill: documentation)",
+  "description": "Project documentation against a fixed document map (1 skill: documentation)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
   "license": "MIT"

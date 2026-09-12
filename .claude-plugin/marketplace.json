@@ -60,7 +60,7 @@
     {
       "name": "ai-skills-docs",
       "source": "./plugins/docs",
-      "description": "Three-tier project documentation generation (1 skill: documentation)",
+      "description": "Project documentation against a fixed document map (1 skill: documentation)",
       "category": "productivity"
     },
     {
