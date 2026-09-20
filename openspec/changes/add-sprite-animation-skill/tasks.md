@@ -167,8 +167,9 @@
 ## 5. Quality Gates (MANDATORY)
 
 - [x] Q.1 `python3 scripts/validate-skills.py` -> `skills checked: 40   findings: 0`
-- [ ] Q.2 `python3 scripts/validate-skill-version.py` verde (roda contra `origin/master`; só
-      reporta depois do commit)
+- [x] Q.2 `python3 scripts/validate-skill-version.py` ->
+      `0 findings (base origin/master, 3 skill(s) changed, 3 with content changes)` — as três são
+      `sprite-animation` (nova, 1.0.0), `svg-animation` (1.1.5) e `r3f-animation` (1.2.2)
 - [x] Q.3 `python3 scripts/validate-repo-hygiene.py` -> `repo hygiene: 0 findings`
 - [x] Q.4 `python3 scripts/scan-secrets.py` -> `scanned 1116 files … no credentials found`
 - [x] Q.5 Varredura regra a regra do `SKILL.md`: as quatro regras citam o defeito medido; a
@@ -182,7 +183,10 @@
 
 ## 6. Validation & Closure (MANDATORY)
 
-- [ ] V.1 `bash scripts/validate-rite.sh` verde
-- [ ] V.2 `openspec validate add-sprite-animation-skill --strict` verde
+- [x] V.1 `bash scripts/validate-rite.sh` -> `rite gate OK`, com
+      `spec-rite gate: 0 findings (base origin/master, 0 changed path(s), 1 active change(s))`
+- [x] V.2 `openspec validate add-sprite-animation-skill --strict` ->
+      `Change 'add-sprite-animation-skill' is valid`; `openspec validate --all --strict` ->
+      `Totals: 4 passed, 0 failed`
 - [ ] V.3 PR aberto com `Closes #254` e a tabela de evidências
 - [ ] V.4 Change deixada ativa; o arquivamento é passo do mantenedor depois do merge
