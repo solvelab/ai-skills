@@ -43,6 +43,7 @@ Each skill @-includes the canonical skill from `skills/<name>/SKILL.md` — no d
 | `r3f-postprocessing` | `codex/skills/r3f-postprocessing/AGENTS.md` |
 | `r3f-shaders` | `codex/skills/r3f-shaders/AGENTS.md` |
 | `react-api-client` | `codex/skills/react-api-client/AGENTS.md` |
+| `sprite-animation` | `codex/skills/sprite-animation/AGENTS.md` |
 | `svg-animation` | `codex/skills/svg-animation/AGENTS.md` |
 | `tdd` | `codex/skills/tdd/AGENTS.md` |
 | `terse-response` | `codex/skills/terse-response/AGENTS.md` |

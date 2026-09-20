@@ -5,10 +5,10 @@ description: >-
   react-spring physics, morph targets, skeletal animation, zustand-driven animation state, and
   tuned procedural walk/jump cycles. Use when animating objects or characters. useFrame basics
   live in r3f-fundamentals; drag gestures in r3f-interaction. Do NOT use for 2D, SVG or CSS
-  animation (that is `svg-animation`).
+  animation (that is `svg-animation`, or `sprite-animation` when the art is a sheet of frames).
 metadata:
   author: solvelab
-  version: 1.2.1
+  version: 1.2.2
   category: game
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.
