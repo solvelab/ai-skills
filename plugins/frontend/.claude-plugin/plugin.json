@@ -2,7 +2,7 @@
   "name": "ai-skills-frontend",
   "displayName": "AI Skills — frontend",
   "version": "3.5.0",
-  "description": "React SPA API-client conventions and physically-grounded SVG/CSS animation (2 skills: react-api-client, svg-animation)",
+  "description": "React SPA API-client conventions and physically-grounded SVG/CSS animation (3 skills: react-api-client, sprite-animation, svg-animation)",
   "author": { "name": "didevlab", "url": "https://github.com/solvelab" },
   "repository": "https://github.com/solvelab/ai-skills",
   "license": "MIT"

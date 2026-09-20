@@ -48,7 +48,7 @@ The CLI detects your installed agents (Claude Code, Codex, Cursor, Copilot, and 
 ### Option B — Claude Code plugin marketplace
 
 The marketplace ships **per-domain plugins** so a project enables only coherent sets — plus the
-full `ai-skills` bundle for whoever really wants all 39. What each plugin ships. The published
+full `ai-skills` bundle for whoever really wants all 40. What each plugin ships. The published
 description of each plugin is derived by `generate.sh` from `plugins/<group>/skills/` and checked
 against that tree by `scripts/validate-repo-hygiene.py` (H3); this table is **hand-maintained** and
 mirrors it — no gate compares it with the tree (H3's declared KNOWN LIMIT), so review it when a skill
@@ -61,7 +61,7 @@ changes category:
 | `ai-skills-testing` | `api-resilience-testing`, `bug-hunter`, `tdd` |
 | `ai-skills-fivem` | `fivem-fallback`, `fivem-lua` |
 | `ai-skills-nui` | `fivem-nui-react` |
-| `ai-skills-frontend` | `react-api-client`, `svg-animation` |
+| `ai-skills-frontend` | `react-api-client`, `sprite-animation`, `svg-animation` |
 | `ai-skills-game` | `r3f-animation`, `r3f-assets`, `r3f-fundamentals`, `r3f-geometry`, `r3f-interaction`, `r3f-lighting`, `r3f-materials`, `r3f-physics`, `r3f-postprocessing`, `r3f-shaders` |
 | `ai-skills-assettoserver` | `assettoserver-csp-lua`, `assettoserver-ops`, `assettoserver-plugin` |
 | `ai-skills-devops` | `helm-migration`, `k8s-tune-resources` |
@@ -110,7 +110,7 @@ one accept, zero manual steps):
 ```
 
 Pick the groups that match the project (a FiveM repo takes `ai-skills-fivem`, an R3F game takes
-`ai-skills-game`, ...) — dumping all 39 skills into every project is noise, not help.
+`ai-skills-game`, ...) — dumping all 40 skills into every project is noise, not help.
 
 **B3 — user-level (whole machine)** — same snippet in `~/.claude/settings.json` enables the plugin
 for every project on the machine.
@@ -692,6 +692,7 @@ Project v2 in the org/user. Full details live in the skills themselves:
 |-------|----------|--------------|
 | **fivem-nui-react** | NUI, CEF, SendNUIMessage/useNUIEvent, ui_page, tokens.css | FiveM/RedM NUI React conventions — Lua↔React bridge (multiplexed callback, uiReady handshake, invisible-by-default), Vite-for-CEF build, CEF rendering quirks, tokens design-system law, browser dev-mode |
 | **react-api-client** | React SPA calling a REST API, axios client, auth store, error codes | Typed-envelope client discipline — ErrorCodes + ApiException, zod parsers that throw on drift, tokens-only auth persistence with single-flight refresh, realtime polling facade, dedup nonce on paid mutations |
+| **sprite-animation** | a sprite sheet to cut into strips, poses that must share one scale, a figure that changes size or jumps between poses, a walk cycle whose feet slide, choosing a frame rate | Replay ready-made frame art — one sheet per direction, no scale proxy across views, one cell for every pose, and the computation binding frame rate to travel speed; the CSS technique that lands on frame boundaries and the copied one that does not |
 | **svg-animation** | "a toucan flying", "a tree in a light breeze", "waves", "rain", a walking figure — anything to be drawn or moved, with or without a technology named; an animation that reads as mechanical, dead or wrong | Classify the request into physical regimes, then draw — viewpoint gate, provenance on every quantity, regime schemas (articulated body, driven oscillator, dispersive waves, ballistic ensembles, growth structures, advected fields, discharges, orbits, point sets), measured SVG/CSS/Canvas costs |
 
 ### Process & git

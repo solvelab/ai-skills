@@ -12,7 +12,7 @@
     {
       "name": "ai-skills",
       "source": "./",
-      "description": "FULL bundle (all 39 skills). Prefer the per-domain plugins — enable only what fits the project.",
+      "description": "FULL bundle (all 40 skills). Prefer the per-domain plugins — enable only what fits the project.",
       "category": "productivity"
     },
     {
@@ -72,7 +72,7 @@
     {
       "name": "ai-skills-frontend",
       "source": "./plugins/frontend",
-      "description": "React SPA API-client conventions and physically-grounded SVG/CSS animation (2 skills: react-api-client, svg-animation)",
+      "description": "React SPA API-client conventions and physically-grounded SVG/CSS animation (3 skills: react-api-client, sprite-animation, svg-animation)",
       "category": "productivity"
     },
     {
