@@ -23,7 +23,10 @@ test before the code it covers, what makes such a test legitimate, and when the 
 → `tdd`; which artifact a cross-cutting rule becomes — skill, hook, CI script or agent — and when
 dispatching a subagent pays for itself, including model/effort tiering, least-privilege `tools` and
 the output contract → `agent-delegation`; the terse shape of a chat response — what is dropped,
-what never is, when the register yields and where it does not apply — → `terse-response`.
+what never is, when the register yields and where it does not apply — → `terse-response`;
+reproducing ready-made frame-sheet art — reading the sheet, normalising scale between pose
+groups, the single cell, the frame rate and the computation that keeps the feet from sliding
+— → `sprite-animation`.
 
 #### Scenario: Orchestrator skill references instead of restating
 
@@ -80,6 +83,13 @@ what never is, when the register yields and where it does not apply — → `ter
 - **WHEN** the maintainer's rules file carries an always-on terse block
 - **THEN** the block is a few lines that link to `terse-response`, and the doctrine — what is
   dropped, what never is, when the register yields — is stated only in that skill
+
+#### Scenario: Drawing an object and replaying a sheet are different homes
+
+- **WHEN** a request asks for a figure to move and the art already exists as numbered frames
+- **THEN** the frame-sheet rules are read from `sprite-animation`, and `svg-animation` is consulted
+  only for what it owns — understanding the object before drawing it, and choosing the technology
+  when there is no art yet — so neither skill restates the other
 
 ### Requirement: Uniform frontmatter metadata
 
