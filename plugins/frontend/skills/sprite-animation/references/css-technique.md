@@ -71,13 +71,11 @@ For `N = 8`, frame 1 lands at `−0.875 W` instead of `−1 W`: one eighth of a 
 with `k`. Nothing errors. Nothing fails. Part of the neighbouring frame is on screen the whole
 time.
 
-## The frame rate divides 60
+## The frame rate
 
-Browsers composite at 60 Hz. A rate that does not divide 60 gives one frame two compositor
-updates and the next three. Use 10, 15, 20 or 30. The conventional rate for an 8-frame walk cycle
-is 10 fps (<https://novasprite.tech/blog/how-many-frames-sprite-animation>,
-<https://www.spritesheets.ai/blog/how-to-create-a-walk-cycle-spritesheet>); the rate that matches
-a given travel speed comes from the computation in the skill body, and the two have to agree.
+Restricted to divisors of 60, and derived from the travel speed rather than chosen. Both rules,
+with their reasons and sources, are in this skill's `SKILL.md`; they are not repeated here so the
+two cannot drift apart.
 
 ## A static pose is the same strip, paused
 
@@ -102,9 +100,18 @@ shows frame 0 — so frame 0 should be a pose that is legible on its own.
 }
 ```
 
-Verify this path deliberately: headless Chromium reports `reduce` by default, so a measurement
-taken without `emulateMedia({ reducedMotion: 'no-preference' })` is measuring the reduced path
-while appearing to measure the normal one.
+Verify both branches deliberately, and know what passing looks like in each:
+
+| Branch | What passes |
+|---|---|
+| `emulateMedia({ reducedMotion: 'no-preference' })` | sampling `background-position-x` over a cycle returns several **distinct** values, every one an integer multiple of the frame width |
+| `emulateMedia({ reducedMotion: 'reduce' })` | `background-position-x` stays at `0px` across every sample, and the pose on screen is frame 0 |
+
+The trap this catches: headless Chromium reports `reduce` by default, so a measurement taken
+without setting the media explicitly is measuring the reduced path while appearing to measure the
+normal one — and the normal path's check above would return a single repeated value, which is
+exactly what the reduced branch is supposed to return. Without the two rows, one observation
+satisfies both.
 
 ## Smooth art is not pixel art
 
@@ -112,14 +119,18 @@ while appearing to measure the normal one.
 serrates when scaled down. Set it **per element**, not globally, when a scene mixes both — a
 character in one style over furniture in another is a normal state during an art migration.
 
-## The ceiling
+## The ceiling, and why this document does not give you a number
 
-DOM/CSS carries this cheaply while the scene has tens of animated figures: each is one element
-whose animation runs on the compositor. Past that, the cost is layout and paint of the elements
-themselves, not the animation, and a canvas with one draw call per frame takes over. Declare the
-ceiling where the code lives rather than discovering it (the marker is the `lean-code`
-skill's):
+Each animated figure is one element whose animation runs on the compositor, so the cost that
+grows with the count is the layout and paint of the elements, not the animation. There is
+therefore a figure count past which a canvas with one draw call per frame is cheaper.
+
+**That crossover was not measured.** The scene these rules come from animates one figure at a
+time, so no count here would be anything but a guess wearing a number. Measure it on your own
+scene — frame time against figure count, at the device pixel ratio you ship — and only then write
+the ceiling down, with the conditions it was taken under. The marker for writing it down belongs
+to the `lean-code` skill:
 
 ```
-lean: DOM/CSS up to ~60 simultaneous figures -> move to canvas past that
+lean: DOM/CSS up to <N> simultaneous figures on <conditions> -> move to canvas past that
 ```

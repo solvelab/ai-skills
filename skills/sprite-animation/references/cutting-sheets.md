@@ -10,7 +10,20 @@ arm overlaps the neighbour, and rows are packed tight. Splitting on empty rows a
 exactly where it matters: on the measured sheet, `grep`-style gutter detection found **two blobs
 for eight figures**, because the walkers touched.
 
-Label the alpha channel into connected components and keep the large ones:
+Label the alpha channel into connected components and keep the large ones.
+
+**The four thresholds below scale with the sheet, so derive them, do not copy them.** The values
+in the code are the ones used on the measured sheet — 2172×724 px, figures about 430 px tall,
+exported from a vector tool with clean alpha:
+
+| Threshold | What it is | How to derive it |
+|---|---|---|
+| `alpha > 16` | what counts as opaque | an assumption about the export: clean alpha needs only to exclude near-zero. A sheet with a soft outer glow or a JPEG round-trip needs a higher cut, found by looking at the alpha histogram |
+| `area > 3000` | the smallest blob that is a figure | a fraction of the expected figure area. Here the figures are ~430 px tall and 3000 px is under 2% of one — enough to drop motion marks and stray dots. Scale it with the square of the figure height, not with the sheet |
+| `0.45` (head band) | how much of the frame is head | a property of the character's proportion, not of the sheet: here the hair reaches about 45% down. Measure it once on one frame |
+| `+ 2` (cell padding) | slack so nothing touches the cell edge | two pixels at this resolution; one pixel per side is the minimum that survives rounding when the strip is scaled |
+
+A reader who keeps `area > 3000` on a sheet four times larger silently keeps the motion marks.
 
 ```python
 from collections import deque
@@ -88,13 +101,18 @@ Then paste each frame at `n * cell_width + round(left - centre)` and
 
 Run these before the strip reaches the scene. Each one corresponds to a defect that shipped.
 
-| Check | Catches |
-|---|---|
-| Frame count equals what the artist says the sheet holds | A group merged into its neighbour |
-| Every frame in a group has the same baseline, within a pixel | Frames from two different groups mixed |
-| Figure heights match across the sheets that will be mixed | Groups drawn at different zooms |
-| The contact sheet was rendered and looked at | Direction, reaction frames, wrong group |
-| The declared frame count matches the strip's width ÷ cell width | Half a figure on screen, silently |
+| Check | What passes | Catches |
+|---|---|---|
+| Frame count | Equals what the artist says the sheet holds | A group merged into its neighbour |
+| Baseline inside a group | Every frame's lowest opaque row within **1 px** of the group's median | Frames from two different groups mixed |
+| Figure height across sheets | Every sheet's median figure height within **2%** of the others | Groups drawn at different zooms |
+| Contact sheet | Every index present and consecutive, and every figure in a group facing the direction its file name claims | Direction, reaction frames, wrong group |
+| Strip width | `strip width ÷ cell width` equals the frame count the code declares, exactly | Half a figure on screen, silently |
+
+The 2% on figure height is the tolerance that separates a pose difference from a zoom difference:
+on the measured sheets the walking group spanned 426–433 px (1.6%) inside one zoom, while the
+groups drawn at different zooms differed by 26% and 60%. Anything past a few percent is a scale
+difference, not a stride.
 
 On the measured sheets the baseline check was decisive: the walk group had all eight frames at
 `200 px` tall with feet at `y = 395`, and the seated group all five at `288–292 px` with feet at

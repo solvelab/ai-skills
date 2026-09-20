@@ -9,10 +9,16 @@ Reference files (`references/…` below) live at https://github.com/solvelab/ai-
 
 # sprite-animation — the sheet is data, not a drawing
 
-> **Not version-bound**: this skill does not depend on a tool version. Its CSS rules are
-> specification-level — how `background-position` resolves a percentage and how `steps()` divides
-> an animation — and its geometry rules are properties of the art, not of any renderer. The pixel
-> numbers quoted as evidence come from one measured scene
+> **Not version-bound, with three named exceptions.**
+> This skill does not depend on a tool version: the CSS rules are specification-level (how
+> `background-position` resolves a percentage, how `steps()` divides an animation) and the
+> geometry rules are properties of the art, not of any renderer. Three surfaces
+> in `references/` are **not** version-free and are not covered by that claim: the Pillow/NumPy
+> cutting recipe, the `playwright-core` call `emulateMedia({ reducedMotion: 'no-preference' })`,
+> and the assertion that headless Chromium reports `reduce` by default. The last was observed on
+> the Chromium of the Playwright cache on 2026-09-19 and again on 2026-09-20; the first two were
+> exercised on those same runs and their exact versions were **not** recorded, so treat them as
+> probed-once, unpinned. The pixel numbers quoted as evidence come from one measured scene
 > ([`solvelab/my-company`](https://github.com/solvelab/my-company), 2026-09-20, Chromium driven
 > over CDP by `playwright-core`, device pixel ratio 2 and 4) and are shown to support the rules,
 > never to be copied: stride, travel distance and figure height differ per project, which is why
@@ -30,7 +36,7 @@ each now a rule:
 | Defect | What it looked like | Rule |
 |---|---|---|
 | Direction inferred from the drawing | The figure crossed the room with its back to the viewer | [One sheet per direction](#one-sheet-per-direction) |
-| Scale matched by a single feature | Hair width said 1.60, face width said something else, both wrong | [No proxy across views](#scale-is-not-measured-by-proxy) |
+| Scale matched by a single feature | Hair width said 1.60, which implies a seated figure as tall as a standing one | [No proxy across views](#scale-is-not-measured-by-proxy) |
 | One cell per pose | The figure changed size when it sat down | [One cell for every pose](#one-cell-for-every-pose) |
 | Duration chosen instead of rate | Feet slid 2.64× — the body crossed 3.39 figure heights while the legs walked 1.28 | [Bind the rate to the travel](#the-rate-and-the-travel-are-one-number) |
 
@@ -58,8 +64,14 @@ the figure change size between poses.
 
 **There is no single feature that measures scale across different viewing angles.** Hair width,
 face width, head width, shoulder width — each changes with the angle, so a profile measured
-against a front view produces a number that is precise and meaningless. Measured: the same two
-groups gave 1.60 by hair and a different factor by face, and neither survived being looked at.
+against a front view produces a number that is precise and meaningless.
+
+What caught it was not a better measurement, it was a falsification. Hair width put the seated
+group at **1.60** of the walking group; dividing the seated figures by 1.60 left them 182 px tall
+against 184 px for the standing pose — a seated person the same height as a standing one, which
+cannot be. A second attempt by face width was abandoned before producing a number: the skin mask
+that worked on one group found nothing on the other, which is the same defect wearing a different
+hat.
 
 What works: render the same figure from each group **side by side at candidate scales, aligned at
 the feet**, and choose by eye. One comparison image settles it. This is the one place in this
@@ -92,8 +104,14 @@ speed             = advance × fps ÷ frames_per_cycle
 duration          = distance ÷ speed
 ```
 
-- `stride` — horizontal distance between the two feet at maximum extension, divided by the figure
-  height. Measure it on the art, from the alpha channel; do not estimate it.
+- `stride` — **foot-centre to foot-centre** at maximum extension, divided by the figure height,
+  taken as the maximum over the frames of the cycle and read from the alpha channel. Group the
+  opaque columns in the bottom tenth of the frame into two clusters and take the distance between
+  their centres.
+
+  The plausible wrong one is the bounding-box extremes — leading toe to trailing heel — which
+  includes one whole shoe. On the measured art it gave **230 px** against the correct **148 px**:
+  55% too large, which makes the derived duration 55% too long and the feet slide the other way.
 - `2 ×` — one full cycle is two steps. Count the passing poses on the sheet to confirm: a cycle
   with two passing positions is two steps.
 - `distance` — how far the figure travels, in figure heights, measured on the rendered scene, not
@@ -112,6 +130,13 @@ duration  = 3.39 ÷ 1.283                   = 2.64 s
 Before the fix: an 0.8 s cycle over a 1.5 s crossing ran 1.88 cycles — the legs walked 1.28
 heights while the body moved 3.39. **Slide factor 2.64.**
 
+That example runs at 1.283 heights per second, well above the 0.85 the same art gives at the
+conventional 10 fps, and the scene's author chose it deliberately: at 10 fps the figure needs
+3.97 s to cross that room, which is slow for something on screen all day. The rule the example
+obeys is the one this section is about — rate and travel agree, so nothing slides — and the
+speed within that is a pace decision. What the example must not do is disagree with itself, and
+it does not.
+
 Publish the formula next to the constants in the code, and put the whole computation in a test.
 The test is cheap and it is the only thing that fails when someone later changes one side:
 
@@ -126,8 +151,9 @@ expect(WALK_MS).toBeCloseTo((CROSSING / heightsPerSecond) * 1000, -2);
 Browsers composite at 60 Hz. A rate that does not divide 60 makes one frame last two compositor
 updates and the next last three, and the judder is visible. Use **10, 15, 20 or 30**.
 
-Sanity check on the result, not a rule: a real person walks about 0.8 figure heights per second
-(1.4 m/s at 1.75 m). The measured art at 10 fps gives 0.855 — so an 8-frame cycle at the
+Sanity check on the result, and a rule of thumb with no source behind it: a person walking at a
+comfortable pace covers roughly 0.8 figure heights per second. It is here to catch an order of
+magnitude, not to be derived from. The measured art at 10 fps gives 0.855 — so an 8-frame cycle at the
 conventional 10 fps lands on a realistic walking speed. A speed far above that is a run being
 played with a walk cycle, and it will read as one.
 
@@ -140,13 +166,9 @@ fixed version with the ceiling and the trigger that retires it (`lean-code`).
 
 ## Where this skill ends
 
-| Request | Skill |
-|---|---|
-| The art exists as numbered frames; replay it | **this one** |
-| No art yet; understand the object, then draw and animate it | the `svg-animation` skill, `skills/svg-animation/SKILL.md` |
-| 3D | the `r3f-animation` skill, `skills/r3f-animation/SKILL.md` |
-| Claiming a number without measuring it | the `verify-before-claiming` skill |
-| The `lean:` ceiling marker used above | the `lean-code` skill |
+The routing away from this skill is in its description, not repeated here. What the body carries
+is the two canonical homes it borrows from: **`verify-before-claiming`** for claiming a number
+without measuring it, and **`lean-code`** for the `lean:` ceiling marker used above.
 
 All four defects in this skill are instances of one thing: acting on a belief that was never
 measured. `verify-before-claiming` is the general rule; this skill is what it looks like when the

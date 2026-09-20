@@ -112,11 +112,36 @@
       `Generated 11 category plugins`. Sem mudança no `generate.sh`: a categoria `frontend` já
       tem tema, e o guard de `GROUP_THEME` passou.
 - [x] 3.4 Espelho gerado por `generate.sh`, junto com `codex/`, `cursor/` e `copilot/`
-- [x] 3.5 Fronteira nos dois. Em `r3f-animation` coube na `description` (457 de 1024). Em
-      `svg-animation` **não coube**: a `description` estava em 997 de 1024, e a menção mais curta
-      a esta skill a levou a 1066 — C10 pegou. A fronteira foi para o corpo, antes de
-      *CRITICAL: the three gates*. Versões: `svg-animation` 1.1.4 -> 1.1.5,
-      `r3f-animation` 1.2.1 -> 1.2.2.
+- [x] 3.5 Fronteira nos dois, **na `description`**, que é o que decide roteamento.
+
+      Em `r3f-animation` coube direto (457 de 1024). Em `svg-animation` a `description` estava em
+      997 de 1024 e a menção a levou a 1066 — C10 pegou. A primeira tentativa foi pôr a fronteira
+      no corpo, e isso estava errado: o modelo escolhe a skill lendo a `description`, e a dela
+      ainda reivindicava o gatilho `"a walking figure"` sem desambiguador. O procedimento do
+      requisito *Triggers live in the description, not the body* foi seguido: conteúdo que não
+      roteia saiu primeiro.
+
+      **Saiu da `description` e desceu para o corpo** (parágrafo novo depois de *So the axis of
+      specialisation here is the regime*): a enumeração dos dez regimes e a frase
+      *"Carries measured costs for SVG/CSS/Canvas and the traps that break silently"*. As duas
+      descrevem cobertura, não roteiam.
+
+      **Entrou na `description`**: *"NOT for art that already exists as numbered frames: a sprite
+      sheet to cut, replay or time goes to `sprite-animation`."*
+
+      Frases-gatilho citadas, antes e depois — nenhuma perdida:
+
+      | Frase | Antes | Depois |
+      |---|---|---|
+      | `"a toucan flying"` | presente | presente |
+      | `"a tree in a light breeze"` | presente | presente |
+      | `"a car driving"` | presente | presente |
+      | `"waves"` | presente | presente |
+      | `"rain"` | presente | presente |
+      | `"a walking figure"` | presente, **sem desambiguador** | presente, com o anti-gatilho ao lado |
+
+      Tamanho: 997 -> **844** de 1024. Versões: `svg-animation` 1.1.4 -> **1.2.0** (a
+      `description` mudou de semântica, não é correção), `r3f-animation` 1.2.1 -> 1.2.2.
 
 ## 4. Simulation & Field Proof (MANDATORY)
 
@@ -180,6 +205,41 @@
 - [x] Q.6 A tabela *Where this skill ends* nomeia quatro skills irmãs em uma linha cada, sem
       reproduzir mecanismo nenhum. C12 verde depois de trocar os links relativos pela forma
       `skills/<skill>/SKILL.md` com o nome em prosa.
+
+## 5b. Auditoria da skill (advisory, `ai-skills-tooling:skill-auditor`)
+
+- [x] A.1 A skill foi auditada contra `openspec/specs/skills-authoring` no que os checks
+      mecânicos não sabem checar. **12 achados, 12 corrigidos.** O auditor também registrou o que
+      checou e não achou defeito: doutrina de irmã reproduzida inline (limpo nos dois sentidos),
+      referências cruzadas apontando para a skill errada (limpo), a aritmética do deslize e a
+      série de `background-position-x` (re-derivadas e conferidas), e `description` prometendo o
+      que o corpo não entrega (limpo).
+
+      Os quatro que mais mudaram a skill:
+
+      1. A fronteira estava no corpo do `svg-animation` em vez da `description` — ver 3.5.
+      2. O teto de `~60 bonecos` era constante sem medição nenhuma. **Removido**: ficou o
+         mecanismo e a instrução de medir na própria cena, porque a cena medida anima um boneco
+         por vez e qualquer número ali seria chute com cara de medida.
+      3. O exemplo do corpo roda a 1,283 altura/s e a subseção seguinte chama 0,85 de realista,
+         sem a skill dizer por quê. Agora diz: é decisão de ritmo do autor da cena, e o que o
+         exemplo não pode é discordar de si mesmo.
+      4. A passada estava definida como "distância entre os dois pés", que é ambíguo. Agora é
+         **centro a centro**, com a errada plausível nomeada (extremos da caixa, de ponta a
+         calcanhar) e o erro medido: 230 px contra 148, **55% a mais**.
+
+      Um achado foi corrigido removendo, não acrescentando: *"largura de rosto deu outro número"*
+      era afirmação sem número. A tentativa de medir o rosto nos dois grupos falhou — a máscara
+      de pele que funciona num grupo não acha nada no outro — então em vez de publicar número
+      frágil, a regra passou a se apoiar na **falsificação**, que é sólida: o fator 1,60 do
+      cabelo implica figura sentada tão alta quanto de pé, o que não pode.
+
+- [x] A.2 **Nenhum validador cobre as verificações prescritas por esta skill.** As checagens de
+      `references/cutting-sheets.md` (tabela de cinco linhas) e a de movimento reduzido em
+      `references/css-technique.md` são instruções para quem adota, não regras do catálogo:
+      nenhum script em `scripts/` as lê. Ficam com valor de passagem escrito ao lado de cada uma,
+      que é o que o requisito *A prescribed verification states what passes* exige quando não há
+      gate. Registrado aqui porque a ausência de validador não pode ficar silenciosa.
 
 ## 6. Validation & Closure (MANDATORY)
 
