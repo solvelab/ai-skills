@@ -188,5 +188,8 @@
 - [x] V.2 `openspec validate add-sprite-animation-skill --strict` ->
       `Change 'add-sprite-animation-skill' is valid`; `openspec validate --all --strict` ->
       `Totals: 4 passed, 0 failed`
-- [ ] V.3 PR aberto com `Closes #254` e a tabela de evidências
-- [ ] V.4 Change deixada ativa; o arquivamento é passo do mantenedor depois do merge
+- [x] V.3 PR aberto: <https://github.com/solvelab/ai-skills/pull/255>, com `Closes #254` e a
+      tabela de gates
+- [x] V.4 Change deixada ativa. O arquivamento é passo do mantenedor depois do merge, e é ele
+      que aplica o delta do mapa canônico na spec viva — foi assim que
+      `archive/2026-09-10-add-terse-response-skill` pôs `terse-response` no mapa.
