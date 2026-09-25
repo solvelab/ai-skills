@@ -12,7 +12,7 @@ description: >-
   documentation tasks.
 metadata:
   author: solvelab
-  version: 4.0.0
+  version: 4.1.0
   category: docs
 license: MIT
 compatibility: Works in Claude Code, Claude.ai, and any environment with filesystem access.

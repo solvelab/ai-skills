@@ -414,6 +414,11 @@ only in a full checkout, every description carrying a boundary clause — SHALL 
 the script enforces, each with its own injected defect in the self-test and its uncovered part
 declared in the check.
 
+A detector a skill ships under its own `references/` for consumers to run SHALL be held to the same
+rules as the catalog's validators: its self-test SHALL run in CI. A defect found in the field that
+such a detector did not report SHALL enter its self-test as an injected case before the fix is made,
+so the self-test fails first and a later regression of the fix is caught by it.
+
 #### Scenario: A violation fails the build
 
 - **WHEN** a change introduces a broken reference, an unparseable code block, a mistagged fence, a
@@ -462,6 +467,18 @@ declared in the check.
   anti-trigger-clause (C13) checks respectively, each check states in its own text the exact phrase
   list or path forms it judges and what it leaves to review, and a validator silent on any of the
   three fails the self-test
+
+#### Scenario: A detector shipped inside a skill is gated in CI
+
+- **WHEN** a skill ships a detector with `--selftest` under `references/`
+- **THEN** the CI validate job runs that self-test, and a self-test that no job runs counts as a
+  missing gate rather than as coverage
+
+#### Scenario: A field miss becomes an injected case
+
+- **WHEN** a consumer repository finds a defect a shipped detector should have reported and did not
+- **THEN** the defect enters the detector's self-test as an injected case that fails before the fix
+  and passes after it, and the rule text states any limit the fix leaves in place
 
 ### Requirement: Checklists are scored against field defects
 

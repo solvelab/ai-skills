@@ -66,6 +66,7 @@ ANATOMY_FIELDS = ("Tipo", "Padrão", "Faixa", "Recarrega")
 FENCE = re.compile(r"^\s*(?:```|~~~)")
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 TABLE_ROW = re.compile(r"^\s*\|(.+)\|\s*$")
+ESCAPED_PIPE_SPLIT = re.compile(r"(?<!\\)\|")
 TABLE_DIVIDER = re.compile(r"^\s*\|[\s:|-]+\|\s*$")
 OPTION_NAME = re.compile(r"^`([A-Z][A-Z0-9_]*)`$")
 LINK_TARGET = re.compile(r"\]\(#([^)]+)\)")
@@ -165,7 +166,9 @@ def tables(lines: list[str]) -> list[tuple[int, list[tuple[int, list[str]]]]]:
             if not current:
                 start = i
             if not TABLE_DIVIDER.match(line):
-                current.append((i, [c.strip() for c in m.group(1).split("|")]))
+                # `\|` is text inside the cell — GitHub renders `p \| q` as one cell. Splitting on
+                # it measured a 141-character cell as two short halves (#257).
+                current.append((i, [c.strip() for c in ESCAPED_PIPE_SPLIT.split(m.group(1))]))
             continue
         if current:
             found.append((start, current))
@@ -179,12 +182,19 @@ def tables(lines: list[str]) -> list[tuple[int, list[tuple[int, list[str]]]]]:
 
 
 def check_index(path: str, lines: list[str]) -> list[Finding]:
-    """R1 — a long document carries an index, and the index covers every `##`."""
+    """R1 — a long document carries an index, and the index covers every `##`.
+
+    A document with no `##` is navigated through its `###`, and the index owes those instead: a
+    350-line catalog made only of `###` passed here in silence (`docs/SIGNALS.md` of
+    `solvelab/ferdinand`, #257).
+    """
     if len(lines) <= INDEX_REQUIRED_ABOVE_LINES:
         return []
 
     hs = headings(lines)
-    sections = [text for _, level, text in hs if level == 2]
+    index_names = {fold(h) for h in INDEX_HEADINGS}
+    level_of_sections = 2 if any(lv == 2 and fold(t) not in index_names for _, lv, t in hs) else 3
+    sections = [text for _, level, text in hs if level == level_of_sections]
     if not sections:
         return []
 
@@ -199,10 +209,15 @@ def check_index(path: str, lines: list[str]) -> list[Finding]:
             Finding(path, 0, "R1", "%d lines and no index; a reader has no way in" % len(lines))
         ]
 
-    linked = {t.lower() for line in lines for t in LINK_TARGET.findall(line)}
+    # Only the index block counts: from the index heading to the next heading of any level. A link
+    # to the section from the body does not put it in the index, and counting the whole document
+    # accepted an index missing a section the body happened to cite (#257).
+    index_end = next((n for n, _, _ in hs if n > index_start), len(lines) + 1)
+    linked = {
+        t.lower() for line in lines[index_start:index_end - 1] for t in LINK_TARGET.findall(line)
+    }
     # The index heading is not a section the index owes a link to. Folded, or `Índice` is reported
     # as missing from its own list — measured on `docs/SETUP.md` of `solvelab/ferdinand@66346d4`.
-    index_names = {fold(h) for h in INDEX_HEADINGS}
     missing = [
         s for s in sections if anchor_of(s) not in linked and fold(s) not in index_names
     ]
@@ -380,11 +395,20 @@ def scan(path: Path, rules: list[str]) -> list[Finding]:
 
 # ── Self-test ─────────────────────────────────────────────────────────────────
 
-#: One injected defect per implemented check. A check that stops firing fails here, which is the
-#: only gate over this script: `scripts/validate-skills.py` never opens a `.py` under references/.
+#: One injected defect per implemented check, plus one per field miss. A check that stops firing
+#: fails here. `scripts/validate-skills.py` never opens a `.py` under references/, so the CI step that
+#: runs `--selftest` is the only gate over this script (#257).
 SELFTEST_CASES = {
     "R1": "# T\n\n## A\n\n" + "x\n" * 120,
+    # Field misses from `solvelab/ferdinand#583`, each injected before its fix (#257).
+    # A catalog made only of `###` owes its index too (`docs/SIGNALS.md`, 350 lines).
+    "R1-h3-only": "# T\n\n### A\n\n### B\n\n" + "x\n" * 120,
+    # A section cited in the body is not indexed: only the index block counts.
+    "R1-body-link": "# T\n\n## Index\n\n- [A](#a)\n\n## A\n\nsee [B](#b)\n\n## B\n\n"
+    + "x\n" * 120,
     "R2": "# T\n\n| a | b |\n|---|---|\n| `X` | %s |\n" % ("y" * 130),
+    # `\|` is text inside the cell; GitHub renders it as one cell (`docs/DEPLOYMENT.md:112`).
+    "R2-escaped-pipe": "# T\n\n| a | b |\n|---|---|\n| `X` | %s \\| %s |\n" % ("y" * 70, "z" * 70),
     "R3": "# T\n\n| v | d |\n|---|---|\n"
     + "".join("| `VAR_%02d` | d |\n" % i for i in range(30)),
     # the per-document arm: many small tables, none over the per-table threshold
