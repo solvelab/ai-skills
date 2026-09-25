@@ -183,4 +183,9 @@
 
       Nothing to update: composition and install forms are unchanged. The rule text changed in the
       same commit as the detector (`information-architecture.md`).
-- [ ] V.4 `openspec archive <id> --yes` after all groups above are `[x]`
+- [x] V.4 `openspec archive <id> --yes` after all groups above are `[x]`
+
+      `openspec archive update-doc-structure-checker-blind-spots --yes` ->
+      `skills-authoring: update` / `~ 1 modified` / `Totals: + 0, ~ 1, - 0, → 0` /
+      `Change 'update-doc-structure-checker-blind-spots' archived as
+      '2026-09-25-update-doc-structure-checker-blind-spots'`
