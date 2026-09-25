@@ -90,6 +90,15 @@ Two detector defects were found by that hand pass and fixed: an index heading wr
 was read as absent because the match was not accent-folded, and the index heading was reported as
 missing a link to itself.
 
+**The index is the block, not the document.** Only links between the index heading and the next
+heading count. A section the body links to is still missing from the index, and that is where the
+reader looks for it. **A document with no `##` owes its index every `###`.** A catalog written only
+in `###` is navigated through them. Both were field misses on `solvelab/ferdinand` (#257): a
+350-line `###` catalog passed with no index, and an index missing a section passed because the body
+cited it. Measured after the fix on `solvelab/ferdinand@eea8b20` with the spike exclusion: 0
+findings before and after. On this catalog's own `skills/`, the fallback adds 5 findings, all
+`references/` pages of 105 to 218 lines made only of `###`, and all 5 hand-confirmed.
+
 ## R2 — a table cell stops at 120 characters
 
 No cell in a pipe table carries more than **120 characters**.
@@ -114,6 +123,10 @@ reader needed most — the accepted range, the consequence — ends up at the fa
 **Verdict: with validator.** Measured 15 findings, 15 confirmed, 0 false positives. The count was
 reproduced independently by an `awk` pass over the same file, which is why this rule shipped with a
 gate rather than a report.
+
+**An escaped pipe is text.** GitHub renders `p \| q` inside a cell as one cell, so the detector
+does not split there. Splitting measured a 141-character cell on `solvelab/ferdinand` as two short
+halves (#257).
 
 ## R3 — a catalog past 25 options is navigated, not scanned
 
