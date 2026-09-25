@@ -41,10 +41,22 @@
       - `python3 check-doc-structure.py r1b.md` (`## B` linked only from the body) -> `findings: 0 in 1 file(s)`
       - `grep -n check-doc-structure .github/workflows/ci.yml` -> no output
       - `gh api -X POST markdown -f mode=gfm` over `| x | p \| q |` -> `<td>p | q</td>`, one cell
-- [ ] E.3 Anything that could NOT be probed is written down as an open question (design.md, or here
+- [x] E.3 Anything that could NOT be probed is written down as an open question (design.md, or here
       when there is no design.md) — never stated as fact, never filled with a plausible substitute
-- [ ] E.4 Scope check: this change does only what the proposal asked. Adjacent improvements noticed
+
+      None left open. The one open point at writing time, how GitHub renders `\|` inside a cell, was
+      probed (E.2) and closed. The `plugin validate` step of CI
+      (`npx @anthropic-ai/claude-code@2.1.246 plugin validate . --strict`) was not run locally; it
+      runs in the pull request, and its result is read there, not assumed.
+- [x] E.4 Scope check: this change does only what the proposal asked. Adjacent improvements noticed
       along the way are listed here as follow-ups, not performed
+
+      Noticed and NOT performed:
+      - The catalog's own `skills/` tree carries 247 R1/R2 findings under this detector (242 before
+        the change). The detector is not run over `skills/` in CI and this change does not start
+        that: bringing 148 files under the rules is its own item.
+      - The five new findings are `references/` pages of `r3f-assets` and `r3f-postprocessing`,
+        made only of `###`: a follow-up for those skills, not for the detector.
 
 ## 2. The detector
 
@@ -69,7 +81,10 @@
 - [x] 3.2 `.github/workflows/ci.yml` runs `check-doc-structure.py --selftest`
 - [x] 3.3 `metadata.version` of `documentation` bumped: `4.0.0` -> `4.1.0`, minor because R1 now
       reproves a shape it accepted
-- [ ] 3.4 `bash generate.sh` run after the commit, `git diff --exit-code` clean on the wrappers
+- [x] 3.4 `bash generate.sh` run after the commit, `git diff --exit-code` clean on the wrappers
+
+      `bash generate.sh` after the fix commit -> 4 wrapper files changed under `claude/` and
+      `plugins/docs/`, committed; `bash generate.sh` again -> `git diff --exit-code` exit 0
 
 ## 4. Simulation & Field Proof (MANDATORY)
 
@@ -91,38 +106,81 @@
        S.3  names what escaped or misbehaved, or states explicitly that nothing did
      The gate cannot tell a real observation from an invented one — that is still the reviewer's job. -->
 
-- [ ] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
+- [x] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
       observed output are recorded (or: this change touches no runtime artifact)
-- [ ] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
+
+      The consumer's path: a clone of the repository, the script run on its tree.
+      - `python3 check-doc-structure.py --exclude 'docs/spikes/*' --exclude 'openspec/*' --exclude
+        'CHANGELOG.md' --exclude 'spike/*' --exclude 'test/*' .` on `solvelab/ferdinand@eea8b20` ->
+        `10 [R6]` and nothing else, with the old script and with the new one
+      - `python3 check-doc-structure.py skills/documentation` -> `findings: 0 in 4 file(s)`
+      - `python3 check-doc-structure.py r1.md` (only `###`, 120+ lines) ->
+        `[R1] 126 lines and no index; a reader has no way in`
+- [x] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
       silent and did, known escapes that stayed silent
-- [ ] S.3 What escaped or behaved differently than expected is named here — or it is stated
+
+      - Had to fire and did: 10/10 injected cases (`--selftest`), of which 3/3 are the field misses.
+      - Had to stay silent and did: 1/1 clean selftest document; ferdinand at `eea8b20`: 0/0 R1 and
+        R2 before and after; `skills/documentation`: 0/0.
+      - Delta over the whole `skills/` tree, old script against new: 5/5 new R1 findings
+        hand-confirmed (pages of 105 to 218 lines, only `###`, no index); 1/1 R2 cell remeasured
+        from 222 to 264 characters (`verify-before-claiming/references/failure-catalog.md:22`,
+        which carries a `\|`); 0 findings from the index-block rule.
+- [x] S.3 What escaped or behaved differently than expected is named here — or it is stated
       explicitly that nothing did
+
+      The index-block rule found nothing new anywhere it ran. It is proven by its injected case only;
+      no real document in either sample had an index missing a section the body cites. Nothing else
+      behaved differently than expected.
 
 ## 5. Quality Gates (MANDATORY)
 
 <!-- Adversarial review of the skills touched — not happy-path. Every skill added or edited
      by this change gets checked against the skills-authoring spec. Keep this group second-to-last. -->
 
-- [ ] Q.1 Frontmatter uniform on every touched SKILL.md: name == directory, folded description,
+- [x] Q.1 Frontmatter uniform on every touched SKILL.md: name == directory, folded description,
       metadata.author solvelab, semver metadata.version, category in the controlled set, license MIT,
       compatibility present
-- [ ] Q.2 All touched skill content in English (catalog locale)
-- [ ] Q.3 Description triggers testable: phrases a user would actually say route to this skill and
+
+      Only `metadata.version` moved in `skills/documentation/SKILL.md`;
+      `python3 scripts/validate-skills.py` -> `skills checked: 40   findings: 0`
+- [x] Q.2 All touched skill content in English (catalog locale)
+
+      The two paragraphs added to `information-architecture.md` and the comments in the script are English.
+- [x] Q.3 Description triggers testable: phrases a user would actually say route to this skill and
       do NOT collide with a sibling skill's triggers; "Do NOT use for" boundary present where overlap exists
-- [ ] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
+
+      Description untouched by this change.
+- [x] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
       its canonical skill (see design.md Canonical Home table)
-- [ ] Q.5 Every code example in a touched skill uses English identifiers, routes, keys and event
+
+      The selftest-in-CI obligation is stated once, in `skills-authoring`; the CI step comment points
+      at the item, not at a restated rule.
+- [x] Q.5 Every code example in a touched skill uses English identifiers, routes, keys and event
       names; a term kept in another language carries its reason inline (`code-locale`).
       Provenance: maintainer field report 2026-08-14 (issue #76) — Portuguese identifiers and route
       paths shipped in target repos through this rite. Regression gate on the exemplar: the model
       imitates the code it is shown
 
+      New identifiers: `ESCAPED_PIPE_SPLIT`, `index_end`, `level_of_sections`, and the selftest keys
+      `R1-h3-only`, `R1-body-link`, `R2-escaped-pipe`, all English.
+
 ## 6. Validation & Closure (MANDATORY)
 
 <!-- Always the last group. "Done" is verifiable, not an opinion. -->
 
-- [ ] V.1 `openspec validate <id> --strict` green
-- [ ] V.2 Catalog discovery intact: `npx skills add <repo> --list` finds every skill, expected count,
+- [x] V.1 `openspec validate <id> --strict` green
+
+      `openspec validate update-doc-structure-checker-blind-spots --strict` ->
+      `Change 'update-doc-structure-checker-blind-spots' is valid`; `bash scripts/validate-rite.sh`
+      -> `rite gate OK`; `python3 scripts/validate-rite-evidence.py` -> `rite evidence gate: 0 findings`
+- [x] V.2 Catalog discovery intact: `npx skills add <repo> --list` finds every skill, expected count,
       no orphan/renamed leftovers
-- [ ] V.3 README / docs updated where the change alters catalog composition or usage
+
+      `npx -y skills add solvelab/ai-skills --list` -> `Found 40 skills`, `documentation` among
+      them; `ls skills/ | wc -l` -> `40`. No skill added, renamed or removed.
+- [x] V.3 README / docs updated where the change alters catalog composition or usage
+
+      Nothing to update: composition and install forms are unchanged. The rule text changed in the
+      same commit as the detector (`information-architecture.md`).
 - [ ] V.4 `openspec archive <id> --yes` after all groups above are `[x]`
