@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Stop hook — measures the code-locale rite on the turn's uncommitted diff, whatever wrote it.
 
-Reads the Stop payload on stdin, finds the git work tree the working directory is in, builds the
-diff the turn left uncommitted — tracked files against the current commit, plus every untracked file
-the repository does not ignore, each as an added file — and runs the shipped identifier-locale check
-over it in diff mode. A gating finding blocks the end of the turn; the reason lists every finding and
-the exits. Silent when there is nothing to measure.
+Reads the Stop payload on stdin, finds the git work tree the working directory is in — or, from a
+workspace root, each work tree directly below it — builds the diff the turn left uncommitted —
+tracked files against the current commit, plus every untracked file the repository does not ignore,
+each as an added file — and runs the shipped identifier-locale check over it in diff mode. A gating
+finding blocks the end of the turn; the reason lists every finding and the exits. Silent when there
+is nothing to measure.
 
 WHY A STOP HOOK WHEN A WRITE HOOK ALREADY EXISTS
     `locale-rite.py` sees `Write|Edit|MultiEdit|NotebookEdit`. Nothing written through Bash — a
@@ -72,7 +73,48 @@ WHY A TRUNCATED DIFF IS NEVER A SILENT PASS
     called, so they consume neither the cap nor a subprocess; and when the cap was reached and the
     measured part is clean, the hook still blocks once — the reason says the tail was NOT measured
     and how to measure it — then, on the Stop that follows (`stop_hook_active`), reports and lets the
-    turn end. "Cannot measure" becomes "does not block" only on a git timeout (see KNOWN LIMIT).
+    turn end. "Cannot measure" becomes "does not block" only on a git that fails or exceeds
+    GIT_TIMEOUT (see KNOWN LIMIT); the time bound below follows the cap's rule, not that one.
+
+WHY A WORKSPACE ROOT MEASURES EACH CHILD (issue #261)
+    A session opened at a workspace root — a directory outside any work tree whose direct
+    subdirectories are work trees, the backlog skill's definition — used to end every turn
+    unmeasured: `git rev-parse --show-toplevel` exits 128 there, and the hook read that as "nothing
+    to measure". Now a non-zero exit lists those children (`child_repos`: `.git` as a directory or a
+    file, sorted by name, one level only) and measures each at its own root, with its own
+    `.identifier-locale-allow` and its own `.code-locale`: one child's allowlist or declaration
+    never speaks for another, and no diff is joined across repositories. The findings reach one
+    reason, the first line of each prefixed with `<child>/`, while the allowlist line a file-name
+    finding prints stays relative to the child — that is the entry that silences it in the child's
+    own allowlist, and `<child>/<path>` there does not (the selftest fixes both). Writing the prefix
+    into the finding would print an exit that does not work when followed. A git that is missing, or
+    that does not answer that first call, keeps the hook silent as before; so does a directory with
+    no child work tree. A child whose allowlist or `.code-locale` cannot be read (not UTF-8, no
+    permission) is skipped like a child git cannot read, and its siblings are still measured.
+
+WHY ONE TIME BOUND, AND WHY WHAT IT LEAVES OUT IS NAMED
+    The wiring kills a hook at its timeout (30 s below), and what the harness then does with the
+    turn was never probed. So the run has one deadline, TIME_BUDGET after it starts: each git call
+    gets min(GIT_TIMEOUT, the time left), no call is opened once the deadline passed, and a call the
+    deadline cut short is told apart from one that exceeded GIT_TIMEOUT — skipping it like a failed
+    call would hand on a partly measured repository as measured. A repository the bound never
+    reached, or interrupted partway (its untracked files included), is named as not measured with
+    the cap's semantics: in the reason when the measured part has a finding, as a block of its own
+    when it is clean, then a message on the Stop that follows. MAX_DIFF_LINES is shared the same
+    way: each child gets what the ones before it left. The bound holds for a single repository too,
+    where every untracked file costs one git call.
+
+    The cost it bounds, measured 2026-10-04 for the whole hook (process + git), clean diff, 3 runs
+    each. Before #261, one repository: 0.65-0.82 s on a 9p mount (a real project under /mnt/d in
+    WSL; an earlier, unrecorded series read 1.11-2.12 s) and 0.09-0.16 s on tmpfs. This version, on
+    tmpfs, small fixture repositories: 0.11-0.12 s for one, 0.16-0.18 s for a workspace root of 10
+    clean children and 0.21-0.23 s for 20 — about 5 ms per extra child, the four git calls a clean
+    child costs; on 9p, 1.53-1.89 s over 6 runs for a real workspace root of 3 children (one
+    project the size above, two near-empty repositories). So 20 s holds about two dozen children the size of that 9p project (20 / 0.82;
+    about nine at the slow series) and far more small ones on tmpfs: the cost follows each child's
+    size and untracked files, not only how many children there are. A workspace that does not fit
+    blocks once per turn, naming what was left out; the exits are ending the turn from inside the
+    child (only its repository is then measured) or LOCALE_RITE_MODE=inform.
 
 WHY `stop_hook_active` NEVER BLOCKS TWICE
     The harness sets `stop_hook_active: true` on the Stop that follows a block. This hook blocks
@@ -96,7 +138,16 @@ KNOWN LIMIT — what this hook does NOT see
       other than Portuguese and English, function words rather than a dictionary, a block or a fence
       opened on a line the diff did not add); and prose anywhere when `.code-locale` is absent.
     - A file committed inside the same turn: the diff is against HEAD, and a commit moves HEAD.
-    - A repository other than the one `cwd` is in, or a working directory outside any git work tree.
+    - Another repository when `cwd` is already inside one (knowing what the turn wrote elsewhere
+      would take the transcript); a repository more than one level below a workspace root; and a
+      working directory outside any work tree with no direct child that carries `.git`.
+    - A `.git` that git cannot open — a file naming a gitdir that does not exist exits with `fatal:
+      not a git repository` and rc=128 — reads as "not a work tree": that directory is treated as a
+      workspace root and only its children that hold `.git` are measured, where the write-time
+      hooks' filesystem walk calls it a repository root. A child like that is skipped, never blocks.
+    - Any directory whose direct children are clones is a workspace root — a home directory holding
+      a dotfile clone included — and every child is measured, a foreign clone too; the exits are
+      that child's `.identifier-locale-allow` and `LOCALE_RITE_MODE=inform`.
     - Inside a subagent the event is `SubagentStop`, and this hook is wired on `Stop`; it accepts
       both names, so wiring it on `SubagentStop` works without an edit, but nothing wires it there.
     - A Portuguese file MOVED without an edit: rename detection stays at git's default, so it is a
@@ -108,10 +159,22 @@ KNOWN LIMIT — what this hook does NOT see
     - An untracked path with a double quote, a backslash or a control character in its name: git
       quotes it even with `core.quotePath=false`, the check sees the quotes, and the file is not
       measured. Non-ASCII letters (`relatório.py`) ARE measured; see the pinned diff shape above.
-    - A diff longer than MAX_DIFF_LINES: the rest is not measured, and the hook SAYS so — in the
-      reason when it has findings, and as a block of its own when the measured part is clean. A git
-      call that exceeds GIT_TIMEOUT makes the hook silent — the one case where "cannot measure"
-      becomes "does not block", because a gate that cannot measure must not hold the turn forever.
+    - Measuring a child of a workspace root runs the clean filters its own config and attributes
+      declare (`filter.<x>.clean`), as `git diff` typed there would; only `core.fsmonitor` is
+      pinned off.
+    - `git diff` rewrites the measured repository's index, holding `.git/index.lock` for that
+      moment, when two or more tracked files are stat-dirty, and GIT_OPTIONAL_LOCKS=0 does not stop
+      it (measured on git 2.47.3): a concurrent `git commit` there can meet the lock.
+    - A diff longer than MAX_DIFF_LINES (one cap for every child of a workspace root), or a run
+      longer than TIME_BUDGET: the rest is not measured, and the hook SAYS so, naming the children
+      it left out (the first MAX_NAMED_CHILDREN, then how many more) — in the reason when it has
+      findings, and as a block of its own when the measured part is clean. A git call that fails,
+      or exceeds GIT_TIMEOUT while the bound still runs, skips what it was reading: the diff of one
+      untracked file skips that file alone, and its repository still counts as measured; any other
+      call skips the whole repository, and the hook is silent when it was the only one — the one
+      case where "cannot measure" becomes "does not block", because a gate that cannot measure must
+      not hold the turn forever. A call the bound cut short is not that case: its repository is
+      named as not measured.
     - Advisory findings (`en-unknown`): the check itself declares them non-gating; this hook runs
       without the English word list and never blocks on a question.
     - Whatever the check itself cannot see (open vocabulary, the escapes its docstring declares).
@@ -120,7 +183,8 @@ KNOWN LIMIT — what this hook does NOT see
       the write gate (`locale-rite.py`, same name, same value); until #137 merges, this hook is its
       only reader — one variable per rite, not per hook.
 
-Wiring (~/.claude/settings.json), beside any Stop hook already there:
+Wiring (~/.claude/settings.json), beside any Stop hook already there — TIME_BUDGET stays below its
+timeout:
 
     "hooks": {
       "Stop": [
@@ -133,7 +197,8 @@ Wiring (~/.claude/settings.json), beside any Stop hook already there:
 Like personal-rules.md, this is the maintainer's config — edit the message and the cap to match your
 own process instead of adopting it blindly.
 
-Modes: (default) read one payload from stdin   |   --selftest assert the decisions against a temporary git repository.
+Modes: (default) read one payload from stdin   |   --selftest assert the decisions against temporary
+git repositories and workspace roots.
 Any other argument prints usage to stderr and exits 2 — the same contract as the sibling hooks, so a
 misspelt flag cannot fall through to the stdin path and exit 0.
 """
@@ -141,9 +206,11 @@ misspelt flag cannot fall through to the stdin path and exit 0.
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 # The check lives in the skill that owns the doctrine. parents[3] of this file is the repository
@@ -155,19 +222,31 @@ CHECK_PATH = Path(__file__).resolve().parents[3] / "skills/code-locale/reference
 PROSE_CHECK_PATH = CHECK_PATH.parent / "check-prose-locale.py"
 
 # Declared, not silent: past this many diff lines the rest is not measured and the reason says so.
+# One cap for the whole run: from a workspace root, each child gets what the ones before it left.
 MAX_DIFF_LINES = 4000
-# Per git call. The harness kills slow hooks; a git that does not answer makes this hook silent.
+# Per git call. The harness kills slow hooks; a git that does not answer skips what it was reading —
+# one untracked file, or else its repository — and the hook is silent when nothing else was measured.
 GIT_TIMEOUT = 5
+# One deadline for the whole run, in seconds, below the 30 s the wiring gives the hook (see the
+# docstring): every git call gets min(GIT_TIMEOUT, the time left), and what the bound leaves
+# unmeasured is named, never dropped.
+TIME_BUDGET = 20
 # Measured caps in the bundle (see the docstring): truncating here keeps the tail we choose — the
 # exits — rather than the tail the harness chooses.
 REASON_CAP = 2000
 SYSTEM_MESSAGE_CAP = 4000
+# The children a limit names as not measured, at most; the rest are counted. The list sits in the
+# reason's tail, which `capped` never trims: ten names of 30 characters take about 330 of the 2000,
+# the header, the note, the exits and the ellipsis about 1040, and the findings keep the rest.
+MAX_NAMED_CHILDREN = 10
 # NUL in the first 8 KiB is git's own binary heuristic.
 BINARY_PROBE_BYTES = 8192
 # The diff shape scan_diff reads, pinned against ~/.gitconfig (see the docstring): every git call
 # gets GIT_PIN, every diff gets DIFF_FLAGS. Measured: `diff.external` empties stdout,
 # `diff.mnemonicPrefix` renames `b/` to `w/`, `core.quotePath` (default true) quotes `relatório.py`.
-GIT_PIN = ["--no-pager", "-c", "core.quotePath=false"]
+# `core.fsmonitor` in a measured repository's own .git/config is a command `git diff` runs (measured
+# on git 2.47.3), and from a workspace root that is every child's: pinned off, it runs nothing.
+GIT_PIN = ["--no-pager", "-c", "core.quotePath=false", "-c", "core.fsmonitor=false"]
 DIFF_FLAGS = ["--no-ext-diff", "--no-textconv", "--no-color", "--no-relative",
               "--src-prefix=a/", "--dst-prefix=b/"]
 
@@ -197,30 +276,37 @@ PROSE_ADVISORY_MESSAGE = (
 PROSE_ERROR_MESSAGE = (
     "code-locale: the prose direction is OFF this turn because .code-locale could not be read — {error}"
 )
+# {limit} is "<n> lines" (the cap) or "the <s> s time bound"; {what} is "the rest of the diff"
+# inside one work tree, or the `<child>/` names the limit left out from a workspace root (`left_out`).
 TRUNCATED_NOTE = (
-    "\n\n[diff truncated at {n} lines; the rest was NOT measured — run "
-    "`check-identifier-locale.py --diff -` on the full diff before trusting a clean result]"
+    "\n\n[diff truncated at {limit}; NOT measured: {what} — run `check-identifier-locale.py --diff -` "
+    "on the full diff (`git -C <repo> diff HEAD`) before trusting a clean result]"
 )
-# The cap was reached and the measured part is clean: an unmeasured tail is not a clean result, so
-# the gate blocks once and says how to measure the rest (then the second Stop reports and lets go).
+# The cap or the time bound ended the measurement and the measured part is clean: an unmeasured tail
+# is not a clean result, so the gate blocks once and says how to measure the rest (then the second
+# Stop reports and lets go). The list goes last, so a cut at the cap shortens the list and never the
+# instructions. `git diff HEAD` alone fails at a workspace root, hence `-C <repo>`.
 UNMEASURED_REASON = (
-    "CODE-LOCALE (stop gate): the uncommitted diff is longer than {n} lines and was measured only up "
-    "to that cap. Nothing non-English was found in the measured part, but the rest was NOT measured, "
-    "and an unmeasured tail is not a clean result. Before ending the turn, run the check on the whole "
-    "diff — `git diff HEAD | python3 {check} --diff -`, plus `git diff --no-index /dev/null <path>` "
-    "for each untracked file — and rename or waive what it reports; then end the turn again (the next "
-    "Stop reports without blocking). If the bulk is generated, commit it or list it in .gitignore so "
-    "the gate measures what the turn wrote."
+    "CODE-LOCALE (stop gate): the uncommitted diff was measured only up to {limit}. Nothing "
+    "non-English was found in the measured part, but the rest was NOT measured, and an unmeasured "
+    "tail is not a clean result. Before ending the turn, run the check on each unmeasured diff — "
+    "`git -C <repo> diff HEAD | python3 {check} --diff -`, plus `git -C <repo> diff --no-index "
+    "/dev/null <path>` for each untracked file — and rename or waive what it reports; then end the "
+    "turn again (the next Stop reports without blocking). If the bulk is generated, commit it or list "
+    "it in .gitignore so the gate measures what the turn wrote; from a workspace root, ending the turn "
+    "inside one child measures that child alone. NOT measured: {what}."
 )
 UNMEASURED_MESSAGE = (
-    "code-locale: the turn is ending with an uncommitted diff longer than {n} lines; the part past "
-    "the cap was NOT measured (second Stop — not blocking again). Run `python3 {check} --diff -` on "
-    "the full diff before trusting it."
+    "code-locale: the turn is ending with an uncommitted diff measured only up to {limit} (second "
+    "Stop — not blocking again); NOT measured: {what}. Run `git -C <repo> diff HEAD | python3 {check} "
+    "--diff -` on each before trusting it."
 )
 FOOTER = (
     "\n\nExits: `# locale-ok: <reason>` on the line or the line above (a name or a comment alike); the "
-    "token or path in `.identifier-locale-allow` at the repository root (the only exit for a file "
-    "name); `LOCALE_RITE_MODE=inform` for the whole session. Doctrine: the code-locale skill."
+    "token or path in `.identifier-locale-allow` at the root of the repository that holds the file "
+    "(the only exit for a file name; from a workspace root, a path entry — a comment's included — is "
+    "the path without its `<child>/` prefix, in that child's allowlist); `LOCALE_RITE_MODE=inform` for "
+    "the whole session. Doctrine: the code-locale skill."
 )
 ELLIPSIS = "\n    … more findings elided; run the check on the diff for the rest."
 
@@ -277,23 +363,61 @@ def is_prose(f) -> bool:
     return hasattr(f, "fragment")
 
 
-def brief(f) -> str:
-    """One line per finding for the second-stop message. A path finding carries line 0 (there is
-    no line): print the path alone rather than `:0`."""
-    where = f"{f.path}{':' + str(f.line) if f.line else ''}"
+def brief(prefix: str, f) -> str:
+    """One line per finding for the second-stop message, its path under the `<child>/` prefix a
+    workspace root gives it. A path finding carries line 0 (there is no line): print the path alone
+    rather than `:0`."""
+    where = f"{prefix}{f.path}{':' + str(f.line) if f.line else ''}"
     if is_prose(f):
         return f'  {where}: {f.kind} reads as {f.lang}, repo prose is {f.declared}: "{f.preview()}"'
     return f"  {where}: {f.token}  [{f.tier}]"
 
 
-def run_git(args: list, cwd: str, env=None) -> "tuple[int, str] | None":
-    """(returncode, stdout) or None when git is missing, hangs, or cannot be started."""
+class OutOfTime(Exception):
+    """The time bound ended: no git call is opened past it, and a call it cut short ends here rather
+    than as a git timeout — the repository is then named as not measured, never skipped."""
+
+
+def run_git(args: list, cwd: str, deadline: float, env=None) -> "tuple[int, str] | None":
+    """(returncode, stdout), or None when git is missing, does not answer within GIT_TIMEOUT, or
+    cannot be started. Raises OutOfTime once `deadline` (a time.monotonic() value) has passed, and
+    when a call the deadline shortened below GIT_TIMEOUT does not answer before it."""
+    timeout = min(GIT_TIMEOUT, deadline - time.monotonic())
+    if timeout <= 0:
+        raise OutOfTime                  # a zero or negative timeout would still start the process
     try:
         run = subprocess.run(["git", *GIT_PIN, *args], cwd=cwd, env=env, capture_output=True,
-                             text=True, errors="replace", timeout=GIT_TIMEOUT)
-    except (OSError, subprocess.TimeoutExpired, ValueError):
+                             text=True, errors="replace", timeout=timeout)
+    except subprocess.TimeoutExpired:
+        if timeout < GIT_TIMEOUT:
+            raise OutOfTime from None    # the deadline cut it short: not a git that hangs
+        return None
+    except (OSError, ValueError):
         return None
     return run.returncode, run.stdout
+
+
+def child_repos(directory: str) -> "list[str]":
+    """Names of the direct subdirectories of `directory` that hold `.git`, sorted by name.
+
+    The backlog skill's workspace: a directory whose subdirectories are git repos. One level only,
+    hidden directories included, `.git` as a directory or a file (a linked work tree, a submodule),
+    sorted so the reason reads the same on every run; a directory that cannot be listed has none.
+    """
+    # lean: every child holding .git is measured -> read workspace.repos from backlog.yml when a
+    # measured foreign clone is reported as noise
+    try:
+        with os.scandir(directory) as entries:
+            names = []
+            for entry in entries:
+                try:
+                    if entry.is_dir() and os.path.exists(os.path.join(entry.path, ".git")):
+                        names.append(entry.name)
+                except OSError:
+                    continue             # a symlink loop or an unreadable target hides only itself
+            return sorted(names)
+    except (OSError, ValueError):
+        return []
 
 
 def is_measurable(path: Path) -> bool:
@@ -308,62 +432,68 @@ def is_measurable(path: Path) -> bool:
         return False                     # unreadable is skipped like binary: nothing to measure
 
 
-def uncommitted_diff(cwd: str, max_lines: int, env=None,
-                     vendored=None) -> "tuple[str, list, bool] | None":
-    """(work tree root, diff lines, truncated) — or None when cwd is not inside a git work tree.
+def uncommitted_diff(root: str, max_lines: int, deadline: float, env=None,
+                     vendored=None) -> "tuple[list, str | None] | None":
+    """(diff lines, stop) for the work tree at `root` — or None when git fails there, or a call
+    exceeds GIT_TIMEOUT, so a repository git cannot read is skipped and never blocks.
+
+    `stop` is None when the whole diff was read, "cap" when `max_lines` ended it and "time" when the
+    deadline did: the lines are then the measured part, and the rest was NOT measured. The deadline
+    is also checked before each untracked file, not only before a git call, because skipping an
+    empty or binary file costs a stat and a read, which is not free on a 9p mount.
 
     `vendored(Path) -> bool` names the untracked paths that never enter the diff (the check's own
     vendored rule): filtering them AFTER the scan let an unignored `build/` eat the whole cap.
     """
-    top = run_git(["rev-parse", "--show-toplevel"], cwd, env)
-    if top is None or top[0] != 0 or not top[1].strip():
-        return None
-    root = top[1].strip()
-
-    head = run_git(["rev-parse", "--verify", "-q", "HEAD"], root, env)
-    if head is None:
-        return None
-    if head[0] == 0:
-        base = "HEAD"
-    else:
-        empty = run_git(["hash-object", "-t", "tree", "/dev/null"], root, env)
-        base = empty[1].strip() if empty and empty[0] == 0 and empty[1].strip() else EMPTY_TREE_SHA1
-
     lines: list = []
-    truncated = False
+    stop = None
 
     def take(text: str) -> bool:
         """Append diff text; False once the cap is reached (callers stop asking git)."""
-        nonlocal truncated
+        nonlocal stop
         for line in text.splitlines():
             if len(lines) >= max_lines:
-                truncated = True
+                stop = "cap"
                 return False
             lines.append(line)
         return True
 
-    tracked = run_git(["diff", *DIFF_FLAGS, base], root, env)
-    if tracked is None or tracked[0] not in (0, 1):
-        return None
-    if not take(tracked[1]):
-        return root, lines, truncated
+    try:
+        head = run_git(["rev-parse", "--verify", "-q", "HEAD"], root, deadline, env)
+        if head is None:
+            return None
+        if head[0] == 0:
+            base = "HEAD"
+        else:
+            empty = run_git(["hash-object", "-t", "tree", "/dev/null"], root, deadline, env)
+            base = empty[1].strip() if empty and empty[0] == 0 and empty[1].strip() else EMPTY_TREE_SHA1
 
-    others = run_git(["ls-files", "--others", "--exclude-standard", "-z"], root, env)
-    if others is None or others[0] != 0:
-        return None
-    for rel in others[1].split("\0"):
-        if not rel:
-            continue
-        if vendored is not None and vendored(Path(rel)):
-            continue
-        if not is_measurable(Path(root) / rel):
-            continue
-        added = run_git(["diff", *DIFF_FLAGS, "--no-index", "/dev/null", rel], root, env)
-        if added is None or added[0] not in (0, 1):
-            continue                     # one unreadable path must not silence the rest
-        if not take(added[1]):
-            break
-    return root, lines, truncated
+        tracked = run_git(["diff", *DIFF_FLAGS, base], root, deadline, env)
+        if tracked is None or tracked[0] not in (0, 1):
+            return None
+        if not take(tracked[1]):
+            return lines, stop
+
+        others = run_git(["ls-files", "--others", "--exclude-standard", "-z"], root, deadline, env)
+        if others is None or others[0] != 0:
+            return None
+        for rel in others[1].split("\0"):
+            if not rel:
+                continue
+            if time.monotonic() >= deadline:
+                raise OutOfTime
+            if vendored is not None and vendored(Path(rel)):
+                continue
+            if not is_measurable(Path(root) / rel):
+                continue
+            added = run_git(["diff", *DIFF_FLAGS, "--no-index", "/dev/null", rel], root, deadline, env)
+            if added is None or added[0] not in (0, 1):
+                continue                 # one unreadable path must not silence the rest
+            if not take(added[1]):
+                break
+    except OutOfTime:
+        return lines, "time"             # partly measured: named as such, never handed on as measured
+    return lines, stop
 
 
 def gating_findings(check, root: str, lines: list) -> list:
@@ -382,29 +512,44 @@ def capped(head: str, body: str, tail: str, cap: int) -> str:
     return head + body[:max(room, 0)].rstrip() + ELLIPSIS + tail
 
 
-def error_note(error: "str | None") -> str:
-    return ("\n\n" + PROSE_ERROR_MESSAGE.format(error=error)) if error else ""
+def left_out(unmeasured: list) -> str:
+    """The `{what}` a limit's message names: "the rest of the diff" inside one work tree; from a
+    workspace root, the first MAX_NAMED_CHILDREN children it left out, then how many more."""
+    if not any(unmeasured):
+        return "the rest of the diff"
+    more = len(unmeasured) - MAX_NAMED_CHILDREN
+    shown = ", ".join(unmeasured[:MAX_NAMED_CHILDREN])
+    return f"{shown} and {more} more" if more > 0 else shown
 
 
-def block_reason(findings: list, truncated: bool, error: "str | None" = None) -> str:
-    body = "\n".join(f.render() for f in findings)
-    tail = (TRUNCATED_NOTE.format(n=MAX_DIFF_LINES) if truncated else "") + error_note(error) + FOOTER
-    head = PROSE_HEADER if any(is_prose(f) for f in findings) else HEADER
+def error_note(errors: list) -> str:
+    """One line per declaration the detector could not read; each names its own file."""
+    return "".join("\n\n" + PROSE_ERROR_MESSAGE.format(error=error) for error in errors)
+
+
+# Findings travel as (prefix, finding) pairs: `<child>/` from a workspace root, empty inside a work
+# tree. The prefix goes in front of the first line of each render() and is never written into the
+# finding, so the allowlist line a path finding prints last stays relative to the child.
+def block_reason(findings: list, note: str, errors: list) -> str:
+    body = "\n".join(prefix + f.render() for prefix, f in findings)
+    tail = note + error_note(errors) + FOOTER
+    head = PROSE_HEADER if any(is_prose(f) for _prefix, f in findings) else HEADER
     return capped(head, body, tail, REASON_CAP)
 
 
-def advisory_message(advisory: list, error: "str | None") -> str:
-    if error:
-        return PROSE_ERROR_MESSAGE.format(error=error)[:SYSTEM_MESSAGE_CAP]
+def advisory_message(advisory: list, errors: list) -> str:
+    if errors:
+        return error_note(errors).lstrip("\n")[:SYSTEM_MESSAGE_CAP]
     n = len(advisory)
+    first = advisory[0][1]
     head = PROSE_ADVISORY_MESSAGE.format(n=n, plural="s" if n != 1 else "", third="" if n != 1 else "s",
-                                         lang=advisory[0].lang, declared=advisory[0].declared)
-    return capped(head, "\n".join(brief(f) for f in advisory), "", SYSTEM_MESSAGE_CAP)
+                                         lang=first.lang, declared=first.declared)
+    return capped(head, "\n".join(brief(prefix, f) for prefix, f in advisory), "", SYSTEM_MESSAGE_CAP)
 
 
-def remaining_message(findings: list, truncated: bool, error: "str | None" = None) -> str:
-    names = [f for f in findings if not is_prose(f)]
-    prose = [f for f in findings if is_prose(f)]
+def remaining_message(findings: list, note: str, errors: list) -> str:
+    names = [f for _prefix, f in findings if not is_prose(f)]
+    prose = [f for _prefix, f in findings if is_prose(f)]
     parts = []
     if names:
         parts.append(f"{len(names)} non-English name{'s' if len(names) != 1 else ''}")
@@ -414,17 +559,19 @@ def remaining_message(findings: list, truncated: bool, error: "str | None" = Non
     verb = "rename/translate" if names and prose else "translate" if prose else "rename"
     head = (f"code-locale: the turn is ending with {' and '.join(parts)} still uncommitted "
             f"(second Stop — not blocking again; {verb} or waive before committing):\n")
-    body = "\n".join(brief(f) for f in findings)
-    tail = (TRUNCATED_NOTE.format(n=MAX_DIFF_LINES) if truncated else "") + error_note(error)
+    body = "\n".join(brief(prefix, f) for prefix, f in findings)
+    tail = note + error_note(errors)
     return capped(head, body, tail, SYSTEM_MESSAGE_CAP)
 
 
-def evaluate(payload: dict, check, env=None, max_lines: int = MAX_DIFF_LINES) -> "dict | None":
+def evaluate(payload: dict, check, env=None, max_lines: int = MAX_DIFF_LINES,
+             time_budget: float = TIME_BUDGET) -> "dict | None":
     """The whole decision, isolated from stdin and stdout so the selftest can drive it.
 
     `env` is the process environment the mode is read from and git is run with; the selftest hands
     its own so that no case mutates os.environ. `max_lines` exists so the truncation path is testable
-    without a 4000-line fixture.
+    without a 4000-line fixture, and `time_budget` so the time bound is testable without a 20-second
+    one.
     """
     if check is None:
         return None
@@ -437,34 +584,78 @@ def evaluate(payload: dict, check, env=None, max_lines: int = MAX_DIFF_LINES) ->
     cwd = payload.get("cwd")
     if not isinstance(cwd, str) or not cwd or not os.path.isdir(cwd):
         return None                      # a gate that cannot locate what to measure does not block
+    deadline = time.monotonic() + time_budget
     git_env = None if env is None else dict(env)
+    findings, advisory, errors, unmeasured = [], [], [], []
+    stop = None                          # "cap" or "time" once a limit ended the measurement
     try:
-        measured = uncommitted_diff(cwd, max_lines, git_env,
-                                    vendored=lambda rel: check.is_vendored(rel))
-        if measured is None:
+        # Only a bound shorter than GIT_TIMEOUT can end before this first call answers; that
+        # OutOfTime, like a git that is missing or hangs, locates nothing and blocks nothing.
+        top = run_git(["rev-parse", "--show-toplevel"], cwd, deadline, git_env)
+        if top is None:
             return None
-        root, lines, truncated = measured
-        if not lines:
-            return None
-        findings = gating_findings(check, root, lines)
-        prose_gating, prose_advisory, prose_error = prose_findings(load_prose(), check, root, lines)
-        findings.extend(prose_gating)
+        if top[0] == 0:
+            if not top[1].strip():
+                return None
+            work_trees = [("", top[1].strip())]
+        else:
+            # Not inside a work tree: a workspace root measures each child that holds .git, and a
+            # directory without one stays silent, as before.
+            work_trees = [(name + "/", os.path.join(cwd, name)) for name in child_repos(cwd)]
+        prose = load_prose()
+        lines_left = max_lines
+        for prefix, root in work_trees:
+            if stop:
+                unmeasured.append(prefix)        # never reached: the cap or the bound came first
+                continue
+            try:
+                if prefix:                       # a child: its root as git resolves it
+                    found = run_git(["rev-parse", "--show-toplevel"], root, deadline, git_env)
+                    if found is None or found[0] != 0 or not found[1].strip():
+                        continue                 # git cannot read this child: skipped, never blocks
+                    root = found[1].strip()
+                measured = uncommitted_diff(root, lines_left, deadline, git_env,
+                                            vendored=lambda rel: check.is_vendored(rel))
+            except OutOfTime:
+                measured = [], "time"
+            if measured is None:
+                continue                         # git failed or exceeded GIT_TIMEOUT: skipped
+            lines, stop = measured
+            if stop:
+                unmeasured.append(prefix)        # interrupted partway: named, never taken as measured
+            lines_left -= len(lines)
+            if not lines:
+                continue
+            try:
+                gating = gating_findings(check, root, lines)
+                prose_gating, prose_advisory, prose_error = prose_findings(prose, check, root, lines)
+            except (OSError, ValueError):
+                continue                         # its allowlist or .code-locale unreadable: skipped
+            findings.extend((prefix, f) for f in gating)
+            findings.extend((prefix, f) for f in prose_gating)
+            advisory.extend((prefix, f) for f in prose_advisory)
+            errors.extend([prose_error] if prose_error else [])
     except Exception:
         return None                      # a check that crashes must not crash the turn
     active = bool(payload.get("stop_hook_active"))
+    fill = None
+    if stop:
+        fill = {"limit": f"{max_lines} lines" if stop == "cap" else f"the {time_budget:g} s time bound",
+                "what": left_out(unmeasured),
+                "check": str(CHECK_PATH)}
     if not findings:
-        if not truncated:
-            if prose_advisory or prose_error:
-                return {"systemMessage": advisory_message(prose_advisory, prose_error)}
+        if not fill:
+            if advisory or errors:
+                return {"systemMessage": advisory_message(advisory, errors)}
             return None
-        # Clean up to the cap is not clean: the tail was not measured, and silence would say it was.
-        fill = {"n": max_lines, "check": str(CHECK_PATH)}
+        # Clean up to a limit is not clean: the rest was not measured, and silence would say it was.
         if active:
             return {"systemMessage": UNMEASURED_MESSAGE.format(**fill)[:SYSTEM_MESSAGE_CAP]}
         return {"decision": "block", "reason": UNMEASURED_REASON.format(**fill)[:REASON_CAP]}
+    note = TRUNCATED_NOTE.format(**fill) if fill else ""
     if active:
-        return {"systemMessage": remaining_message(findings, truncated, prose_error)}
-    return {"decision": "block", "reason": block_reason(findings, truncated, prose_error)}
+        return {"systemMessage": remaining_message(findings, note, errors)}
+    return {"decision": "block", "reason": block_reason(findings, note, errors)}
 
 
 # ── Self-test ─────────────────────────────────────────────────────────────
@@ -521,6 +712,12 @@ def selftest() -> int:
             "message" if set(got) == {"systemMessage"} else "other"
         ok = kind == expect
         print(f"  {'OK     ' if ok else 'FAILED '} {name}  ->  {kind}")
+        if not ok:
+            failed.append(name)
+
+    def claim(name: str, ok: bool) -> None:
+        """An assertion beside a decision: printed like one, not counted as one."""
+        print(f"  {'OK     ' if ok else 'FAILED '} {name}")
         if not ok:
             failed.append(name)
 
@@ -795,6 +992,270 @@ def selftest() -> int:
         if not active_ok:
             failed.append("second-stop shape")
 
+        # ── a workspace root: each child work tree measured at its own root, in one reason (#261) ──
+        ws = tmp / "workspace"
+        child = _repo(ws, env, "child-a")
+        _repo(ws, env, "child-b")
+        case("workspace root: clean children are silent", "silent", evaluate(_payload(ws), check, env))
+        (ws / "notes").mkdir()
+        (ws / "notes" / "servico_cliente.py").write_text(PT_SOURCE)
+        case("workspace root: a subdirectory without .git is not measured", "silent",
+             evaluate(_payload(ws), check, env))
+        (child / "servico_cliente.py").write_text(PT_SOURCE)
+        found = evaluate(_payload(ws), check, env)
+        case("workspace root: an untracked portuguese file in a child blocks", "block", found)
+        reason = found.get("reason", "") if found else ""
+        claim("workspace root: the reason names child-a/servico_cliente.py, its identifiers and the exits",
+              "\nchild-a/servico_cliente.py: servico_cliente" in reason
+              and "\nchild-a/servico_cliente.py:1: buscar_cliente" in reason
+              and "child-b/" not in reason and reason.endswith(FOOTER) and len(reason) <= REASON_CAP)
+        found = evaluate(_payload(ws, active=True), check, env)
+        case("workspace root: the second stop reports and does not block", "message", found)
+        claim("workspace root: the second-stop message names the file under its child",
+              bool(found)
+              and "\n  child-a/servico_cliente.py:1: buscar_cliente" in found.get("systemMessage", ""))
+        # the allowlist line a file-name finding prints is the one that silences it in that child
+        (child / "servico_cliente.py").write_text(EN_SOURCE)      # its name is now the only finding
+        found = evaluate(_payload(ws), check, env)
+        case("workspace root: a file whose only finding is its name blocks", "block", found)
+        printed = (found.get("reason", "") if found else "").splitlines()
+        hint = next((printed[i + 1].strip() for i, line in enumerate(printed[:-1])
+                     if line.endswith(check.ALLOWLIST_FILE + ":")), "")
+        claim("workspace root: the allowlist line that reason prints is relative to the child",
+              hint == "servico_cliente.py"
+              and any(line.startswith("child-a/servico_cliente.py: servico_cliente") for line in printed))
+        (child / check.ALLOWLIST_FILE).write_text(hint + "\n")
+        case("workspace root: that line in the child's allowlist silences it", "silent",
+             evaluate(_payload(ws), check, env))
+        (child / check.ALLOWLIST_FILE).write_text("child-a/servico_cliente.py\n")
+        case("workspace root: the prefixed path in the child's allowlist does not", "block",
+             evaluate(_payload(ws), check, env))
+
+        # one child's allowlist and .code-locale speak for that child alone
+        ws = tmp / "workspace-pair"
+        child, sibling = _repo(ws, env, "child-a"), _repo(ws, env, "child-b")
+        (child / check.ALLOWLIST_FILE).write_text("fatura_id\n")
+        for repo in (child, sibling):
+            (repo / "orders" / "billing.py").write_text("fatura_id = 1\n")
+        found = evaluate(_payload(ws), check, env)
+        case("workspace root: one child's allowlist does not speak for another", "block", found)
+        claim("workspace root: only the child without the entry is named",
+              bool(found) and "\nchild-b/orders/billing.py:1: fatura_id" in found.get("reason", "")
+              and "child-a/" not in found.get("reason", ""))
+        for repo in (child, sibling):
+            (repo / "orders" / "billing.py").unlink()
+            (repo / "orders" / "total.py").write_text(en_comment)
+        (child / prose.DECLARATION_FILE).write_text("prose: pt-BR\n")
+        found = evaluate(_payload(ws), check, env)
+        case("workspace root: one child's .code-locale does not speak for another", "block", found)
+        claim("workspace root: only the declaring child's comment is named",
+              bool(found)
+              and "\nchild-a/orders/total.py:1: [gating] comment reads as en" in found.get("reason", "")
+              and "child-b/" not in found.get("reason", ""))
+        # a comment's allowlist entry follows the same rule: the path without its <child>/ prefix
+        (child / check.ALLOWLIST_FILE).write_text("orders/total.py\n")
+        case("workspace root: a comment's path in the child's allowlist, unprefixed, silences it", "silent",
+             evaluate(_payload(ws), check, env))
+        (child / check.ALLOWLIST_FILE).write_text("child-a/orders/total.py\n")
+        case("workspace root: the same path under its <child>/ prefix does not", "block",
+             evaluate(_payload(ws), check, env))
+
+        # a child git cannot open is skipped without blocking; the others are still measured
+        ws = tmp / "workspace-broken"
+        (ws / "broken").mkdir(parents=True)
+        (ws / "broken" / ".git").write_text("gitdir: /nowhere/.git/worktrees/x\n")
+        (ws / "broken" / "servico_cliente.py").write_text(PT_SOURCE)
+        (_repo(ws, env, "child-a") / "servico_cliente.py").write_text(PT_SOURCE)
+        found = evaluate(_payload(ws), check, env)
+        case("workspace root: a child git cannot open is skipped, the others still measured", "block", found)
+        claim("workspace root: the skipped child is neither reported nor named as not measured",
+              bool(found) and "\nchild-a/servico_cliente.py" in found.get("reason", "")
+              and "broken/" not in found.get("reason", "") and "NOT measured" not in found.get("reason", ""))
+
+        # an entry whose stat fails (a symlink to itself: ELOOP) hides only itself
+        ws = tmp / "workspace-loop"
+        (_repo(ws, env, "child-a") / "servico_cliente.py").write_text(PT_SOURCE)
+        os.symlink("loop", ws / "loop")
+        found = evaluate(_payload(ws), check, env)
+        case("workspace root: a symlink loop beside a child does not hide the child", "block", found)
+        claim("workspace root: that reason names child-a/servico_cliente.py",
+              bool(found) and "\nchild-a/servico_cliente.py:1: buscar_cliente" in found.get("reason", ""))
+
+        # a child whose allowlist cannot be read is skipped alone, as one git cannot read; before,
+        # the exception reached evaluate's catch-all and silenced every child
+        ws = tmp / "workspace-unreadable"
+        child = _repo(ws, env, "child-a")
+        allowlist = child / check.ALLOWLIST_FILE
+        allowlist.write_bytes(b"relat\xf3rio\n")            # cp1252 from a Windows editor, not UTF-8
+        (child / "a1.py").write_text(EN_SOURCE)             # a diff, so that allowlist is read
+        (_repo(ws, env, "child-b") / "servico_cliente.py").write_text(PT_SOURCE)
+        found = evaluate(_payload(ws), check, env)
+        case("workspace root: one child's allowlist that is not UTF-8 does not silence another", "block", found)
+        claim("workspace root: that reason names child-b/servico_cliente.py",
+              bool(found) and "\nchild-b/servico_cliente.py:1: buscar_cliente" in found.get("reason", ""))
+        allowlist.write_text("fatura_id\n")
+        allowlist.chmod(0)
+        try:
+            if os.access(allowlist, os.R_OK):               # root reads it anyway: nothing to prove
+                print("  SKIP    workspace root: one child's unreadable (mode 000) allowlist does not "
+                      "silence another  ->  the file stays readable to this user")
+            else:
+                found = evaluate(_payload(ws), check, env)
+                case("workspace root: one child's unreadable (mode 000) allowlist does not silence another",
+                     "block", found)
+                claim("workspace root: that reason names child-b/servico_cliente.py too",
+                      bool(found) and "\nchild-b/servico_cliente.py:1: buscar_cliente" in found.get("reason", ""))
+        finally:
+            allowlist.chmod(0o644)
+
+        # a child's own .git/config can name a command `git diff` runs (core.fsmonitor); measuring a
+        # child from a workspace root must not run it
+        ws = tmp / "workspace-fsmonitor"
+        child = _repo(ws, env, "child-a")
+        marker = tmp / "fsmonitor-ran"
+        monitor = tmp / "fsmonitor-bin" / "monitor"
+        monitor.parent.mkdir()
+        monitor.write_text(f'#!/bin/sh\ntouch "{marker}"\nexit 1\n')
+        monitor.chmod(0o755)
+        _git(child, env, "config", "core.fsmonitor", str(monitor))
+        service = child / "orders" / "service.py"
+        service.write_text(service.read_text() + "total = 1\n")
+        # the precondition: a plain `git diff HEAD` runs the monitor here, or the claim proves nothing
+        # (a TMPDIR mounted noexec cannot run it)
+        subprocess.run(["git", "diff", "HEAD"], cwd=child, env=env, capture_output=True)
+        if not marker.exists():
+            print("  SKIP    workspace root: a child's own core.fsmonitor runs nothing when the gate "
+                  "measures it  ->  a plain git diff did not run the monitor here")
+        else:
+            marker.unlink()
+            evaluate(_payload(ws), check, env)
+            claim("workspace root: a child's own core.fsmonitor runs nothing when the gate measures it",
+                  not marker.exists())
+
+        # one line cap for every child: each diff fits under it alone, not all of them together, and
+        # what the cap leaves out is named, child by child
+        ws = tmp / "workspace-cap"
+        generated = "".join(f"value_{i} = {i}\n" for i in range(50))     # 56 diff lines
+        child, sibling, last = (_repo(ws, env, name) for name in ("child-a", "child-b", "child-c"))
+        (child / "servico_cliente.py").write_text(PT_SOURCE)
+        (child / "zz_generated.py").write_text(generated)                  # child-a: 64 lines
+        (sibling / "zz_generated.py").write_text(generated)                # 120 together: cut here
+        (last / "servico_cliente.py").write_text(PT_SOURCE)                # never reached
+        found = evaluate(_payload(ws), check, env, max_lines=100)
+        case("workspace root: a diff over the shared cap still blocks", "block", found)
+        claim("workspace root: the reason names the children the shared cap left out",
+              bool(found) and "\nchild-a/servico_cliente.py:1: buscar_cliente" in found.get("reason", "")
+              and "NOT measured: child-b/, child-c/" in found.get("reason", "")
+              and "child-c/servico_cliente.py" not in found.get("reason", ""))
+        # many children left out: the list sits in the tail `capped` never trims, so it is cut at
+        # MAX_NAMED_CHILDREN; uncut, 71 names pushed the exits past the cap and elided every finding
+        ws = tmp / "workspace-many"
+        child = _repo(ws, env, "child-a")
+        (child / "servico_cliente.py").write_text(PT_SOURCE)
+        (child / "zz_generated.py").write_text("".join(f"value_{i} = {i}\n" for i in range(200)))
+        template = _repo(tmp, env, "workspace-many-template")     # one git init, copied 70 times
+        for i in range(70):
+            shutil.copytree(template, ws / f"zz-workspace-child-{i:02d}", symlinks=True)
+        found = evaluate(_payload(ws), check, env, max_lines=100)
+        reason = found.get("reason", "") if found else ""
+        case("workspace root: a finding beside 71 children the cap left out blocks", "block", found)
+        claim("workspace root: that reason keeps the finding and the exits within the cap",
+              len(reason) <= REASON_CAP and reason.endswith(FOOTER)
+              and "\nchild-a/servico_cliente.py:1: buscar_cliente" in reason
+              and "zz-workspace-child-08/ and 61 more" in reason)
+
+        # the time bound: a git wrapper hangs on one chosen call, and the deadline cuts it short —
+        # through the same subprocess timeout a git that really hangs meets. A case whose claim
+        # needs the part measured BEFORE the cut gets twice the bound: that part takes about 45 ms
+        # here, and a loaded runner must not move the cut into it.
+        bound = 0.5
+        wrapper = tmp / "slow-bin" / "git"
+        wrapper.parent.mkdir()
+        calls = tmp / "slow-git.log"
+        wrapper.write_text("#!/bin/sh\n"
+                           f'echo "$(pwd) $*" >> "{calls}"\n'
+                           'case "$(pwd) $*" in *"${SLOW_GIT_WHEN:-//never//}"*) exec sleep 10 ;; esac\n'
+                           f'exec "{shutil.which("git")}" "$@"\n')
+        wrapper.chmod(0o755)
+        slow = {**env, "PATH": f"{wrapper.parent}{os.pathsep}{env.get('PATH', '')}"}
+        # the cut is the child's LAST untracked file: a cut call skipped like a failed one would leave
+        # nothing after it to give the child away, and the child would pass as measured
+        ws = tmp / "workspace-time"
+        child = _repo(ws, env, "child-a")
+        for name in ("a1.py", "a2.py"):
+            (child / name).write_text(EN_SOURCE)
+        (_repo(ws, env, "child-b") / "servico_cliente.py").write_text(PT_SOURCE)
+        partway = {**slow, "SLOW_GIT_WHEN": "/dev/null a2.py"}
+        calls.write_text("")
+        found = evaluate(_payload(ws), check, partway, time_budget=bound)
+        case("workspace root: the time bound ending partway through a child's untracked files blocks once",
+             "block", found)
+        opened = calls.read_text()
+        claim("workspace root: that child and the one never reached are named; the last gets no git call",
+              bool(found) and found.get("reason", "").endswith("NOT measured: child-a/, child-b/.")
+              and "servico_cliente" not in found.get("reason", "")
+              and "/child-b " not in opened)
+        case("workspace root: a child cut partway, on the second stop, is a message", "message",
+             evaluate(_payload(ws, active=True), check, partway, time_budget=bound))
+        ws = tmp / "workspace-time-before"
+        for name in ("child-a", "child-b", "child-c"):
+            (_repo(ws, env, name) / "servico_cliente.py").write_text(PT_SOURCE)
+        before = {**slow, "SLOW_GIT_WHEN": "/child-b --no-pager"}
+        calls.write_text("")
+        found = evaluate(_payload(ws), check, before, time_budget=2 * bound)
+        case("workspace root: the time bound ending before a child keeps what was measured before it",
+             "block", found)
+        opened = calls.read_text()
+        claim("workspace root: the children it left out are named, and the last one never gets a git call",
+              bool(found) and "\nchild-a/servico_cliente.py:1: buscar_cliente" in found.get("reason", "")
+              and "NOT measured: child-b/, child-c/" in found.get("reason", "")
+              and "child-c/servico_cliente.py" not in found.get("reason", "")
+              and "/child-b " in opened and "/child-c " not in opened)
+        case("workspace root: children never reached, on the second stop, are a message", "message",
+             evaluate(_payload(ws, active=True), check, before, time_budget=bound))
+        # one repository answers to the same bound: what it measured before the cut is reported, and
+        # the rest is named the same way
+        repo = _repo(tmp, env, "time-single")
+        (repo / "a1.py").write_text(PT_SOURCE)
+        (repo / "a2.py").write_text(EN_SOURCE)
+        found = evaluate(_payload(repo), check, partway, time_budget=2 * bound)
+        case("one repository: the time bound ending partway blocks once", "block", found)
+        claim("one repository: the reason keeps the measured part's finding and names the rest",
+              bool(found) and "\na1.py:1: buscar_cliente" in found.get("reason", "")
+              and f"[diff truncated at the {2 * bound:g} s time bound; NOT measured: the rest of the diff"
+              in found.get("reason", ""))
+        # past the deadline no git process is started at all (a zero or negative timeout would still
+        # start one), and a first call that never ran locates nothing, so nothing blocks
+        started = []
+        real_run = subprocess.run
+        subprocess.run = lambda *args, **options: started.append(args) or real_run(*args, **options)
+        try:
+            spent = evaluate(_payload(repo), check, env, time_budget=0)
+        finally:
+            subprocess.run = real_run
+        claim("past the deadline no git process is started, and the hook stays silent",
+              spent is None and not started)
+
+        # skipping untracked files counts against the bound too: each costs a stat and a read
+        class SlowSkip:
+            """The shipped check, except that judging one path takes the whole bound."""
+
+            def __getattr__(self, name):
+                return getattr(check, name)
+
+            def is_vendored(self, path):
+                if path == Path("vendor/x.py"):
+                    time.sleep(bound)
+                return check.is_vendored(path)
+
+        repo = _repo(tmp, env, "time-skips")
+        (repo / "a1.py").write_text(EN_SOURCE)
+        (repo / "vendor").mkdir()
+        (repo / "vendor" / "x.py").write_text(EN_SOURCE)
+        (repo / "zz_empty.py").touch()
+        case("one repository: the bound ending among skipped untracked files blocks once", "block",
+             evaluate(_payload(repo), SlowSkip(), env, time_budget=bound))
+
     # ── the entry point: malformed payloads and the argv contract ──
     malformed = 0
     for label, stdin in (("json array", "[]"), ("json string", '"x"'), ("empty stdin", ""),
@@ -822,8 +1283,9 @@ def selftest() -> int:
     if failed:
         print("selftest FAILED: " + "; ".join(failed))
         return 1
-    print(f"selftest OK: {decisions} decisions in temporary git repositories (the prose direction with and "
-          f"without .code-locale included), 2 output shapes, {malformed} malformed payloads, plus the argv contract")
+    print(f"selftest OK: {decisions} decisions in temporary git repositories and workspace roots (the "
+          f"prose direction with and without .code-locale, the shared line cap and the time bound "
+          f"included), 2 output shapes, {malformed} malformed payloads, plus the argv contract")
     return 0
 
 

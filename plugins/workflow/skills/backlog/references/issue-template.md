@@ -48,7 +48,7 @@ Harvest before deciding: every row is either taken from what the codebase alread
 or marked `new — decided here`. A term neither the codebase nor the user resolves is a gap question,
 never a translation invented in the draft. Protocol: `code-locale`.
 
-## Spec rite   <!-- required when the target repo runs a spec-driven workflow -->
+## Spec rite   <!-- required when a target repo runs a spec-driven workflow -->
 
 - Workflow / schema: `openspec`, schema `<name>` (from `openspec/config.yaml`; absent → vanilla)
 - Policy: `required` (from `spec_rite.policy`, or the fail-closed default)
@@ -58,6 +58,15 @@ never a translation invented in the draft. Protocol: `code-locale`.
 <!-- or, when the work genuinely registers no requirement change: -->
 
 - Verdict: `Spec-rite: none — <the reason, one line>`
+
+<!-- workspace mode: one verdict per affected repo that runs the workflow, each with the policy
+     read for that repo (backlog-config.md, Precedence); an affected repo without one gets none -->
+
+- `org/repo-a` — schema `<name>`; policy `required` (from `repo-a/.github/backlog.yml`); verdict
+  **change required** — id `<verb-led-change-id>`, created and validated in `repo-a`; capabilities
+  `<capability>` (MODIFIED)
+- `org/repo-b` — schema `<name>`; policy `triage` (from the workspace `backlog.yml`); verdict
+  `Spec-rite: none — <the reason, one line>`
 
 The verdict is a decision recorded here, not one made at implementation time. `execute-backlog`
 re-checks it against the real change surface, raises it on its own when the work outgrew the item,
@@ -97,8 +106,9 @@ conventions (cite the test dir/framework found).
 - `org/repo-b` — role.
 ```
 
-Omit the *Spec rite* section entirely in a repository with no such workflow — an empty heading is
-worse than no heading, and the gate is a no-op there.
+Omit the *Spec rite* section entirely when no target repository runs such a workflow — an empty
+heading is worse than no heading, and the gate is a no-op there. In workspace mode the section lists
+only the affected repositories that run one.
 
 Field proposal guidance (shown in the preview with a 1-line rationale each):
 
