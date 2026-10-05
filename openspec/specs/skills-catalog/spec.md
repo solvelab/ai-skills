@@ -211,6 +211,22 @@ naming SHALL be conditional on that workflow being present, so that the reminder
 it does not apply. A repository whose spec policy is unstated SHALL be treated as requiring the
 artifact, so that the absence of a decision is not read as permission to skip it.
 
+The workflow SHALL be looked for where the work belongs, not only in the working directory. When the
+working directory is inside a repository, at any depth, the artifact SHALL look in the working
+directory and in every directory above it up to that repository's root — the root found by walking
+up the filesystem to the first repository marker, a directory or a file, so a linked work tree and a
+submodule count, without calling the version-control tool — and the nearest directory that carries
+the workflow's directory SHALL be the one that counts, which is how the workflow's own command-line
+tool resolves its root. A repository whose root runs the workflow is then found from any depth, and
+a working directory that carries the workflow below a root that does not keeps the sentence it
+carries today. When the working directory is a workspace root — outside any repository, with
+repositories as its direct subdirectories — the artifact SHALL look in each of those repositories
+and SHALL name, in one sentence, the ones that run the workflow, staying silent about the spec rite
+when none does. A directory outside any repository that carries the workflow's directory itself
+SHALL keep the sentence, because the workflow does not require version control. The position of the
+working directory SHALL NOT hide the workflow of the repository the work belongs to: a gate that
+fails closed by doctrine must not fail open on the depth of the working directory.
+
 The decision to ship without a spec artifact SHALL be a written one. A judgment made silently by the
 assistant, or by a contributor in conversation, SHALL NOT satisfy the rite: the waiver SHALL exist as
 a reviewable line in the pull request, and the gate SHALL be what reads it.
@@ -222,6 +238,10 @@ deliberately accepted false positive SHALL be fixed in that self-test as a case 
 recorded decision cited beside it, so that a well-meant correction cannot revert it unread. A
 payload that is not a JSON object SHALL be ignored: the artifact exits zero with no output and no
 traceback, because a hook that crashes on malformed input costs the turn it was meant to inform.
+The self-test's cases SHALL NOT depend on the repository it happens to run in: every fixture that
+stands for a repository carries the marker that stops the walk, and a case that needs a directory
+outside any repository says so when the temporary directory cannot provide one, instead of passing
+or failing on the runner's layout.
 
 #### Scenario: A code-change request carries the rite into context
 
@@ -232,12 +252,14 @@ traceback, because a hook that crashes on malformed input costs the turn it was 
 
 #### Scenario: The reminder names the spec rite only where it exists
 
-- **WHEN** the prompt matches a code-change signal and the working directory carries the
-  spec-driven workflow's directory
+- **WHEN** the prompt matches a code-change signal and the working directory, or a directory above it
+  up to the root of the repository it is in, carries the spec-driven workflow's directory — whether
+  the working directory is that root or a subdirectory at any depth below it
 - **THEN** the reminder also names the spec artifact as a step that precedes the first edit outside
   that directory
-- **AND** the same prompt in a working directory without that workflow produces the reminder without
-  the spec sentence, so the added line never fires where it has no meaning
+- **AND** the same prompt in a repository where neither the working directory nor any directory up
+  to its root carries that workflow produces the reminder without the spec sentence, so the added
+  line never fires where it has no meaning
 
 #### Scenario: The reminder is silent inside its own rite
 
@@ -266,6 +288,32 @@ traceback, because a hook that crashes on malformed input costs the turn it was 
   fires, citing the decision that accepted the false positive
 - **AND** when the payload on stdin is a JSON array, a JSON string or empty, the hook exits zero
   with no output and no traceback
+- **AND** the case list includes a subdirectory of a repository whose root runs the workflow, a
+  subdirectory that runs it below a root that does not, a workspace root with and without a child
+  that runs it, and a repository whose marker is a file
+
+#### Scenario: A workspace root names the repositories that run the spec rite
+
+- **WHEN** the prompt matches a code-change signal and the working directory is outside any
+  repository, does not carry the spec-driven workflow's directory itself, has repositories as its
+  direct subdirectories, and at least one of them carries that directory at its root
+- **THEN** the reminder carries one spec sentence naming each such repository and none that lacks the
+  workflow
+- **AND** the same prompt at a workspace root that does not carry the workflow's directory itself,
+  where no child runs the workflow, produces the reminder without the spec sentence, as before
+
+#### Scenario: A linked work tree or a submodule is a repository root
+
+- **WHEN** the working directory sits below a directory whose repository marker is a file rather
+  than a directory, and that directory carries the spec-driven workflow's directory
+- **THEN** the reminder carries the spec sentence, found without calling the version-control tool
+
+#### Scenario: The workflow outside any repository keeps its sentence
+
+- **WHEN** the working directory is outside any repository and carries the spec-driven workflow's
+  directory itself
+- **THEN** the reminder carries the spec sentence, exactly as it did before the artifact looked for
+  repository roots
 
 ### Requirement: The backlog skills declare their place in one rite
 
@@ -284,7 +332,19 @@ is the failure this gate exists to prevent.
 
 The policy SHALL be the repository's to set rather than the skills', because both skills run against
 repositories with different rites; a repository that states no policy while carrying the workflow
-SHALL be treated as requiring the artifact.
+SHALL be treated as requiring the artifact. In a workspace, the policy of each affected repository
+SHALL come from that repository's own configuration first, then from the workspace's, then from that
+fail-closed default.
+
+Both skills SHALL detect the workflow, and run its commands, where it lives for the repository the
+work targets — in the repository the working directory is in, whatever its depth, the nearest
+directory carrying the workflow's directory between the working directory and that repository's
+root; from a workspace root, the root of each affected repository — and never in the working
+directory alone, because the workflow's command-line tool takes no path and answers that there are
+no active changes from a directory that merely sits above a repository. Neither skill SHALL
+conclude that a repository runs no workflow because the working directory does not carry one. From
+a workspace root, the item SHALL carry one verdict per affected repository that runs the workflow,
+so that the executing skill inherits a decision for each repository it will change.
 
 #### Scenario: Entry point is discoverable from the execution skill
 
@@ -317,6 +377,28 @@ SHALL be treated as requiring the artifact.
 - **THEN** the executing skill raises the verdict to requiring an artifact without asking
 - **AND** the reverse move — dropping a required artifact to a waiver — stops for an explicit user
   decision rather than being taken by the assistant
+
+#### Scenario: Detection does not depend on the working directory's depth
+
+- **WHEN** either skill runs from a subdirectory of a repository whose root carries the spec-driven
+  workflow
+- **THEN** it detects the workflow at that root, reads that repository's policy, and runs the
+  workflow's commands with that root as the working directory
+
+#### Scenario: A workspace item carries one verdict per affected repository
+
+- **WHEN** the creating skill drafts, from a workspace root, an item that affects a child repository
+  running the spec-driven workflow
+- **THEN** the item's spec section declares that repository's verdict, with the policy read from that
+  repository's own configuration, then the workspace's, then the fail-closed default
+- **AND** an affected repository that does not run the workflow carries no verdict
+
+#### Scenario: The executing skill does not skip the gate from a workspace root
+
+- **WHEN** the executing skill runs from a workspace root for an item whose affected repository runs
+  the spec-driven workflow
+- **THEN** its spec step is not a no-op: the change is created and validated strict in that
+  repository before any file outside that repository's workflow directory is edited
 
 ### Requirement: Claim verification has a canonical home
 
@@ -917,6 +999,14 @@ that harness reads for each event — established against the installed version,
 plain standard output is not carried into context for those events and an envelope naming the wrong
 event is dropped by the harness.
 
+The written path SHALL be measured relative to the root of the repository the written file belongs
+to, found by walking up from the file's directory to the first repository marker — a directory or a
+file — and the allowlist SHALL be the one found from that root; the working directory in the payload
+SHALL serve only as the fallback for a file that belongs to no repository, the rule the prose
+declaration already follows. The position of the working directory — a subdirectory, or a
+workspace root above the repository — SHALL NOT change which path is measured or which allowlist
+speaks for it.
+
 On the event that **precedes** the write, a gating finding — a Portuguese identifier in the added
 content, or a Portuguese path segment in a path the write **creates** — SHALL deny the tool call, so
 that the name never reaches the disk. A Portuguese segment in the path of a file that already exists
@@ -966,7 +1056,8 @@ write is not read as proof that no Portuguese name can land.
 #### Scenario: The same write with a stated waiver or an allowlisted name lands
 
 - **WHEN** the added content carries the inline waiver with a reason on the line above the name, or
-  the name or path is listed in the allowlist file found from the working directory
+  the name or path is listed in the allowlist file found from the root of the repository the
+  written file belongs to (from the working directory only when the file belongs to no repository)
 - **THEN** the artifact produces no output on either event, and the write lands in silence
 
 #### Scenario: An edit to a file that already carries a Portuguese name is not denied for the name
@@ -1050,6 +1141,21 @@ write is not read as proof that no Portuguese name can land.
   repository boundary
 - **THEN** the artifact reports no prose finding on either event, whatever language the comment is
   in, and the identifier findings are exactly what they were before
+
+#### Scenario: A write from a subdirectory measures the path from the repository root
+
+- **WHEN** the working directory is a subdirectory of a repository and the event that precedes a
+  write creates a file elsewhere in the same repository whose path carries a Portuguese segment
+- **THEN** the artifact denies the write and the reason names the path relative to the repository
+  root, exactly as it does when the working directory is that root
+
+#### Scenario: A write from a workspace root answers to the child repository's allowlist
+
+- **WHEN** the working directory is a workspace root and the event that precedes a write creates a
+  file inside a child repository whose own allowlist lists the file's Portuguese segment
+- **THEN** the artifact produces no output and the write lands
+- **AND** without that entry the reason names the path relative to the child repository's root, so
+  the allowlist line it implies is the one that silences it there
 
 ### Requirement: The rite gates proof that the artifact was exercised
 
@@ -1574,11 +1680,24 @@ the write-time artifact, so the rite that covers only the write SHALL NOT be tre
 turn.
 
 The artifact SHALL run on the harness event that ends a turn, SHALL read the working directory from
-the payload, and, when that directory is inside a git work tree, SHALL build the uncommitted diff —
-tracked files against the current commit, plus every untracked file the repository does not ignore,
-each as an added file — and measure it with the shipped identifier-locale check in its diff mode,
-honouring the repository's allowlist and the check's own exclusions. It SHALL measure only what the
-turn left uncommitted: history and untouched lines never enter.
+the payload, and SHALL measure the repositories the work belongs to: the git work tree that directory
+is inside, or — when it is outside any work tree and its direct subdirectories are work trees, a
+workspace root — each of those children. For each, it SHALL build the uncommitted diff — tracked
+files against the current commit, plus every untracked file the repository does not ignore, each as
+an added file — and measure it with the shipped identifier-locale check in its diff mode, honouring
+that repository's own allowlist and the check's own exclusions. It SHALL measure only what the turn
+left uncommitted: history and untouched lines never enter.
+
+At a workspace root, the findings of every child SHALL reach one reason, each path prefixed with the
+child's directory, while the line the reason prints as the allowlist exit for a file name SHALL stay
+the one that silences it in that child's own allowlist — an exit that does not work when followed
+produces the blind second attempt the write-time artifact already guards against. The declared line
+cap SHALL be shared by all the children, and the time the artifact spends measuring SHALL have a
+bound it declares, below the timeout of the wiring it documents; a child that the cap or the time
+bound leaves unmeasured — never reached, or interrupted partway through its diff — SHALL be named as
+not measured, with the same semantics as a capped diff. A child whose version-control call fails, or
+does not answer within its own per-call timeout while the time bound still runs, SHALL be skipped
+without blocking, the rule that already holds for a single repository.
 
 When the diff carries a gating finding and the payload does not mark the block as already in
 progress, the artifact SHALL prevent the turn from ending, through the field the installed harness
@@ -1595,22 +1714,28 @@ path that does not exist. Untracked files the check itself calls vendored, and e
 files, SHALL be skipped before git is asked, so they consume neither the measuring budget nor a
 process each.
 
-The artifact SHALL be silent — no output, exit zero, under one second — outside a git work tree, on
-an empty diff, on advisory-only findings, in the informative mode, and on a payload it cannot read.
+The artifact SHALL be silent — no output, exit zero — where the working directory is outside any
+git work tree and none of its direct subdirectories is one, on an empty diff, on advisory-only
+findings, in the informative mode, and on a payload it cannot read. Where it measures, it SHALL
+finish within the time bound it declares rather than within a fixed second, because the cost of one
+clean repository depends on the filesystem it sits on: on a 9p-mounted filesystem it was measured
+both under and above one second.
 It SHALL cap the diff it measures at a declared number of lines and SHALL say so when the cap was
 reached, never truncating in silence: in its reason when the measured part has a finding, and as a
 block of its own — once, then a message on the Stop that follows — when the measured part is clean,
 because an unmeasured tail is not a clean result. It SHALL carry a self-test exercised by the
 repository's CI, exercised also under a git configuration that alters the diff's shape, and SHALL
-declare what escapes it: a file committed inside the same turn, a repository outside the working
-directory, and the event's different name inside a subagent.
+declare what escapes it: a file committed inside the same turn, another repository when the working
+directory is already inside one, a repository more than one level below a workspace root, and the
+event's different name inside a subagent.
 
-Where the work tree root carries the prose declaration, the artifact SHALL measure the same diff
-with the shipped prose detector as well: a comment or docstring with strong evidence of the wrong
-language blocks the end of the turn alongside any identifier finding, in one reason; a Markdown
-paragraph in the wrong language reaches the assistant as a message and never blocks; and a
+Where the root of a measured work tree carries the prose declaration, the artifact SHALL measure that
+work tree's diff with the shipped prose detector as well: a comment or docstring with strong evidence
+of the wrong language blocks the end of the turn alongside any identifier finding, in one reason; a
+Markdown paragraph in the wrong language reaches the assistant as a message and never blocks; and a
 declaration the detector cannot read is named in a message rather than silencing the direction.
-Without the declaration the artifact SHALL measure prose nowhere.
+Without the declaration the artifact SHALL measure prose nowhere, and a child of a workspace is
+judged by its own declaration, never by another child's.
 
 #### Scenario: A heredoc-written Portuguese file blocks the end of the turn
 
@@ -1632,7 +1757,8 @@ Without the declaration the artifact SHALL measure prose nowhere.
 
 #### Scenario: Outside a git work tree the artifact is silent
 
-- **WHEN** the working directory in the payload is not inside a git repository
+- **WHEN** the working directory in the payload is not inside a git repository and none of its
+  direct subdirectories is one
 - **THEN** the artifact produces no output and exits zero
 
 #### Scenario: The informative mode silences the gate
@@ -1682,6 +1808,37 @@ Without the declaration the artifact SHALL measure prose nowhere.
 - **WHEN** the work tree root carries no `.code-locale` and the uncommitted diff adds an English
   comment
 - **THEN** the artifact produces no prose finding and decides exactly as it did before
+
+#### Scenario: A workspace root measures each child repository
+
+- **WHEN** the working directory is a workspace root and a child repository ends the turn with
+  `servico_cliente.py` holding `def buscar_cliente(id_usuario)`, untracked
+- **THEN** the artifact blocks the end of the turn and the reason names the file as
+  `<child>/servico_cliente.py`, with its identifiers and the exits
+
+#### Scenario: The allowlist line a workspace reason prints works when followed
+
+- **WHEN** a child of a workspace root holds an uncommitted file whose only finding is its Portuguese
+  name, and the line the reason prints as that name's allowlist exit is added to the child's own
+  allowlist
+- **THEN** the next Stop at the workspace root produces no output, because the printed line is
+  relative to the child's root, where that allowlist is read
+
+#### Scenario: Each child answers to its own allowlist and declaration
+
+- **WHEN** two children of a workspace root end the turn with uncommitted changes, and only one of
+  them lists the finding's name in its allowlist or declares its prose language
+- **THEN** that allowlist and that declaration apply to that child alone, and the other child's
+  findings are exactly what they would be with the working directory inside it
+
+#### Scenario: Children past the shared cap or the time bound are named, never dropped
+
+- **WHEN** the children's uncommitted diffs together exceed the declared line cap, or the time bound
+  ends before every child was measured in full — before a child was reached, or partway through its
+  untracked files
+- **THEN** the artifact says what was not measured — in its reason when the measured part has a
+  finding, and as a block of its own when it is clean, then a message on the Stop that follows —
+  exactly as it does for one capped diff
 
 ### Requirement: Code volume has a canonical home
 

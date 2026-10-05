@@ -612,5 +612,10 @@
 
       O catálogo não muda de composição; o uso muda, e o `README.md` diz onde o workflow é procurado e
       como os hooks se comportam da raiz de um workspace (3.3).
-- [ ] V.4 `openspec archive update-rite-repo-discovery --yes` after all groups above are `[x]` — PR
+- [x] V.4 `openspec archive update-rite-repo-discovery --yes` after all groups above are `[x]` — PR
       separado, como o repositório já faz
+
+      Depois do merge do #263 (`5a45bd6`): `openspec archive update-rite-repo-discovery --yes` ->
+      `skills-catalog: update` / `~ 4 modified` / `Totals: + 0, ~ 4, - 0, → 0` / `Change
+      'update-rite-repo-discovery' archived as '2026-10-05-update-rite-repo-discovery'`. O aviso
+      `1 incomplete task(s)` era esta caixa.
