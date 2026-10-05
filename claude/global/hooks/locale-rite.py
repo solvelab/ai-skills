@@ -66,7 +66,23 @@ MODES
                              default mode, so a typo cannot open the door in silence.
     The two exits the check already honours still apply and are named in every denial:
     `# locale-ok: <reason>` on the line above an identifier, and the name or the path listed in
-    .identifier-locale-allow (the only waiver a file name can carry).
+    .identifier-locale-allow (the only waiver a file name can carry), named in the denial by its
+    absolute path.
+
+WHICH REPOSITORY A WRITE ANSWERS TO (issue #261)
+    Both directions measure the written path relative to the root of the repository the written
+    FILE belongs to, and read the allowlist from that root (`write_root`). The root is the first
+    directory holding `.git` — a directory, or a file for a linked work tree or a submodule —
+    walking up from the file's directory, found without calling git; the payload's `cwd` serves only
+    for a file that belongs to no repository, the rule the prose declaration below already follows.
+    So the session's position never changes the verdict. From a subdirectory a path keeps every
+    directory below the root (measured from the cwd, a file outside it shrank to its bare name).
+    From a workspace root — outside any repository, with repositories as direct subdirectories — a
+    write into a child answers to the child's allowlist and is named relative to the child, so the
+    allowlist line a denial implies is the one that silences it there; a write into a submodule, or
+    into another repository, answers to that repository the same way. Because the file read is no
+    longer the cwd's, the denial's exit (2) names it by absolute path: the allowlist the check reads
+    for that root (the first at or above it), or `<root>/.identifier-locale-allow` when there is none.
 
 WHAT THIS HOOK DELIBERATELY DOES NOT DO
     - It never denies on PostToolUse (the tool already ran) and never denies on an advisory finding
@@ -108,6 +124,9 @@ KNOWN LIMIT
     A NotebookEdit is measured for prose only: the identifier tier reads the language off the file
     suffix through EXT_LANG, which has no `.ipynb`, so a Portuguese name in a notebook cell passes
     the write hook (the Stop gate does not read notebooks either).
+    The allowlist walk is the check's own (`load_allowlist`) and does not stop at the repository
+    root: a repository without its own .identifier-locale-allow still inherits the first one above
+    it (left as is by issue #261).
 
 Wiring (~/.claude/settings.json) — BOTH blocks, same command. PreToolUse is the one that denies;
 PostToolUse is the one that carries the advisory and the `inform` mode. Wiring only the first loses
@@ -136,9 +155,11 @@ Any other argument prints usage to stderr and exits 2 — the same contract as b
 verify-rite.py since #115, so a misspelt flag cannot fall through to the stdin path and exit 0.
 The selftest feeds only the fields this hook reads (`hook_event_name`, `tool_name`, `tool_input`,
 `cwd`), in the shape the 2.1.261 bundle declares; that the harness still sends them under those names
-is what the wired session proves, not the selftest. The prose cases build their own temporary trees,
-each with a `.git` directory that stops the declaration walk, so the selftest never reads the
-declaration or the allowlist of whoever runs it.
+is what the wired session proves, not the selftest. The prose cases, and the cases that read an
+allowlist or a file on disk, build their own temporary trees, each with a `.git` marker that stops the
+walk, so they never read the declaration or the allowlist of whoever runs the selftest; the two cases
+that need a directory outside any repository print SKIP with the reason when the temporary directory
+sits inside one.
 """
 
 import importlib.util
@@ -224,11 +245,13 @@ PROSE_EXIT = (
 )
 
 # The three exits, literal, so the model can act without opening the skill. A denial that only says
-# "there are exits" produces the blind second attempt issue #137 lists as a risk.
+# "there are exits" produces the blind second attempt issue #137 lists as a risk. Exit (2) names the
+# allowlist by absolute path (`allowlist_file`): since #261 the root is the written file's repository,
+# not the cwd, so the cwd's file is not necessarily the one read.
 EXITS = (
     "Exits: (1) `# locale-ok: <reason>` on the line above the name (identifiers only — a file name "
     "has nowhere to carry it);",
-    "  (2) list the name or the path in .identifier-locale-allow (the only waiver for a file name);",
+    "  (2) list the name or the path in {allowlist} (the only waiver for a file name);",
     f"  (3) export {MODE_ENV}={MODE_INFORM} to make this hook advisory for the whole session.",
 )
 
@@ -282,6 +305,36 @@ def declared_prose(prose, path: Path, cwd: str) -> "str | None":
         return None                          # named by the Stop gate once per turn, not per write
 
 
+def write_root(path: Path, cwd: str) -> Path:
+    """The root a write is measured from: the allowlist is read from it and the path is measured
+    relative to it, in both directions.
+
+    It is the root of the repository the written file belongs to — the first directory holding
+    `.git` (a directory, or a file for a linked work tree or a submodule) walking up from the file's
+    directory, found without calling git. The payload's cwd, else the process's, serves only when
+    that walk meets no repository at all: the rule `declared_prose` already follows, so a session in
+    a subdirectory or at a workspace root measures a write exactly as one at the repository root.
+    """
+    # lean: the walk is duplicated in backlog-rite.py -> extract it when a third caller appears
+    start = path.parent
+    here = start.resolve() if start.exists() else start
+    for parent in [here] + list(here.parents):
+        if (parent / ".git").exists():
+            return parent
+    return Path(cwd) if cwd else Path.cwd()
+
+
+def allowlist_file(check, root: Path) -> Path:
+    """The allowlist a denial's exit (2) names: the first one `load_allowlist` reads at or above the
+    root — the same walk, so the two never disagree — else `<root>/.identifier-locale-allow`. Naming
+    the root's file while an inherited one exists would create a file that shadows the inherited
+    entries, since the walk stops at the first file it meets."""
+    for parent in [root] + list(root.parents):
+        if (parent / check.ALLOWLIST_FILE).is_file():
+            return (parent / check.ALLOWLIST_FILE).absolute()
+    return (root / check.ALLOWLIST_FILE).absolute()
+
+
 def prose_findings_for(prose, file_path: str, text: str, cwd: str, anchor: str, check,
                        kind: "str | None" = None) -> list:
     """Prose findings for one write, empty wherever the repository declares nothing. `kind` names
@@ -297,7 +350,7 @@ def prose_findings_for(prose, file_path: str, text: str, cwd: str, anchor: str, 
     declared = declared_prose(prose, path, cwd)
     if declared is None:
         return []
-    root = Path(cwd) if cwd else Path.cwd()
+    root = write_root(path, cwd)
     allow = check.load_allowlist(root)
     rel = check.project_relative(path, root)
     first_line = first_line_of(path, anchor)
@@ -380,7 +433,7 @@ def findings_for(check, file_path: str, text: str, cwd: str, anchor: str, pre: b
     path = Path(file_path)
     if check.is_vendored(path):
         return []
-    root = Path(cwd) if cwd else Path.cwd()
+    root = write_root(path, cwd)
     allow = check.load_allowlist(root)
     english = check.load_english() if hasattr(check, "load_english") else None
     creates = not path.exists()
@@ -441,8 +494,9 @@ def finding_line(f) -> str:
     return f"  {where}: {f.token}  [{f.tier}: '{f.segment}']"
 
 
-def deny_reason(gating: list, advisory: list) -> str:
-    """Header, one line per distinct (path, token), `+N more`, the advisory count, the three exits.
+def deny_reason(gating: list, advisory: list, allowlist: Path) -> str:
+    """Header, one line per distinct (path, token), `+N more`, the advisory count, the three exits,
+    exit (2) naming `allowlist`.
 
     Built to fit REASON_LINE_CAP lines by construction and REASON_CAP characters by trimming finding
     lines from the end — never the exits, which the harness would otherwise be the one to cut.
@@ -476,7 +530,8 @@ def deny_reason(gating: list, advisory: list) -> str:
     tail.append(EXITS[0])
     if prose:
         tail.append(PROSE_EXIT)
-    tail.extend(EXITS[1:])
+    tail.append(EXITS[1].format(allowlist=allowlist))
+    tail.extend(EXITS[2:])
     shown = min(len(distinct), REASON_MAX_FINDINGS)
     while True:
         lines = [header] + [finding_line(f) for f in distinct[:shown]]
@@ -488,14 +543,14 @@ def deny_reason(gating: list, advisory: list) -> str:
         shown -= 1
 
 
-def deny(findings: list) -> dict:
+def deny(findings: list, allowlist: Path) -> dict:
     """The PreToolUse envelope. Shape probed on the 2.1.261 bundle (see the docstring)."""
     gating, advisory = split_findings(findings)
     return {
         "hookSpecificOutput": {
             "hookEventName": PRE_EVENT,
             "permissionDecision": "deny",
-            "permissionDecisionReason": deny_reason(gating, advisory),
+            "permissionDecisionReason": deny_reason(gating, advisory, allowlist),
         }
     }
 
@@ -542,7 +597,10 @@ def evaluate(payload: dict, check, mode: "str | None" = None) -> "dict | None":
     if (mode if mode is not None else current_mode()) == MODE_INFORM:
         return None                      # the write lands; PostToolUse informs, as before #137
     gating, _ = split_findings(findings)
-    return deny(findings) if gating else None
+    if not gating:
+        return None
+    # The root again, only on the denying path: findings_for already walked it without raising.
+    return deny(findings, allowlist_file(check, write_root(Path(file_path), cwd)))
 
 
 def selftest() -> int:
@@ -671,20 +729,24 @@ def selftest() -> int:
     if not ok:
         failed.append("en-unknown alone")
 
-    # The allowlist is found from the payload's cwd, so the case builds one in a temporary tree and
-    # never reads the allowlist of whoever runs the selftest.
+    # The allowlist is found from the root of the written file's repository, so the case builds one
+    # in a temporary tree whose `.git` stops the walk, and never reads the allowlist of whoever runs
+    # the selftest.
     with tempfile.TemporaryDirectory() as tmp:
+        (Path(tmp) / ".git").mkdir()
         (Path(tmp) / check.ALLOWLIST_FILE).write_text("buscar_order\n", encoding="utf-8")
         allowed = pre({"file_path": f"{tmp}/orders/service.py", "content": "def buscar_order(x):\n    return x\n"}, cwd_=tmp)
         ok = evaluate(allowed, check) is None and evaluate({**allowed, "hook_event_name": POST_EVENT}, check) is None
-        print(f"  {'OK     ' if ok else 'FAILED '} PreToolUse allows a name listed in {check.ALLOWLIST_FILE} of the cwd")
+        print(f"  {'OK     ' if ok else 'FAILED '} PreToolUse allows a name listed in {check.ALLOWLIST_FILE} of the written file's repository")
         if not ok:
             failed.append("allowlist")
 
     # A file that already exists is never denied for its own name (D8), and a waiver already in the
     # file on the line above the edited fragment counts (D9). Both need a real file, built in a
-    # temporary tree; both were review findings on the first version of this mode.
+    # temporary tree whose `.git` stops the walk; both were review findings on the first version of
+    # this mode.
     with tempfile.TemporaryDirectory() as tmp:
+        (Path(tmp) / ".git").mkdir()
         legacy = Path(tmp) / "servico_pedido.py"
         legacy.write_text("total = 0\n", encoding="utf-8")
         edit = {"file_path": str(legacy), "old_string": "total = 0", "new_string": "total = 1\n"}
@@ -720,6 +782,109 @@ def selftest() -> int:
         print(f"  {'OK     ' if ok else 'FAILED '} locale-ok already in the file above old_string: PreToolUse silent, PostToolUse silent, denied without it")
         if not ok:
             failed.append("waiver above the fragment")
+
+    # ── Which repository a write answers to (issue #261) ──
+    # The allowlist and the measured path come from the root of the written file's repository, never
+    # from the cwd while the file sits in one. Each tree carries its own `.git`, so the walk stops
+    # inside the fixture; only the last case needs a directory outside any repository, and it prints
+    # SKIP when the temporary directory cannot be one.
+    root_decisions = 0
+
+    def root_case(name, ok):
+        nonlocal root_decisions
+        root_decisions += 1
+        print(f"  {'OK     ' if ok else 'FAILED '} {name}")
+        if not ok:
+            failed.append(name)
+
+    def reason_of(got):
+        return got["hookSpecificOutput"].get("permissionDecisionReason", "") if got else ""
+
+    pt_segment_line = "\n  servicos/x.py: servicos  [path-pt-noun: 'servicos']"
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp) / "repo"
+        (repo / ".git").mkdir(parents=True)
+        (repo / "src-tauri").mkdir()
+        deep = {"file_path": f"{repo}/crates/core/src/servicos/x.rs", "content": "fn main() {}\n"}
+        from_sub = reason_of(evaluate(pre(deep, cwd_=str(repo / "src-tauri")), check))
+        from_root = reason_of(evaluate(pre(deep, cwd_=str(repo)), check))
+        root_case("PreToolUse from a subdirectory denies a Portuguese path segment and names the path "
+                  "from the repository root, exactly as from the root",
+                  "\n  crates/core/src/servicos/x.rs: servicos  [path-pt-noun: 'servicos']" in from_sub
+                  and from_sub == from_root)
+    with tempfile.TemporaryDirectory() as workspace:
+        child = Path(workspace) / "child"
+        (child / ".git").mkdir(parents=True)
+        child_allow = child / check.ALLOWLIST_FILE
+        into_child = pre({"file_path": f"{child}/servicos/x.py", "content": "total = 0\n"}, cwd_=workspace)
+        child_allow.write_text("servicos\n", encoding="utf-8")
+        root_case("PreToolUse from a workspace root lets the child's own allowlist speak for a write into it "
+                  "(PreToolUse and PostToolUse silent)",
+                  evaluate(into_child, check) is None
+                  and evaluate({**into_child, "hook_event_name": POST_EVENT}, check) is None)
+        child_allow.unlink()
+        unlisted = reason_of(evaluate(into_child, check))
+        child_allow.write_text("servicos/x.py\n", encoding="utf-8")
+        root_case("PreToolUse from a workspace root without the entry denies with the path relative to the "
+                  "child, and that path in the child's allowlist silences it",
+                  pt_segment_line in unlisted and "child/servicos" not in unlisted
+                  and evaluate(into_child, check) is None)
+    with tempfile.TemporaryDirectory() as tmp:
+        (Path(tmp) / ".git").mkdir()
+        submodule = Path(tmp) / "sub"
+        submodule.mkdir()
+        (submodule / ".git").write_text("gitdir: ../.git/modules/sub\n", encoding="utf-8")
+        into_submodule = pre({"file_path": f"{submodule}/servicos/x.py", "content": "total = 0\n"}, cwd_=tmp)
+        nested = reason_of(evaluate(into_submodule, check))
+        root_case("PreToolUse: a .git file marks a root, so a write into a submodule is named relative to it, "
+                  "not to the superproject at the cwd",
+                  pt_segment_line in nested and "sub/servicos" not in nested)
+
+    def allowlist_named(reason):
+        """The allowlist exit (2) names, or "" when the reason carries no such exit."""
+        _head, sep, rest = reason.partition("  (2) list the name or the path in ")
+        return rest.split(" (the only waiver", 1)[0] if sep else ""
+
+    # Exit (2) names the file the check reads, by absolute path: from a workspace root the cwd's file
+    # is not it, and an allowlist inherited from above the root is the one to extend, never shadow.
+    with tempfile.TemporaryDirectory() as workspace:
+        child = Path(workspace).resolve() / "child"
+        (child / ".git").mkdir(parents=True)
+        (child / check.ALLOWLIST_FILE).write_text("other\n", encoding="utf-8")
+        into_child = pre({"file_path": f"{child}/servicos/x.py", "content": "total = 0\n"}, cwd_=workspace)
+        reason = reason_of(evaluate(into_child, check))
+        named = allowlist_named(reason)
+        printed = next((line.strip().split(": ", 1)[0] for line in reason.splitlines() if "[path-pt-" in line), "")
+        ok = named == str(child / check.ALLOWLIST_FILE) and bool(printed)
+        if ok:
+            with open(named, "a", encoding="utf-8") as handle:
+                handle.write(printed + "\n")
+        root_case("PreToolUse from a workspace root: exit (2) names the child's allowlist by absolute path, "
+                  "and the path line it prints, appended there, lets the write land",
+                  ok and evaluate(into_child, check) is None)
+    with tempfile.TemporaryDirectory() as parent:
+        outer = Path(parent).resolve()
+        repo = outer / "repo"
+        (repo / ".git").mkdir(parents=True)
+        (outer / check.ALLOWLIST_FILE).write_text("other\n", encoding="utf-8")
+        inherited = reason_of(evaluate(pre({"file_path": f"{repo}/servicos/x.py", "content": "total = 0\n"},
+                                           cwd_=str(repo)), check))
+        root_case("PreToolUse: a repository without its own allowlist names the inherited one above it, "
+                  "not a new file at its root that would shadow it",
+                  allowlist_named(inherited) == str(outer / check.ALLOWLIST_FILE))
+    with tempfile.TemporaryDirectory() as nowhere, tempfile.TemporaryDirectory() as session:
+        here = Path(nowhere).resolve()
+        if any((parent / ".git").exists() for parent in (here, *here.parents)):
+            print("  SKIP    PreToolUse: a file outside any repository answers to the cwd's allowlist "
+                  "(the temporary directory sits inside a repository)")
+        else:
+            (Path(session) / check.ALLOWLIST_FILE).write_text("buscar_order\n", encoding="utf-8")
+            outside = pre({"file_path": f"{nowhere}/service.py",
+                           "content": "def buscar_order(x):\n    return x\n"}, cwd_=session)
+            root_case("PreToolUse: a file outside any repository answers to the cwd's allowlist "
+                      "(PreToolUse and PostToolUse silent)",
+                      evaluate(outside, check) is None
+                      and evaluate({**outside, "hook_event_name": POST_EVENT}, check) is None)
 
     # ── The prose direction (issue #179): measured only where .code-locale declares it ──
     # Each tree carries its own `.git` so the declaration walk stops there and never reaches the
@@ -762,6 +927,17 @@ def selftest() -> int:
         print(f"  {'OK     ' if named else 'FAILED '} prose: the reason names the line, the fragment, both languages and four exits")
         if not named:
             failed.append("prose reason")
+        # Issue #261: the prose finding is named from the repository root, not from the cwd — from a
+        # sibling subdirectory the cwd rule would shrink it to the bare file name.
+        (Path(declared) / "docs").mkdir()
+        sibling = prose_case("prose: PreToolUse from a sibling subdirectory still denies the English comment", "deny",
+                             pre({"file_path": py, "content": en_comment}, cwd_=f"{declared}/docs"))
+        sibling_ok = bool(sibling) and "\n  orders/total.py:1: comment reads as en" in \
+            sibling["hookSpecificOutput"]["permissionDecisionReason"]
+        print(f"  {'OK     ' if sibling_ok else 'FAILED '} prose: from a sibling subdirectory the finding is named "
+              "from the repository root")
+        if not sibling_ok:
+            failed.append("prose root-relative name")
         prose_case("prose: PreToolUse lets a Portuguese comment through", None,
                    pre({"file_path": py, "content": pt_comment}, cwd_=declared))
         prose_case("prose: locale-ok on the line above the comment lands in silence", None,
@@ -906,8 +1082,8 @@ def selftest() -> int:
         return 1
     print(f"selftest OK: {len(cases)} PostToolUse decisions, {len(pre_cases)} PreToolUse decisions, "
           "inform mode, en-unknown, the allowlist, the legacy path, the waiver above the fragment, "
-          f"both envelopes, the environment, the argv contract and {prose_decisions} prose decisions "
-          "with and without .code-locale")
+          f"{root_decisions} repository-root decisions, both envelopes, the environment, the argv "
+          f"contract and {prose_decisions} prose decisions with and without .code-locale")
     return 0
 
 
