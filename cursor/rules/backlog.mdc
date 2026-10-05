@@ -9,14 +9,18 @@ Reference files (`references/…` below) live at https://github.com/solvelab/ai-
 
 # Backlog — idea → structured GitHub Project item
 
-> **Verified against**: `gh 2.96.0` · `openspec 1.6.0`. Probed on 2026-09-05: the read recipes ran
-> against the AI-SKILLS board (`gh project list/view/field-list/item-list --owner --format json
-> --jq`, `gh issue view --json --jq`, `gh issue list --search --state --json`, `gh label list
-> --json`, `gh auth status`); `gh project item-edit --project-id --id --field-id
+> **Verified against**: `gh 2.96.0` · `openspec 1.6.0` · `git 2.47.3`. Probed on 2026-09-05: the
+> read recipes ran against the AI-SKILLS board (`gh project list/view/field-list/item-list --owner
+> --format json --jq`, `gh issue view --json --jq`, `gh issue list --search --state --json`, `gh
+> label list --json`, `gh auth status`); `gh project item-edit --project-id --id --field-id
 > --single-select-option-id` moved a real card the same day; every other flag this skill and its
 > references prescribe (58 flags across 18 subcommands, `gh issue create --title --body-file
 > --label` and `gh project item-add --url` among them) is present in that client's `--help`.
-> Nothing was created, closed or merged by the probe.
+> Nothing was created, closed or merged by the probe. Probed on 2026-10-04: the step 6 detection ran
+> in throwaway repositories — from a repository root, a subdirectory, a path through a symlink, a
+> linked work tree and a monorepo package it named the nearest `openspec/` up to `git rev-parse
+> --show-toplevel`; at a workspace root, where `git rev-parse` exits 128 and a bare `openspec list`
+> answers `No active changes found.`, `(cd <repo> && openspec list)` listed that child's workflow.
 
 Enrich a raw idea with real repository context and publish it as a GitHub issue inside the
 configured GitHub Project v2 — never a copy of the user's sentence, always grounded in the actual
@@ -47,13 +51,14 @@ declares is what `execute-backlog` inherits, instead of making a new decision.
    fresh each run (they drift and differ per Project).
 6. Ask questions **only** when essential information is missing or ambiguous (max ~3, objective).
    Everything derivable from the repo must be derived, not asked.
-7. **Spec-rite gate** — in a repo that runs a spec-driven workflow, the item is not complete until
-   it declares its verdict: the change that will register the work, or a waiver written as a line
-   with a reason. The default is that the change is required; a repo carrying the workflow with no
-   stated policy is treated as requiring it, because an unstated policy is the absence of a
-   decision, not permission to skip. Never decide this silently — the verdict is a section of the
-   item and appears in the preview. The workflow's own lifecycle is not restated here: it is
-   `openspec`, or the project's fork (`openspec-drivezone` is one).
+7. **Spec-rite gate** — in a repo that runs a spec-driven workflow (in workspace mode, each affected
+   repo that runs one), the item is not complete until it declares its verdict: the change that will
+   register the work, or a waiver written as a line with a reason. The default is that the change
+   is required; a repo carrying the workflow with no stated policy is treated as requiring it,
+   because an unstated policy is the absence of a decision, not permission to skip. Never decide
+   this silently — the verdict is a section of the item and appears in the preview. The workflow's
+   own lifecycle is not restated here: it is `openspec`, or the project's fork
+   (`openspec-drivezone` is one).
 
 ## Workflow
 
@@ -75,18 +80,35 @@ declares is what `execute-backlog` inherits, instead of making a new decision.
    candidate → show it and ask whether to continue, enrich the existing issue instead, or cancel.
 5. **Gap questions** — only for essentials the repo cannot answer (e.g. which provider, which of
    two plausible scopes). Batch them in one round.
-6. **Spec-rite triage** — repo with a spec-driven workflow only; skip when there is none:
+6. **Spec-rite triage** — for each target repo that runs a spec-driven workflow; skip only when none
+   does. Detect the workflow where it lives for that repo, never in the cwd alone: in repo mode the
+   nearest `openspec/` from the cwd up to the git root, inclusive; in workspace mode
+   `<repo>/openspec` of each affected repo. The CLI takes no path, so it runs from that directory:
 
    ```bash
-   [ -d openspec ] && grep -m1 '^schema:' openspec/config.yaml   # which schema this repo runs
-   openspec list                                                 # a related change may be open
+   # repo mode: from the cwd up to the git root, inclusive; the nearest openspec/ is the workflow
+   dir=""; if root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+     root="$(cd "$root" && pwd -P)"; dir="$(pwd -P)"   # both through this shell: Git Bash C:/ vs /c/
+     until [ -d "$dir/openspec" ] || [ "$dir" = "$root" ] || [ "$dir" = / ]
+     do dir="$(dirname "$dir")"; done
+   else echo 'not inside a repository: workspace mode sets dir="$PWD/<repo>" once per affected repo'
+   fi
+   # workspace mode: no walk; once per affected repo, dir="$PWD/<repo>" (that repo's root only)
+   if [ -z "$dir" ]; then :                            # outside a repository nothing is detected here
+   elif [ -d "$dir/openspec" ]; then
+     echo "workflow-dir: $dir"                         # where every openspec command runs from
+     grep -m1 '^schema:' "$dir/openspec/config.yaml"   # which schema it runs; absent → vanilla
+     (cd "$dir" && openspec list)                      # an open change may already cover the work
+   else echo "no spec-driven workflow in this repo"; fi
    ```
 
-   Read `spec_rite.policy` from config (`references/backlog-config.md`); absent with the workflow
-   present ⇒ `required`. Then propose the verdict: a verb-led change id (`add-`, `update-`,
-   `remove-`, `refactor-`) plus the capabilities its delta will touch, or the waiver line and the
-   reason it is legitimate. An existing open change that already covers the idea is named instead
-   of a new one.
+   Read that repo's `spec_rite.policy` with the precedence in `references/backlog-config.md`; absent
+   at every level it reads, with the workflow present ⇒ `required`. Then propose the verdict — in
+   workspace mode, one per affected repo that runs the workflow: a verb-led change id (`add-`,
+   `update-`, `remove-`, `refactor-`) plus the capabilities its delta will touch, or the waiver line
+   and the reason it is legitimate. An existing open change that already covers the idea is named
+   instead of a new one. Protocol, which this step does not restate: the file
+   `skills/execute-backlog/references/spec-rite.md` in the `execute-backlog` skill.
 7. **Draft** — fill the template from `references/issue-template.md`; omit sections that do not
    apply. When the item produces code, fill the **Glossary** from the vocabulary harvested in step 3
    before deciding any new name; a term neither the codebase nor the user resolves becomes a gap

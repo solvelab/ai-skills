@@ -323,10 +323,16 @@ be measured. This is the complete wiring; every block is optional, and each hook
 runs it on every prompt, and its output becomes context for that turn. It **informs, never blocks** —
 no tool call is denied, and the user can waive the rite explicitly.
 
-Where the working directory carries `openspec/`, the reminder gains one extra sentence naming the
-spec gate: the item also becomes an OpenSpec change, validated strict before the first edit outside
-`openspec/`. The sentence is conditional on purpose — it never fires in a repo that has no such
-workflow, so the reminder does not teach a step that does not exist there.
+Where the hook finds `openspec/`, the reminder gains one extra sentence naming the spec gate: the
+item also becomes an OpenSpec change, validated strict before the first edit outside `openspec/`. It
+looks in the working directory and, inside a repository, in every directory above it up to the
+repository root — found by walking up to the first `.git`, directory or file, without calling git —
+and the nearest one counts, which is how the `openspec` CLI resolves its own root; a subdirectory
+does not hide its repository's workflow. At a workspace root (outside any repository, with
+repositories as direct subdirectories) the one sentence names the children that carry `openspec/`,
+and says the change is created and validated in that repository. The sentence is conditional on
+purpose — it never fires where no such workflow exists, so the reminder does not teach a step that
+does not exist there.
 
 It stays silent for prompts already inside the rite (`/backlog`, `/execute-backlog`, any slash
 command), for explicit waivers ("sem backlog", "skip the rite"), and for anything that does not look
@@ -380,8 +386,12 @@ Silent when the write is clean. The exits are the ones the `code-locale` skill d
 `# locale-ok: <reason>` on the line or the line above, the token or path in the repository's
 `.identifier-locale-allow`, and `LOCALE_RITE_MODE=inform` in the session's environment (introduced by
 #137 for the write gate, read today by the Stop gate below), which turns a deny back into the advisory
-for the whole session. Where the check itself is missing it exits silently instead of failing,
-because an absent gate must not present itself as an error.
+for the whole session. The denial names that allowlist by its absolute path: the
+`.identifier-locale-allow` the check reads for the written file's repository (the first one at or
+above its root), or `<root>/.identifier-locale-allow` when there is none, so the model never extends
+a file the check does not read nor creates one that shadows an inherited list. Where the check
+itself is missing it exits silently instead of failing, because an absent gate must not present
+itself as an error.
 
 Since #179 the same hook measures the **other half** of the rule where a repository asks for it: a
 `.code-locale` file at the repository root with `prose: pt-BR` (or `en`), found by walking up from
@@ -405,7 +415,11 @@ finds the git work tree the working directory is in, builds the **uncommitted di
 against `HEAD` (or the empty tree in a repository with no commit yet), plus every untracked file the
 repository does not ignore, each as an added file — and runs the same check over it in `--diff` mode,
 honouring the repository's `.identifier-locale-allow` and the check's vendored-path exclusions
-(vendored, empty and binary untracked files are skipped before git is asked). The diff's shape is
+(vendored, empty and binary untracked files are skipped before git is asked). At a workspace root —
+outside any work tree, with work trees as direct subdirectories — it does the same for each child,
+against that child's own allowlist and `.code-locale`: the findings of every child reach one reason,
+each path prefixed with the child's directory, while the allowlist line the reason prints stays
+relative to the child, where its `.identifier-locale-allow` is read. The diff's shape is
 pinned against `~/.gitconfig`: every call runs with `core.quotePath=false`, `--no-ext-diff`,
 `--no-textconv`, `--no-relative` and explicit `a/`/`b/` prefixes, because measured `diff.external`
 (difftastic, delta) left the hook silent, `diff.mnemonicPrefix` reported every finding under a
@@ -423,15 +437,31 @@ returns only a `systemMessage` naming what is still in Portuguese and lets the t
 turn is the last chance, not a loop — whoever read the reason and did not rename has decided. It
 measures only what the turn left uncommitted, so a legacy repository is not judged for what it
 already had; a Portuguese file **moved** without an edit is a rename to git and does not fire. Over
-`MAX_DIFF_LINES` (4000) the rest is not measured and the hook **says so** — in the reason when it has
-findings, and as a block of its own when the measured part is clean, because an unmeasured tail is
-not a clean result (measured before the fix: 5000 clean lines sorting ahead of `servico_cliente.py`
-left the hook silent). A git call that exceeds its timeout makes the hook silent rather than holding
-the turn forever. Silent — no output, exit 0,
-under a second — outside a git work tree, on an empty diff, on advisory-only findings, with
-`LOCALE_RITE_MODE=inform`, and on a payload it cannot read. What it does not see is declared in its
-docstring: a file committed inside the same turn, a repository other than the one `cwd` is in, and
-the event's other name (`SubagentStop`) inside a subagent. Where the work tree root carries
+`MAX_DIFF_LINES` (4000, shared by the children of a workspace root) the rest is not measured and the
+hook **says so** — in the reason when it has findings, and as a block of its own when the measured
+part is clean, because an unmeasured tail is not a clean result (measured before the fix: 5000 clean
+lines sorting ahead of `servico_cliente.py` left the hook silent). The whole measurement also runs
+under one time bound, `TIME_BUDGET` (20 s, below the 30 s the wiring above gives the hook): a
+repository it does not reach in time, or leaves partway through its untracked files, is named as not
+measured, with the same semantics as the line cap; past `MAX_NAMED_CHILDREN` (10) left-out children
+it names the first ten and how many more. A git call that fails, or exceeds its own timeout while
+the bound still runs, skips what it was reading without blocking, rather than holding the turn
+forever: the diff of one untracked file skips that file alone, and its repository still counts as
+measured; any other call skips the whole repository, and the hook is silent when it was the only
+one. A call the bound cut short is not that case: its repository is named as not measured.
+Silent — no output, exit 0 — outside a git work tree when no direct subdirectory is one either, on
+an empty diff, on advisory-only findings, with `LOCALE_RITE_MODE=inform`, and on a payload it cannot
+read. Where it measures, it finishes within that bound rather than within a fixed second, because
+the cost of a clean repository depends on the filesystem it sits on; the docstring declares the
+measured cost and how many children fit in the bound. What it does not see is declared there too: a
+file committed inside the same turn, another repository when the working directory is already inside
+one, a repository more than one level below a workspace root, and the event's other name
+(`SubagentStop`) inside a subagent. So are two side effects of measuring. A child of a workspace
+root runs the clean filters its own config and attributes declare (`filter.<x>.clean`), as
+`git diff` typed there would; only `core.fsmonitor` is pinned off. And `git diff` rewrites the
+measured repository's index, holding `.git/index.lock` for that moment, when two or more tracked
+files are stat-dirty — `GIT_OPTIONAL_LOCKS=0` does not stop it (git 2.47.3), so a concurrent
+`git commit` there can meet the lock. Where the work tree root carries
 `.code-locale` (#179) the same diff is measured by the prose detector as well: a comment or docstring
 in the wrong language blocks in the same reason, a Markdown paragraph is a `systemMessage` that never
 blocks, and a declaration the detector cannot read is named in a message rather than silencing the

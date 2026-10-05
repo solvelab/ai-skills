@@ -1,7 +1,8 @@
 # Spec rite — the gate between the item and the first edit
 
-Applies only to a repo that runs a spec-driven workflow. No such workflow → this file does not
-apply, and step 5 is a no-op.
+Applies only to a repo that runs a spec-driven workflow — the target repo, or each affected repo
+from a workspace root, detected as below. No such repo → this file does not apply, and step 5 is a
+no-op.
 
 The workflow's own lifecycle — proposal format, delta format, when a proposal is required in the
 vanilla doctrine — is **not** restated here. It lives in `openspec`, or in the project's fork
@@ -10,17 +11,36 @@ edited, who decides, and what is written down.
 
 ## Detect the rite before deciding anything
 
+Detect it where it lives for the repository the work targets, never in the cwd alone. In repo mode
+the workflow is the nearest `openspec/` from the cwd up to the git root, inclusive — the CLI's own
+resolution, stopped at the repository — so a subdirectory never hides it. From a workspace root it
+is `<repo>/openspec`, once per affected repository. The CLI takes no path option, so every
+`openspec` command in this file runs from that directory, the `<workflow-dir>` the detection prints:
+run from a workspace root, a bare `openspec list` answers `No active changes found.`, which reads as
+"no workflow", and `openspec validate <id>` answers `Unknown item '<id>'.`
+
 ```bash
-[ -d openspec ] || echo "no spec-driven workflow — step 5 is a no-op"
-grep -m1 '^schema:' openspec/config.yaml     # which schema this repo runs; absent → vanilla
-openspec list                                # changes already active, one may be yours
+# repo mode: from the cwd up to the git root, inclusive; the nearest openspec/ is the workflow
+dir=""; if root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  root="$(cd "$root" && pwd -P)"; dir="$(pwd -P)"   # both through this shell: Git Bash C:/ vs /c/
+  until [ -d "$dir/openspec" ] || [ "$dir" = "$root" ] || [ "$dir" = / ]
+  do dir="$(dirname "$dir")"; done
+else echo 'not inside a repository: workspace mode sets dir="$PWD/<repo>" once per affected repo'
+fi
+# workspace mode: no walk; once per affected repo, dir="$PWD/<repo>" (that repo's root only)
+if [ -z "$dir" ]; then :                            # outside a repository nothing is detected here
+elif [ -d "$dir/openspec" ]; then
+  echo "workflow-dir: $dir"                         # where every openspec command runs from
+  grep -m1 '^schema:' "$dir/openspec/config.yaml"   # which schema it runs; absent → vanilla
+  (cd "$dir" && openspec list)                      # an open change may already cover the work
+else echo "no spec-driven workflow in this repo"; fi
 ```
 
 A forked schema changes the artifacts, not the gate. Read the fork's own skill when one exists, and
 scaffold with it so the mandatory sections come from the repo's template:
 
 ```bash
-openspec new change <change-id> --schema <schema-name>
+(cd <workflow-dir> && openspec new change <change-id> --schema <schema-name>)
 ```
 
 `openspec templates` resolves the **default** schema, not the one in `openspec/config.yaml` — pass
@@ -29,7 +49,9 @@ openspec new change <change-id> --schema <schema-name>
 ## The verdict is inherited, re-checked, and never re-decided quietly
 
 The item created by `backlog` already carries a verdict: the change that will exist, or a written
-waiver and its reason. Re-check it against the surface the context re-analysis just measured.
+waiver and its reason. Re-check it against the surface the context re-analysis just measured. From a
+workspace root the item carries one verdict per affected repo that runs the workflow; each is
+re-checked on its own, and its change is created and validated in that repo.
 
 | Situation | Move |
 |---|---|
@@ -45,7 +67,10 @@ them afterwards. Raising a verdict costs an artifact nobody objects to; lowering
 
 ## Policy comes from the repo, not from this skill
 
-`spec_rite` in the backlog config (`.github/backlog.yml`, or the workspace `backlog.yml`):
+`spec_rite` in the backlog config, read for the repo the work targets — from a workspace root, for
+each affected repo. Which file answers for a repo — file by file in repo mode, key by key from a
+workspace root — is written once in the `backlog` skill: the file
+`skills/backlog/references/backlog-config.md`, *Precedence*.
 
 ```yaml
 spec_rite:
@@ -57,13 +82,14 @@ spec_rite:
 - `triage` — the workflow's own doctrine decides (`openspec`, *When a proposal is required*).
 - `none` — the repo has the workflow but does not gate on it.
 
-Key absent while the workflow is present → treat as `required`. An unstated policy is the absence of
-a decision, not permission to skip.
+Key absent wherever that precedence reads it while the workflow is present → treat as `required`.
+An unstated policy is the absence of a decision, not permission to skip.
 
 ## Before the first edit outside the workflow's directory
 
 ```bash
-openspec validate <change-id> --strict     # the gate, not a formality — fix until green
+# the gate, not a formality — fix until green
+(cd <workflow-dir> && openspec validate <change-id> --strict)
 ```
 
 Green is the precondition for step 6. The plan presented for approval carries the change id, the

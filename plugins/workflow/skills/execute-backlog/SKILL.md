@@ -14,7 +14,7 @@ description: >-
   PRs, for deploying, or for non-GitHub trackers.
 metadata:
   author: solvelab
-  version: 1.9.0
+  version: 1.10.0
   category: process
 license: MIT
 compatibility: >-
@@ -25,15 +25,21 @@ compatibility: >-
 
 # Execute-backlog — backlog item → implemented, validated PR
 
-> **Verified against**: `gh 2.96.0` · `openspec 1.6.0`. Probed on 2026-09-05: the read recipes ran
-> against the AI-SKILLS board and this repository (`gh issue view --json
+> **Verified against**: `gh 2.96.0` · `openspec 1.6.0` · `git 2.47.3`. Probed on 2026-09-05: the
+> read recipes ran against the AI-SKILLS board and this repository (`gh issue view --json
 > closedByPullRequestsReferences`, `gh api repos/<o>/<r>/issues/<n>/timeline --jq`, `gh api
 > graphql`, `gh project item-list --owner --limit --format json --jq`), `gh project item-edit
 > --project-id --id --field-id --single-select-option-id` moved a real card, and `openspec new
 > change <id> --schema <name>` scaffolded a real change; every other flag this skill and its
 > references prescribe (`gh issue edit --body-file`, `gh issue comment --body-file`, `gh pr create
 > --title --body-file --base --head` among the 58 checked) is present in that client's `--help`.
-> Nothing was merged or closed by the probe.
+> Nothing was merged or closed by the probe. Probed on 2026-10-04: the detection in
+> `references/spec-rite.md` ran in throwaway repositories — from a repository root, a subdirectory,
+> a path through a symlink, a linked work tree and a monorepo package it named the nearest
+> `openspec/` up to `git rev-parse --show-toplevel` — and at a workspace root `(cd <repo> && openspec
+> new change <id> --schema <name>)` and `(cd <repo> && openspec validate <id> --strict)` acted on
+> that child, while the same `openspec validate` run from the workspace root answered `Unknown item
+> '<id>'.`
 
 Drive an existing issue to a reviewable pull request while keeping the board in sync. Companion
 to the `backlog` skill; consumes the same config (`.github/backlog.yml` in repo mode,
@@ -102,11 +108,12 @@ it can discover there (tests/lint/build/typecheck).
    repositories section in workspace mode; verify local clones, offer `gh repo clone` for missing
    ones). Collect: current state of cited files, conventions, test setup, related recent changes,
    and the identifier vocabulary the repo already uses for the item's concepts (`code-locale`).
-5. **Spec rite** — repo with a spec-driven workflow only; skip when there is none. Detect it and
-   the schema it runs, re-check the item's verdict against the surface the re-analysis just
-   measured, and — when the verdict requires it — create the change and validate it strict before
-   step 6. Raising a verdict needs no permission; lowering one does. Full protocol, detection
-   commands and archive timing: `references/spec-rite.md`.
+5. **Spec rite** — repo with a spec-driven workflow only, detected for the target repository —
+   from a workspace root, in each affected repository; skip when none of them runs one. Detect it
+   and the schema it runs, re-check the item's verdict against the surface the re-analysis just
+   measured, and — when the verdict requires it — create the change and validate it strict, in that
+   repository, before step 6. Raising a verdict needs no permission; lowering one does. Full
+   protocol, detection commands and archive timing: `references/spec-rite.md`.
 6. **Implementation plan** — present: interpretation of the item, files to change per repo, the
    Glossary, test strategy, validations to run, risks, estimated blast radius. When the item ships a
    runtime artifact — a skill, a hook, a script someone runs — the plan also names **how it will be

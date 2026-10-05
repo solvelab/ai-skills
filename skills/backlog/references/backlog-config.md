@@ -8,8 +8,21 @@ Two files, same schema. Field *names* only — IDs are resolved at runtime, neve
 | Workspace | `backlog.yml` (workspace root) | cwd is a directory whose subdirectories are git repos of one org |
 
 **Precedence**: inside a repo, the repo's own `.github/backlog.yml` wins; if absent, inherit the
-workspace `backlog.yml` from the parent directory (if any). Commit the file — teammates inherit the
-setup on clone; it contains no secrets (auth is each user's own `gh` login).
+workspace `backlog.yml` from the parent directory (if any). That rule is file by file, and in repo
+mode it covers `spec_rite` too: the file that wins answers for it, so a repo file without
+`spec_rite` means `required` and the parent's file is not consulted for that key. Only in workspace
+mode is `spec_rite` resolved key by key, for each affected repo, so the policy a child answers to
+does not depend on the session running from the workspace root. A level that does not declare the
+key — no file, or a file without `spec_rite` — passes to the next:
+
+| Order | `spec_rite` of an affected repo, workspace mode only, comes from |
+|---|---|
+| 1 | the affected repo's own `.github/backlog.yml` |
+| 2 | the workspace `backlog.yml` in the cwd |
+| 3 | neither declares it and the repo runs the workflow ⇒ `policy: required` (*Spec rite* below) |
+
+Commit the file — teammates inherit the setup on clone; it contains no secrets (auth is each user's
+own `gh` login).
 
 ## Repo mode example
 
@@ -84,9 +97,11 @@ spec_rite:
 | `triage` | The workflow's own doctrine decides — `openspec`, *When a proposal is required* |
 | `none` | The repository carries the workflow but does not gate on it |
 
-**Key absent while the workflow is present ⇒ `required`.** An unstated policy is the absence of a
-decision, not permission to skip. No workflow present ⇒ the whole gate is a no-op and the drafted
-item carries no spec section.
+**Key absent from the file that answers — at every level of the table above, in workspace mode —
+while the workflow is present ⇒ `required`.** An unstated policy is the absence of a decision, not
+permission to skip. No target repo runs the workflow ⇒ the whole gate is a no-op and the drafted
+item carries no spec section; in workspace mode an affected repo without the workflow carries no
+verdict.
 
 The verdict this key produces is consumed by the `execute-backlog` skill (its protocol is the file
 `skills/execute-backlog/references/spec-rite.md` in that skill), which re-checks it and may raise it.
