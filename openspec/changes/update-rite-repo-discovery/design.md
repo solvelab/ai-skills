@@ -270,6 +270,11 @@ primeiro passa a dizer "of the written file's repository"; o resultado esperado 
   A saída é a de qualquer clone alheio (allowlist do filho, `LOCALE_RITE_MODE=inform`); o motivo do
   bloqueio nomeia o filho, e excluir diretórios ocultos fica como decisão do usuário, não como
   redefinição silenciosa de TR2.
+- **Medir um filho roda o que a config dele declara** -> toda chamada git do Stop gate leva
+  `-c core.fsmonitor=false` (medido no git 2.47.3: `git diff HEAD` roda o `core.fsmonitor` da config
+  do repositório). Os filtros `clean` que o filho declara ainda rodam, e o `git diff` reescreve o
+  índice dele quando dois ou mais arquivos rastreados estão com stat sujo, mesmo com
+  `GIT_OPTIONAL_LOCKS=0`; os dois ficam declarados no docstring, achados pela caça a bugs.
 - **Os hooks vivos mudam para toda sessão no merge** -> ver Migration Plan.
 
 ## Migration Plan

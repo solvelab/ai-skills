@@ -328,15 +328,25 @@
       mantenedor diz que o marketplace é o diretório local `~/ai-skills`, mas a config aponta para
       `github` `solvelab/ai-skills` com cache em 3.4.0 — configuração pessoal, fora do rito; (7) excluir
       diretórios ocultos (`~/.oh-my-zsh`) da definição de workspace dos hooks — decisão do usuário,
-      registrada em design.md *Risks*, não feita aqui.
+      registrada em design.md *Risks*, não feita aqui; (8) os limites que a caça a bugs deixou
+      declarados, listados em S.3.
 
 ## 2. Hooks
 
-- [ ] 2.1 `backlog-rite.py`: `find_repo_root` (subida até a primeira `.git`, diretório ou arquivo, sem
+- [x] 2.1 `backlog-rite.py`: `find_repo_root` (subida até a primeira `.git`, diretório ou arquivo, sem
       git), `child_repos` (filhos diretos com `.git`, em ordem de nome), `WORKSPACE_SPEC_RITE`, e os
       quatro ramos de D3 — o primeiro olha `openspec/` em cada nível do `cwd` até a raiz, o mais
       próximo vale; docstring (`:8-12`, `:43-50`) diz onde o workflow é procurado
-- [ ] 2.2 `backlog-rite.py --selftest`: `.git` nas fixtures `with-rite` e `without-rite` (os 16 casos
+
+      Feito em `claude/global/hooks/backlog-rite.py`: `WORKSPACE_SPEC_RITE` (`:136`),
+      `find_repo_root` (`:148`), `child_repos` (`:165`) e `spec_sentence` (`:188`), com os quatro
+      ramos na ordem de D3; o docstring diz onde o workflow é procurado e o KNOWN LIMIT. Da caça a
+      bugs: `child_repos` ganhou guarda por entrada, porque um symlink em loop ao lado de um filho
+      esvaziava a lista inteira (`os.scandir` + `is_dir()` -> `OSError: [Errno 40] Too many levels of
+      symbolic links`, Python 3.14.5); e o KNOWN LIMIT diz que uma raiz de workspace com `openspec/`
+      própria fica com a frase do repositório (o ramo 2 de D3), o que o cenário do spec delta agora diz
+      com todas as letras.
+- [x] 2.2 `backlog-rite.py --selftest`: `.git` nas fixtures `with-rite` e `without-rite` (os 16 casos
       mantêm nome e resultado); casos novos — subpasta de repo com `openspec/` na raiz (frase), subpasta
       de repo sem (sem frase), subpasta que carrega `openspec/` abaixo de uma raiz que não carrega
       (frase, como hoje), raiz de workspace com um filho que tem `openspec/` (frase nomeando só
@@ -344,15 +354,43 @@
       (a primeira `.git` vence), diretório fora de repo com `openspec/` (frase); os que precisam de "fora
       de qualquer repositório" imprimem `SKIP` com o motivo quando o `TMPDIR` está dentro de um
       repositório
-- [ ] 2.3 `locale-rite.py`: `write_root` serve `findings_for` e `prose_findings_for` (D4);
+
+      `python3 claude/global/hooks/backlog-rite.py --selftest` -> `selftest OK: 28 decisions, 6
+      malformed payloads, plus the output shape`. As 24 linhas de caso da base (`11b82cf`) estão todas
+      na saída nova, na mesma ordem (24/24). Novos: os 8 da lista, mais `openspec/` num nível entre o
+      `cwd` e a raiz, `cwd` com NUL, symlink em loop ao lado de um filho e raiz de workspace com
+      `openspec/` própria. Com o `TMPDIR` dentro de um `git init` -> `selftest OK: 23 decisions (5
+      skipped: the temporary directory sits inside a repository)`. Mutantes, cada um numa cópia fora
+      da worktree: a subida que olha só o `cwd` e a raiz, a compreensão antiga de `child_repos` e o
+      ramo 3 antes do 2 -> uma linha `FAILED` em cada.
+- [x] 2.3 `locale-rite.py`: `write_root` serve `findings_for` e `prose_findings_for` (D4);
       `declared_prose` sem mudança; docstring diz de qual repositório saem a allowlist e o caminho
-- [ ] 2.4 `locale-rite.py --selftest`: `.git` nas fixtures da allowlist e do legado (rótulo da
+
+      Feito em `claude/global/hooks/locale-rite.py`: `write_root` (`:308`) serve `findings_for` e
+      `prose_findings_for`; `declared_prose` sem mudança; o docstring diz que a allowlist e o caminho
+      medido saem do repositório do arquivo escrito. Da caça a bugs: a saída (2) da negação nomeia a
+      allowlist pelo caminho absoluto (`allowlist_file`, `:327`), a que `load_allowlist` lê para
+      aquela raiz, ou `<raiz>/.identifier-locale-allow` quando não há nenhuma. Da raiz do workspace ou
+      de uma subpasta, o arquivo do `cwd` não é o lido, e a saída genérica levava a uma segunda
+      tentativa às cegas.
+- [x] 2.4 `locale-rite.py --selftest`: `.git` nas fixtures da allowlist e do legado (rótulo da
       allowlist: "of the written file's repository"); casos novos — `cwd` numa subpasta e `Write` em
       `crates/core/src/servicos/x.rs` do mesmo repo (`deny`, `path-pt-noun` em `servicos`, caminho
       relativo à raiz), `cwd` na raiz de workspace e `Write` num filho cuja allowlist lista o nome
       (mudo nos dois eventos), o mesmo sem a entrada (`deny` com o caminho relativo ao filho), `.git`
       arquivo, arquivo fora de qualquer repo (allowlist do `cwd`, com `SKIP` guardado)
-- [ ] 2.5 `locale-stop-gate.py`: `rev-parse` `None` continua mudo, código de saída diferente de zero
+
+      `python3 claude/global/hooks/locale-rite.py --selftest` -> `selftest OK: 13 PostToolUse
+      decisions, 12 PreToolUse decisions, ..., 7 repository-root decisions, both envelopes, the
+      environment, the argv contract and 22 prose decisions with and without .code-locale`. As 63
+      linhas de caso da base estão todas lá, na mesma ordem (63/63), com o rótulo da allowlist trocado
+      para "of the written file's repository". Novos: os cinco da lista; a saída (2) nomeando a
+      allowlist do filho (acrescentar ali a linha que o motivo imprime deixa a escrita passar) e a
+      herdada de cima, nunca uma nova que a sombreie; e um caso de prosa a partir de uma subpasta
+      irmã, que nomeia `orders/total.py:1:` a partir da raiz. Mutantes em cópia: o texto antigo da
+      saída (2), `allowlist_file` sem a subida, e `prose_findings_for` de volta à raiz do `cwd` (este
+      passava no selftest inteiro antes do caso novo) -> `FAILED` em cada um.
+- [x] 2.5 `locale-stop-gate.py`: `rev-parse` `None` continua mudo, código de saída diferente de zero
       lista `child_repos` (o repositório que o git não abre fica no KNOWN LIMIT, D5); cada filho por
       `uncommitted_diff`, `gating_findings` e `prose_findings` na raiz dele; achados prefixados por
       `<filho>/` no motivo e em `brief`, dica da allowlist relativa ao filho, e o `FOOTER` diz que a
@@ -363,7 +401,20 @@
       meio declarado não medido, nunca pulado; `FOOTER` e `UNMEASURED_REASON` reescritos (D5);
       docstring: KNOWN LIMIT `:99`, `:111-114`, custo medido por repositório e quantos filhos cabem no
       prazo
-- [ ] 2.6 `locale-stop-gate.py --selftest`: os 41 casos sem mudança; casos novos na raiz de um
+
+      Feito em `claude/global/hooks/locale-stop-gate.py`: `TIME_BUDGET = 20` (`:233`), `OutOfTime` e
+      `run_git` com prazo absoluto (`:376`, `:381`), `child_repos` (`:400`), `uncommitted_diff`
+      devolvendo as linhas e o motivo da parada (`:435`) e `evaluate` (`:567`) medindo cada filho na
+      raiz dele, com `MAX_DIFF_LINES` compartilhado; filho não alcançado ou interrompido sai nomeado
+      como não medido. O docstring traz o custo medido, inclusive 1,53-1,89 s em 6 corridas na raiz
+      real do Mantis (3 filhos, 9p). Da caça a bugs: `-c core.fsmonitor=false` em `GIT_PIN` (`:249`;
+      medido no git 2.47.3: `git diff HEAD` roda o `core.fsmonitor` da config do repositório, e com a
+      flag não roda); guarda por entrada em `child_repos`; filho cuja allowlist ou `.code-locale` não
+      se lê (cp1252, modo 000) é pulado sozinho, sem calar os irmãos; `MAX_NAMED_CHILDREN = 10`
+      (`:241`) na lista dos não medidos, porque 71 nomes empurravam o `FOOTER` além dos 2000
+      caracteres; o docstring diz que o diff de um arquivo não rastreado que falha pula só aquele
+      arquivo; e declara os filtros `clean` e o `index.lock` (ver S.3).
+- [x] 2.6 `locale-stop-gate.py --selftest`: os 41 casos sem mudança; casos novos na raiz de um
       workspace de fixture — arquivo não rastreado em português num filho (`block` com
       `<filho>/servico_cliente.py`), um arquivo cujo único achado é o nome com a linha que o motivo
       imprime acrescentada à allowlist do filho (mudo; com `<filho>/...` na allowlist, continua
@@ -373,9 +424,20 @@
       mensagem no Stop seguinte, nunca um filho parcial dado como medido), diretório filho sem `.git`
       ignorado
 
+      `python3 claude/global/hooks/locale-stop-gate.py --selftest` -> `selftest OK: 64 decisions in
+      temporary git repositories and workspace roots (the prose direction with and without
+      .code-locale, the shared line cap and the time bound included), 2 output shapes, 5 malformed
+      payloads, plus the argv contract`. As 64 linhas de caso da base estão todas lá, na mesma ordem
+      (64/64). Novos: os da lista, mais symlink em loop, allowlist que não é UTF-8 e em modo 000,
+      `core.fsmonitor` de um filho que não roda, e 71 filhos deixados de fora com o motivo dentro do
+      teto. Tempo: 6,33 / 6,47 / 6,58 s em sequência (6,02-6,04 s antes desta rodada); 12 corridas
+      concorrentes -> `rcs [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]`. Mutantes em cópia: `GIT_PIN` sem a
+      flag, a compreensão antiga, sem o catch por filho, o catch só de `ValueError` e a lista sem
+      teto -> `FAILED` em cada um.
+
 ## 3. Skills, README e cópias geradas
 
-- [ ] 3.1 `skills/backlog/SKILL.md` passo 6: detecção onde o workflow vive para o repositório alvo
+- [x] 3.1 `skills/backlog/SKILL.md` passo 6: detecção onde o workflow vive para o repositório alvo
       (em modo repo, o `openspec/` mais próximo do `cwd` até a raiz git — D6; em modo workspace, a raiz
       de cada repositório afetado), `openspec list` com esse diretório como diretório de trabalho;
       `references/backlog-config.md`: precedência de `spec_rite` por repositório afetado — por chave
@@ -383,14 +445,43 @@
       arquivo de `:10-12`, que vale para o resto da config;
       `references/issue-template.md`: um veredito por repositório afetado que roda o workflow;
       `metadata.version` 1.5.2 -> 1.6.0
-- [ ] 3.2 `skills/execute-backlog/references/spec-rite.md`: *Detect the rite* com a mesma regra de
+
+      Feito. Passo 6: a detecção onde o workflow vive (modo repo, o `openspec/` mais próximo do `cwd`
+      até a raiz git; modo workspace, `<repo>/openspec` de cada afetado), com `openspec list` rodando
+      de lá. `references/backlog-config.md`: a precedência de `spec_rite` por chave só em modo
+      workspace, como D6 diz. A primeira versão a estendia ao modo repo, o que afrouxava o
+      `required` sem aprovação, e foi revertida. `references/issue-template.md`: um veredito por
+      repositório afetado. `metadata.version` 1.5.2 -> 1.6.0. Da caça a bugs, o bloco de detecção:
+      fora de qualquer repositório não sobe mais até `/` (respondia "no spec-driven workflow in this
+      repo") e diz que o modo workspace define `dir="$PWD/<repo>"`; e a raiz passa por `cd "$root" &&
+      pwd -P`, para o Git Bash (`C:/` contra `/c/`). No harness do bloco extraído, o velho contra o
+      novo: os casos (1) raiz de workspace e (5) raiz por symlink mudam de resultado, 2 de 2; os casos
+      (2) subpasta, (3) monorepo e (4) repo sem workflow ficam iguais, 3 de 3.
+- [x] 3.2 `skills/execute-backlog/references/spec-rite.md`: *Detect the rite* com a mesma regra de
       3.1, comandos com esse diretório como diretório de trabalho, *Policy comes from the repo* com a
       precedência por repositório afetado (link para `backlog-config.md`); passo 5 do `SKILL.md`: a
       cláusula de workspace que FR4 pede (D6); `metadata.version` 1.9.0 -> 1.10.0
-- [ ] 3.3 `README.md` `:326`, `:403-404`, `:430-434`: onde o workflow é procurado, os filhos do
+
+      Feito. *Detect the rite* carrega o mesmo bloco de 3.1, idêntico depois de tirar a indentação
+      (`sha1sum` -> `eaaf4338ce486feafb306bac3b21d755f61995f9` nos dois); todo comando `openspec` roda
+      de `<workflow-dir>`; *Policy comes from the repo* linka a precedência de `backlog-config.md`;
+      o passo 5 do `SKILL.md` ganhou a cláusula de workspace (D6); `metadata.version` 1.9.0 -> 1.10.0.
+- [x] 3.3 `README.md` `:326`, `:403-404`, `:430-434`: onde o workflow é procurado, os filhos do
       workspace no Stop gate, "under a second" e a lista do que escapa
-- [ ] 3.4 `bash generate.sh` e commit de tudo que `git status --porcelain --untracked-files=all`
+
+      Feito, e mais o que a caça a bugs mudou: a saída (2) do write gate nomeia a allowlist pelo
+      caminho absoluto; o diff de um arquivo não rastreado que falha pula só aquele arquivo; a lista
+      dos filhos não medidos para em 10 nomes; e os dois efeitos de medir um filho (filtros `clean` e
+      `index.lock`). `git diff -U0 -- README.md claude/global/hooks skills | python3
+      skills/code-locale/references/check-prose-locale.py --diff - --prose en` -> `findings: 0`.
+- [x] 3.4 `bash generate.sh` e commit de tudo que `git status --porcelain --untracked-files=all`
       mostrar (`plugins/`, `claude/skills/`, `cursor/rules/`, `codex/`, `copilot/`)
+
+      `bash generate.sh` -> `Generated wrappers for 40 skills` / `Generated 11 category plugins in
+      plugins/`; `diff -r skills/<s> plugins/workflow/skills/<s>` para `backlog` e `execute-backlog`
+      -> sem saída; o passo "Wrappers in sync" da CI num clone descartável com tudo commitado ->
+      `untracked: 0` e `git diff --exit-code` com rc=0. `codex/` e `copilot/` não carregam essas
+      skills. Os arquivos gerados vão no commit das skills.
 
 ## 4. Simulation & Field Proof (MANDATORY)
 
@@ -412,39 +503,114 @@
        S.3  names what escaped or misbehaved, or states explicitly that nothing did
      The gate cannot tell a real observation from an invented one — that is still the reviewer's job. -->
 
-- [ ] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
+- [x] S.1 The artifact was exercised through its real entry point; the command and a fragment of the
       observed output are recorded (or: this change touches no runtime artifact)
-- [ ] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
+
+      Os hooks pelo stdin, como o harness os chama, e o harness real em sessões `claude -p` com os
+      hooks da worktree e `--plugin-dir` (o plugin 3.5.1 inline, nenhum do cache 3.4.0). `bash
+      probe-261.sh <worktree>` na raiz do workspace do Mantis -> `backlog-rite spec sentence: absent`
+      virou `present`, e o write gate passou a medir o caminho a partir da raiz do filho: `deny ["
+      crates/core/src/servicos/x.rs: servicos  [path-pt-noun: 'servicos']"]` (antes
+      `mantis-computer/crates/...`). A frase observada ali -> `Repos in this workspace that run a
+      spec-driven rite (openspec/): mantis-brain, mantis-computer, mantis-contracts.` O Stop gate na
+      raiz real -> mudo, 1,53-1,89 s em 6 corridas, e a introspecção das chamadas git mostra os três
+      filhos medidos (antes desta change saía sem medir em 0,07-0,08 s). Pelo harness, na réplica em
+      tmpfs -> `"permissionDecision": "deny"` para `crates/core/src/servicos/x.rs` e `{"decision":
+      "block", ...}` no Stop com `mantis-computer/servico_cliente.py`. Na raiz real, `/ai-skills-workflow:backlog`
+      para um item do `mantis-computer` -> o modelo leu `mantis-computer/.github/backlog.yml` e
+      escreveu `Workspace mode, mas o item é só do mantis-computer; a config do repo (spec_rite
+      required) vale`, e a seção Spec rite do rascunho saiu com `política required`.
+- [x] S.2 Case matrix measured, as counts: cases that had to fire and did, cases that had to stay
       silent and did, known escapes that stayed silent
-- [ ] S.3 What escaped or behaved differently than expected is named here — or it is stated
+
+      Pelo harness, 6 sessões: dispararam 6/6 (o lembrete com a frase de workspace na réplica e na
+      raiz real, o deny de `servicos`, o block do Stop, a mensagem do Stop seguinte e a seção Spec
+      rite com `required` na raiz real); ficaram mudos 5/5 (o Stop limpo nas duas raízes e as três
+      escritas permitidas: nome em inglês, a allowlist do filho e o nome que ela passou a listar);
+      escapes conhecidos mudos 2/2 (repositório dois níveis abaixo da raiz e `cwd` noutro
+      repositório). Fixtures pelos hooks, `fixtures-261.py`: 13/13 no veredito esperado (7/13 antes).
+      Casos novos da caça a bugs: 10 de 10 mutantes pegos pelos selftests (2 no `backlog-rite`, 3 no
+      `locale-rite`, 5 no Stop gate); no harness do bloco das skills, 2/2 casos mudam de resultado e
+      3/3 ficam iguais.
+- [x] S.3 What escaped or behaved differently than expected is named here — or it is stated
       explicitly that nothing did
+
+      Diferente do esperado: (1) o plano esperava a frase da raiz nomeando só o `mantis-computer`; ela
+      nomeia os três, porque `mantis-brain` e `mantis-contracts` ganharam `openspec/` na fase 3, e
+      isso é o que D3 pede. (2) No AC5 a seção Spec rite saiu na forma de um repositório só, sem a
+      origem da policy na própria seção; o modelo leu o `.github/backlog.yml` do filho e a policy
+      está certa. (3) A caça a bugs achou 14 ataques. Corrigidos aqui: `core.fsmonitor` de um filho
+      rodando no Stop, um filho ilegível calando os outros, a saída (2) sem dizer qual allowlist, a
+      lista de filhos estourando o motivo, a ambiguidade do cenário de workspace, o bloco das skills
+      subindo até `/` fora de repositório, o symlink em loop, o docstring dizendo "pula o
+      repositório" onde o código pula um arquivo, e a raiz do Git Bash (simulada com symlink; não
+      rodada no Windows). Declarados, não corrigidos: filtros `clean` da config de um filho ainda
+      rodam; `git diff` reescreve o índice do filho mesmo com `GIT_OPTIONAL_LOCKS=0` (git 2.47.3);
+      contêiner de bare repo com worktrees é lido de um jeito por cada hook; listar os filhos não
+      conta no prazo; clones ocultos (`~/.oh-my-zsh`) entram primeiro na ordem (decisão do usuário,
+      em *Risks*); TMPDIR `noexec` faz os casos de prazo falharem em vez de pular; nomes de filho
+      muito longos ou muitos `.code-locale` quebrados ainda podem passar do teto. (4) O harness mostra
+      um block do Stop como `Stop hook error occurred` e o deny como `PreToolUse:Write hook error`,
+      embora o hook saia com 0; cosmético, não vem desta change. (5) Um `git fetch` de outro processo
+      regravou `mantis-computer/.git/FETCH_HEAD` às 22:26:10 durante as corridas; árvore, índice e
+      `git status` ficaram idênticos antes e depois.
 
 ## 5. Quality Gates (MANDATORY)
 
 <!-- Adversarial review of the skills touched — not happy-path. Every skill added or edited
      by this change gets checked against the skills-authoring spec. Keep this group second-to-last. -->
 
-- [ ] Q.1 Frontmatter uniform on every touched SKILL.md: name == directory, folded description,
+- [x] Q.1 Frontmatter uniform on every touched SKILL.md: name == directory, folded description,
       metadata.author solvelab, semver metadata.version, category in the controlled set, license MIT,
       compatibility present
-- [ ] Q.2 All touched skill content in English (catalog locale)
-- [ ] Q.3 Description triggers testable: phrases a user would actually say route to this skill and
+
+      O laço "Skill frontmatter checks" da CI, rodado de uma cópia do passo -> `frontmatter checks
+      fail=0` e `version coherence ok=1 (3.5.1)`; `python3 scripts/validate-skills.py` -> `skills
+      checked: 40   findings: 0`; `uvx --from skills-ref==0.1.1 agentskills validate` nas 40 skills ->
+      40 com rc=0.
+- [x] Q.2 All touched skill content in English (catalog locale)
+
+      `git diff -U0 -- README.md claude/global/hooks skills | python3
+      skills/code-locale/references/check-prose-locale.py --diff - --prose en` -> `findings: 0`.
+- [x] Q.3 Description triggers testable: phrases a user would actually say route to this skill and
       do NOT collide with a sibling skill's triggers; "Do NOT use for" boundary present where overlap exists
-- [ ] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
+
+      Description untouched by this change: `git diff -U0 -- skills/backlog/SKILL.md
+      skills/execute-backlog/SKILL.md | grep -c '^[-+]description'` -> `0`.
+- [x] Q.4 No duplicated doctrine: every cross-cutting rule restated inline was replaced by a link to
       its canonical skill (see design.md Canonical Home table)
-- [ ] Q.5 Every code example in a touched skill uses English identifiers, routes, keys and event
+
+      A precedência de `spec_rite` está escrita uma vez, em `backlog-config.md`, e `spec-rite.md` a
+      linka. O protocolo do gate continua só em `spec-rite.md`; o passo 6 do `backlog` roda o mesmo
+      bloco de detecção, idêntico (sha1 `eaaf4338ce486feafb306bac3b21d755f61995f9` nos dois), e linka
+      o protocolo em vez de reescrevê-lo, como a tabela Canonical Home de design.md manda.
+- [x] Q.5 Every code example in a touched skill uses English identifiers, routes, keys and event
       names; a term kept in another language carries its reason inline (`code-locale`).
       Provenance: maintainer field report 2026-08-14 (issue #76) — Portuguese identifiers and route
       paths shipped in target repos through this rite. Regression gate on the exemplar: the model
       imitates the code it is shown
 
+      `python3 skills/code-locale/references/check-identifier-locale.py --markdown-fences
+      skills/backlog skills/execute-backlog` -> `findings: 0` (5 segmentos `en-unknown`, só
+      advisory); o mesmo sem a flag em `claude/global/hooks/*.py` -> `findings: 0` (`repos`, de
+      `child_repos`, e o `chdir` que já existia, advisory).
+
 ## 6. Validation & Closure (MANDATORY)
 
 <!-- Always the last group. "Done" is verifiable, not an opinion. -->
 
-- [ ] V.1 `openspec validate update-rite-repo-discovery --strict` green
-- [ ] V.2 Catalog discovery intact: `npx skills add <repo> --list` finds every skill, expected count,
+- [x] V.1 `openspec validate update-rite-repo-discovery --strict` green
+
+      `openspec validate update-rite-repo-discovery --strict` -> `Change 'update-rite-repo-discovery'
+      is valid`.
+- [x] V.2 Catalog discovery intact: `npx skills add <repo> --list` finds every skill, expected count,
       no orphan/renamed leftovers
-- [ ] V.3 README / docs updated where the change alters catalog composition or usage
+
+      `npx -y skills add /home/diegops/worktrees/ai-skills-261 --list` -> `Found 40 skills`, `backlog`
+      entre elas; `ls skills | wc -l` -> `40`. Nenhuma skill entrou, saiu ou mudou de nome.
+- [x] V.3 README / docs updated where the change alters catalog composition or usage
+
+      O catálogo não muda de composição; o uso muda, e o `README.md` diz onde o workflow é procurado e
+      como os hooks se comportam da raiz de um workspace (3.3).
 - [ ] V.4 `openspec archive update-rite-repo-discovery --yes` after all groups above are `[x]` — PR
       separado, como o repositório já faz

@@ -98,12 +98,12 @@ or failing on the runner's layout.
 #### Scenario: A workspace root names the repositories that run the spec rite
 
 - **WHEN** the prompt matches a code-change signal and the working directory is outside any
-  repository, with repositories as its direct subdirectories, and at least one of them carries the
-  spec-driven workflow's directory at its root
+  repository, does not carry the spec-driven workflow's directory itself, has repositories as its
+  direct subdirectories, and at least one of them carries that directory at its root
 - **THEN** the reminder carries one spec sentence naming each such repository and none that lacks the
   workflow
-- **AND** the same prompt at a workspace root where no child runs the workflow produces the reminder
-  without the spec sentence, as before
+- **AND** the same prompt at a workspace root that does not carry the workflow's directory itself,
+  where no child runs the workflow, produces the reminder without the spec sentence, as before
 
 #### Scenario: A linked work tree or a submodule is a repository root
 
